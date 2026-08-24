@@ -39,29 +39,29 @@ interface OverviewTabProps {
 }
 
 const PERFORMANCE_30D = [
-  { date: '23 Apr', txValue: 28, activeUsers: 2.4 },
-  { date: '28 Apr', txValue: 38, activeUsers: 3.6 },
-  { date: '3 May', txValue: 54, activeUsers: 4.8 },
-  { date: '8 May', txValue: 68, activeUsers: 5.9 },
-  { date: '13 May', txValue: 88, activeUsers: 7.8 },
-  { date: '18 May', txValue: 82, activeUsers: 6.9 },
-  { date: '23 May', txValue: 92, activeUsers: 8.2 },
+  { date: '18 Aug', txValue: 0, activeUsers: 0 },
+  { date: '19 Aug', txValue: 0, activeUsers: 0 },
+  { date: '20 Aug', txValue: 0, activeUsers: 0 },
+  { date: '21 Aug', txValue: 0, activeUsers: 0 },
+  { date: '22 Aug', txValue: 0, activeUsers: 0 },
+  { date: '23 Aug', txValue: 0, activeUsers: 0 },
+  { date: '24 Aug', txValue: 0, activeUsers: 0 },
 ]
 
 const PERFORMANCE_6M = [
-  { date: 'Mar', txValue: 35, activeUsers: 3.8 },
-  { date: 'Apr', txValue: 52, activeUsers: 5.1 },
-  { date: 'May', txValue: 74, activeUsers: 6.9 },
-  { date: 'Jun', txValue: 88, activeUsers: 8.4 },
-  { date: 'Jul', txValue: 110, activeUsers: 10.2 },
-  { date: 'Aug', txValue: 128, activeUsers: 12.8 },
+  { date: 'Mar', txValue: 0, activeUsers: 0 },
+  { date: 'Apr', txValue: 0, activeUsers: 0 },
+  { date: 'May', txValue: 0, activeUsers: 0 },
+  { date: 'Jun', txValue: 0, activeUsers: 0 },
+  { date: 'Jul', txValue: 0, activeUsers: 0 },
+  { date: 'Aug', txValue: 0, activeUsers: 0 },
 ]
 
 const PERFORMANCE_12M = [
-  { date: 'Q1', txValue: 90, activeUsers: 4.2 },
-  { date: 'Q2', txValue: 180, activeUsers: 7.6 },
-  { date: 'Q3', txValue: 290, activeUsers: 10.5 },
-  { date: 'Q4', txValue: 420, activeUsers: 12.8 },
+  { date: 'Q3', txValue: 0, activeUsers: 0 },
+  { date: 'Q4', txValue: 0, activeUsers: 0 },
+  { date: 'Q1', txValue: 0, activeUsers: 0 },
+  { date: 'Q2', txValue: 0, activeUsers: 0 },
 ]
 
 export function OverviewTab({ adminName, onOpenReviewQueue, onNavigateTab }: OverviewTabProps) {
@@ -69,6 +69,17 @@ export function OverviewTab({ adminName, onOpenReviewQueue, onNavigateTab }: Ove
   const [timeRange, setTimeRange] = useState<'30D' | '6M' | '12M'>('30D')
   const [regionFilter, setRegionFilter] = useState('ALL')
   const [opportunityTypeFilter, setOpportunityTypeFilter] = useState('ALL')
+
+  const totalUsers = 0
+  const verifiedBusinesses = 0
+  const liveOpportunities = 0
+  const platformRevenueTZS = 0
+
+  const pendingVerifications = 0
+  const pendingDeals = 0
+  const pendingPayouts = 0
+  const flaggedFraud = 0
+  const totalReviewItems = pendingVerifications + pendingDeals + pendingPayouts + flaggedFraud
 
   const chartData =
     timeRange === '30D'
@@ -99,7 +110,7 @@ export function OverviewTab({ adminName, onOpenReviewQueue, onNavigateTab }: Ove
                 'Executive summary (PDF/CSV) with 30-day KPIs and metrics generated.'
               )
             }
-            className="py-2 px-3.5 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl shadow-2xs hover:bg-slate-50 flex items-center gap-1.5 transition-colors"
+            className="py-2 px-3.5 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl shadow-2xs hover:bg-slate-50 flex items-center gap-1.5 transition-colors cursor-pointer"
           >
             <Download className="w-3.5 h-3.5" />
             <span>Export Report</span>
@@ -108,10 +119,10 @@ export function OverviewTab({ adminName, onOpenReviewQueue, onNavigateTab }: Ove
           <button
             type="button"
             onClick={() => onOpenReviewQueue('ALL')}
-            className="py-2 px-4 bg-[#0B132B] hover:bg-slate-800 text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center gap-2"
+            className="py-2 px-4 bg-[#0B132B] hover:bg-slate-800 text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
           >
             <Layers className="w-4 h-4 text-[#FF6A00]" />
-            <span>Open Review Queue (43)</span>
+            <span>Open Review Queue ({totalReviewItems})</span>
           </button>
         </div>
       </div>
@@ -166,17 +177,16 @@ export function OverviewTab({ adminName, onOpenReviewQueue, onNavigateTab }: Ove
               <span className="text-[11px] sm:text-xs font-bold text-slate-500 dark:text-slate-400">
                 Total Users
               </span>
-              <div className="text-2xl sm:text-3xl font-black text-[#0F172A] dark:text-white">
-                12,846
+              <div className="text-2xl sm:text-3xl font-black text-[#0F172A] dark:text-white font-mono">
+                {totalUsers}
               </div>
             </div>
             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 flex items-center justify-center shrink-0">
               <Users className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
           </div>
-          <div className="text-[11px] sm:text-xs font-bold text-emerald-600 flex items-center gap-1">
-            <span>↑ 8.2%</span>
-            <span className="text-slate-400 font-normal">vs last 30 days</span>
+          <div className="text-[11px] sm:text-xs font-bold text-slate-400 flex items-center gap-1">
+            <span>Live verified accounts</span>
           </div>
         </div>
 
@@ -190,17 +200,16 @@ export function OverviewTab({ adminName, onOpenReviewQueue, onNavigateTab }: Ove
               <span className="text-[11px] sm:text-xs font-bold text-slate-500 dark:text-slate-400">
                 Verified Businesses
               </span>
-              <div className="text-2xl sm:text-3xl font-black text-[#0F172A] dark:text-white">
-                326
+              <div className="text-2xl sm:text-3xl font-black text-[#0F172A] dark:text-white font-mono">
+                {verifiedBusinesses}
               </div>
             </div>
             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center shrink-0">
               <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
           </div>
-          <div className="text-[11px] sm:text-xs font-bold text-emerald-600 flex items-center gap-1">
-            <span>↑ 5.6%</span>
-            <span className="text-slate-400 font-normal">vs last 30 days</span>
+          <div className="text-[11px] sm:text-xs font-bold text-slate-400 flex items-center gap-1">
+            <span>BRELA & TIN validated</span>
           </div>
         </div>
 
@@ -214,17 +223,16 @@ export function OverviewTab({ adminName, onOpenReviewQueue, onNavigateTab }: Ove
               <span className="text-[11px] sm:text-xs font-bold text-slate-500 dark:text-slate-400">
                 Live Opportunities
               </span>
-              <div className="text-2xl sm:text-3xl font-black text-[#0F172A] dark:text-white">
-                184
+              <div className="text-2xl sm:text-3xl font-black text-[#0F172A] dark:text-white font-mono">
+                {liveOpportunities}
               </div>
             </div>
             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-orange-50 dark:bg-orange-950/40 text-[#FF6A00] flex items-center justify-center shrink-0">
               <Briefcase className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
           </div>
-          <div className="text-[11px] sm:text-xs font-bold text-emerald-600 flex items-center gap-1">
-            <span>↑ 12.4%</span>
-            <span className="text-slate-400 font-normal">vs last 30 days</span>
+          <div className="text-[11px] sm:text-xs font-bold text-slate-400 flex items-center gap-1">
+            <span>Active marketplace campaigns</span>
           </div>
         </div>
 
@@ -239,92 +247,112 @@ export function OverviewTab({ adminName, onOpenReviewQueue, onNavigateTab }: Ove
                 Platform Revenue
               </span>
               <div className="text-xl sm:text-2xl lg:text-3xl font-black text-[#0F172A] dark:text-white font-mono">
-                TZS 128.4M
+                TZS {(platformRevenueTZS / 1000000).toFixed(1)}M
               </div>
             </div>
             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 flex items-center justify-center shrink-0">
               <Wallet className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
           </div>
-          <div className="text-[11px] sm:text-xs font-bold text-emerald-600 flex items-center gap-1">
-            <span>↑ 14.7%</span>
-            <span className="text-slate-400 font-normal">vs last 30 days</span>
+          <div className="text-[11px] sm:text-xs font-bold text-slate-400 flex items-center gap-1">
+            <span>Collected fees & subscriptions</span>
           </div>
         </div>
       </div>
 
-      {/* Middle Section: Chart & Review Queue */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 items-stretch">
-        {/* Left Card: Marketplace Performance Chart (8 Cols) */}
-        <div className="lg:col-span-8 bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-4 sm:p-6 shadow-xs flex flex-col justify-between">
-          <div>
-            <div className="flex flex-row items-center justify-between gap-2 mb-4 sm:mb-6">
+      {/* Main Charts & Action Grid (8 cols / 4 cols) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        {/* Left Chart: Dual-Axis Transaction & Users (8 Cols) */}
+        <div className="lg:col-span-8 bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
               <h3 className="text-sm sm:text-base font-extrabold text-[#0F172A] dark:text-white">
                 Marketplace Transaction Volume & Active Users
               </h3>
-
-              <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-0.5 sm:p-1 rounded-xl text-[10px] sm:text-xs">
-                {(['30D', '6M', '12M'] as const).map((r) => (
-                  <button
-                    key={r}
-                    onClick={() => setTimeRange(r)}
-                    className={`px-2.5 py-1 rounded-lg font-bold transition-colors ${
-                      timeRange === r
-                        ? 'bg-white dark:bg-slate-900 text-[#FF6A00] shadow-xs'
-                        : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
-                    }`}
-                  >
-                    {r === '30D' ? '30 Days' : r === '6M' ? '6 Months' : '12 Months'}
-                  </button>
-                ))}
-              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Real-time gross escrow funding and active user sessions across Tanzania
+              </p>
             </div>
 
-            <div className="h-56 sm:h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorTx" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#FF6A00" stopOpacity={0.25} />
-                      <stop offset="95%" stopColor="#FF6A00" stopOpacity={0.0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" opacity={0.6} />
-                  <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#64748B' }} axisLine={false} tickLine={false} />
-                  <YAxis yAxisId="left" tick={{ fontSize: 10, fill: '#64748B' }} axisLine={false} tickLine={false} tickFormatter={(v) => `TZS ${v}M`} />
-                  <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10, fill: '#64748B' }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}K`} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#0F172A',
-                      borderColor: '#334155',
-                      borderRadius: '12px',
-                      color: '#fff',
-                      fontSize: '11px',
-                    }}
-                  />
-                  <Area
-                    yAxisId="left"
-                    type="monotone"
-                    dataKey="txValue"
-                    name="Transaction Value (TZS M)"
-                    stroke="#FF6A00"
-                    strokeWidth={3}
-                    fillOpacity={1}
-                    fill="url(#colorTx)"
-                    dot={{ r: 3, fill: '#FF6A00', strokeWidth: 2, stroke: '#fff' }}
-                  />
-                  <Line
-                    yAxisId="right"
-                    type="monotone"
-                    dataKey="activeUsers"
-                    name="Active Users (K)"
-                    stroke="#0B132B"
-                    strokeWidth={3}
-                    dot={{ r: 3, fill: '#0B132B', strokeWidth: 2, stroke: '#fff' }}
-                  />
-                </ComposedChart>
-              </ResponsiveContainer>
+            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl self-start sm:self-auto text-xs font-bold">
+              {(['30D', '6M', '12M'] as const).map((r) => (
+                <button
+                  key={r}
+                  onClick={() => setTimeRange(r)}
+                  className={`px-2.5 py-1 rounded-lg transition-all ${
+                    timeRange === r
+                      ? 'bg-white dark:bg-slate-900 text-[#0F172A] dark:text-white shadow-2xs font-extrabold'
+                      : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  {r === '30D' ? '30 Days' : r === '6M' ? '6 Months' : '12 Months'}
+                </button>
+              ))}
             </div>
+          </div>
+
+          <div className="h-64 sm:h-72 w-full pt-2">
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorTx" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#FF6A00" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#FF6A00" stopOpacity={0.0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" opacity={0.5} />
+                <XAxis
+                  dataKey="date"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#94A3B8', fontSize: 11 }}
+                />
+                <YAxis
+                  yAxisId="left"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#94A3B8', fontSize: 11 }}
+                  tickFormatter={(val) => `TZS ${val}M`}
+                />
+                <YAxis
+                  yAxisId="right"
+                  orientation="right"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#94A3B8', fontSize: 11 }}
+                  tickFormatter={(val) => `${val}K`}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#0B132B',
+                    border: 'none',
+                    borderRadius: '12px',
+                    color: '#fff',
+                    fontSize: '11px',
+                  }}
+                />
+                <Area
+                  yAxisId="left"
+                  type="monotone"
+                  dataKey="txValue"
+                  name="Transaction Value (TZS M)"
+                  stroke="#FF6A00"
+                  strokeWidth={3}
+                  fillOpacity={1}
+                  fill="url(#colorTx)"
+                  dot={{ r: 3, fill: '#FF6A00', strokeWidth: 2, stroke: '#fff' }}
+                />
+                <Line
+                  yAxisId="right"
+                  type="monotone"
+                  dataKey="activeUsers"
+                  name="Active Users (K)"
+                  stroke="#0B132B"
+                  strokeWidth={3}
+                  dot={{ r: 3, fill: '#0B132B', strokeWidth: 2, stroke: '#fff' }}
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
           </div>
 
           <div className="flex items-center justify-center gap-6 pt-3 text-[11px] font-bold text-slate-600 dark:text-slate-300">
@@ -346,15 +374,15 @@ export function OverviewTab({ adminName, onOpenReviewQueue, onNavigateTab }: Ove
               <h3 className="text-sm sm:text-base font-extrabold text-[#0F172A] dark:text-white">
                 Review Queue Summary
               </h3>
-              <span className="text-[10px] bg-orange-100 text-[#FF6A00] font-black px-2 py-0.5 rounded-full">
-                43 Items
+              <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-black px-2 py-0.5 rounded-full font-mono">
+                {totalReviewItems} Items
               </span>
             </div>
 
             <div className="space-y-2">
               <button
                 onClick={() => onOpenReviewQueue('VERIFICATIONS')}
-                className="w-full p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 hover:bg-orange-50/50 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-700 transition-all flex items-center justify-between text-left"
+                className="w-full p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 hover:bg-orange-50/50 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-700 transition-all flex items-center justify-between text-left cursor-pointer"
               >
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
@@ -367,12 +395,12 @@ export function OverviewTab({ adminName, onOpenReviewQueue, onNavigateTab }: Ove
                     <div className="text-[10px] text-slate-400">BRELA, TIN & Directors</div>
                   </div>
                 </div>
-                <span className="font-black text-xs text-slate-800 dark:text-slate-200">18</span>
+                <span className="font-black text-xs text-slate-800 dark:text-slate-200 font-mono">{pendingVerifications}</span>
               </button>
 
               <button
                 onClick={() => onOpenReviewQueue('DEALS')}
-                className="w-full p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 hover:bg-orange-50/50 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-700 transition-all flex items-center justify-between text-left"
+                className="w-full p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 hover:bg-orange-50/50 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-700 transition-all flex items-center justify-between text-left cursor-pointer"
               >
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-xl bg-orange-50 text-[#FF6A00] flex items-center justify-center shrink-0">
@@ -382,15 +410,15 @@ export function OverviewTab({ adminName, onOpenReviewQueue, onNavigateTab }: Ove
                     <div className="font-extrabold text-xs text-slate-900 dark:text-white">
                       Deals Awaiting Checker Review
                     </div>
-                    <div className="text-[10px] text-slate-400">Commercial & Escrow terms</div>
+                    <div className="text-[10px] text-slate-400">Commercial & Escrow Terms</div>
                   </div>
                 </div>
-                <span className="font-black text-xs text-slate-800 dark:text-slate-200">12</span>
+                <span className="font-black text-xs text-slate-800 dark:text-slate-200 font-mono">{pendingDeals}</span>
               </button>
 
               <button
                 onClick={() => onOpenReviewQueue('REWARDS')}
-                className="w-full p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 hover:bg-orange-50/50 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-700 transition-all flex items-center justify-between text-left"
+                className="w-full p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 hover:bg-orange-50/50 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-700 transition-all flex items-center justify-between text-left cursor-pointer"
               >
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
@@ -400,15 +428,15 @@ export function OverviewTab({ adminName, onOpenReviewQueue, onNavigateTab }: Ove
                     <div className="font-extrabold text-xs text-slate-900 dark:text-white">
                       Payout Batch Approvals
                     </div>
-                    <div className="text-[10px] text-slate-400">TRA 5% Withholding ready</div>
+                    <div className="text-[10px] text-slate-400">TRA 5% Withheld; Mp Ready</div>
                   </div>
                 </div>
-                <span className="font-black text-xs text-slate-800 dark:text-slate-200">9</span>
+                <span className="font-black text-xs text-slate-800 dark:text-slate-200 font-mono">{pendingPayouts}</span>
               </button>
 
               <button
                 onClick={() => onOpenReviewQueue('FLAGGED')}
-                className="w-full p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 hover:bg-orange-50/50 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-700 transition-all flex items-center justify-between text-left"
+                className="w-full p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 hover:bg-orange-50/50 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-700 transition-all flex items-center justify-between text-left cursor-pointer"
               >
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-xl bg-red-50 text-red-600 flex items-center justify-center shrink-0">
@@ -421,17 +449,18 @@ export function OverviewTab({ adminName, onOpenReviewQueue, onNavigateTab }: Ove
                     <div className="text-[10px] text-slate-400">Suspicious clicks & loops</div>
                   </div>
                 </div>
-                <span className="font-black text-xs text-red-600">4</span>
+                <span className="font-black text-xs text-slate-800 dark:text-slate-200 font-mono">{flaggedFraud}</span>
               </button>
             </div>
           </div>
 
-          <div className="pt-3">
+          <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
             <button
               onClick={() => onOpenReviewQueue('ALL')}
-              className="w-full py-2.5 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold text-xs rounded-xl shadow-xs transition-colors text-center"
+              className="w-full py-2.5 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold text-xs rounded-xl shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
             >
-              Process All Review Queues
+              <span>Process All Review Queues</span>
+              <ChevronRight className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>

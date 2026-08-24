@@ -39,29 +39,29 @@ interface OverviewTabProps {
 }
 
 const PERFORMANCE_DATA_7D = [
-  { date: '18 Aug', value: 12 },
-  { date: '19 Aug', value: 19 },
-  { date: '20 Aug', value: 28 },
-  { date: '21 Aug', value: 39 },
-  { date: '22 Aug', value: 34 },
-  { date: '23 Aug', value: 48 },
-  { date: '24 Aug', value: 57 },
+  { date: '18 Aug', value: 0 },
+  { date: '19 Aug', value: 0 },
+  { date: '20 Aug', value: 0 },
+  { date: '21 Aug', value: 0 },
+  { date: '22 Aug', value: 0 },
+  { date: '23 Aug', value: 0 },
+  { date: '24 Aug', value: 0 },
 ]
 
 const PERFORMANCE_DATA_30D = [
-  { date: 'W1', value: 85 },
-  { date: 'W2', value: 140 },
-  { date: 'W3', value: 210 },
-  { date: 'W4', value: 320 },
+  { date: 'W1', value: 0 },
+  { date: 'W2', value: 0 },
+  { date: 'W3', value: 0 },
+  { date: 'W4', value: 0 },
 ]
 
 const PERFORMANCE_DATA_6M = [
-  { date: 'Mar', value: 320 },
-  { date: 'Apr', value: 540 },
-  { date: 'May', value: 810 },
-  { date: 'Jun', value: 1150 },
-  { date: 'Jul', value: 1480 },
-  { date: 'Aug', value: 1920 },
+  { date: 'Mar', value: 0 },
+  { date: 'Apr', value: 0 },
+  { date: 'May', value: 0 },
+  { date: 'Jun', value: 0 },
+  { date: 'Jul', value: 0 },
+  { date: 'Aug', value: 0 },
 ]
 
 export function OverviewTab({
@@ -148,7 +148,7 @@ export function OverviewTab({
             <div className="space-y-1">
               <span className="text-[11px] sm:text-xs font-bold text-slate-500">Active Partners</span>
               <div className="text-2xl sm:text-3xl font-black text-[#0F172A] dark:text-white">
-                {totalActivePartners + 140}
+                {totalActivePartners}
               </div>
             </div>
             <div className="w-10 h-10 rounded-2xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 flex items-center justify-center shrink-0">

@@ -15,6 +15,7 @@ import {
   Shield,
   Layers,
   ArrowRight,
+  Handshake,
 } from 'lucide-react'
 import { MOCK_PARTNER_DEAL_ROOMS } from '../mockData'
 import { PartnerDealRoom } from '../types'
@@ -24,27 +25,16 @@ export function DealRoomsTab() {
   const { showToast } = usePartnerToast()
 
   const [rooms, setRooms] = useState<PartnerDealRoom[]>(MOCK_PARTNER_DEAL_ROOMS)
-  const [selectedRoom, setSelectedRoom] = useState<PartnerDealRoom>(rooms[0])
+  const [selectedRoom, setSelectedRoom] = useState<PartnerDealRoom | null>(rooms[0] || null)
   const [chatMessage, setChatMessage] = useState('')
-  const [chatHistory, setChatHistory] = useState([
-    {
-      sender: 'Kijani Solar Tech (Alex Mushi)',
-      time: 'Today, 10:15 AM',
-      text: 'Welcome to the B2B Deal Room! We have approved your commercial introduction proposal for Mwanza & Shinyanga regional wholesale distribution.',
-    },
-    {
-      sender: 'Alex Mwamburi (You)',
-      time: 'Today, 11:30 AM',
-      text: 'Thank you! The distributor MOU is scheduled for signing this Thursday. Initial order commitment is 100 home kits.',
-    },
-  ])
+  const [chatHistory, setChatHistory] = useState<{ sender: string; time: string; text: string }[]>([])
 
   const handleSendChat = () => {
-    if (!chatMessage.trim()) return
+    if (!chatMessage.trim() || !selectedRoom) return
     setChatHistory([
       ...chatHistory,
       {
-        sender: 'Alex Mwamburi (You)',
+        sender: 'You (Partner)',
         time: 'Just now',
         text: chatMessage,
       },
@@ -54,11 +44,44 @@ export function DealRoomsTab() {
   }
 
   const handleSignContract = () => {
+    if (!selectedRoom) return
     setRooms((prev) =>
       prev.map((r) => (r.id === selectedRoom.id ? { ...r, contractSigned: true, stage: 'TERMS_AGREED' } : r))
     )
     setSelectedRoom({ ...selectedRoom, contractSigned: true, stage: 'TERMS_AGREED' })
     showToast('success', 'Digital Agreement Signed', 'Digital contract countersigned and locked in escrow.')
+  }
+
+  if (rooms.length === 0 || !selectedRoom) {
+    return (
+      <div className="space-y-5 bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
+          <div>
+            <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+              <span>Deal Rooms & Commercial Negotiations</span>
+              <span className="text-[10px] bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-extrabold px-2 py-0.5 rounded-full">
+                B2B Collaboration
+              </span>
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Dedicated secure collaboration rooms for B2B distributor agreements, creator campaigns, and milestone contracts.
+            </p>
+          </div>
+        </div>
+
+        <div className="text-center py-16 px-4 bg-slate-50/50 dark:bg-slate-800/30 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800 max-w-lg mx-auto my-6">
+          <div className="w-14 h-14 rounded-2xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 flex items-center justify-center mx-auto mb-4">
+            <Handshake className="w-7 h-7" />
+          </div>
+          <h3 className="text-base font-bold text-slate-900 dark:text-white mb-1">
+            No Active Deal Rooms
+          </h3>
+          <p className="text-xs text-slate-500 leading-relaxed max-w-sm mx-auto mb-6">
+            When you join or are invited to direct B2B partnership deals, your private collaboration rooms and digital contract negotiation will appear here.
+          </p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -138,78 +161,80 @@ export function DealRoomsTab() {
           {/* Deliverables & Contract State */}
           <div className="p-3.5 bg-white dark:bg-slate-900 rounded-2xl border text-xs space-y-2">
             <div className="flex items-center justify-between">
-              <span className="font-bold text-slate-900 dark:text-white">Agreed Deliverables Summary:</span>
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                selectedRoom.contractSigned ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-              }`}>
-                {selectedRoom.contractSigned ? '✓ Digital Contract Signed' : 'Pending Signature'}
+              <span className="font-bold text-slate-500">Agreed Deliverables Summary:</span>
+              <span className="font-mono text-emerald-600 font-bold flex items-center gap-1">
+                <Shield className="w-3.5 h-3.5" />
+                <span>Safeguarded Escrow Contract</span>
               </span>
             </div>
-            <p className="text-slate-600 dark:text-slate-300 text-[11px] leading-relaxed">
+            <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
               {selectedRoom.deliverables}
             </p>
           </div>
 
-          {/* Chat Communication History */}
-          <div className="space-y-2">
-            <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
-              Direct Business Communication & Evidence Trail
-            </h4>
+          {/* Digital Signature & Stage CTA */}
+          <div className="p-3.5 bg-purple-50/60 dark:bg-purple-950/30 rounded-2xl border border-purple-200 dark:border-purple-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center shrink-0">
+                <FileCheck className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="font-extrabold text-xs text-purple-950 dark:text-purple-200">
+                  {selectedRoom.contractSigned ? 'Digital Contract Locked' : 'Pending Partner Counter-Signature'}
+                </h4>
+                <p className="text-[11px] text-purple-700 dark:text-purple-300">
+                  {selectedRoom.contractSigned
+                    ? 'Legally binding MOU active under Tanzanian commercial law.'
+                    : 'Review terms and countersign to lock escrow bounty.'}
+                </p>
+              </div>
+            </div>
 
-            <div className="p-3 bg-white dark:bg-slate-900 rounded-2xl border space-y-3 max-h-48 overflow-y-auto">
+            {!selectedRoom.contractSigned && (
+              <button
+                onClick={handleSignContract}
+                className="py-2 px-4 bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition-colors shrink-0 cursor-pointer"
+              >
+                Sign MOU Agreement
+              </button>
+            )}
+          </div>
+
+          {/* Negotiation / Chat Thread */}
+          <div className="space-y-3 pt-2">
+            <div className="font-bold text-xs text-slate-500 flex items-center gap-1.5">
+              <MessageSquareCode className="w-4 h-4 text-[#FF6A00]" />
+              <span>Real-Time Deal Coordination Thread</span>
+            </div>
+
+            <div className="space-y-2.5 max-h-56 overflow-y-auto p-3 bg-white dark:bg-slate-900 rounded-2xl border">
               {chatHistory.map((c, i) => (
-                <div key={i} className="text-xs space-y-0.5">
-                  <div className="flex items-center justify-between text-[10px] text-slate-400 font-bold">
-                    <span>{c.sender}</span>
-                    <span>{c.time}</span>
+                <div key={i} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border text-xs space-y-1">
+                  <div className="flex items-center justify-between text-[10px] text-slate-400">
+                    <span className="font-bold text-slate-700 dark:text-slate-300">{c.sender}</span>
+                    <span className="font-mono">{c.time}</span>
                   </div>
-                  <p className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-[11px]">
-                    {c.text}
-                  </p>
+                  <p className="text-slate-600 dark:text-slate-400 leading-relaxed">{c.text}</p>
                 </div>
               ))}
             </div>
 
-            {/* Chat Input */}
             <div className="flex gap-2">
               <input
                 type="text"
-                placeholder="Type update, share evidence links, or ask questions..."
                 value={chatMessage}
                 onChange={(e) => setChatMessage(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSendChat()}
-                className="flex-1 p-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                placeholder="Type update or negotiation note..."
+                className="flex-1 px-3.5 py-2.5 bg-white dark:bg-slate-900 border rounded-xl text-xs outline-hidden focus:border-[#FF6A00]"
               />
               <button
                 onClick={handleSendChat}
-                className="py-2.5 px-4 bg-[#FF6A00] text-white font-bold rounded-xl text-xs flex items-center gap-1"
+                className="p-2.5 bg-[#FF6A00] hover:bg-orange-600 text-white rounded-xl transition-colors shrink-0 cursor-pointer"
               >
-                <Send className="w-3.5 h-3.5" />
-                <span>Send</span>
+                <Send className="w-4 h-4" />
               </button>
             </div>
-          </div>
-
-          {/* Action Row */}
-          <div className="pt-3 border-t border-slate-200 dark:border-slate-700 flex flex-wrap gap-2 justify-between">
-            <div className="flex gap-2">
-              {!selectedRoom.contractSigned && (
-                <button
-                  onClick={handleSignContract}
-                  className="py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5"
-                >
-                  <FileCheck className="w-4 h-4" />
-                  <span>Countersign Agreement</span>
-                </button>
-              )}
-            </div>
-
-            <button
-              onClick={() => showToast('info', 'LUMO Mediation Escalated', 'Dispute mediation officer notified for Deal Room.')}
-              className="py-2 px-3 border border-red-200 text-red-600 rounded-xl text-xs font-bold hover:bg-red-50"
-            >
-              Request LUMO Mediation
-            </button>
           </div>
         </div>
       </div>

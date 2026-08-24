@@ -178,10 +178,17 @@ export function PaymentsTab() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-            {filtered.map((pay) => (
-              <tr key={pay.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
-                <td className="p-3">
-                  <div className="font-extrabold text-slate-900 dark:text-white font-mono">{pay.reference}</div>
+            {filtered.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="text-center py-12 text-slate-400">
+                  No payment transactions recorded in the payment ledger yet.
+                </td>
+              </tr>
+            ) : (
+              filtered.map((pay) => (
+                <tr key={pay.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                  <td className="p-3">
+                    <div className="font-extrabold text-slate-900 dark:text-white font-mono">{pay.reference}</div>
                   <div className="text-[10px] text-slate-400 font-mono">ID: {pay.id}</div>
                 </td>
 
@@ -260,7 +267,8 @@ export function PaymentsTab() {
                   </div>
                 </td>
               </tr>
-            ))}
+            ))
+          )}
           </tbody>
         </table>
       </div>

@@ -11,7 +11,11 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "prisma:generate": "prisma generate",
-    "prisma:validate": "prisma validate"
+    "prisma:validate": "prisma validate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:seed": "prisma db seed",
+    "prisma:reset": "prisma migrate reset",
+    "db:push": "prisma db push"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
@@ -47,7 +51,11 @@
     "postcss": "^8.5.0",
     "prisma": "^6.4.1",
     "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.12",
     "typescript": "5.7.3",
     "vitest": "^3.0.5"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   }
 }

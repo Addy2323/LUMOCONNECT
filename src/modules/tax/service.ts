@@ -112,3 +112,52 @@ export function generatePartnerStatement({
     ],
   }
 }
+
+export function listPartnerStatements(partnerId: string): PartnerStatementData[] {
+  return [
+    generatePartnerStatement({
+      partnerId,
+      partnerName: 'Alex Mushi',
+      monthYear: 'August 2026',
+      classification: 'INDIVIDUAL_RESIDENT',
+    }),
+    generatePartnerStatement({
+      partnerId,
+      partnerName: 'Alex Mushi',
+      monthYear: 'July 2026',
+      classification: 'INDIVIDUAL_RESIDENT',
+    }),
+  ]
+}
+
+export function exportStatementCsv(statement: PartnerStatementData): string {
+  const headers = ['Transaction Ref', 'Deal Title', 'Date', 'Gross Amount (TZS)', 'TRA Withholding Tax (TZS)', 'Net Paid (TZS)']
+  const rows = statement.transactions.map((t) => [
+    `"${t.ref}"`,
+    `"${t.dealTitle}"`,
+    `"${t.date}"`,
+    `"${t.grossAmount}"`,
+    `"${t.taxAmount}"`,
+    `"${t.netAmount}"`,
+  ])
+
+  const summary = [
+    [],
+    ['Statement Number', statement.statementNumber],
+    ['Partner Name', statement.partnerName],
+    ['TIN Number', statement.tinNumber || 'N/A'],
+    ['Tax Classification', statement.classification],
+    ['Period', statement.period],
+    ['Gross Earnings', formatMoney(statement.grossEarningsMinorUnits, 'TZS')],
+    ['Tax Withheld', formatMoney(statement.taxWithheldMinorUnits, 'TZS')],
+    ['Platform Fees', formatMoney(statement.platformFeesMinorUnits, 'TZS')],
+    ['Net Paid', formatMoney(statement.netPaidMinorUnits, 'TZS')],
+  ]
+
+  return [
+    headers.join(','),
+    ...rows.map((r) => r.join(',')),
+    ...summary.map((s) => s.join(',')),
+  ].join('\n')
+}
+

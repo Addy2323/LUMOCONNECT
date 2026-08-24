@@ -124,7 +124,14 @@ export function KycComplianceTab() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-            {filtered.map((u) => (
+            {filtered.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="text-center py-8 text-slate-400 text-xs">
+                  No partner or business KYC records in this queue.
+                </td>
+              </tr>
+            ) : (
+              filtered.map((u) => (
               <tr key={u.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
                 <td className="p-3">
                   <div className="font-extrabold text-slate-900 dark:text-white">{u.name}</div>
@@ -187,7 +194,7 @@ export function KycComplianceTab() {
                   </div>
                 </td>
               </tr>
-            ))}
+            )))}
           </tbody>
         </table>
       </div>

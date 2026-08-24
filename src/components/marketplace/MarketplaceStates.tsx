@@ -35,20 +35,20 @@ export function OpportunityCardSkeleton() {
 export function MarketplaceEmptyState({ onReset }: { onReset: () => void }) {
   return (
     <div className="text-center py-16 px-4 bg-white dark:bg-slate-900 rounded-3xl border border-[#E2E8F0] dark:border-slate-800 shadow-2xs max-w-xl mx-auto">
-      <div className="w-12 h-12 rounded-2xl bg-orange-50 dark:bg-orange-950/40 text-[#F97316] flex items-center justify-center mx-auto mb-4">
-        <Search className="w-6 h-6" />
+      <div className="w-14 h-14 rounded-2xl bg-orange-50 dark:bg-orange-950/40 text-[#F97316] flex items-center justify-center mx-auto mb-4">
+        <Search className="w-7 h-7" />
       </div>
       <h3 className="text-lg font-bold text-[#0F172A] dark:text-white mb-1">
-        No matching opportunities found
+        No active commercial opportunities published yet
       </h3>
       <p className="text-xs text-[#64748B] dark:text-slate-400 max-w-sm mx-auto mb-5 leading-relaxed">
-        We couldn&apos;t find any commercial deals matching your current search criteria. Try adjusting your filters or search keywords.
+        The marketplace is clean and ready. Businesses can create and pre-fund new opportunities to start partnering with top creators across Tanzania.
       </p>
       <button
         onClick={onReset}
-        className="py-2.5 px-5 bg-[#F97316] hover:bg-[#EA580C] text-white font-bold text-xs rounded-xl shadow-xs transition-colors"
+        className="py-2.5 px-5 bg-[#F97316] hover:bg-[#EA580C] text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
       >
-        Clear All Filters
+        Reset Search / Clear Filters
       </button>
     </div>
   )

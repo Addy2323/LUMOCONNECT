@@ -77,6 +77,10 @@ export function LeadsReferralsTab({
     }
 
     const targetDeal = joinedDeals.find((d) => d.id === leadForm.dealId) || joinedDeals[0]
+    if (!targetDeal) {
+      showToast('error', 'No Enrolled Deal', 'You must join an active deal before submitting referral leads.')
+      return
+    }
 
     const newLead: PartnerLeadItem = {
       id: `lead_${Date.now()}`,

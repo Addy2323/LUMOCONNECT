@@ -123,10 +123,17 @@ export function ReconciliationTab() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-            {runs.map((r) => (
-              <tr key={r.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
-                <td className="p-3">
-                  <div className="font-extrabold text-slate-900 dark:text-white">{r.period}</div>
+            {runs.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="text-center py-12 text-slate-400">
+                  No automated reconciliation runs executed yet.
+                </td>
+              </tr>
+            ) : (
+              runs.map((r) => (
+                <tr key={r.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                  <td className="p-3">
+                    <div className="font-extrabold text-slate-900 dark:text-white">{r.period}</div>
                   <div className="text-[10px] text-slate-400 font-medium">{r.provider}</div>
                 </td>
 
@@ -195,7 +202,8 @@ export function ReconciliationTab() {
                   </div>
                 </td>
               </tr>
-            ))}
+            ))
+          )}
           </tbody>
         </table>
       </div>

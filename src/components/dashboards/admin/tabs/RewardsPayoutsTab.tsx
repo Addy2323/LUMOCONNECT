@@ -96,6 +96,41 @@ export function RewardsPayoutsTab() {
         </button>
       </div>
 
+      {/* 4 Settlement KPI Metric Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border">
+          <span className="text-[10px] font-bold text-slate-400 uppercase">Awaiting Release</span>
+          <div className="text-xl sm:text-2xl font-black text-amber-600 font-mono mt-1">
+            TZS 0
+          </div>
+          <span className="text-[10px] text-slate-500">0 payout requests waiting</span>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border">
+          <span className="text-[10px] font-bold text-slate-400 uppercase">Released to Date</span>
+          <div className="text-xl sm:text-2xl font-black text-emerald-600 font-mono mt-1">
+            TZS 0
+          </div>
+          <span className="text-[10px] text-slate-500">0 settled runs disbursed</span>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border">
+          <span className="text-[10px] font-bold text-slate-400 uppercase">Fees Collected</span>
+          <div className="text-xl sm:text-2xl font-black text-[#FF6A00] font-mono mt-1">
+            TZS 0
+          </div>
+          <span className="text-[10px] text-slate-500">Platform fee ledger</span>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border">
+          <span className="text-[10px] font-bold text-slate-400 uppercase">Tax Withheld (5%)</span>
+          <div className="text-xl sm:text-2xl font-black text-purple-600 font-mono mt-1">
+            TZS 0
+          </div>
+          <span className="text-[10px] text-purple-600 dark:text-purple-400 font-medium">Remitted separately to TRA</span>
+        </div>
+      </div>
+
       {/* 5% Tax Rule Banner */}
       <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center justify-between text-xs text-slate-700 dark:text-slate-300">
         <div className="flex items-center gap-2.5">
@@ -106,33 +141,62 @@ export function RewardsPayoutsTab() {
         </div>
       </div>
 
+      {/* Pipeline Status Filter Scroller */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar text-xs">
+        {[
+          { label: 'all', count: batches.length, active: true },
+          { label: 'pending', count: batches.filter((b) => b.status === 'PENDING_MAKER').length, active: false },
+          { label: 'approved', count: batches.filter((b) => b.status === 'APPROVED_CHECKER').length, active: false },
+          { label: 'completed', count: batches.filter((b) => b.status === 'COMPLETED').length, active: false },
+        ].map((pill, idx) => (
+          <button
+            key={idx}
+            className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
+              pill.active
+                ? 'bg-[#0B132B] text-white shadow-2xs font-extrabold'
+                : 'bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 hover:bg-slate-100'
+            }`}
+          >
+            <span className="capitalize">{pill.label}</span>
+            <span className="text-[10px] opacity-70 font-mono">({pill.count})</span>
+          </button>
+        ))}
+      </div>
+
       {/* Batches Table */}
       <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-2xl">
-        <table className="w-full text-xs text-left min-w-[800px]">
+        <table className="w-full text-xs text-left min-w-[850px]">
           <thead className="bg-slate-50 dark:bg-slate-800/80 text-[10px] text-slate-500 uppercase font-bold border-b border-slate-200 dark:border-slate-700">
             <tr>
               <th className="p-3">Batch Number</th>
-              <th className="p-3">Beneficiaries</th>
-              <th className="p-3">Gross Rewards</th>
+              <th className="p-3">Recipients</th>
+              <th className="p-3">Gross Total</th>
               <th className="p-3">TRA Withholding (5%)</th>
-              <th className="p-3">Net Disbursement</th>
+              <th className="p-3">Net Disbursed</th>
               <th className="p-3">Maker / Checker</th>
               <th className="p-3">Status</th>
               <th className="p-3 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-            {batches.map((b) => (
-              <tr key={b.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
-                <td className="p-3">
-                  <div className="font-extrabold text-slate-900 dark:text-white font-mono">{b.batchNumber}</div>
-                  <div className="text-[10px] text-slate-400 font-mono">{b.createdAt}</div>
+            {batches.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="text-center py-12 text-slate-400">
+                  No payout batches created or awaiting disbursement yet.
                 </td>
+              </tr>
+            ) : (
+              batches.map((b) => (
+                <tr key={b.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                  <td className="p-3">
+                    <div className="font-extrabold text-slate-900 dark:text-white font-mono">{b.batchNumber}</div>
+                    <div className="text-[10px] text-slate-400 font-mono">{b.createdAt}</div>
+                  </td>
 
-                <td className="p-3">
-                  <span className="font-bold text-slate-900 dark:text-white">{b.totalPartners}</span>
-                  <span className="text-slate-400 text-[11px]"> verified partners</span>
-                </td>
+                  <td className="p-3">
+                    <span className="font-bold text-slate-900 dark:text-white">{b.totalPartners}</span>
+                    <span className="text-slate-400 text-[11px]"> verified partners</span>
+                  </td>
 
                 <td className="p-3 font-mono font-bold text-slate-900 dark:text-white">
                   TZS {b.grossPayoutTZS.toLocaleString()}
@@ -187,7 +251,8 @@ export function RewardsPayoutsTab() {
                   </div>
                 </td>
               </tr>
-            ))}
+            ))
+          )}
           </tbody>
         </table>
       </div>

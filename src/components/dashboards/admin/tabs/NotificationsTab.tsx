@@ -20,35 +20,17 @@ import { useAdminToast } from '../AdminToast'
 export function NotificationsTab() {
   const { showToast } = useAdminToast()
 
-  const [templates, setTemplates] = useState([
+  const [templates, setTemplates] = useState<
     {
-      id: 'tmpl_1',
-      title: 'Partner Reward Payout Credited',
-      channel: 'SMS' as 'SMS' | 'EMAIL' | 'PUSH' | 'IN_APP',
-      trigger: 'PAYOUT_DISBURSED',
-      body: 'Hongera! Your LUMO reward of TZS {{amount}} has been sent to {{phone}}. Ref: {{ref}}',
-      sentCount: 14200,
-      deliveryRate: '99.8%',
-    },
-    {
-      id: 'tmpl_2',
-      title: 'Business Deal Approved & Published',
-      channel: 'EMAIL' as 'SMS' | 'EMAIL' | 'PUSH' | 'IN_APP',
-      trigger: 'DEAL_PUBLISHED',
-      body: 'Your campaign "{{deal_title}}" is now live on LUMO Marketplace.',
-      sentCount: 840,
-      deliveryRate: '100.0%',
-    },
-    {
-      id: 'tmpl_3',
-      title: 'Subscription Expiry Notice (3 Days Left)',
-      channel: 'SMS' as 'SMS' | 'EMAIL' | 'PUSH' | 'IN_APP',
-      trigger: 'SUBSCRIPTION_EXPIRING',
-      body: 'Kumbuka: Your LUMO Semi-Annual subscription expires in 3 days. Renew to retain deal access.',
-      sentCount: 3120,
-      deliveryRate: '99.6%',
-    },
-  ])
+      id: string
+      title: string
+      channel: 'SMS' | 'EMAIL' | 'PUSH' | 'IN_APP'
+      trigger: string
+      body: string
+      sentCount: number
+      deliveryRate: string
+    }[]
+  >([])
 
   const [showComposer, setShowComposer] = useState(false)
   const [newTemplate, setNewTemplate] = useState({
@@ -117,34 +99,44 @@ export function NotificationsTab() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {templates.map((t) => (
-          <div
-            key={t.id}
-            className="p-4 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 space-y-3 flex flex-col justify-between"
-          >
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold px-2 py-0.5 bg-white dark:bg-slate-900 rounded-md border text-slate-700 dark:text-slate-300">
-                  {t.channel}
-                </span>
-                <span className="text-[10px] text-emerald-600 font-bold">{t.deliveryRate} Delivery</span>
-              </div>
-              <h4 className="font-extrabold text-xs text-slate-900 dark:text-white mt-2 leading-tight">
-                {t.title}
-              </h4>
-              <p className="text-[11px] text-slate-500 font-mono bg-white dark:bg-slate-900 p-2.5 rounded-xl border mt-2">
-                &quot;{t.body}&quot;
-              </p>
-            </div>
-
-            <div className="flex items-center justify-between text-xs pt-2 border-t text-slate-400">
-              <span className="text-[10px]">Trigger: {t.trigger}</span>
-              <span className="font-bold text-slate-700 dark:text-slate-300">{t.sentCount.toLocaleString()} sent</span>
-            </div>
+      {templates.length === 0 ? (
+        <div className="text-center py-16 px-4 bg-slate-50/50 dark:bg-slate-800/40 rounded-3xl border border-dashed text-xs text-slate-500 space-y-2">
+          <Bell className="w-10 h-10 mx-auto text-slate-400 opacity-80" />
+          <div className="font-bold text-slate-700 dark:text-slate-300 text-sm">No Notification Templates Configured</div>
+          <div className="max-w-md mx-auto">
+            Create automated transactional SMS, email, and in-app alert templates for payout disbursements, deal publishing, and subscription lifecycle notices.
           </div>
-        ))}
-      </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {templates.map((t) => (
+            <div
+              key={t.id}
+              className="p-4 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 space-y-3 flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold px-2 py-0.5 bg-white dark:bg-slate-900 rounded-md border text-slate-700 dark:text-slate-300">
+                    {t.channel}
+                  </span>
+                  <span className="text-[10px] text-emerald-600 font-bold">{t.deliveryRate} Delivery</span>
+                </div>
+                <h4 className="font-extrabold text-xs text-slate-900 dark:text-white mt-2 leading-tight">
+                  {t.title}
+                </h4>
+                <p className="text-[11px] text-slate-500 font-mono bg-white dark:bg-slate-900 p-2.5 rounded-xl border mt-2">
+                  &quot;{t.body}&quot;
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between text-xs pt-2 border-t text-slate-400">
+                <span className="text-[10px]">Trigger: {t.trigger}</span>
+                <span className="font-bold text-slate-700 dark:text-slate-300">{t.sentCount.toLocaleString()} sent</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* TEMPLATE COMPOSER MODAL */}
       {showComposer && (

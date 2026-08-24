@@ -101,7 +101,14 @@ export function CampaignsTab() {
 
       {/* Campaigns Grid */}
       <div className="space-y-4">
-        {campaigns.map((camp) => (
+        {campaigns.length === 0 ? (
+          <div className="text-center py-12 px-4 bg-slate-50/50 dark:bg-slate-800/40 rounded-2xl border border-dashed text-xs text-slate-500">
+            <Megaphone className="w-8 h-8 mx-auto text-slate-400 mb-2" />
+            <div className="font-bold text-slate-700 dark:text-slate-300">No Commercial Campaigns Created Yet</div>
+            <div className="mt-0.5">Click &quot;New Campaign Group&quot; above to organize multiple deals under unified budgets and distribution channels.</div>
+          </div>
+        ) : (
+          campaigns.map((camp) => (
           <div
             key={camp.id}
             className="p-5 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 space-y-4"
@@ -159,7 +166,7 @@ export function CampaignsTab() {
               </div>
             </div>
           </div>
-        ))}
+        )))}
       </div>
 
       {/* CREATE CAMPAIGN MODAL */}

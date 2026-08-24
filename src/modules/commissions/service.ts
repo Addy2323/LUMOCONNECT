@@ -260,3 +260,94 @@ export function transitionCommissionStatus({
   comm.events.push(event)
   return comm
 }
+
+export function recordConversionCommission({
+  organizationId,
+  dealId,
+  partnerId,
+  partnerName,
+  dealTitle,
+  conversionId,
+  externalRef,
+  transactionAmountMinor,
+  rewardType,
+  percentageBps,
+  fixedRewardMinor,
+}: {
+  organizationId: string
+  dealId: string
+  partnerId: string
+  partnerName: string
+  dealTitle: string
+  conversionId: string
+  externalRef: string
+  transactionAmountMinor: bigint
+  rewardType?: string
+  percentageBps?: number
+  fixedRewardMinor?: bigint
+}): CommissionItem {
+  let grossCommission = 0n
+  if (rewardType === 'PERCENTAGE_COMMISSION' && percentageBps) {
+    grossCommission = calculateCommission({
+      grossMinorUnits: transactionAmountMinor,
+      rewardType: 'PERCENTAGE_COMMISSION',
+      percentageBps,
+    })
+  } else if (fixedRewardMinor) {
+    grossCommission = fixedRewardMinor
+  } else {
+    grossCommission = calculateCommission({
+      grossMinorUnits: transactionAmountMinor,
+      rewardType: 'PERCENTAGE_COMMISSION',
+      percentageBps: 1000,
+    })
+  }
+
+  const taxWithheld = calculateWithholdingTax(grossCommission, 500) // TRA resident 5%
+  const platformFee = calculatePlatformFee(grossCommission, 500) // LUMO fee 5%
+  const netPayable = calculateNetPayable({
+    grossCommission,
+    taxWithheld,
+    platformFee,
+  })
+
+  const commId = `comm_${Date.now()}`
+  const now = new Date()
+
+  const newComm: CommissionItem = {
+    id: commId,
+    organizationId,
+    dealId,
+    partnerId,
+    partnerName,
+    conversionId,
+    dealTitle,
+    externalRef,
+    currency: 'TZS',
+    grossTransactionMinorUnits: transactionAmountMinor,
+    grossCommissionMinorUnits: grossCommission,
+    taxWithheldMinorUnits: taxWithheld,
+    platformFeeMinorUnits: platformFee,
+    netPayableMinorUnits: netPayable,
+    status: 'APPROVED',
+    events: [
+      {
+        id: `evt_${Date.now()}`,
+        commissionId: commId,
+        eventType: 'CREATED',
+        newStatus: 'APPROVED',
+        actorId: 'system_attribution',
+        actorName: 'LUMO Performance Engine',
+        reason: `Attributed conversion ${conversionId}`,
+        correlationId: `cor_${conversionId}`,
+        timestamp: now,
+      },
+    ],
+    createdAt: now,
+    updatedAt: now,
+  }
+
+  commissionStore.unshift(newComm)
+  return newComm
+}
+

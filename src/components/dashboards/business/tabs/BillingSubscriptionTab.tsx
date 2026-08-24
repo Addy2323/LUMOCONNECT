@@ -102,7 +102,14 @@ export function BillingSubscriptionTab() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-              {sub.invoices.map((inv) => (
+              {sub.invoices.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="text-center py-8 text-slate-400 text-xs">
+                    No billing invoices generated yet. Annual and monthly subscription renewals will archive electronic receipts here.
+                  </td>
+                </tr>
+              ) : (
+                sub.invoices.map((inv) => (
                 <tr key={inv.invoiceNumber} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
                   <td className="p-3 font-mono font-bold text-slate-900 dark:text-white">{inv.invoiceNumber}</td>
                   <td className="p-3 text-slate-500">{inv.date}</td>
@@ -122,7 +129,7 @@ export function BillingSubscriptionTab() {
                     </button>
                   </td>
                 </tr>
-              ))}
+              )))}
             </tbody>
           </table>
         </div>

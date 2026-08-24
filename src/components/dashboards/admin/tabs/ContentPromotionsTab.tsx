@@ -21,32 +21,20 @@ import { useAdminToast } from '../AdminToast'
 
 export function ContentPromotionsTab() {
   const { showToast } = useAdminToast()
-  const [promos, setPromos] = useState([
+  const [promos, setPromos] = useState<
     {
-      id: 'promo_1',
-      title: 'Morogoro Clean Energy & Solar Acquisition Drive',
-      location: 'HOMEPAGE_HERO_BANNER',
-      audience: 'ALL_PARTNERS',
-      status: 'PUBLISHED',
-      impressions: 48900,
-      clicks: 3410,
-      ctr: '6.9%',
-      ctaText: 'Explore Solar Opportunities',
-      ctaUrl: '/deals/kijani-solar-home-kit',
-    },
-    {
-      id: 'promo_2',
-      title: 'TRA 5% Commission Tax Compliance Notice 2026',
-      location: 'PORTAL_ANNOUNCEMENT',
-      audience: 'VERIFIED_PARTNERS',
-      status: 'PUBLISHED',
-      impressions: 12400,
-      clicks: 890,
-      ctr: '7.1%',
-      ctaText: 'View Tax Guidelines',
-      ctaUrl: '/tax-rules',
-    },
-  ])
+      id: string
+      title: string
+      location: string
+      audience: string
+      status: string
+      impressions: number
+      clicks: number
+      ctr: string
+      ctaText: string
+      ctaUrl: string
+    }[]
+  >([])
 
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [previewMode, setPreviewMode] = useState<'DESKTOP' | 'MOBILE'>('DESKTOP')
@@ -144,12 +132,21 @@ export function ContentPromotionsTab() {
       </div>
 
       {/* Promos Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {promos.map((p) => (
-          <div
-            key={p.id}
-            className="p-4 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 space-y-3 flex flex-col justify-between"
-          >
+      {promos.length === 0 ? (
+        <div className="text-center py-16 px-4 bg-slate-50/50 dark:bg-slate-800/40 rounded-3xl border border-dashed text-xs text-slate-500 space-y-2">
+          <Megaphone className="w-10 h-10 mx-auto text-slate-400 opacity-80" />
+          <div className="font-bold text-slate-700 dark:text-slate-300 text-sm">No Active Promotional Banners Scheduled</div>
+          <div className="max-w-md mx-auto">
+            Create scheduled homepage banners, portal alerts, or sponsored deal cards to broadcast verified campaigns across the LUMO ecosystem.
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {promos.map((p) => (
+            <div
+              key={p.id}
+              className="p-4 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 space-y-3 flex flex-col justify-between"
+            >
             <div>
               <div className="flex items-start justify-between gap-2">
                 <div>
@@ -209,6 +206,7 @@ export function ContentPromotionsTab() {
           </div>
         ))}
       </div>
+      )}
 
       {/* CREATE PROMOTION BANNER MODAL */}
       {showCreateModal && (

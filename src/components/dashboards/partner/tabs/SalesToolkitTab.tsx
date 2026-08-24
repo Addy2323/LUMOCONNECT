@@ -27,9 +27,9 @@ export function SalesToolkitTab({ joinedDeals }: SalesToolkitTabProps) {
   const [selectedDealId, setSelectedDealId] = useState(joinedDeals[0]?.id || '')
   const selectedDeal = joinedDeals.find((d) => d.id === selectedDealId) || joinedDeals[0]
 
-  const whatsappPitch = `Habari! Kama unatafuta mfumo wa kisasa wa umeme wa jua (Solar Home Kit) kwa ajili ya nyumba au biashara yako, ${selectedDeal?.businessName || 'Kijani Solar Tech'} wanatoa ofa maalum. Tumia link hii kupata punguzo na usajili wa haraka: ${selectedDeal?.trackingLink || 'https://lumo.co.tz'}`
+  const whatsappPitch = `Habari! Kama unatafuta ofa maalum kutoka ${selectedDeal?.businessName || 'LUMO Partner'}, tumia link hii kupata usajili wa haraka: ${selectedDeal?.trackingLink || 'https://lumo.co.tz'}`
 
-  const instagramCaption = `💡 Pata umeme wa jua wa kuaminika na ${selectedDeal?.businessName || 'Kijani Solar Tech'}! Tumia promo code: ${selectedDeal?.promoCode || 'ALEXSOLAR26'} kupata ofa maalum ya bure ya ufungaji. Link ipo kwenye bio! #SolarTanzania #KijaniSolar #LUMO`
+  const instagramCaption = `💡 Pata huduma na bidhaa bora kutoka ${selectedDeal?.businessName || 'LUMO Partner'}! Tumia promo code: ${selectedDeal?.promoCode || 'LUMOPROMO'} kupata ofa maalum. Link ipo kwenye bio! #LUMOTanzania`
 
   const handleCopy = (text: string, label: string) => {
     navigator.clipboard.writeText(text)
@@ -41,6 +41,38 @@ export function SalesToolkitTab({ joinedDeals }: SalesToolkitTabProps) {
     window.open(url, '_blank')
   }
 
+  if (joinedDeals.length === 0 || !selectedDeal) {
+    return (
+      <div className="space-y-5 bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
+          <div>
+            <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+              <span>Sales & Marketing Promotional Toolkit</span>
+              <span className="text-[10px] bg-purple-100 text-purple-700 font-extrabold px-2 py-0.5 rounded-full">
+                Promotion Tools
+              </span>
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Approved creative assets, WhatsApp sharing generators, and marketing materials for your enrolled deals.
+            </p>
+          </div>
+        </div>
+
+        <div className="text-center py-16 px-4 bg-slate-50/50 dark:bg-slate-800/30 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800 max-w-lg mx-auto my-6">
+          <div className="w-14 h-14 rounded-2xl bg-orange-50 dark:bg-orange-950/40 text-[#FF6A00] flex items-center justify-center mx-auto mb-4">
+            <ShoppingBag className="w-7 h-7" />
+          </div>
+          <h3 className="text-base font-bold text-slate-900 dark:text-white mb-1">
+            No Deals Joined Yet
+          </h3>
+          <p className="text-xs text-slate-500 leading-relaxed max-w-sm mx-auto mb-6">
+            Join a commercial opportunity from the marketplace to automatically unlock dedicated WhatsApp templates, social media captions, banners, and promotional toolkits.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-5 bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-4 sm:p-6 shadow-xs">
       {/* Header */}
@@ -49,7 +81,7 @@ export function SalesToolkitTab({ joinedDeals }: SalesToolkitTabProps) {
           <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <span>Sales & Marketing Promotional Toolkit</span>
             <span className="text-[10px] bg-purple-100 text-purple-700 font-extrabold px-2 py-0.5 rounded-full">
-              Read + Generation Tools
+              Promotion Tools
             </span>
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
@@ -93,7 +125,7 @@ export function SalesToolkitTab({ joinedDeals }: SalesToolkitTabProps) {
           </h3>
           <button
             onClick={handleShareWhatsApp}
-            className="py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-xs"
+            className="py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-xs cursor-pointer"
           >
             <span>Open WhatsApp</span>
           </button>
@@ -105,7 +137,7 @@ export function SalesToolkitTab({ joinedDeals }: SalesToolkitTabProps) {
 
         <button
           onClick={() => handleCopy(whatsappPitch, 'WhatsApp Pitch')}
-          className="py-1.5 px-3 border rounded-xl font-bold text-xs hover:bg-white dark:hover:bg-slate-900 flex items-center gap-1"
+          className="py-1.5 px-3 border rounded-xl font-bold text-xs hover:bg-white dark:hover:bg-slate-900 flex items-center gap-1 cursor-pointer"
         >
           <Copy className="w-3.5 h-3.5" />
           <span>Copy Message Text</span>
@@ -119,58 +151,17 @@ export function SalesToolkitTab({ joinedDeals }: SalesToolkitTabProps) {
           <span>Social Media Caption & Promo Voucher</span>
         </h3>
 
-        <div className="p-3.5 bg-white dark:bg-slate-900 rounded-2xl border text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+        <div className="p-3.5 bg-white dark:bg-slate-900 rounded-2xl border text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-mono">
           {instagramCaption}
         </div>
 
         <button
-          onClick={() => handleCopy(instagramCaption, 'Social Caption')}
-          className="py-1.5 px-3 border rounded-xl font-bold text-xs hover:bg-white dark:hover:bg-slate-900 flex items-center gap-1"
+          onClick={() => handleCopy(instagramCaption, 'Instagram Caption')}
+          className="py-1.5 px-3 border rounded-xl font-bold text-xs hover:bg-white dark:hover:bg-slate-900 flex items-center gap-1 cursor-pointer"
         >
           <Copy className="w-3.5 h-3.5" />
-          <span>Copy Social Caption</span>
+          <span>Copy Caption</span>
         </button>
-      </div>
-
-      {/* Downloadable Marketing Assets */}
-      <div className="space-y-3">
-        <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">
-          Approved Business Collateral & Downloads
-        </h3>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-          <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border rounded-2xl flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <FileText className="w-5 h-5 text-red-500" />
-              <div>
-                <div className="font-bold text-slate-900 dark:text-white">Product Spec Brochure 2026</div>
-                <span className="text-[10px] text-slate-400">PDF · 2.4 MB</span>
-              </div>
-            </div>
-            <button
-              onClick={() => showToast('success', 'PDF Downloaded', 'Product brochure saved.')}
-              className="p-2 border rounded-xl hover:bg-white"
-            >
-              <Download className="w-4 h-4 text-slate-600" />
-            </button>
-          </div>
-
-          <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border rounded-2xl flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <Film className="w-5 h-5 text-purple-500" />
-              <div>
-                <div className="font-bold text-slate-900 dark:text-white">Product Demo Video Reel</div>
-                <span className="text-[10px] text-slate-400">MP4 · 18.2 MB</span>
-              </div>
-            </div>
-            <button
-              onClick={() => showToast('success', 'Video Reel Downloaded', 'Video pitch clip saved.')}
-              className="p-2 border rounded-xl hover:bg-white"
-            >
-              <Download className="w-4 h-4 text-slate-600" />
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   )

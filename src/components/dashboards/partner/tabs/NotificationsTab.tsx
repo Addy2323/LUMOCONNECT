@@ -16,32 +16,16 @@ import { usePartnerToast } from '../PartnerToast'
 export function NotificationsTab() {
   const { showToast } = usePartnerToast()
 
-  const [notifications, setNotifications] = useState([
+  const [notifications, setNotifications] = useState<
     {
-      id: 'notif_1',
-      title: 'Customer Referral Verified (+TZS 45,000)',
-      description: 'Your lead Hassan M. Kibwana was verified by Kijani Solar Tech. Reward credited to Available Earnings.',
-      time: 'Today, 11:45 AM',
-      type: 'REWARD',
-      isRead: false,
-    },
-    {
-      id: 'notif_2',
-      title: 'New Deal Room Message from MobiPay Africa',
-      description: 'Alex Mushi posted an update in your Lake Zone Distributor Search negotiation room.',
-      time: 'Today, 10:15 AM',
-      type: 'DEAL_ROOM',
-      isRead: false,
-    },
-    {
-      id: 'notif_3',
-      title: 'Friday Payout Batch Scheduled',
-      description: 'Disbursement of TZS 285,000 scheduled for processing to Vodacom M-Pesa.',
-      time: 'Yesterday',
-      type: 'PAYMENT',
-      isRead: true,
-    },
-  ])
+      id: string
+      title: string
+      description: string
+      time: string
+      type: string
+      isRead: boolean
+    }[]
+  >([])
 
   const handleMarkAllRead = () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })))
@@ -72,32 +56,46 @@ export function NotificationsTab() {
         </button>
       </div>
 
-      <div className="space-y-2.5">
-        {notifications.map((n) => (
-          <div
-            key={n.id}
-            className={`p-4 rounded-2xl border flex items-start gap-3 transition-colors ${
-              n.isRead
-                ? 'bg-slate-50/50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800'
-                : 'bg-orange-50/30 dark:bg-slate-800 border-orange-200/80 dark:border-slate-700'
-            }`}
-          >
-            <div className="w-8 h-8 rounded-xl bg-[#0B132B] text-white flex items-center justify-center shrink-0">
-              <Bell className="w-4 h-4 text-[#FF6A00]" />
-            </div>
-
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between gap-2">
-                <h4 className="font-extrabold text-xs text-slate-900 dark:text-white">
-                  {n.title}
-                </h4>
-                <span className="text-[10px] text-slate-400 font-mono">{n.time}</span>
-              </div>
-              <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{n.description}</p>
-            </div>
+      {notifications.length === 0 ? (
+        <div className="text-center py-12 px-4">
+          <div className="w-12 h-12 rounded-2xl bg-orange-50 dark:bg-orange-950/40 text-[#FF6A00] flex items-center justify-center mx-auto mb-3">
+            <Bell className="w-6 h-6" />
           </div>
-        ))}
-      </div>
+          <h4 className="font-bold text-sm text-slate-900 dark:text-white mb-1">
+            No Notifications Yet
+          </h4>
+          <p className="text-xs text-slate-500 max-w-sm mx-auto">
+            You are all caught up! Real-time alerts regarding referral approvals and payout disbursements will appear here.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-2.5">
+          {notifications.map((n) => (
+            <div
+              key={n.id}
+              className={`p-4 rounded-2xl border flex items-start gap-3 transition-colors ${
+                n.isRead
+                  ? 'bg-slate-50/50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800'
+                  : 'bg-orange-50/30 dark:bg-slate-800 border-orange-200/80 dark:border-slate-700'
+              }`}
+            >
+              <div className="w-8 h-8 rounded-xl bg-[#0B132B] text-white flex items-center justify-center shrink-0">
+                <Bell className="w-4 h-4 text-[#FF6A00]" />
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <h4 className="font-extrabold text-xs text-slate-900 dark:text-white">
+                    {n.title}
+                  </h4>
+                  <span className="text-[10px] text-slate-400 font-mono">{n.time}</span>
+                </div>
+                <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{n.description}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

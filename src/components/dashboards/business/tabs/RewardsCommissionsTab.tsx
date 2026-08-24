@@ -126,7 +126,14 @@ export function RewardsCommissionsTab() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-            {filtered.map((rew) => (
+            {filtered.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="text-center py-10 text-slate-400 text-xs">
+                  No reward obligations recorded yet. Approved conversions will register escrow reward obligations here.
+                </td>
+              </tr>
+            ) : (
+              filtered.map((rew) => (
               <tr key={rew.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
                 <td className="p-3 font-mono font-bold text-slate-900 dark:text-white">
                   {rew.conversionRef}
@@ -174,7 +181,7 @@ export function RewardsCommissionsTab() {
                   )}
                 </td>
               </tr>
-            ))}
+            )))}
           </tbody>
         </table>
       </div>

@@ -103,7 +103,7 @@ export function BusinessDashboardView({
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
           businessName={businessName}
           pendingApplicationsCount={partners.filter((p) => p.status === 'APPLIED').length}
-          activeDealRoomsCount={1}
+          activeDealRoomsCount={0}
           myOpportunitiesCount={opportunities.length}
         />
 

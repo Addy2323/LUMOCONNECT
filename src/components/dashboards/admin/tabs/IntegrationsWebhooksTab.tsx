@@ -120,83 +120,93 @@ export function IntegrationsWebhooksTab() {
         </button>
       </div>
 
-      <div className="space-y-4">
-        {integrations.map((int) => (
-          <div
-            key={int.id}
-            className="p-4 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 space-y-3"
-          >
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-white dark:bg-slate-900 border text-slate-700 dark:text-slate-200 flex items-center justify-center font-bold">
-                  <Webhook className="w-5 h-5 text-[#FF6A00]" />
+      {integrations.length === 0 ? (
+        <div className="text-center py-16 px-4 bg-slate-50/50 dark:bg-slate-800/40 rounded-3xl border border-dashed text-xs text-slate-500 space-y-2">
+          <Webhook className="w-10 h-10 mx-auto text-slate-400 opacity-80" />
+          <div className="font-bold text-slate-700 dark:text-slate-300 text-sm">No Webhook Endpoints Configured</div>
+          <div className="max-w-md mx-auto">
+            Connect HTTP webhook listeners for Vodacom M-Pesa, Tigo Pesa, Airtel Money, or custom merchant e-commerce gateways to process live attribution callbacks.
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {integrations.map((int) => (
+            <div
+              key={int.id}
+              className="p-4 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 space-y-3"
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-white dark:bg-slate-900 border text-slate-700 dark:text-slate-200 flex items-center justify-center font-bold">
+                    <Webhook className="w-5 h-5 text-[#FF6A00]" />
+                  </div>
+                  <div>
+                    <h4 className="font-extrabold text-sm text-slate-900 dark:text-white leading-tight">
+                      {int.name}
+                    </h4>
+                    <div className="text-[11px] text-slate-400 font-mono mt-0.5">{int.targetUrl}</div>
+                  </div>
                 </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] bg-emerald-100 text-emerald-700 font-extrabold px-2 py-0.5 rounded-full">
+                    {int.successRate}% Success
+                  </span>
+                  <span className="text-xs text-slate-400 font-mono">{int.lastPing}</span>
+                </div>
+              </div>
+
+              {/* Masked Credentials Display */}
+              <div className="p-3 bg-white dark:bg-slate-900 rounded-2xl border text-xs grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <h4 className="font-extrabold text-sm text-slate-900 dark:text-white leading-tight">
-                    {int.name}
-                  </h4>
-                  <div className="text-[11px] text-slate-400 font-mono mt-0.5">{int.targetUrl}</div>
+                  <span className="text-slate-400 text-[10px] font-bold uppercase">Public API Key</span>
+                  <div className="font-mono text-slate-800 dark:text-slate-200 mt-0.5">{int.apiKeyMasked}</div>
+                </div>
+
+                <div>
+                  <span className="text-slate-400 text-[10px] font-bold uppercase">Webhook Signing Secret</span>
+                  <div className="font-mono text-slate-800 dark:text-slate-200 mt-0.5 flex items-center justify-between">
+                    <span>{showSecretId === int.id ? 'sec_live_9941a88b1200234c88f' : int.secretMasked}</span>
+                    <button
+                      onClick={() => setShowSecretId(showSecretId === int.id ? null : int.id)}
+                      className="text-xs text-blue-600 hover:underline ml-2 cursor-pointer"
+                    >
+                      {showSecretId === int.id ? 'Hide' : 'Reveal'}
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] bg-emerald-100 text-emerald-700 font-extrabold px-2 py-0.5 rounded-full">
-                  {int.successRate}% Success
-                </span>
-                <span className="text-xs text-slate-400 font-mono">{int.lastPing}</span>
-              </div>
-            </div>
+              <div className="flex items-center justify-between text-xs pt-1">
+                <div className="flex gap-1.5 flex-wrap">
+                  {int.events.map((e) => (
+                    <span key={e} className="px-2 py-0.5 bg-slate-200 dark:bg-slate-700 text-[10px] rounded font-mono font-bold">
+                      {e}
+                    </span>
+                  ))}
+                </div>
 
-            {/* Masked Credentials Display */}
-            <div className="p-3 bg-white dark:bg-slate-900 rounded-2xl border text-xs grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <span className="text-slate-400 text-[10px] font-bold uppercase">Public API Key</span>
-                <div className="font-mono text-slate-800 dark:text-slate-200 mt-0.5">{int.apiKeyMasked}</div>
-              </div>
-
-              <div>
-                <span className="text-slate-400 text-[10px] font-bold uppercase">Webhook Signing Secret</span>
-                <div className="font-mono text-slate-800 dark:text-slate-200 mt-0.5 flex items-center justify-between">
-                  <span>{showSecretId === int.id ? 'sec_live_9941a88b1200234c88f' : int.secretMasked}</span>
+                <div className="flex items-center gap-2">
                   <button
-                    onClick={() => setShowSecretId(showSecretId === int.id ? null : int.id)}
-                    className="text-xs text-blue-600 hover:underline ml-2"
+                    onClick={() => handleTestPing(int)}
+                    className="py-1.5 px-3 bg-[#0B132B] hover:bg-slate-800 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer"
                   >
-                    {showSecretId === int.id ? 'Hide' : 'Reveal'}
+                    <Send className="w-3.5 h-3.5 text-[#FF6A00]" />
+                    <span>Send Ping Test</span>
+                  </button>
+
+                  <button
+                    onClick={() => showToast('info', 'Retry Queue Clean', '0 pending failed webhooks for this endpoint.')}
+                    className="py-1.5 px-3 border border-slate-300 dark:border-slate-700 rounded-xl font-bold hover:bg-white dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs cursor-pointer"
+                  >
+                    Retry Queue (0)
                   </button>
                 </div>
               </div>
             </div>
-
-            <div className="flex items-center justify-between text-xs pt-1">
-              <div className="flex gap-1.5 flex-wrap">
-                {int.events.map((e) => (
-                  <span key={e} className="px-2 py-0.5 bg-slate-200 dark:bg-slate-700 text-[10px] rounded font-mono font-bold">
-                    {e}
-                  </span>
-                ))}
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handleTestPing(int)}
-                  className="py-1.5 px-3 bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 rounded-xl font-bold text-xs shadow-2xs hover:bg-slate-800 flex items-center gap-1.5"
-                >
-                  <Send className="w-3.5 h-3.5 text-[#FF6A00]" />
-                  <span>Send Ping Test</span>
-                </button>
-
-                <button
-                  onClick={() => showToast('info', 'Retry Queue Clean', '0 pending failed webhooks for this endpoint.')}
-                  className="py-1.5 px-3 border border-slate-300 dark:border-slate-700 rounded-xl font-bold hover:bg-white dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs"
-                >
-                  Retry Queue (0)
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* CONNECT WEBHOOK MODAL */}
       {showAddModal && (

@@ -121,8 +121,17 @@ export function FraudRiskTab() {
       </div>
 
       {/* Case Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {filtered.map((c) => (
+      {filtered.length === 0 ? (
+        <div className="text-center py-16 px-4 bg-slate-50/50 dark:bg-slate-800/40 rounded-3xl border border-dashed text-xs text-slate-500 space-y-2">
+          <ShieldAlert className="w-10 h-10 mx-auto text-emerald-500 opacity-80" />
+          <div className="font-bold text-slate-700 dark:text-slate-300 text-sm">No Active Fraud Risk Alerts</div>
+          <div className="max-w-md mx-auto">
+            The platform fraud engine continuously monitors bot click loops, rapid conversion velocity, and abnormal geo-IP clusters in real time.
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {filtered.map((c) => (
           <div
             key={c.id}
             className="p-4 rounded-3xl border border-slate-200 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-800/40 space-y-3 flex flex-col justify-between"
@@ -207,6 +216,7 @@ export function FraudRiskTab() {
           </div>
         ))}
       </div>
+      )}
 
       {/* RISK ACTION MODAL */}
       {actionModal && (

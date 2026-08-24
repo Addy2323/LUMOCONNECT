@@ -66,27 +66,67 @@ export function DiscoverOpportunitiesTab({
   const [selectedOpp, setSelectedOpp] = useState<PartnerOpportunitySummary | null>(null)
   const [showSubscriptionGateModal, setShowSubscriptionGateModal] = useState(false)
 
+  // Price Range State
+  const [priceRange, setPriceRange] = useState<
+    'ALL' | 'UNDER_50K' | '50K_150K' | '150K_500K' | 'ABOVE_500K' | 'CUSTOM'
+  >('ALL')
+  const [customMinPrice, setCustomMinPrice] = useState<number | ''>('')
+  const [customMaxPrice, setCustomMaxPrice] = useState<number | ''>('')
+  const [sortBy, setSortBy] = useState<'recommended' | 'price_high_to_low' | 'price_low_to_high' | 'closing_soon'>('recommended')
+
   const isSubscribed = subscription.status === 'ACTIVE'
 
-  const filtered = opportunities.filter((opp) => {
-    const matchesSearch =
-      opp.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      opp.businessName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      opp.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      opp.region.toLowerCase().includes(searchQuery.toLowerCase())
+  const filtered = opportunities
+    .filter((opp) => {
+      const matchesSearch =
+        opp.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        opp.businessName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        opp.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        opp.region.toLowerCase().includes(searchQuery.toLowerCase())
 
-    if (!matchesSearch) return false
-    if (activeFilter === 'All Deals') return true
-    if (activeFilter === 'Recommended') return true
-    if (activeFilter === 'Highest Paying') return opp.rewardValueTZS >= 100000
-    if (activeFilter === 'Advertising & Creators') return opp.type === 'ADVERTISING_CAMPAIGN'
-    if (activeFilter === 'Field Sales') return opp.type === 'CUSTOMER_ACQUISITION'
-    if (activeFilter === 'Lead Generation') return opp.type === 'LEAD_GENERATION'
-    if (activeFilter === 'B2B Opportunities') return opp.type === 'B2B_INTRODUCTION'
-    if (opp.category.toLowerCase().includes(activeFilter.toLowerCase())) return true
+      if (!matchesSearch) return false
 
-    return true
-  })
+      // Category / Tag filter
+      if (activeFilter === 'Highest Paying') {
+        if (opp.rewardValueTZS < 100000) return false
+      } else if (activeFilter === 'Advertising & Creators') {
+        if (opp.type !== 'ADVERTISING_CAMPAIGN') return false
+      } else if (activeFilter === 'Field Sales') {
+        if (opp.type !== 'CUSTOMER_ACQUISITION') return false
+      } else if (activeFilter === 'Lead Generation') {
+        if (opp.type !== 'LEAD_GENERATION') return false
+      } else if (activeFilter === 'B2B Opportunities') {
+        if (opp.type !== 'B2B_INTRODUCTION') return false
+      } else if (activeFilter !== 'All Deals' && activeFilter !== 'Recommended') {
+        if (!opp.category.toLowerCase().includes(activeFilter.toLowerCase())) return false
+      }
+
+      // Price / Reward Range Filter
+      const val = opp.rewardValueTZS || 0
+      if (priceRange === 'UNDER_50K') {
+        if (val >= 50000) return false
+      } else if (priceRange === '50K_150K') {
+        if (val < 50000 || val > 150000) return false
+      } else if (priceRange === '150K_500K') {
+        if (val < 150000 || val > 500000) return false
+      } else if (priceRange === 'ABOVE_500K') {
+        if (val < 500000) return false
+      } else if (priceRange === 'CUSTOM') {
+        if (customMinPrice !== '' && val < Number(customMinPrice)) return false
+        if (customMaxPrice !== '' && val > Number(customMaxPrice)) return false
+      }
+
+      return true
+    })
+    .sort((a, b) => {
+      if (sortBy === 'price_high_to_low') {
+        return (b.rewardValueTZS || 0) - (a.rewardValueTZS || 0)
+      }
+      if (sortBy === 'price_low_to_high') {
+        return (a.rewardValueTZS || 0) - (b.rewardValueTZS || 0)
+      }
+      return 0
+    })
 
   const toggleSave = (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
@@ -137,8 +177,12 @@ export function DiscoverOpportunitiesTab({
             </span>
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Search verified deals across Tanzania. Full commercial terms and participation are unlocked with your verified Partner subscription.
+            Search verified deals across Tanzania. Filter by industry, region, and compensation price range.
           </p>
+        </div>
+
+        <div className="text-xs text-slate-500 font-bold self-start sm:self-auto">
+          Showing <strong>{filtered.length}</strong> of {opportunities.length} deals
         </div>
       </div>
 
@@ -157,6 +201,84 @@ export function DiscoverOpportunitiesTab({
             {tag}
           </button>
         ))}
+      </div>
+
+      {/* DEDICATED PRICE / REWARD RANGE FILTER BAR */}
+      <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 space-y-3">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              Reward / Price Range:
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-500 font-bold">Sort By:</span>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              className="py-1.5 px-3 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-bold text-slate-800 dark:text-slate-200"
+            >
+              <option value="recommended">Recommended</option>
+              <option value="price_high_to_low">Reward: Highest to Lowest</option>
+              <option value="price_low_to_high">Reward: Lowest to Highest</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Price Range Preset Pills */}
+        <div className="flex flex-wrap items-center gap-1.5 text-xs">
+          {[
+            { id: 'ALL', label: 'All Rewards' },
+            { id: 'UNDER_50K', label: '< TZS 50,000' },
+            { id: '50K_150K', label: 'TZS 50,000 – 150,000' },
+            { id: '150K_500K', label: 'TZS 150,000 – 500,000' },
+            { id: 'ABOVE_500K', label: 'TZS 500,000+' },
+            { id: 'CUSTOM', label: 'Custom Price Range' },
+          ].map((pill) => (
+            <button
+              key={pill.id}
+              onClick={() => setPriceRange(pill.id as any)}
+              className={`px-3 py-1.5 rounded-xl font-bold transition-all ${
+                priceRange === pill.id
+                  ? 'bg-[#FF6A00] text-white shadow-2xs'
+                  : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100'
+              }`}
+            >
+              {pill.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Custom Min / Max Price Inputs */}
+        {priceRange === 'CUSTOM' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-200 dark:border-slate-700 text-xs">
+            <div>
+              <label className="font-bold block mb-1 text-slate-700 dark:text-slate-300">
+                Minimum Reward (TZS)
+              </label>
+              <input
+                type="number"
+                placeholder="e.g. 20000"
+                value={customMinPrice}
+                onChange={(e) => setCustomMinPrice(e.target.value === '' ? '' : Number(e.target.value))}
+                className="w-full p-2 rounded-xl border bg-white dark:bg-slate-900 font-mono font-bold"
+              />
+            </div>
+            <div>
+              <label className="font-bold block mb-1 text-slate-700 dark:text-slate-300">
+                Maximum Reward (TZS)
+              </label>
+              <input
+                type="number"
+                placeholder="e.g. 500000"
+                value={customMaxPrice}
+                onChange={(e) => setCustomMaxPrice(e.target.value === '' ? '' : Number(e.target.value))}
+                className="w-full p-2 rounded-xl border bg-white dark:bg-slate-900 font-mono font-bold"
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Search Bar */}

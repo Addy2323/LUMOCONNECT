@@ -58,9 +58,9 @@ export function BusinessSidebar({
   sidebarCollapsed,
   onToggleCollapse,
   businessName = 'Kijani Solar Tech',
-  pendingApplicationsCount = 4,
-  activeDealRoomsCount = 1,
-  myOpportunitiesCount = 4,
+  pendingApplicationsCount = 0,
+  activeDealRoomsCount = 0,
+  myOpportunitiesCount = 0,
 }: BusinessSidebarProps) {
   const navGroups: { title: string; items: BusinessNavItem[] }[] = [
     {
@@ -79,7 +79,7 @@ export function BusinessSidebar({
           label: 'My Opportunities',
           icon: Briefcase,
           opType: 'C/R/U/Archive',
-          badge: myOpportunitiesCount,
+          badge: myOpportunitiesCount > 0 ? myOpportunitiesCount : undefined,
           badgeColor: 'bg-orange-100 dark:bg-orange-950/60 text-[#FF6A00]',
         },
         {
@@ -87,7 +87,7 @@ export function BusinessSidebar({
           label: 'Partners & Applications',
           icon: Users,
           opType: 'Read/Workflow',
-          badge: pendingApplicationsCount,
+          badge: pendingApplicationsCount > 0 ? pendingApplicationsCount : undefined,
           badgeColor: 'bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300',
         },
         {
@@ -95,7 +95,7 @@ export function BusinessSidebar({
           label: 'Deal Rooms',
           icon: MessageSquareCode,
           opType: 'Negotiate & Milestones',
-          badge: activeDealRoomsCount,
+          badge: activeDealRoomsCount > 0 ? activeDealRoomsCount : undefined,
           badgeColor: 'bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300',
         },
       ],

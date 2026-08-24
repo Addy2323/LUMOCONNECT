@@ -1,3 +1,10 @@
+// Production Security Build Guard: Ensure role simulator cannot be enabled in production
+if (process.env.NODE_ENV === 'production' && (process.env.ENABLE_ROLE_SIMULATOR === 'true' || process.env.NEXT_PUBLIC_ENABLE_ROLE_SIMULATOR === 'true')) {
+  throw new Error(
+    'FATAL SECURITY VIOLATION: ENABLE_ROLE_SIMULATOR is set to true in production. Simulation of user states is strictly prohibited in production builds.'
+  )
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   typescript: {

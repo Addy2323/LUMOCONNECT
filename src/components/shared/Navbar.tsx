@@ -25,7 +25,7 @@ interface NavbarProps {
 export function Navbar({
   activeView,
   onNavigate,
-  notificationsCount = 2,
+  notificationsCount = 0,
   onOpenHowItWorks,
 }: NavbarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false)

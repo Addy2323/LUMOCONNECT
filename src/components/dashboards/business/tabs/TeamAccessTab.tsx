@@ -99,7 +99,14 @@ export function TeamAccessTab() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-            {team.map((member) => (
+            {team.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="text-center py-8 text-slate-400 text-xs">
+                  No additional team members invited yet. Click &quot;Invite Colleague&quot; above to grant role-based portal access.
+                </td>
+              </tr>
+            ) : (
+              team.map((member) => (
               <tr key={member.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
                 <td className="p-3">
                   <div className="font-extrabold text-slate-900 dark:text-white">{member.name}</div>
@@ -138,7 +145,7 @@ export function TeamAccessTab() {
                   )}
                 </td>
               </tr>
-            ))}
+            )))}
           </tbody>
         </table>
       </div>

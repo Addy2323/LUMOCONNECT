@@ -10,26 +10,7 @@ export interface InAppNotification {
   createdAt: Date
 }
 
-const notificationsStore: InAppNotification[] = [
-  {
-    id: 'notif_1',
-    userId: 'partner_alex',
-    title: 'Commission Approved',
-    message: 'MobiPay referral #MP-2048 was verified. +TZS 25,000 added to payable balance.',
-    linkUrl: '/partner',
-    isRead: false,
-    createdAt: new Date('2026-08-24T09:42:00Z'),
-  },
-  {
-    id: 'notif_2',
-    userId: 'partner_alex',
-    title: 'Deal Deliverable Approved',
-    message: 'SafariBox Serengeti accepted your photo asset deliverable #del_1.',
-    linkUrl: '/dealroom/dr_safaribox_alex',
-    isRead: false,
-    createdAt: new Date('2026-08-23T15:00:00Z'),
-  },
-]
+const notificationsStore: InAppNotification[] = []
 
 export function getNotificationsForUser(userId: string): InAppNotification[] {
   return notificationsStore.filter((n) => n.userId === userId)

@@ -30,9 +30,9 @@ export function SubscriptionsTab() {
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [showPlanConfigModal, setShowPlanConfigModal] = useState(false)
   const [plans, setPlans] = useState([
-    { code: 'MONTHLY', name: 'Monthly Starter', priceTZS: 35000, days: 30, activeCount: 4120 },
-    { code: 'SEMI_ANNUAL', name: 'Semi-Annual Pro', priceTZS: 180000, days: 180, activeCount: 1890 },
-    { code: 'ENTERPRISE_AI', name: 'Enterprise AI & Custom API', priceTZS: 1500000, days: 365, activeCount: 42 },
+    { code: 'MONTHLY', name: 'Monthly Starter', priceTZS: 35000, days: 30, activeCount: 0 },
+    { code: 'SEMI_ANNUAL', name: 'Semi-Annual Pro', priceTZS: 180000, days: 180, activeCount: 0 },
+    { code: 'ENTERPRISE_AI', name: 'Enterprise AI & Custom API', priceTZS: 1500000, days: 365, activeCount: 0 },
   ])
 
   const [editingPlan, setEditingPlan] = useState<typeof plans[0] | null>(null)
@@ -192,12 +192,19 @@ export function SubscriptionsTab() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-            {filteredLedger.map((sub) => (
-              <tr key={sub.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
-                <td className="p-3">
-                  <div className="font-extrabold text-slate-900 dark:text-white">{sub.userName}</div>
-                  <div className="text-[10px] text-slate-400 font-mono">ID: {sub.userId}</div>
+            {filteredLedger.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="text-center py-12 text-slate-400">
+                  No subscription transactions recorded in the billing ledger yet.
                 </td>
+              </tr>
+            ) : (
+              filteredLedger.map((sub) => (
+                <tr key={sub.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                  <td className="p-3">
+                    <div className="font-extrabold text-slate-900 dark:text-white">{sub.userName}</div>
+                    <div className="text-[10px] text-slate-400 font-mono">ID: {sub.userId}</div>
+                  </td>
 
                 <td className="p-3">
                   <span className="font-bold text-slate-800 dark:text-slate-200">{sub.planName}</span>
@@ -251,7 +258,8 @@ export function SubscriptionsTab() {
                   </div>
                 </td>
               </tr>
-            ))}
+            ))
+          )}
           </tbody>
         </table>
       </div>

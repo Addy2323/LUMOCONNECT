@@ -16,14 +16,14 @@ import { usePartnerToast } from '../PartnerToast'
 export function TrainingCenterTab() {
   const { showToast } = usePartnerToast()
 
-  const [courses] = useState([
+  const [courses, setCourses] = useState([
     {
       id: 'crs_1',
       title: 'LUMO Partner Compliance & Fair Dealing Standard',
       duration: '45 mins',
       modulesCount: 4,
-      completedModules: 4,
-      isCompleted: true,
+      completedModules: 0,
+      isCompleted: false,
       badge: 'Certified Compliant Seller',
     },
     {
@@ -31,7 +31,7 @@ export function TrainingCenterTab() {
       title: 'Commercial B2B Introduction & Contract Negotiation',
       duration: '1 hr 15 mins',
       modulesCount: 6,
-      completedModules: 3,
+      completedModules: 0,
       isCompleted: false,
       badge: 'B2B Dealmaker Certificate',
     },
@@ -40,11 +40,15 @@ export function TrainingCenterTab() {
       title: 'Digital Social Creator Marketing & UTM Tracking',
       duration: '30 mins',
       modulesCount: 3,
-      completedModules: 3,
-      isCompleted: true,
+      completedModules: 0,
+      isCompleted: false,
       badge: 'Growth Influencer Badge',
     },
   ])
+
+  const handleStartCourse = (title: string) => {
+    showToast('info', 'Masterclass Opened', `Starting training curriculum for "${title}".`)
+  }
 
   const handleDownloadCert = (badge: string) => {
     showToast('success', 'Certificate Downloaded', `Official PDF certificate for "${badge}" downloaded.`)
@@ -58,7 +62,7 @@ export function TrainingCenterTab() {
           <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <span>Partner Academy & Training Center</span>
             <span className="text-[10px] bg-emerald-100 text-emerald-700 font-extrabold px-2 py-0.5 rounded-full">
-              Read / Learning Workflow
+              Learning Curriculum
             </span>
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
@@ -77,10 +81,10 @@ export function TrainingCenterTab() {
               <div className="flex items-center gap-2">
                 <span
                   className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                    crs.isCompleted ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'
+                    crs.isCompleted ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
                   }`}
                 >
-                  {crs.isCompleted ? '✓ Completed' : 'In Progress'}
+                  {crs.isCompleted ? '✓ Completed' : 'Not Started'}
                 </span>
                 <span className="text-[11px] text-slate-400 font-mono">{crs.duration}</span>
               </div>
@@ -98,18 +102,18 @@ export function TrainingCenterTab() {
               {crs.isCompleted ? (
                 <button
                   onClick={() => handleDownloadCert(crs.badge)}
-                  className="py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl flex items-center gap-1.5 shadow-2xs"
+                  className="py-2 px-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs cursor-pointer"
                 >
-                  <Award className="w-3.5 h-3.5" />
+                  <Download className="w-3.5 h-3.5" />
                   <span>Download Certificate</span>
                 </button>
               ) : (
                 <button
-                  onClick={() => showToast('info', 'Lesson Resumed', 'Loading course player...')}
-                  className="py-2 px-4 bg-[#FF6A00] text-white font-extrabold text-xs rounded-xl shadow-xs flex items-center gap-1.5"
+                  onClick={() => handleStartCourse(crs.title)}
+                  className="py-2 px-3.5 bg-[#FF6A00] hover:bg-orange-600 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs cursor-pointer"
                 >
                   <PlayCircle className="w-3.5 h-3.5" />
-                  <span>Continue Learning</span>
+                  <span>Start Masterclass</span>
                 </button>
               )}
             </div>

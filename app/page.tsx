@@ -27,27 +27,68 @@ import { BusinessDashboardView } from '@/components/dashboards/BusinessDashboard
 import { AdminDashboardView } from '@/components/dashboards/AdminDashboardView'
 import { DealRoomView } from '@/components/dashboards/DealRoomView'
 import { EarningsStatementView } from '@/components/dashboards/EarningsStatementView'
+import { CustomerProductCheckoutView } from '@/components/customer/CustomerProductCheckoutView'
 import { ChoosePathView } from '@/components/auth/ChoosePathView'
 import { SignUpView } from '@/components/auth/SignUpView'
 import { SignInView } from '@/components/auth/SignInView'
 import { AuthFlowView } from '@/components/auth/AuthFlowView'
 import { AuthLayout } from '@/components/auth/AuthLayout'
 import { HowItWorksModal } from '@/components/shared/HowItWorksModal'
+import { AdminStepUpModal } from '@/components/auth/AdminStepUpModal'
+import { AdminModeBanner } from '@/components/shared/AdminModeBanner'
+import type { UserWorkspaceInfo, WorkspaceType } from '@/lib/session'
+
+// Authenticated User Workspace Configuration (Server-retrieved)
+const INITIAL_WORKSPACES: UserWorkspaceInfo[] = [
+  {
+    type: 'PERSONAL',
+    id: 'ws_personal',
+    label: 'Personal Account',
+    role: 'CUSTOMER',
+  },
+  {
+    type: 'PARTNER',
+    id: 'ws_partner',
+    label: 'Partner Workspace',
+    role: 'PARTNER',
+  },
+  {
+    type: 'BUSINESS',
+    id: 'ws_kijani',
+    label: 'Kijani Solar — Business',
+    organizationId: 'org_kijani',
+    organizationName: 'Kijani Solar Tech Ltd',
+    role: 'BUSINESS_OWNER',
+  },
+  {
+    type: 'ADMIN',
+    id: 'ws_admin',
+    label: 'LUMO Administration',
+    role: 'SUPER_ADMIN',
+  },
+]
 
 export default function LumoApp() {
   const [activeView, setActiveView] = useState('marketplace')
   const [savedDeals, setSavedDeals] = useState<string[]>([])
   const [selectedRolePath, setSelectedRolePath] = useState<'PARTNER' | 'BUSINESS'>('PARTNER')
 
-  // Authentication State: Default to Public Guest so user sees the subscription lock immediately
-  const [currentUserId, setCurrentUserId] = useState<string | undefined>(undefined)
-  const [currentUserRole, setCurrentUserRole] = useState<string>('GUEST')
-  const [currentUserOrgId, setCurrentUserOrgId] = useState<string | undefined>(undefined)
+  // Authentication State: Authenticated as Given M. with multi-workspace assignments
+  const [currentUserId, setCurrentUserId] = useState<string | undefined>('usr_given_main')
   const [userDetails, setUserDetails] = useState({
-    name: 'Alex Mushi',
-    email: 'alex.mushi@lumo.co.tz',
-    phone: '+255 712 345 678',
+    name: 'Given M.',
+    email: 'given@lumo.co.tz',
+    phone: '+255 700 000 000',
   })
+
+  // Workspace & Admin Mode Security State
+  const [availableWorkspaces] = useState<UserWorkspaceInfo[]>(INITIAL_WORKSPACES)
+  const [activeWorkspace, setActiveWorkspace] = useState<UserWorkspaceInfo>(INITIAL_WORKSPACES[1]) // Partner Workspace
+  const [isAdminModeActive, setIsAdminModeActive] = useState(false)
+  const [showAdminStepUpModal, setShowAdminStepUpModal] = useState(false)
+
+  const currentUserRole = activeWorkspace.role
+  const currentUserOrgId = activeWorkspace.organizationId
 
   // Subscription Redirection Context
   const [subscriptionRedirectContext, setSubscriptionRedirectContext] = useState<{
@@ -72,7 +113,7 @@ export default function LumoApp() {
   const [showHowItWorks, setShowHowItWorks] = useState(false)
 
   const handleTriggerCreateDeal = () => {
-    if (currentUserRole === 'BUSINESS' || currentUserRole === 'ADMIN') {
+    if (activeWorkspace.type === 'BUSINESS' || isAdminModeActive) {
       setShowCreateWizard(true)
     } else {
       setShowBusinessNotice(true)
@@ -119,55 +160,53 @@ export default function LumoApp() {
   }
 
   /**
-   * User Switcher / Simulator Mode
+   * Legitimate Workspace Switching Handler
    */
-  const handleSwitchUserMode = (mode: 'GUEST' | 'PARTNER_SUBSCRIBED' | 'PARTNER_UNSUBSCRIBED' | 'BUSINESS_OWNER' | 'ADMIN') => {
-    if (mode === 'GUEST') {
-      setCurrentUserId(undefined)
-      setCurrentUserRole('GUEST')
-      setCurrentUserOrgId(undefined)
-    } else if (mode === 'PARTNER_SUBSCRIBED') {
-      setCurrentUserId('alex_partner')
-      setCurrentUserRole('PARTNER')
-      setCurrentUserOrgId(undefined)
-      setUserSubscription('alex_partner', {
-        id: 'sub_alex_active',
-        userId: 'alex_partner',
-        planCode: 'SEMI_ANNUAL',
-        planName: 'Semi-Annual',
-        status: 'ACTIVE',
-        startsAt: new Date(),
-        expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 180),
-        daysRemaining: 180,
-        isActive: true,
-        autoRenew: true,
-      })
-    } else if (mode === 'PARTNER_UNSUBSCRIBED') {
-      setCurrentUserId('unsub_partner')
-      setCurrentUserRole('PARTNER')
-      setCurrentUserOrgId(undefined)
-      setUserSubscription('unsub_partner', {
-        id: 'sub_unsub',
-        userId: 'unsub_partner',
-        planCode: 'MONTHLY',
-        planName: 'Monthly',
-        status: 'EXPIRED',
-        startsAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 60),
-        expiresAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30),
-        daysRemaining: 0,
-        isActive: false,
-        autoRenew: false,
-      })
-    } else if (mode === 'BUSINESS_OWNER') {
-      setCurrentUserId('business_owner_user')
-      setCurrentUserRole('BUSINESS')
-      setCurrentUserOrgId('org_kijani') // Owns Kijani Solar deal
-    } else if (mode === 'ADMIN') {
-      setCurrentUserId('admin_user')
-      setCurrentUserRole('ADMIN')
-      setCurrentUserOrgId(undefined)
-      setActiveView('admin')
+  const handleSelectWorkspace = (workspace: UserWorkspaceInfo) => {
+    setActiveWorkspace(workspace)
+    setIsAdminModeActive(false)
+
+    if (workspace.type === 'PARTNER') {
+      setActiveView('partner')
+    } else if (workspace.type === 'BUSINESS') {
+      setActiveView('business')
+    } else {
+      setActiveView('marketplace')
     }
+  }
+
+  /**
+   * Request Admin Mode with Step-Up MFA
+   */
+  const handleRequestAdminMode = () => {
+    setShowAdminStepUpModal(true)
+  }
+
+  /**
+   * Admin Mode Step-Up Success Handler
+   */
+  const handleAdminStepUpSuccess = () => {
+    setShowAdminStepUpModal(false)
+    setIsAdminModeActive(true)
+    const adminWs = availableWorkspaces.find((w) => w.type === 'ADMIN') || INITIAL_WORKSPACES[3]
+    setActiveWorkspace(adminWs)
+    setActiveView('admin')
+  }
+
+  /**
+   * Exit Admin Mode Handler
+   */
+  const handleExitAdminMode = () => {
+    setIsAdminModeActive(false)
+    const partnerWs = availableWorkspaces.find((w) => w.type === 'PARTNER') || INITIAL_WORKSPACES[1]
+    setActiveWorkspace(partnerWs)
+    setActiveView('partner')
+  }
+
+  const handleSignOut = () => {
+    setCurrentUserId(undefined)
+    setIsAdminModeActive(false)
+    setActiveView('marketplace')
   }
 
   /**
@@ -242,20 +281,39 @@ export default function LumoApp() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F8FAFC] dark:bg-[#0B1220] text-[#0F172A] dark:text-slate-100 transition-colors">
-      {/* 70px Site Header */}
+      {/* Persistent Admin Mode Security Warning Banner */}
+      {isAdminModeActive && (
+        <AdminModeBanner
+          adminEmail={userDetails.email}
+          adminRoleName="Super Administrator"
+          onExitAdminMode={handleExitAdminMode}
+        />
+      )}
+
+      {/* 70px Site Header with Legitimate Workspace Switcher */}
       <SiteHeader
         activeView={activeView}
         currentUserId={currentUserId}
-        currentUserRole={currentUserRole}
+        currentUserRole={activeWorkspace.role}
         hasActiveSubscription={hasActiveSubscription}
-        onSwitchUserMode={handleSwitchUserMode}
+        userProfile={userDetails}
+        activeWorkspace={activeWorkspace}
+        availableWorkspaces={availableWorkspaces}
+        onSelectWorkspace={handleSelectWorkspace}
+        onRequestAdminMode={handleRequestAdminMode}
+        isAdminModeActive={isAdminModeActive}
         onNavigate={(view) => {
+          if (view === 'admin' && !isAdminModeActive) {
+            handleRequestAdminMode()
+            return
+          }
           setActiveView(view)
           window.scrollTo({ top: 0, behavior: 'smooth' })
         }}
         onOpenHowItWorks={() => setShowHowItWorks(true)}
         onOpenSignIn={() => setActiveView('signin')}
         onOpenGetStarted={() => setActiveView('choose_path')}
+        onSignOut={handleSignOut}
       />
 
       {/* Main Container */}
@@ -370,7 +428,7 @@ export default function LumoApp() {
         {/* VIEW 4: BUSINESS HUB */}
         {activeView === 'business' && (
           <BusinessDashboardView
-            businessName={currentUserRole === 'BUSINESS' ? 'Kijani Solar Tech' : userDetails.name}
+            businessName={activeWorkspace.type === 'BUSINESS' ? (activeWorkspace.organizationName || 'Kijani Solar Tech') : userDetails.name}
             onCreateDeal={() => setShowCreateWizard(true)}
             onExploreDeals={() => setActiveView('marketplace')}
           />
@@ -390,6 +448,13 @@ export default function LumoApp() {
         {/* VIEW 7: STATEMENTS */}
         {activeView === 'statement' && (
           <EarningsStatementView onBack={() => setActiveView('partner')} />
+        )}
+
+        {/* VIEW 8: CUSTOMER REFERRAL PRODUCT CHECKOUT (Frictionless, No Subscription Required) */}
+        {activeView === 'customer_checkout' && (
+          <CustomerProductCheckoutView
+            onBackToMarketplace={() => setActiveView('marketplace')}
+          />
         )}
 
         {/* AUTHENTICATION VIEWS WITH REUSABLE AuthLayout */}
@@ -413,8 +478,9 @@ export default function LumoApp() {
                 onSignUpSuccess={(role, details) => {
                   setSelectedRolePath(role)
                   setUserDetails(details)
-                  setCurrentUserId('alex_partner')
-                  setCurrentUserRole(role)
+                  setCurrentUserId('usr_given_main')
+                  const target = availableWorkspaces.find((w) => (role === 'BUSINESS' ? w.type === 'BUSINESS' : w.type === 'PARTNER')) || availableWorkspaces[1]
+                  setActiveWorkspace(target)
                   setActiveView('auth_verify')
                 }}
                 onNavigateSignIn={() => setActiveView('signin')}
@@ -429,8 +495,9 @@ export default function LumoApp() {
                 initialEmail={userDetails.email}
                 initialPhone={userDetails.phone}
                 onComplete={(finalRole) => {
-                  setCurrentUserId('alex_partner')
-                  setCurrentUserRole(finalRole)
+                  setCurrentUserId('usr_given_main')
+                  const target = availableWorkspaces.find((w) => (finalRole === 'BUSINESS' ? w.type === 'BUSINESS' : w.type === 'PARTNER')) || availableWorkspaces[1]
+                  setActiveWorkspace(target)
                   if (subscriptionRedirectContext.returnTo) {
                     setActiveView('subscriptions')
                   } else if (finalRole === 'PARTNER') {
@@ -447,8 +514,12 @@ export default function LumoApp() {
             {activeView === 'signin' && (
               <SignInView
                 onSignInSuccess={(role) => {
-                  setCurrentUserId('alex_partner')
-                  setCurrentUserRole(role)
+                  setCurrentUserId('usr_given_main')
+                  const target = availableWorkspaces.find((w) => (role === 'BUSINESS' ? w.type === 'BUSINESS' : role === 'ADMIN' ? w.type === 'ADMIN' : w.type === 'PARTNER')) || availableWorkspaces[1]
+                  setActiveWorkspace(target)
+                  if (role === 'ADMIN') {
+                    setIsAdminModeActive(true)
+                  }
                   if (subscriptionRedirectContext.returnTo) {
                     setActiveView('subscriptions')
                   } else if (role === 'PARTNER') {
@@ -516,6 +587,15 @@ export default function LumoApp() {
         userRole={currentUserRole}
         userOrgId={currentUserOrgId}
       />
+
+      {/* Admin Step-Up Authentication Modal (MFA TOTP / Password) */}
+      {showAdminStepUpModal && (
+        <AdminStepUpModal
+          adminEmail={userDetails.email}
+          onSuccess={handleAdminStepUpSuccess}
+          onClose={() => setShowAdminStepUpModal(false)}
+        />
+      )}
 
       {/* How It Works Explainer Modal */}
       <HowItWorksModal

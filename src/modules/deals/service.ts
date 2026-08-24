@@ -306,3 +306,21 @@ export function createDealOpportunity(
   inMemoryOpportunities.unshift(newOpp)
   return newOpp
 }
+
+export const createOpportunity = createDealOpportunity
+
+export function resetOpportunities(items: OpportunityItem[] = []): void {
+  inMemoryOpportunities = [...items]
+  inMemoryEnrollments.clear()
+}
+
+export function seedTestOpportunity(opp: OpportunityItem): void {
+  const existingIdx = inMemoryOpportunities.findIndex((o) => o.id === opp.id)
+  if (existingIdx >= 0) {
+    inMemoryOpportunities[existingIdx] = opp
+  } else {
+    inMemoryOpportunities.push(opp)
+  }
+}
+
+

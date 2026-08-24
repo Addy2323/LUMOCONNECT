@@ -11,30 +11,23 @@ import {
   Send,
   X,
   FileText,
+  LifeBuoy,
 } from 'lucide-react'
 import { useBusinessToast } from '../BusinessToast'
 
 export function HelpSupportTab() {
   const { showToast } = useBusinessToast()
 
-  const [tickets, setTickets] = useState([
+  const [tickets, setTickets] = useState<
     {
-      id: 'TICK-8812',
-      subject: 'Assistance with Shopify Webhook Conversion Setup',
-      category: 'API & Integration',
-      status: 'OPEN',
-      openedDate: 'Today, 09:15 AM',
-      lastUpdate: 'Assigned to Tech Support Engineer (Godwin)',
-    },
-    {
-      id: 'TICK-8720',
-      subject: 'TRA Electronic Fiscal Receipt Verification Confirmation',
-      category: 'Tax & Compliance',
-      status: 'RESOLVED',
-      openedDate: '18 Aug 2026',
-      lastUpdate: 'Resolved by Finance Officer',
-    },
-  ])
+      id: string
+      subject: string
+      category: string
+      status: string
+      openedDate: string
+      lastUpdate: string
+    }[]
+  >([])
 
   const [showCreateTicketModal, setShowCreateTicketModal] = useState(false)
   const [newTicket, setNewTicket] = useState({
@@ -61,7 +54,7 @@ export function HelpSupportTab() {
     setTickets([created, ...tickets])
     setShowCreateTicketModal(false)
     setNewTicket({ subject: '', category: 'Opportunity Review', message: '' })
-    showToast('success', 'Support Ticket Created', `Ticket ${created.id} submitted. Our team will respond within 2 business hours.`)
+    showToast('success', 'Ticket Submitted', `Support ticket ${created.id} submitted. Our operations desk will respond shortly.`)
   }
 
   return (
@@ -70,19 +63,19 @@ export function HelpSupportTab() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
         <div>
           <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <span>Help Desk, Disputes & Support Center</span>
+            <span>Business Support & Operational Desk</span>
             <span className="text-[10px] bg-blue-100 text-blue-700 font-extrabold px-2 py-0.5 rounded-full">
-              C/R/U/Close
+              Help Desk
             </span>
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Submit inquiries, upload evidence for dispute mediation, and communicate directly with the LUMO Merchant Success Team.
+            Submit priority tickets for deal approvals, escrow reconciliations, tracking integrations, and policy questions.
           </p>
         </div>
 
         <button
           onClick={() => setShowCreateTicketModal(true)}
-          className="py-2.5 px-4 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold text-xs rounded-xl shadow-xs flex items-center gap-2 self-start sm:self-auto transition-all active:scale-[0.99]"
+          className="py-2.5 px-4 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold text-xs rounded-xl shadow-xs flex items-center gap-2 self-start sm:self-auto transition-all active:scale-[0.99] cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           <span>Open Support Ticket</span>
@@ -91,102 +84,109 @@ export function HelpSupportTab() {
 
       {/* Tickets List */}
       <div className="space-y-3">
-        {tickets.map((t) => (
-          <div
-            key={t.id}
-            className="p-4 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
-          >
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="font-mono font-bold text-slate-400">{t.id}</span>
-                <span className="font-bold text-[10px] px-2 py-0.5 bg-white dark:bg-slate-900 rounded border">
-                  {t.category}
-                </span>
-                <span
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                    t.status === 'RESOLVED'
-                      ? 'bg-emerald-100 text-emerald-700'
-                      : 'bg-amber-100 text-amber-700'
-                  }`}
-                >
-                  {t.status}
-                </span>
-              </div>
-              <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">
-                {t.subject}
-              </h4>
-              <p className="text-slate-500 text-[11px]">{t.lastUpdate}</p>
-            </div>
-
-            <div className="text-right text-slate-400 text-[10px]">
-              Opened: {t.openedDate}
-            </div>
+        {tickets.length === 0 ? (
+          <div className="text-center py-12 px-4 bg-slate-50/50 dark:bg-slate-800/40 rounded-2xl border border-dashed text-xs text-slate-500">
+            <LifeBuoy className="w-8 h-8 mx-auto text-slate-400 mb-2" />
+            <div className="font-bold text-slate-700 dark:text-slate-300">No Support Tickets Submitted</div>
+            <div className="mt-0.5">Need help configuring deals, setting up webhooks, or managing payouts? Click &quot;Open Support Ticket&quot; above to contact our operations desk.</div>
           </div>
-        ))}
+        ) : (
+          tickets.map((t) => (
+            <div
+              key={t.id}
+              className="p-4 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+            >
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono font-bold text-[11px] text-slate-400">{t.id}</span>
+                  <span className="font-mono text-[10px] bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded">
+                    {t.category}
+                  </span>
+                  <span
+                    className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+                      t.status === 'RESOLVED' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                    }`}
+                  >
+                    {t.status}
+                  </span>
+                </div>
+                <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">{t.subject}</h4>
+                <div className="text-[11px] text-slate-500">{t.lastUpdate}</div>
+              </div>
+
+              <div className="text-right text-[11px] text-slate-400 shrink-0 font-mono">
+                Opened: {t.openedDate}
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
-      {/* OPEN TICKET MODAL */}
+      {/* Create Ticket Modal */}
       {showCreateTicketModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-xs">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl space-y-4 text-xs">
-            <div className="flex items-center justify-between pb-3 border-b">
-              <div className="flex items-center gap-2">
-                <HelpCircle className="w-4 h-4 text-[#FF6A00]" />
-                <h3 className="text-base font-black text-slate-900 dark:text-white">
-                  Open Support Ticket
-                </h3>
-              </div>
-              <button onClick={() => setShowCreateTicketModal(false)} className="p-1 text-slate-400">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+              <MessageSquare className="w-5 h-5 text-[#FF6A00]" />
+              <span>Submit Enterprise Support Request</span>
+            </h3>
 
-            <div className="space-y-3">
+            <div className="space-y-3 text-xs">
               <div>
-                <label className="font-bold block mb-1">Issue Category</label>
+                <label className="font-bold block text-slate-700 dark:text-slate-300 mb-1">
+                  Category
+                </label>
                 <select
                   value={newTicket.category}
                   onChange={(e) => setNewTicket({ ...newTicket, category: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800"
+                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
                 >
-                  <option value="Opportunity Review">Opportunity Compliance Review</option>
-                  <option value="API & Integration">API, Webhooks & QR Tracking</option>
-                  <option value="Escrow & Payments">Escrow Funding & Disbursals</option>
-                  <option value="Partner Dispute">Partner Mediation & Dispute</option>
+                  <option value="Opportunity Review">Deal Review & Compliance Approval</option>
+                  <option value="Escrow & Banking">Escrow Deposit & Funding Ledger</option>
+                  <option value="API & Integration">API Webhooks & Tracking Integration</option>
+                  <option value="Partner Mediation">Partner Mediation & Deliverable Dispute</option>
+                  <option value="Billing & Tax">VAT Invoicing & TRA Statements</option>
                 </select>
               </div>
 
               <div>
-                <label className="font-bold block mb-1">Subject</label>
+                <label className="font-bold block text-slate-700 dark:text-slate-300 mb-1">
+                  Subject / Summary
+                </label>
                 <input
                   type="text"
-                  placeholder="Brief summary of your question or issue..."
+                  placeholder="e.g. Requesting fast-track review for Q4 solar campaign..."
                   value={newTicket.subject}
                   onChange={(e) => setNewTicket({ ...newTicket, subject: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800"
+                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
                 />
               </div>
 
               <div>
-                <label className="font-bold block mb-1">Detailed Description</label>
+                <label className="font-bold block text-slate-700 dark:text-slate-300 mb-1">
+                  Detailed Inquiry
+                </label>
                 <textarea
                   rows={4}
-                  placeholder="Explain the situation and attach relevant transaction or deal references..."
+                  placeholder="Provide complete details, opportunity references, or webhook payloads..."
                   value={newTicket.message}
                   onChange={(e) => setNewTicket({ ...newTicket, message: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 text-xs"
+                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
                 />
               </div>
             </div>
 
-            <div className="flex gap-2 pt-2 border-t">
+            <div className="flex gap-2 pt-2">
               <button
                 onClick={handleCreateTicket}
-                className="flex-1 py-2.5 bg-[#FF6A00] text-white font-extrabold rounded-xl shadow-xs"
+                className="flex-1 py-2.5 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold rounded-xl text-xs cursor-pointer"
               >
                 Submit Ticket
               </button>
-              <button onClick={() => setShowCreateTicketModal(false)} className="py-2.5 px-4 border rounded-xl font-bold">
+              <button
+                onClick={() => setShowCreateTicketModal(false)}
+                className="py-2.5 px-4 border rounded-xl text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"
+              >
                 Cancel
               </button>
             </div>

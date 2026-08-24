@@ -75,71 +75,79 @@ export function TrackingLinksCodesTab() {
 
       {/* Links List */}
       <div className="space-y-3">
-        {filtered.map((link) => (
-          <div
-            key={link.id}
-            className="p-4 sm:p-5 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 space-y-3 text-xs"
-          >
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div className="space-y-0.5">
-                <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">
-                  {link.dealTitle}
-                </h4>
-                <div className="text-[11px] text-slate-400">
-                  Attribution Window: <strong>{link.attributionWindowDays} Days</strong> · Created: {link.createdAt}
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handleToggleActive(link.id, link.isActive, link.dealTitle)}
-                  className={`py-1 px-3 rounded-lg font-bold text-xs flex items-center gap-1.5 transition-colors ${
-                    link.isActive
-                      ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
-                      : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
-                  }`}
-                >
-                  <Power className="w-3.5 h-3.5" />
-                  <span>{link.isActive ? 'Active Link' : 'Disabled'}</span>
-                </button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-white dark:bg-slate-900 p-3 rounded-2xl border">
-              <div className="space-y-1">
-                <span className="text-[10px] text-slate-400 font-bold uppercase block">Referral URL</span>
-                <div className="flex items-center justify-between gap-2 font-mono text-[11px] p-2 bg-slate-50 dark:bg-slate-800 rounded-xl">
-                  <span className="truncate">{link.url}</span>
-                  <button
-                    onClick={() => handleCopy(link.url, 'Tracking Link')}
-                    className="text-[#FF6A00] font-bold shrink-0 hover:underline"
-                  >
-                    Copy
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <span className="text-[10px] text-slate-400 font-bold uppercase block">Voucher Promo Code</span>
-                <div className="flex items-center justify-between gap-2 font-mono text-[11px] p-2 bg-slate-50 dark:bg-slate-800 rounded-xl">
-                  <span>Code: <strong>{link.promoCode}</strong></span>
-                  <button
-                    onClick={() => handleCopy(link.promoCode, 'Promo Code')}
-                    className="text-[#FF6A00] font-bold shrink-0 hover:underline"
-                  >
-                    Copy
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
-              <span>Traffic: <strong className="text-slate-900 dark:text-white font-mono">{link.clicks} clicks</strong></span>
-              <span>Conversions: <strong className="text-emerald-600 font-mono">{link.conversions} sales</strong></span>
-              <span>Conversion Rate: <strong className="text-[#FF6A00] font-mono">{link.conversionRate}</strong></span>
-            </div>
+        {filtered.length === 0 ? (
+          <div className="text-center py-12 px-4 bg-slate-50/50 dark:bg-slate-800/40 rounded-2xl border border-dashed text-xs text-slate-500">
+            <Link className="w-8 h-8 mx-auto text-slate-400 mb-2" />
+            <div className="font-bold text-slate-700 dark:text-slate-300">No Tracking Links Generated Yet</div>
+            <div className="mt-0.5">When you join commercial opportunities, your unique referral links, promo voucher codes, and QR codes will appear here.</div>
           </div>
-        ))}
+        ) : (
+          filtered.map((link) => (
+            <div
+              key={link.id}
+              className="p-4 sm:p-5 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 space-y-3 text-xs"
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="space-y-0.5">
+                  <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">
+                    {link.dealTitle}
+                  </h4>
+                  <div className="text-[11px] text-slate-400">
+                    Attribution Window: <strong>{link.attributionWindowDays} Days</strong> · Created: {link.createdAt}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleToggleActive(link.id, link.isActive, link.dealTitle)}
+                    className={`py-1 px-3 rounded-lg font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer ${
+                      link.isActive
+                        ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
+                        : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                    }`}
+                  >
+                    <Power className="w-3.5 h-3.5" />
+                    <span>{link.isActive ? 'Active Link' : 'Disabled'}</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-white dark:bg-slate-900 p-3 rounded-2xl border">
+                <div className="space-y-1">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase block">Referral URL</span>
+                  <div className="flex items-center justify-between gap-2 font-mono text-[11px] p-2 bg-slate-50 dark:bg-slate-800 rounded-xl">
+                    <span className="truncate">{link.url}</span>
+                    <button
+                      onClick={() => handleCopy(link.url, 'Tracking Link')}
+                      className="text-[#FF6A00] font-bold shrink-0 hover:underline cursor-pointer"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase block">Voucher Promo Code</span>
+                  <div className="flex items-center justify-between gap-2 font-mono text-[11px] p-2 bg-slate-50 dark:bg-slate-800 rounded-xl">
+                    <span>Code: <strong>{link.promoCode}</strong></span>
+                    <button
+                      onClick={() => handleCopy(link.promoCode, 'Promo Code')}
+                      className="text-[#FF6A00] font-bold shrink-0 hover:underline cursor-pointer"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
+                <span>Traffic: <strong className="text-slate-900 dark:text-white font-mono">{link.clicks} clicks</strong></span>
+                <span>Conversions: <strong className="text-emerald-600 font-mono">{link.conversions} sales</strong></span>
+                <span>Conversion Rate: <strong className="text-[#FF6A00] font-mono">{link.conversionRate}</strong></span>
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   )

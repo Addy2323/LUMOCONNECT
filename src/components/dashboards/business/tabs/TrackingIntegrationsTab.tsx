@@ -16,6 +16,7 @@ import {
   AlertTriangle,
   FileSpreadsheet,
   X,
+  Plus,
 } from 'lucide-react'
 import { useBusinessToast } from '../BusinessToast'
 
@@ -26,27 +27,24 @@ export function TrackingIntegrationsTab() {
   const [showSecret, setShowSecret] = useState(false)
   const [testWebhookModal, setTestWebhookModal] = useState(false)
 
-  const trackingLinks = [
+  const [trackingLinks, setTrackingLinks] = useState<
     {
-      id: 'trk_1',
-      title: 'Kijani Solar Home Kit Standard Link',
-      url: 'https://lumo.co.tz/d/power-next-1000-homes?ref=brand_direct',
-      clicks: 14200,
-      conversions: 410,
-    },
-    {
-      id: 'trk_2',
-      title: 'Solar Installer Recruitment Referral Link',
-      url: 'https://lumo.co.tz/d/solar-installer-referral-program?ref=tech_lead',
-      clicks: 5800,
-      conversions: 205,
-    },
-  ]
+      id: string
+      title: string
+      url: string
+      clicks: number
+      conversions: number
+    }[]
+  >([])
 
-  const promoCodes = [
-    { code: 'KIJANI2026', discount: '5% Customer Off', reward: 'TZS 45,000 to Partner', uses: 248 },
-    { code: 'SOLARPOWA', discount: 'Free Installation', reward: 'TZS 45,000 to Partner', uses: 162 },
-  ]
+  const [promoCodes, setPromoCodes] = useState<
+    {
+      code: string
+      discount: string
+      reward: string
+      uses: number
+    }[]
+  >([])
 
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text)
@@ -88,7 +86,7 @@ export function TrackingIntegrationsTab() {
             <button
               key={t.id}
               onClick={() => setActiveTool(t.id as any)}
-              className={`px-3.5 py-2 rounded-2xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
+              className={`px-3.5 py-2 rounded-2xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeTool === t.id
                   ? 'bg-[#0B132B] text-white shadow-2xs font-extrabold'
                   : 'bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 hover:bg-slate-100'
@@ -109,31 +107,39 @@ export function TrackingIntegrationsTab() {
               Dynamic Tracking URLs
             </h3>
 
-            <div className="space-y-2.5">
-              {trackingLinks.map((trk) => (
-                <div
-                  key={trk.id}
-                  className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
-                >
-                  <div>
-                    <h4 className="font-extrabold text-slate-900 dark:text-white">{trk.title}</h4>
-                    <div className="text-[11px] text-slate-400 font-mono mt-0.5">{trk.url}</div>
-                  </div>
+            {trackingLinks.length === 0 ? (
+              <div className="text-center py-10 px-4 bg-slate-50/50 dark:bg-slate-800/40 rounded-2xl border border-dashed text-xs text-slate-500">
+                <Link className="w-8 h-8 mx-auto text-slate-400 mb-2" />
+                <div className="font-bold text-slate-700 dark:text-slate-300">No Direct Tracking URLs Configured</div>
+                <div className="mt-0.5">Tracking URLs are generated automatically upon publishing opportunities or adding custom affiliate landing pages.</div>
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {trackingLinks.map((trk) => (
+                  <div
+                    key={trk.id}
+                    className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                  >
+                    <div>
+                      <h4 className="font-extrabold text-slate-900 dark:text-white">{trk.title}</h4>
+                      <div className="text-[11px] text-slate-400 font-mono mt-0.5">{trk.url}</div>
+                    </div>
 
-                  <div className="flex items-center gap-3">
-                    <span className="font-mono text-slate-600 dark:text-slate-300">
-                      {trk.clicks.toLocaleString()} clicks · <strong className="text-[#FF6A00]">{trk.conversions} sales</strong>
-                    </span>
-                    <button
-                      onClick={() => handleCopy(trk.url)}
-                      className="py-1 px-2.5 bg-white dark:bg-slate-900 border rounded-lg hover:bg-slate-100 font-bold"
-                    >
-                      Copy Link
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <span className="font-mono text-slate-600 dark:text-slate-300">
+                        {trk.clicks.toLocaleString()} clicks · <strong className="text-[#FF6A00]">{trk.conversions} sales</strong>
+                      </span>
+                      <button
+                        onClick={() => handleCopy(trk.url)}
+                        className="py-1 px-2.5 bg-white dark:bg-slate-900 border rounded-lg hover:bg-slate-100 font-bold cursor-pointer"
+                      >
+                        Copy Link
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="space-y-3 pt-3 border-t">
@@ -141,18 +147,25 @@ export function TrackingIntegrationsTab() {
               Brand Promo Codes
             </h3>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {promoCodes.map((pr) => (
-                <div key={pr.code} className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border space-y-1 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono font-black text-base text-[#FF6A00]">{pr.code}</span>
-                    <span className="text-[10px] text-slate-500 font-bold">{pr.uses} uses</span>
+            {promoCodes.length === 0 ? (
+              <div className="text-center py-10 px-4 bg-slate-50/50 dark:bg-slate-800/40 rounded-2xl border border-dashed text-xs text-slate-500">
+                <div className="font-bold text-slate-700 dark:text-slate-300">No Brand Promo Codes Created</div>
+                <div className="mt-0.5">Custom discount vouchers configured in deal wizards will appear here for tracking conversion attribution.</div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {promoCodes.map((pr) => (
+                  <div key={pr.code} className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border space-y-1 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono font-black text-base text-[#FF6A00]">{pr.code}</span>
+                      <span className="text-[10px] text-slate-500 font-bold">{pr.uses} uses</span>
+                    </div>
+                    <div className="text-slate-700 dark:text-slate-300">{pr.discount}</div>
+                    <div className="text-[10px] text-emerald-600 font-bold">{pr.reward}</div>
                   </div>
-                  <div className="text-slate-700 dark:text-slate-300">{pr.discount}</div>
-                  <div className="text-[10px] text-emerald-600 font-bold">{pr.reward}</div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -168,10 +181,10 @@ export function TrackingIntegrationsTab() {
             Generate vector SVG or high-res PNG QR codes for printing directly onto hardware packaging, warranty cards, or retail flyers.
           </p>
           <button
-            onClick={() => showToast('success', 'QR Package Downloaded', 'Vector SVG/PNG package generated.')}
-            className="py-2.5 px-5 bg-[#0B132B] text-white font-extrabold rounded-xl text-xs"
+            onClick={() => showToast('success', 'Packaging QR Generated', 'Vector QR template compiled for your deals.')}
+            className="py-2.5 px-5 bg-[#0B132B] hover:bg-slate-800 text-white font-extrabold text-xs rounded-xl shadow-xs cursor-pointer"
           >
-            Download Print QR Code Bundle (SVG / PNG)
+            Generate Print Template (SVG)
           </button>
         </div>
       )}
@@ -179,127 +192,129 @@ export function TrackingIntegrationsTab() {
       {/* TOOL 3: API KEYS & WEBHOOKS */}
       {activeTool === 'API_WEBHOOKS' && (
         <div className="space-y-4 text-xs">
-          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border space-y-3">
-            <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">
-              Merchant Public API Key & Secret
-            </h4>
-
-            <div>
-              <span className="text-slate-400 block text-[10px] font-bold uppercase">Public API Key</span>
-              <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border font-mono text-slate-800 dark:text-slate-200 mt-0.5">
-                lumo_pub_9920148ab00213cd49
-              </div>
+          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-slate-900 dark:text-white">Merchant REST API Public Key</span>
+              <button
+                onClick={() => handleCopy('lumo_live_pub_99210041a87b')}
+                className="text-[#FF6A00] font-bold hover:underline cursor-pointer"
+              >
+                Copy Key
+              </button>
             </div>
-
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400 text-[10px] font-bold uppercase">Signing Secret</span>
-                <button
-                  onClick={() => setShowSecret(!showSecret)}
-                  className="text-xs text-blue-600 hover:underline"
-                >
-                  {showSecret ? 'Hide' : 'Reveal Secret'}
-                </button>
-              </div>
-              <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border font-mono text-slate-800 dark:text-slate-200 mt-0.5">
-                {showSecret ? 'sec_live_9941a88b1200234c88f4410293' : 'sec_live_************************'}
-              </div>
+            <div className="font-mono bg-white dark:bg-slate-900 p-2.5 rounded-xl border">
+              lumo_live_pub_99210041a87b
             </div>
           </div>
 
-          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border space-y-3">
+          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border space-y-2">
             <div className="flex items-center justify-between">
-              <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">
-                Outbound Webhook Listener
-              </h4>
+              <span className="font-bold text-slate-900 dark:text-white">API Secret Key (Keep Confidential)</span>
               <button
-                onClick={() => setTestWebhookModal(true)}
-                className="py-1 px-3 bg-[#FF6A00] text-white font-bold rounded-lg text-xs"
+                onClick={() => setShowSecret(!showSecret)}
+                className="text-slate-500 hover:text-slate-900 font-bold flex items-center gap-1 cursor-pointer"
               >
-                Send Ping Test
+                {showSecret ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                <span>{showSecret ? 'Hide' : 'Reveal'}</span>
               </button>
             </div>
-
-            <div>
-              <span className="text-slate-400 block text-[10px] font-bold uppercase">Target Endpoint URL</span>
-              <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border font-mono text-slate-800 dark:text-slate-200 mt-0.5">
-                https://api.kijanisolar.co.tz/v1/lumo/conversions-callback
-              </div>
+            <div className="font-mono bg-white dark:bg-slate-900 p-2.5 rounded-xl border">
+              {showSecret ? 'lumo_sec_88991200384aa901ef' : '••••••••••••••••••••••••••••••••'}
             </div>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="font-bold text-slate-900 dark:text-white">Live Conversion Webhook URL</h4>
+                <p className="text-[11px] text-slate-500">LUMO will POST confirmed attribution payloads to this endpoint.</p>
+              </div>
+              <button
+                onClick={() => setTestWebhookModal(true)}
+                className="py-1.5 px-3 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold rounded-lg text-xs cursor-pointer"
+              >
+                Send Test Ping
+              </button>
+            </div>
+            <input
+              type="url"
+              defaultValue="https://api.merchant.co.tz/v1/lumo/conversions"
+              className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono text-xs"
+            />
           </div>
         </div>
       )}
 
-      {/* TOOL 4: PLUGINS */}
+      {/* TOOL 4: E-COMMERCE PLUGINS */}
       {activeTool === 'PLUGINS' && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-          <div className="p-5 rounded-3xl bg-slate-50 dark:bg-slate-800 border space-y-3">
-            <h4 className="font-black text-sm text-slate-900 dark:text-white">
-              Shopify E-Commerce Plugin
-            </h4>
-            <p className="text-slate-500 text-[11px]">
-              Automatically track affiliate orders and customer checkouts directly on Shopify.
-            </p>
-            <span className="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded">
-              Status: Connected (Live)
-            </span>
+          <div className="p-5 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border space-y-3">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-black">
+              🛍️
+            </div>
+            <div>
+              <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">Shopify One-Click Plugin</h4>
+              <p className="text-slate-500 text-[11px] mt-0.5">
+                Automatically fire conversion events on successful Shopify checkout completions.
+              </p>
+            </div>
+            <button
+              onClick={() => showToast('info', 'Shopify App Store', 'Opening LUMO Connector for Shopify.')}
+              className="w-full py-2 bg-[#0B132B] hover:bg-slate-800 text-white font-extrabold rounded-xl cursor-pointer"
+            >
+              Install Shopify App
+            </button>
           </div>
 
-          <div className="p-5 rounded-3xl bg-slate-50 dark:bg-slate-800 border space-y-3">
-            <h4 className="font-black text-sm text-slate-900 dark:text-white">
-              WooCommerce WordPress Plugin
-            </h4>
-            <p className="text-slate-500 text-[11px]">
-              WordPress webhook listener for automated customer attribution.
-            </p>
+          <div className="p-5 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border space-y-3">
+            <div className="w-10 h-10 rounded-2xl bg-purple-100 text-purple-700 flex items-center justify-center font-black">
+              🛒
+            </div>
+            <div>
+              <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">WooCommerce Extension</h4>
+              <p className="text-slate-500 text-[11px] mt-0.5">
+                WordPress & WooCommerce plugin with automatic UTM tracking and M-Pesa order matching.
+              </p>
+            </div>
             <button
-              onClick={() => showToast('info', 'Plugin Downloaded', 'LUMO WooCommerce .zip downloaded.')}
-              className="py-1.5 px-3 border rounded-xl font-bold hover:bg-white dark:hover:bg-slate-900"
+              onClick={() => showToast('info', 'WooCommerce Plugin', 'Downloading lumo-woocommerce-v1.4.zip.')}
+              className="w-full py-2 bg-[#0B132B] hover:bg-slate-800 text-white font-extrabold rounded-xl cursor-pointer"
             >
-              Download Plugin (.zip)
+              Download WordPress Plugin
             </button>
           </div>
         </div>
       )}
 
-      {/* TEST WEBHOOK MODAL */}
+      {/* Test Webhook Modal */}
       {testWebhookModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-xs">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl space-y-4 text-xs">
-            <div className="flex items-center justify-between pb-3 border-b">
-              <div className="flex items-center gap-2">
-                <Zap className="w-4 h-4 text-emerald-500" />
-                <h3 className="text-base font-black text-slate-900 dark:text-white">
-                  Send Test Webhook Ping
-                </h3>
-              </div>
-              <button onClick={() => setTestWebhookModal(false)} className="p-1 text-slate-400">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <pre className="p-3 bg-slate-900 text-slate-100 rounded-xl font-mono text-[10px] overflow-x-auto">
-              {JSON.stringify(
-                {
-                  event: 'conversion.verified',
-                  reference: 'CONV-TEST-9901',
-                  amount: 450000,
-                  reward: 45000,
-                  timestamp: new Date().toISOString(),
-                },
-                null,
-                2
-              )}
+            <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+              <Webhook className="w-5 h-5 text-[#FF6A00]" />
+              <span>Test Webhook Payload</span>
+            </h3>
+            <p className="text-slate-500">Dispatching sample test payload to your configured endpoint:</p>
+            <pre className="p-3 bg-slate-950 text-emerald-400 font-mono text-[10px] rounded-xl overflow-x-auto">
+{`{
+  "event": "conversion.verified",
+  "reference_id": "CONV-TEST-9901",
+  "sale_amount_tzs": 450000,
+  "partner_id": "part_alex_99",
+  "timestamp": "${new Date().toISOString()}"
+}`}
             </pre>
-
-            <div className="flex gap-2 pt-2 border-t">
+            <div className="flex gap-2 pt-2">
               <button
                 onClick={handleTestWebhookPing}
-                className="flex-1 py-2.5 bg-[#FF6A00] text-white font-extrabold rounded-xl"
+                className="flex-1 py-2.5 bg-[#FF6A00] text-white font-extrabold rounded-xl cursor-pointer"
               >
-                Dispatch Test Event
+                Send Test Payload
               </button>
-              <button onClick={() => setTestWebhookModal(false)} className="py-2.5 px-4 border rounded-xl font-bold">
+              <button
+                onClick={() => setTestWebhookModal(false)}
+                className="py-2.5 px-4 border rounded-xl font-bold cursor-pointer"
+              >
                 Cancel
               </button>
             </div>

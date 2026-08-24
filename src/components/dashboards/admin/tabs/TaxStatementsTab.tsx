@@ -37,7 +37,7 @@ export function TaxStatementsTab() {
   })
 
   // Simulated statement calculation
-  const [simulatedGross, setSimulatedGross] = useState(1000000)
+  const [simulatedGross, setSimulatedGross] = useState(0)
   const activeRate = taxRules.find((r) => r.code === 'TRA_WITHHOLDING_5')?.ratePercent || 5.0
   const withholdingAmount = (simulatedGross * activeRate) / 100
   const netEarnings = simulatedGross - withholdingAmount

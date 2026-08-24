@@ -39,6 +39,7 @@ export function MyOpportunitiesTab({
 
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('ALL')
+  const [priceRange, setPriceRange] = useState('ALL')
   const [selectedOpp, setSelectedOpp] = useState<BusinessOpportunityItem | null>(null)
   const [versioningModal, setVersioningModal] = useState<BusinessOpportunityItem | null>(null)
   const [amendmentReason, setAmendmentReason] = useState('')
@@ -49,7 +50,15 @@ export function MyOpportunitiesTab({
       o.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       o.category.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesStatus = statusFilter === 'ALL' || o.status === statusFilter
-    return matchesSearch && matchesStatus
+
+    let matchesPrice = true
+    const val = o.rewardValueTZS || 0
+    if (priceRange === 'UNDER_50K') matchesPrice = val < 50000
+    else if (priceRange === '50K_150K') matchesPrice = val >= 50000 && val <= 150000
+    else if (priceRange === '150K_500K') matchesPrice = val > 150000 && val <= 500000
+    else if (priceRange === 'ABOVE_500K') matchesPrice = val > 500000
+
+    return matchesSearch && matchesStatus && matchesPrice
   })
 
   const handleTogglePause = (opp: BusinessOpportunityItem) => {
@@ -170,7 +179,7 @@ export function MyOpportunitiesTab({
 
       {/* Filter Bar */}
       <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
-        <div className="sm:col-span-8 relative">
+        <div className="sm:col-span-6 relative">
           <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
           <input
             type="text"
@@ -181,26 +190,47 @@ export function MyOpportunitiesTab({
           />
         </div>
 
-        <div className="sm:col-span-4">
+        <div className="sm:col-span-3">
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             className="w-full py-2 px-3 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-medium"
           >
-            <option value="ALL">All Opportunity Statuses</option>
+            <option value="ALL">All Statuses</option>
             <option value="PUBLISHED">Live / Published</option>
-            <option value="UNDER_REVIEW">Under LUMO Review</option>
+            <option value="UNDER_REVIEW">Under Review</option>
             <option value="DRAFT">Drafts</option>
             <option value="PAUSED">Paused</option>
             <option value="COMPLETED">Completed</option>
             <option value="ARCHIVED">Archived</option>
           </select>
         </div>
+
+        <div className="sm:col-span-3">
+          <select
+            value={priceRange}
+            onChange={(e) => setPriceRange(e.target.value)}
+            className="w-full py-2 px-3 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-medium"
+          >
+            <option value="ALL">All Reward Ranges</option>
+            <option value="UNDER_50K">Under TZS 50,000</option>
+            <option value="50K_150K">TZS 50,000 – 150,000</option>
+            <option value="150K_500K">TZS 150,000 – 500,000</option>
+            <option value="ABOVE_500K">TZS 500,000+</option>
+          </select>
+        </div>
       </div>
 
       {/* Opportunity Cards List */}
       <div className="space-y-3">
-        {filtered.map((opp) => (
+        {filtered.length === 0 ? (
+          <div className="text-center py-14 px-4 bg-slate-50/50 dark:bg-slate-800/40 rounded-2xl border border-dashed text-xs text-slate-500">
+            <Briefcase className="w-9 h-9 mx-auto text-slate-400 mb-2" />
+            <div className="font-bold text-slate-700 dark:text-slate-300 text-sm">No Commercial Opportunities Found</div>
+            <div className="mt-1">Click &quot;New Opportunity&quot; above to create your first commission or deal offer for partners.</div>
+          </div>
+        ) : (
+          filtered.map((opp) => (
           <div
             key={opp.id}
             className="p-4 sm:p-5 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 space-y-4"
@@ -361,7 +391,7 @@ export function MyOpportunitiesTab({
               </div>
             </div>
           </div>
-        ))}
+        )))}
       </div>
 
       {/* CREATE NEW VERSION MODAL */}

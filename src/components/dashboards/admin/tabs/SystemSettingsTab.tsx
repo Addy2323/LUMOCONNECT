@@ -21,6 +21,8 @@ export function SystemSettingsTab() {
   const { showToast } = useAdminToast()
 
   const [config, setConfig] = useState({
+    platformFeePercent: 3,
+    defaultWithholdingTaxPercent: 5,
     minPayoutTZS: 50000,
     maxDailyDisbursementTZS: 50000000,
     dualControlDisbursementThresholdTZS: 1000000,
@@ -101,24 +103,23 @@ export function SystemSettingsTab() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
-        {/* Group 1: Payout & Threshold Rules */}
-        <div className="p-4 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 space-y-3">
+        {/* Group 1: Commercial & Tax Settings */}
+        <div className="p-5 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 space-y-4">
           <h3 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
             <DollarSign className="w-4 h-4 text-emerald-600" />
-            <span>Disbursement & Risk Thresholds</span>
+            <span>Commercial & Statutory Tax Settings</span>
           </h3>
 
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="font-bold block mb-1 text-slate-700 dark:text-slate-300">
-                Minimum Partner Payout (TZS)
+                Platform Fee (%)
               </label>
               <input
                 type="number"
-                value={config.minPayoutTZS}
+                value={config.platformFeePercent || 3}
                 onChange={(e) => {
-                  setConfig({ ...config, minPayoutTZS: Number(e.target.value) })
+                  setConfig({ ...config, platformFeePercent: Number(e.target.value) })
                   setHasUnsavedChanges(true)
                 }}
                 className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono font-bold"
@@ -127,97 +128,152 @@ export function SystemSettingsTab() {
 
             <div>
               <label className="font-bold block mb-1 text-slate-700 dark:text-slate-300">
-                2-Person Rule Threshold (TZS)
+                Default Withholding Tax (%)
               </label>
               <input
                 type="number"
-                value={config.dualControlDisbursementThresholdTZS}
+                value={config.defaultWithholdingTaxPercent || 5}
                 onChange={(e) => {
-                  setConfig({ ...config, dualControlDisbursementThresholdTZS: Number(e.target.value) })
+                  setConfig({ ...config, defaultWithholdingTaxPercent: Number(e.target.value) })
                   setHasUnsavedChanges(true)
                 }}
                 className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono font-bold"
               />
-              <span className="text-[10px] text-slate-400 mt-0.5 block">
-                Payouts exceeding this require Compliance Checker dual-signature.
+            </div>
+          </div>
+
+          <div>
+            <label className="font-bold block mb-1 text-slate-700 dark:text-slate-300">
+              Minimum Partner Payout (TZS)
+            </label>
+            <input
+              type="number"
+              value={config.minPayoutTZS}
+              onChange={(e) => {
+                setConfig({ ...config, minPayoutTZS: Number(e.target.value) })
+                setHasUnsavedChanges(true)
+              }}
+              className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono font-bold"
+            />
+          </div>
+
+          <div className="p-3 bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 rounded-2xl text-[11px] text-amber-900 dark:text-amber-200 leading-relaxed">
+            The platform fee applies to verified rewards only. Withholding tax here (5%) is the statutory default for new partners; each partner’s official TRA exemption/TIN profile overrides it.
+          </div>
+        </div>
+
+        {/* Group 2: Risk Scoring Thresholds */}
+        <div className="p-5 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 space-y-4">
+          <h3 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-500" />
+            <span>Risk Scoring & Automated Flagging Thresholds</span>
+          </h3>
+
+          <div className="space-y-2 text-xs">
+            <div className="p-3 bg-white dark:bg-slate-900 rounded-2xl border flex items-center justify-between">
+              <div>
+                <span className="font-bold text-emerald-600">Below 35 Score</span>
+                <p className="text-[11px] text-slate-500">Cleared automatically once the merchant confirms</p>
+              </div>
+              <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">
+                Auto-Clear
               </span>
             </div>
 
-            <div>
-              <label className="font-bold block mb-1 text-slate-700 dark:text-slate-300">
-                Commission Escrow Hold Period (Days)
-              </label>
-              <input
-                type="number"
-                value={config.defaultCommissionHoldDays}
-                onChange={(e) => {
-                  setConfig({ ...config, defaultCommissionHoldDays: Number(e.target.value) })
-                  setHasUnsavedChanges(true)
-                }}
-                className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono font-bold"
-              />
+            <div className="p-3 bg-white dark:bg-slate-900 rounded-2xl border flex items-center justify-between">
+              <div>
+                <span className="font-bold text-amber-600">35 to 64 Score</span>
+                <p className="text-[11px] text-slate-500">Held for review in the admin risk queue</p>
+              </div>
+              <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold">
+                Hold for Review
+              </span>
+            </div>
+
+            <div className="p-3 bg-white dark:bg-slate-900 rounded-2xl border flex items-center justify-between">
+              <div>
+                <span className="font-bold text-red-600">65 and Above</span>
+                <p className="text-[11px] text-slate-500">Held and flagged as high-risk fraud anomaly</p>
+              </div>
+              <span className="text-[10px] bg-red-100 text-red-800 px-2 py-0.5 rounded-full font-bold">
+                Flag High Risk
+              </span>
             </div>
           </div>
-        </div>
 
-        {/* Group 2: Feature Flags */}
-        <div className="p-4 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 space-y-3">
-          <h3 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-            <Sliders className="w-4 h-4 text-[#FF6A00]" />
-            <span>Platform Feature Flags</span>
-          </h3>
-
-          <div className="space-y-3 pt-1">
-            <label className="flex items-center justify-between p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer">
-              <div>
-                <span className="font-bold text-slate-900 dark:text-white block">Instant Mobile Money Payouts</span>
-                <span className="text-[10px] text-slate-400">Direct Vodacom / Tigo B2C automated dispatch</span>
-              </div>
-              <input
-                type="checkbox"
-                checked={config.enableInstantMobileMoney}
-                onChange={(e) => {
-                  setConfig({ ...config, enableInstantMobileMoney: e.target.checked })
-                  setHasUnsavedChanges(true)
-                }}
-                className="w-4 h-4 text-[#FF6A00] rounded"
-              />
-            </label>
-
-            <label className="flex items-center justify-between p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer">
-              <div>
-                <span className="font-bold text-slate-900 dark:text-white block">Public Partner Registration</span>
-                <span className="text-[10px] text-slate-400">Allow open signups with subscription paywall</span>
-              </div>
-              <input
-                type="checkbox"
-                checked={config.enablePublicRegistration}
-                onChange={(e) => {
-                  setConfig({ ...config, enablePublicRegistration: e.target.checked })
-                  setHasUnsavedChanges(true)
-                }}
-                className="w-4 h-4 text-[#FF6A00] rounded"
-              />
-            </label>
-
-            <label className="flex items-center justify-between p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer">
-              <div>
-                <span className="font-bold text-slate-900 dark:text-white block">AI-Powered Attribution & Deduplication</span>
-                <span className="text-[10px] text-slate-400">Automated machine learning anomaly detection</span>
-              </div>
-              <input
-                type="checkbox"
-                checked={config.enableAiAttributionEngine}
-                onChange={(e) => {
-                  setConfig({ ...config, enableAiAttributionEngine: e.target.checked })
-                  setHasUnsavedChanges(true)
-                }}
-                className="w-4 h-4 text-[#FF6A00] rounded"
-              />
-            </label>
+          <div className="text-[10px] text-slate-400 leading-normal">
+            <strong>Heuristic Signals Evaluated:</strong> Self-referrals, duplicate order references, repeat customers inside 24h, conversions with no tracked click, abnormal order values and velocity spikes.
           </div>
         </div>
-      </div>
+
+        {/* Group 3: Payout Controls & Maker/Checker */}
+        <div className="p-5 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 space-y-3">
+          <h3 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-purple-600" />
+            <span>Dual-Control & Escrow Holds</span>
+          </h3>
+
+          <div>
+            <label className="font-bold block mb-1 text-slate-700 dark:text-slate-300">
+              2-Person Rule Threshold (TZS)
+            </label>
+            <input
+              type="number"
+              value={config.dualControlDisbursementThresholdTZS}
+              onChange={(e) => {
+                setConfig({ ...config, dualControlDisbursementThresholdTZS: Number(e.target.value) })
+                setHasUnsavedChanges(true)
+              }}
+              className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono font-bold"
+            />
+            <span className="text-[10px] text-slate-400 mt-0.5 block">
+              Payouts exceeding this require Compliance Checker dual-signature.
+            </span>
+          </div>
+
+          <div>
+            <label className="font-bold block mb-1 text-slate-700 dark:text-slate-300">
+              Commission Escrow Hold Period (Days)
+            </label>
+            <input
+              type="number"
+              value={config.defaultCommissionHoldDays}
+              onChange={(e) => {
+                setConfig({ ...config, defaultCommissionHoldDays: Number(e.target.value) })
+                setHasUnsavedChanges(true)
+              }}
+              className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono font-bold"
+            />
+          </div>
+        </div>
+
+        {/* Group 4: Environment & Data Controls */}
+        <div className="p-5 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 space-y-3">
+          <h3 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+            <Sliders className="w-4 h-4 text-[#FF6A00]" />
+            <span>Environment & Demo Data Controls</span>
+          </h3>
+
+          <p className="text-slate-500 text-[11px]">
+            Data is stored in the browser state and survives page reloads.
+          </p>
+
+          <div className="flex flex-wrap gap-2 pt-2">
+            <button
+              onClick={() => showToast('success', 'Platform Data Exported', 'Full platform state exported to JSON.')}
+              className="py-2 px-4 border rounded-xl font-bold hover:bg-white dark:hover:bg-slate-900 text-slate-700 dark:text-slate-300"
+            >
+              Export All Data
+            </button>
+
+            <button
+              onClick={() => showToast('info', 'Demo Data Reset', 'Platform environment reset to factory demo state.')}
+              className="py-2 px-4 bg-red-50 text-red-600 border border-red-200 rounded-xl font-bold hover:bg-red-100"
+            >
+              Reset to Demo Data
+            </button>
+          </div>
+        </div>
 
       {/* ROLLBACK VERSION SELECTOR MODAL */}
       {showRollbackModal && (

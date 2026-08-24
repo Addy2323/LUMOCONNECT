@@ -16,33 +16,116 @@ export interface DisputeItem {
   }[]
 }
 
-const disputesStore: DisputeItem[] = [
-  {
-    id: 'disp_01',
-    disputeNumber: 'LUMO-DISP-2026-08',
-    organizationId: 'org_kijani',
-    dealTitle: 'Kijani Solar Household Installations',
-    partnerName: 'Alex Mushi',
-    title: 'Customer installation completed but marked unverified',
-    reason: 'Customer in Morogoro paid initial deposit and technician job card was signed on Aug 18th.',
-    amountTZS: 'TZS 45,000',
-    status: 'UNDER_REVIEW',
-    createdAt: new Date('2026-08-21T10:00:00Z'),
-    messages: [
-      {
-        sender: 'Alex Mushi (Partner)',
-        text: 'Attached signed technician installation sheet #MOR-881.',
-        timestamp: new Date('2026-08-21T10:05:00Z'),
-      },
-      {
-        sender: 'LUMO Support Specialist',
-        text: 'We are cross-referencing this with Kijani Solar field dispatch supervisor.',
-        timestamp: new Date('2026-08-22T09:15:00Z'),
-      },
-    ],
-  },
-]
+const disputesStore: DisputeItem[] = []
 
 export function listDisputes(): DisputeItem[] {
   return disputesStore
 }
+
+export function getDisputeById(id: string): DisputeItem | undefined {
+  return disputesStore.find((d) => d.id === id)
+}
+
+export function openDispute({
+  organizationId,
+  dealTitle,
+  partnerName,
+  title,
+  reason,
+  amountTZS,
+  initialEvidence,
+  openedBy,
+}: {
+  organizationId: string
+  dealTitle: string
+  partnerName: string
+  title: string
+  reason: string
+  amountTZS: string
+  initialEvidence?: string
+  openedBy: string
+}): DisputeItem {
+  const dispId = `disp_${Date.now()}`
+  const disputeNum = `LUMO-DISP-${new Date().toISOString().slice(0, 7).replace('-', '')}-${Math.floor(100 + Math.random() * 900)}`
+  const now = new Date()
+
+  const initialMessages = [
+    {
+      sender: openedBy,
+      text: reason + (initialEvidence ? ` Evidence link: ${initialEvidence}` : ''),
+      timestamp: now,
+    },
+    {
+      sender: 'LUMO Support & Compliance Engine',
+      text: 'Dispute opened. Funds are placed on temporary escrow hold while both parties submit corroborating evidence.',
+      timestamp: now,
+    },
+  ]
+
+  const newDispute: DisputeItem = {
+    id: dispId,
+    disputeNumber: disputeNum,
+    organizationId,
+    dealTitle,
+    partnerName,
+    title,
+    reason,
+    amountTZS,
+    status: 'OPENED',
+    createdAt: now,
+    messages: initialMessages,
+  }
+
+  disputesStore.unshift(newDispute)
+  return newDispute
+}
+
+export function addDisputeMessage({
+  disputeId,
+  sender,
+  text,
+}: {
+  disputeId: string
+  sender: string
+  text: string
+}): DisputeItem {
+  const dispute = getDisputeById(disputeId)
+  if (!dispute) throw new Error('DISPUTE_NOT_FOUND')
+
+  dispute.messages.push({
+    sender,
+    text,
+    timestamp: new Date(),
+  })
+
+  if (dispute.status === 'OPENED') {
+    dispute.status = 'UNDER_REVIEW'
+  }
+
+  return dispute
+}
+
+export function resolveDispute({
+  disputeId,
+  decision,
+  resolutionNotes,
+  resolverId,
+}: {
+  disputeId: string
+  decision: 'RESOLVED_PARTNER_FAVOR' | 'RESOLVED_BUSINESS_FAVOR'
+  resolutionNotes: string
+  resolverId: string
+}): DisputeItem {
+  const dispute = getDisputeById(disputeId)
+  if (!dispute) throw new Error('DISPUTE_NOT_FOUND')
+
+  dispute.status = decision
+  dispute.messages.push({
+    sender: `Admin Arbitrator (${resolverId})`,
+    text: `Arbitration outcome: ${decision}. Findings: ${resolutionNotes}`,
+    timestamp: new Date(),
+  })
+
+  return dispute
+}
+

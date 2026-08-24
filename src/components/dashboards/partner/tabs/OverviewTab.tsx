@@ -47,29 +47,29 @@ interface OverviewTabProps {
 }
 
 const PERFORMANCE_DATA_7D = [
-  { date: '18 Aug', value: 20 },
-  { date: '19 Aug', value: 32 },
-  { date: '20 Aug', value: 51 },
-  { date: '21 Aug', value: 78 },
-  { date: '22 Aug', value: 58 },
-  { date: '23 Aug', value: 43 },
-  { date: '24 Aug', value: 68 },
+  { date: '18 Aug', value: 0 },
+  { date: '19 Aug', value: 0 },
+  { date: '20 Aug', value: 0 },
+  { date: '21 Aug', value: 0 },
+  { date: '22 Aug', value: 0 },
+  { date: '23 Aug', value: 0 },
+  { date: '24 Aug', value: 0 },
 ]
 
 const PERFORMANCE_DATA_30D = [
-  { date: 'W1', value: 120 },
-  { date: 'W2', value: 185 },
-  { date: 'W3', value: 240 },
-  { date: 'W4', value: 310 },
+  { date: 'W1', value: 0 },
+  { date: 'W2', value: 0 },
+  { date: 'W3', value: 0 },
+  { date: 'W4', value: 0 },
 ]
 
 const PERFORMANCE_DATA_6M = [
-  { date: 'Mar', value: 420 },
-  { date: 'Apr', value: 590 },
-  { date: 'May', value: 730 },
-  { date: 'Jun', value: 890 },
-  { date: 'Jul', value: 1120 },
-  { date: 'Aug', value: 1350 },
+  { date: 'Mar', value: 0 },
+  { date: 'Apr', value: 0 },
+  { date: 'May', value: 0 },
+  { date: 'Jun', value: 0 },
+  { date: 'Jul', value: 0 },
+  { date: 'Aug', value: 0 },
 ]
 
 export function OverviewTab({
@@ -283,30 +283,30 @@ export function OverviewTab({
               <span className="text-xs font-black uppercase tracking-wider text-slate-400">
                 Next Payout Batch
               </span>
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className={`w-2 h-2 rounded-full ${performance.approvedRewardsTZS > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
             </div>
 
-            <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 text-center space-y-1">
-              <Calendar className="w-6 h-6 text-emerald-600 mx-auto" />
+            <div className={`p-4 rounded-2xl border text-center space-y-1 ${performance.approvedRewardsTZS > 0 ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900/60' : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800'}`}>
+              <Calendar className={`w-6 h-6 mx-auto ${performance.approvedRewardsTZS > 0 ? 'text-emerald-600' : 'text-slate-400'}`} />
               <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white font-mono pt-1">
-                TZS 285,000
+                TZS {Math.max(0, Math.round(performance.approvedRewardsTZS * 0.95)).toLocaleString()}
               </div>
-              <div className="text-xs text-emerald-700 dark:text-emerald-300 font-bold">
-                28 Aug 2026 · Friday Batch
+              <div className="text-xs text-slate-600 dark:text-slate-300 font-bold">
+                {performance.approvedRewardsTZS > 0 ? 'Next Batch Scheduled on Approval' : 'No Scheduled Payouts'}
               </div>
               <div className="text-[10px] text-slate-500">
-                Processed to Vodacom M-Pesa (+255 754 *** 892)
+                {performance.approvedRewardsTZS > 0 ? 'M-Pesa / Bank account routing' : 'Join deals & earn commissions to schedule payouts'}
               </div>
             </div>
 
             <div className="space-y-2 text-xs bg-slate-50 dark:bg-slate-800/60 p-3 rounded-2xl border">
               <div className="flex justify-between">
                 <span className="text-slate-500">Gross Payable:</span>
-                <span className="font-mono font-bold text-slate-900 dark:text-white">TZS 300,000</span>
+                <span className="font-mono font-bold text-slate-900 dark:text-white">TZS {performance.approvedRewardsTZS.toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">TRA Withholding Tax (5%):</span>
-                <span className="font-mono font-bold text-slate-700 dark:text-slate-300">- TZS 15,000</span>
+                <span className="font-mono font-bold text-slate-700 dark:text-slate-300">- TZS {Math.round(performance.approvedRewardsTZS * 0.05).toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">LUMO Platform Fee:</span>

@@ -13,6 +13,7 @@ import {
   getPublicDealSummary,
   getProtectedOpportunityDetails,
   joinOpportunityDeal,
+  seedTestOpportunity,
 } from '@/modules/deals/service'
 
 describe('Subscription-Gated Deal Marketplace Test Suite', () => {
@@ -20,6 +21,55 @@ describe('Subscription-Gated Deal Marketplace Test Suite', () => {
   const otherBusinessDealId = 'opp_mzinga_pos'
 
   beforeEach(() => {
+    seedTestOpportunity({
+      id: 'opp_kijani_solar',
+      organizationId: 'org_kijani',
+      companyName: 'Kijani Solar Tech',
+      companyLogo: 'KS',
+      isVerified: true,
+      type: 'CUSTOMER_ACQUISITION',
+      title: 'Power the Next 1,000 Homes in Rural & Peri-Urban Tanzania',
+      slug: 'kijani-solar-home-systems',
+      summary: 'Earn TZS 45,000 for every verified household solar power system installation completed through your referral.',
+      description: 'Solar lighting and appliances across Tanzania.',
+      category: 'Renewable Energy',
+      countryCode: 'TZ',
+      region: 'Dar es Salaam',
+      currency: 'TZS',
+      rewardType: 'COST_PER_ACQUISITION',
+      rewardDisplay: 'TZS 45,000',
+      rewardDetail: 'per verified installation',
+      spentBudgetTZS: 0n,
+      activePartnerCount: 1,
+      isFeatured: true,
+      status: 'PUBLISHED',
+      createdAt: new Date(),
+    })
+
+    seedTestOpportunity({
+      id: 'opp_mobipay_merchants',
+      organizationId: 'org_mobipay',
+      companyName: 'MobiPay Africa',
+      companyLogo: 'MP',
+      isVerified: true,
+      type: 'QUALIFIED_LEADS',
+      title: 'MobiPay POS distribution',
+      slug: 'mobipay-pos-distribution',
+      summary: 'Distribute POS devices',
+      description: 'MobiPay description',
+      category: 'Fintech',
+      countryCode: 'TZ',
+      region: 'Dar es Salaam',
+      currency: 'TZS',
+      rewardType: 'COST_PER_LEAD',
+      rewardDisplay: 'TZS 20,000',
+      rewardDetail: 'per lead',
+      spentBudgetTZS: 0n,
+      activePartnerCount: 0,
+      isFeatured: false,
+      status: 'PUBLISHED',
+      createdAt: new Date(),
+    })
     // Reset test user states
     setUserSubscription('test_unsubscribed_user', {
       id: 'sub_unsub',

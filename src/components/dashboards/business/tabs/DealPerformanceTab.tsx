@@ -27,7 +27,8 @@ export function DealPerformanceTab({ opportunities }: DealPerformanceTabProps) {
   const totalSpent = opportunities.reduce((acc, o) => acc + o.spentTZS, 0)
   const totalConversions = opportunities.reduce((acc, o) => acc + o.totalConversions, 0)
   const estimatedRevenue = totalConversions * 450000 // Estimated gross sales generated
-  const roiMultiplier = totalSpent > 0 ? (estimatedRevenue / totalSpent).toFixed(1) : '8.4'
+  const roiMultiplier = totalSpent > 0 ? (estimatedRevenue / totalSpent).toFixed(1) : '0.0'
+  const avgCostPerSale = totalConversions > 0 ? Math.round(totalSpent / totalConversions) : 0
 
   const handleExport = () => {
     showToast('success', 'Performance Report Exported', 'CSV/PDF analytics report downloaded.')
@@ -51,7 +52,7 @@ export function DealPerformanceTab({ opportunities }: DealPerformanceTabProps) {
 
         <button
           onClick={handleExport}
-          className="py-2 px-3.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-1.5 self-start sm:self-auto transition-colors"
+          className="py-2 px-3.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-1.5 self-start sm:self-auto transition-colors cursor-pointer"
         >
           <Download className="w-3.5 h-3.5" />
           <span>Export Analytics</span>
@@ -65,7 +66,7 @@ export function DealPerformanceTab({ opportunities }: DealPerformanceTabProps) {
           <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-mono mt-1">
             TZS {(estimatedRevenue / 1000000).toFixed(1)}M
           </div>
-          <span className="text-[10px] text-emerald-600 font-bold">↑ 24% vs prior month</span>
+          <span className="text-[10px] text-slate-400">Total customer order value</span>
         </div>
 
         <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700">
@@ -87,7 +88,7 @@ export function DealPerformanceTab({ opportunities }: DealPerformanceTabProps) {
         <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700">
           <span className="text-[10px] font-bold text-slate-400 uppercase">Average Cost per Sale</span>
           <div className="text-xl sm:text-2xl font-black text-purple-600 font-mono mt-1">
-            TZS 45,000
+            TZS {avgCostPerSale.toLocaleString()}
           </div>
           <span className="text-[10px] text-slate-500">100% success-based</span>
         </div>
@@ -112,31 +113,39 @@ export function DealPerformanceTab({ opportunities }: DealPerformanceTabProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-              {opportunities.map((opp) => (
-                <tr key={opp.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
-                  <td className="p-3">
-                    <div className="font-extrabold text-slate-900 dark:text-white">{opp.title}</div>
-                    <div className="text-[10px] text-slate-400">{opp.region}</div>
-                  </td>
-                  <td className="p-3">
-                    <span className="text-[10px] font-bold px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded">
-                      {opp.commercialResult.replace(/_/g, ' ')}
-                    </span>
-                  </td>
-                  <td className="p-3 font-mono font-bold text-[#FF6A00]">
-                    {opp.totalConversions}
-                  </td>
-                  <td className="p-3 font-mono font-bold text-slate-900 dark:text-white">
-                    TZS {opp.spentTZS.toLocaleString()}
-                  </td>
-                  <td className="p-3 font-mono font-bold text-emerald-600">
-                    TZS {(opp.totalConversions * 450000).toLocaleString()}
-                  </td>
-                  <td className="p-3 text-right font-mono font-black text-emerald-600 text-sm">
-                    {opp.spentTZS > 0 ? `${((opp.totalConversions * 450000) / opp.spentTZS).toFixed(1)}x` : '—'}
+              {opportunities.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="text-center py-10 text-slate-400 text-xs">
+                    No active commercial deals listed yet. Performance and ROI multipliers will populate once deals receive customer conversions.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                opportunities.map((opp) => (
+                  <tr key={opp.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                    <td className="p-3">
+                      <div className="font-extrabold text-slate-900 dark:text-white">{opp.title}</div>
+                      <div className="text-[10px] text-slate-400">{opp.region}</div>
+                    </td>
+                    <td className="p-3">
+                      <span className="font-mono text-[10px] bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
+                        {opp.type.replace(/_/g, ' ')}
+                      </span>
+                    </td>
+                    <td className="p-3 font-mono font-bold text-emerald-600">
+                      {opp.totalConversions}
+                    </td>
+                    <td className="p-3 font-mono font-bold text-[#FF6A00]">
+                      TZS {opp.spentTZS.toLocaleString()}
+                    </td>
+                    <td className="p-3 font-mono">
+                      TZS {(opp.totalConversions * 450000).toLocaleString()}
+                    </td>
+                    <td className="p-3 text-right font-mono font-bold text-emerald-600">
+                      {opp.spentTZS > 0 ? `${((opp.totalConversions * 450000) / opp.spentTZS).toFixed(1)}x` : '0.0x'}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

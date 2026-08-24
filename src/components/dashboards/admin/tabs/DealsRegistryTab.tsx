@@ -190,12 +190,19 @@ export function DealsRegistryTab() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-            {filteredDeals.map((deal) => (
-              <tr key={deal.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
-                <td className="p-3">
-                  <div className="font-extrabold text-slate-900 dark:text-white max-w-xs">{deal.title}</div>
-                  <div className="text-[10px] text-slate-400 mt-0.5 font-mono">ID: {deal.id} · {deal.category}</div>
+            {filteredDeals.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="text-center py-12 text-slate-400">
+                  No deals or opportunities registered in platform registry yet.
                 </td>
+              </tr>
+            ) : (
+              filteredDeals.map((deal) => (
+                <tr key={deal.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                  <td className="p-3">
+                    <div className="font-extrabold text-slate-900 dark:text-white max-w-xs">{deal.title}</div>
+                    <div className="text-[10px] text-slate-400 mt-0.5 font-mono">ID: {deal.id} · {deal.category}</div>
+                  </td>
 
                 <td className="p-3">
                   <div className="font-bold text-slate-900 dark:text-white">{deal.businessName}</div>
@@ -270,7 +277,8 @@ export function DealsRegistryTab() {
                   </div>
                 </td>
               </tr>
-            ))}
+            ))
+          )}
           </tbody>
         </table>
       </div>

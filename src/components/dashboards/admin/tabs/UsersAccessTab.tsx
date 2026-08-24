@@ -191,10 +191,17 @@ export function UsersAccessTab() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-            {filteredUsers.map((user) => (
-              <tr key={user.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
-                <td className="p-3">
-                  <div className="font-extrabold text-slate-900 dark:text-white">{user.name}</div>
+            {filteredUsers.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="text-center py-12 text-slate-400">
+                  No registered users or accounts found matching current query.
+                </td>
+              </tr>
+            ) : (
+              filteredUsers.map((user) => (
+                <tr key={user.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                  <td className="p-3">
+                    <div className="font-extrabold text-slate-900 dark:text-white">{user.name}</div>
                   <div className="text-[11px] text-slate-500 flex items-center gap-1.5 mt-0.5">
                     <span>{user.email}</span>
                     <span>·</span>
@@ -307,7 +314,8 @@ export function UsersAccessTab() {
                   </div>
                 </td>
               </tr>
-            ))}
+            ))
+          )}
           </tbody>
         </table>
       </div>

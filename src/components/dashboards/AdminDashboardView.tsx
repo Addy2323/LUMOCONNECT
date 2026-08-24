@@ -59,14 +59,14 @@ export function AdminDashboardView({
   // Mobile fast navigation pills
   const mobilePills: { id: AdminSidebarSection; label: string }[] = [
     { id: 'overview', label: 'Overview' },
-    { id: 'verifications', label: 'Verifications (18)' },
-    { id: 'approvals', label: 'Deal Approvals (12)' },
+    { id: 'verifications', label: 'Verifications' },
+    { id: 'approvals', label: 'Deal Approvals' },
     { id: 'conversions', label: 'Attribution' },
     { id: 'payments', label: 'Payments' },
     { id: 'payouts', label: 'Payouts' },
     { id: 'tax', label: 'TRA 5% Tax' },
-    { id: 'risk', label: 'Fraud & Risk (4)' },
-    { id: 'disputes', label: 'Disputes (7)' },
+    { id: 'risk', label: 'Fraud & Risk' },
+    { id: 'disputes', label: 'Disputes' },
     { id: 'logs', label: 'Audit Logs' },
     { id: 'integrations', label: 'Webhooks' },
   ]
@@ -101,10 +101,10 @@ export function AdminDashboardView({
         }
         onOpenSystemStatus={() => setShowStatusModal(true)}
         onOpenAdminProfile={() => setShowProfileModal(true)}
-        pendingVerificationsCount={18}
-        pendingDealsCount={12}
-        flaggedRiskCount={4}
-        openDisputesCount={7}
+        pendingVerificationsCount={0}
+        pendingDealsCount={0}
+        flaggedRiskCount={0}
+        openDisputesCount={0}
       />
 
       {/* ========================================================================= */}
@@ -166,9 +166,6 @@ export function AdminDashboardView({
               title="Open Review Queue"
             >
               <Bell className="w-4 h-4" />
-              <span className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-[#FF6A00] text-white font-bold text-[9px] flex items-center justify-center">
-                8
-              </span>
             </button>
 
             <button
@@ -297,93 +294,11 @@ export function AdminDashboardView({
             </div>
 
             <div className="space-y-3">
-              {(reviewFilter === 'ALL' || reviewFilter === 'VERIFICATIONS') && (
-                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 flex items-center justify-between text-xs gap-3">
-                  <div>
-                    <strong className="text-slate-900 dark:text-white">
-                      MobiPay Africa Ltd (BRELA Incorporation #184920)
-                    </strong>
-                    <div className="text-slate-500 mt-0.5">
-                      TIN: 148-291-002 · Submitted Today, 10:42 AM
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setShowReviewQueueModal(false)
-                      setActiveTab('verifications')
-                    }}
-                    className="py-1.5 px-3 bg-[#FF6A00] text-white rounded-xl font-bold shrink-0"
-                  >
-                    Open Review
-                  </button>
-                </div>
-              )}
-
-              {(reviewFilter === 'ALL' || reviewFilter === 'DEALS') && (
-                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 flex items-center justify-between text-xs gap-3">
-                  <div>
-                    <strong className="text-slate-900 dark:text-white">
-                      Commercial Deal: &quot;Power the Next 1,000 Homes in Coastal Region&quot;
-                    </strong>
-                    <div className="text-slate-500 mt-0.5">
-                      Kijani Solar Tech · Escrow: TZS 45M · Reward: TZS 45,000
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setShowReviewQueueModal(false)
-                      setActiveTab('approvals')
-                    }}
-                    className="py-1.5 px-3 bg-[#FF6A00] text-white rounded-xl font-bold shrink-0"
-                  >
-                    Open Review
-                  </button>
-                </div>
-              )}
-
-              {(reviewFilter === 'ALL' || reviewFilter === 'REWARDS') && (
-                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 flex items-center justify-between text-xs gap-3">
-                  <div>
-                    <strong className="text-slate-900 dark:text-white">
-                      Payout Batch LUMO-DISB-2026-W08 (84 Verified Partners)
-                    </strong>
-                    <div className="text-slate-500 mt-0.5">
-                      Gross: TZS 14.8M · TRA 5%: TZS 740,000 · Net: TZS 14.06M
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setShowReviewQueueModal(false)
-                      setActiveTab('payouts')
-                    }}
-                    className="py-1.5 px-3 bg-[#FF6A00] text-white rounded-xl font-bold shrink-0"
-                  >
-                    Open Review
-                  </button>
-                </div>
-              )}
-
-              {(reviewFilter === 'ALL' || reviewFilter === 'FLAGGED') && (
-                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 flex items-center justify-between text-xs gap-3">
-                  <div>
-                    <strong className="text-red-600 font-bold">
-                      Risk Case RISK-2026-089: Bot Click Flood Detected
-                    </strong>
-                    <div className="text-slate-500 mt-0.5">
-                      IP Cluster 41.59.18.0/24 · Risk Score: 92/100 · TZS 450,000
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setShowReviewQueueModal(false)
-                      setActiveTab('risk')
-                    }}
-                    className="py-1.5 px-3 bg-red-600 text-white rounded-xl font-bold shrink-0"
-                  >
-                    Investigate
-                  </button>
-                </div>
-              )}
+              <div className="text-center py-12 px-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-dashed text-xs text-slate-500 space-y-1.5">
+                <Layers className="w-8 h-8 mx-auto text-slate-400 opacity-80" />
+                <div className="font-bold text-slate-700 dark:text-slate-300">All Review Queues Are Currently Clear</div>
+                <div>No pending business verifications, deal approvals, payout batches, or flagged fraud cases awaiting compliance review.</div>
+              </div>
             </div>
           </div>
         </div>

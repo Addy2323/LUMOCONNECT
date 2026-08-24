@@ -11,6 +11,7 @@ import {
   Trash2,
   FileText,
   X,
+  AlertCircle,
 } from 'lucide-react'
 import { MOCK_PAYOUT_METHODS } from '../mockData'
 import { PartnerPayoutMethod } from '../types'
@@ -45,7 +46,7 @@ export function PayoutMethodsTaxTab() {
       type: newMethod.type,
       accountTitle: newMethod.accountTitle,
       accountNumberMasked: `${newMethod.accountNumber.slice(0, 4)} *** ${newMethod.accountNumber.slice(-3)}`,
-      isDefault: false,
+      isDefault: methods.length === 0,
       isVerified: true,
     }
 
@@ -63,7 +64,7 @@ export function PayoutMethodsTaxTab() {
           <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <span>Payout Accounts & TRA Tax Certificates</span>
             <span className="text-[10px] bg-blue-100 text-blue-700 font-extrabold px-2 py-0.5 rounded-full">
-              Read / Update Payouts
+              Disbursement Accounts
             </span>
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
@@ -73,7 +74,7 @@ export function PayoutMethodsTaxTab() {
 
         <button
           onClick={() => setShowAddModal(true)}
-          className="py-2.5 px-4 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold text-xs rounded-xl shadow-xs flex items-center gap-2 self-start sm:self-auto transition-all active:scale-[0.99]"
+          className="py-2.5 px-4 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold text-xs rounded-xl shadow-xs flex items-center gap-2 self-start sm:self-auto transition-all active:scale-[0.99] cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           <span>Add Payout Method</span>
@@ -86,44 +87,52 @@ export function PayoutMethodsTaxTab() {
           Active Verified Disbursement Accounts
         </h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-          {methods.map((m) => (
-            <div
-              key={m.id}
-              className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border space-y-2 flex flex-col justify-between"
-            >
-              <div>
-                <div className="flex items-center justify-between">
-                  <span className="font-mono font-bold text-[10px] uppercase bg-white dark:bg-slate-900 px-2 py-0.5 rounded border">
-                    {m.type.replace(/_/g, ' ')}
-                  </span>
-                  {m.isDefault && (
-                    <span className="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full">
-                      ✓ Default Payout Destination
+        {methods.length === 0 ? (
+          <div className="text-center py-10 px-4 bg-slate-50/50 dark:bg-slate-800/40 rounded-2xl border border-dashed text-xs text-slate-500">
+            <Smartphone className="w-8 h-8 mx-auto text-slate-400 mb-2" />
+            <div className="font-bold text-slate-700 dark:text-slate-300">No Payout Destination Configured</div>
+            <div className="mt-0.5">Click &quot;Add Payout Method&quot; above to link your Vodacom M-Pesa, Tigo Pesa, Airtel Money, or Bank Account.</div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+            {methods.map((m) => (
+              <div
+                key={m.id}
+                className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border space-y-2 flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono font-bold text-[10px] uppercase bg-white dark:bg-slate-900 px-2 py-0.5 rounded border">
+                      {m.type.replace(/_/g, ' ')}
                     </span>
-                  )}
+                    {m.isDefault && (
+                      <span className="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full">
+                        ✓ Default Payout Destination
+                      </span>
+                    )}
+                  </div>
+
+                  <h4 className="font-extrabold text-sm text-slate-900 dark:text-white mt-1">
+                    {m.accountTitle}
+                  </h4>
+                  <div className="font-mono text-slate-500 text-xs">{m.accountNumberMasked}</div>
                 </div>
 
-                <h4 className="font-extrabold text-sm text-slate-900 dark:text-white mt-1">
-                  {m.accountTitle}
-                </h4>
-                <div className="font-mono text-slate-500 text-xs">{m.accountNumberMasked}</div>
+                <div className="pt-2 border-t flex items-center justify-between">
+                  <span className="text-[10px] text-emerald-600 font-bold">✓ Verified</span>
+                  {!m.isDefault && (
+                    <button
+                      onClick={() => handleSetDefault(m.id)}
+                      className="text-xs text-[#FF6A00] hover:underline font-bold cursor-pointer"
+                    >
+                      Set as Default
+                    </button>
+                  )}
+                </div>
               </div>
-
-              <div className="pt-2 border-t flex items-center justify-between">
-                <span className="text-[10px] text-emerald-600 font-bold">✓ Verified</span>
-                {!m.isDefault && (
-                  <button
-                    onClick={() => handleSetDefault(m.id)}
-                    className="text-xs text-[#FF6A00] hover:underline font-bold"
-                  >
-                    Set as Default
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* TRA Tax Statements Section */}
@@ -132,90 +141,78 @@ export function PayoutMethodsTaxTab() {
           Statutory TRA Withholding Tax Statements
         </h3>
 
-        <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-3">
-            <FileText className="w-5 h-5 text-emerald-600 shrink-0" />
-            <div>
-              <h4 className="font-bold text-slate-900 dark:text-white">
-                TRA Annual Withholding Tax Statement (2025/2026 Fiscal Year)
-              </h4>
-              <span className="text-[10px] text-slate-400">Official electronic certificate for individual income filing</span>
-            </div>
-          </div>
-
-          <button
-            onClick={() => showToast('success', 'TRA Certificate Downloaded', 'Official PDF statement downloaded.')}
-            className="py-1.5 px-3.5 bg-[#0B132B] text-white rounded-xl font-bold flex items-center gap-1.5 self-start sm:self-auto"
-          >
-            <Download className="w-3.5 h-3.5 text-[#FF6A00]" />
-            <span>Download PDF</span>
-          </button>
+        <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border text-xs text-slate-500 text-center py-6">
+          <FileText className="w-7 h-7 mx-auto text-slate-400 mb-2" />
+          <div className="font-bold text-slate-700 dark:text-slate-300">No Tax Withholding Statements Yet</div>
+          <div className="mt-0.5">Statutory TRA withholding certificates are automatically compiled and issued upon completing taxable reward disbursements.</div>
         </div>
       </div>
 
-      {/* ADD PAYOUT METHOD MODAL */}
+      {/* Add Payout Method Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-xs">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl space-y-4 text-xs">
-            <div className="flex items-center justify-between pb-3 border-b">
-              <div className="flex items-center gap-2">
-                <Building className="w-4 h-4 text-[#FF6A00]" />
-                <h3 className="text-base font-black text-slate-900 dark:text-white">
-                  Add Payout Account
-                </h3>
-              </div>
-              <button onClick={() => setShowAddModal(false)} className="p-1 text-slate-400">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+              <CreditCard className="w-5 h-5 text-[#FF6A00]" />
+              <span>Link Payout Destination</span>
+            </h3>
 
-            <div className="space-y-3">
+            <div className="space-y-3 text-xs">
               <div>
-                <label className="font-bold block mb-1">Payout Method Type</label>
+                <label className="font-bold block text-slate-700 dark:text-slate-300 mb-1">
+                  Disbursement Channel
+                </label>
                 <select
                   value={newMethod.type}
                   onChange={(e) => setNewMethod({ ...newMethod, type: e.target.value as any })}
-                  className="w-full p-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800"
+                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
                 >
-                  <option value="VODACOM_MPESA">Vodacom M-Pesa Mobile Money</option>
-                  <option value="TIGO_PESA">Tigo Pesa Mobile Money</option>
+                  <option value="VODACOM_MPESA">Vodacom M-Pesa</option>
+                  <option value="TIGO_PESA">Tigo Pesa</option>
                   <option value="AIRTEL_MONEY">Airtel Money</option>
-                  <option value="CRDB_BANK">CRDB Bank Account</option>
-                  <option value="NMB_BANK">NMB Bank Account</option>
+                  <option value="CRDB_BANK">CRDB Bank</option>
+                  <option value="NMB_BANK">NMB Bank</option>
                 </select>
               </div>
 
               <div>
-                <label className="font-bold block mb-1">Account Holder Full Name</label>
+                <label className="font-bold block text-slate-700 dark:text-slate-300 mb-1">
+                  Registered Account Holder Name
+                </label>
                 <input
                   type="text"
-                  placeholder="Must match your verified NIDA identity"
+                  placeholder="e.g. Alex Mwamburi"
                   value={newMethod.accountTitle}
                   onChange={(e) => setNewMethod({ ...newMethod, accountTitle: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold"
+                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
                 />
               </div>
 
               <div>
-                <label className="font-bold block mb-1">Phone Number or Bank Account Number</label>
+                <label className="font-bold block text-slate-700 dark:text-slate-300 mb-1">
+                  Phone Number or Bank Account Number
+                </label>
                 <input
                   type="text"
-                  placeholder="e.g. 0754 000 111 or CRDB Account #"
+                  placeholder="e.g. 0754112233 or 0150..."
                   value={newMethod.accountNumber}
                   onChange={(e) => setNewMethod({ ...newMethod, accountNumber: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 font-mono"
+                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-mono"
                 />
               </div>
             </div>
 
-            <div className="flex gap-2 pt-2 border-t">
+            <div className="flex gap-2 pt-2">
               <button
                 onClick={handleAddMethod}
-                className="flex-1 py-2.5 bg-[#FF6A00] text-white font-extrabold rounded-xl shadow-xs"
+                className="flex-1 py-2.5 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold rounded-xl text-xs cursor-pointer"
               >
-                Verify & Save Account
+                Save & Verify Account
               </button>
-              <button onClick={() => setShowAddModal(false)} className="py-2.5 px-4 border rounded-xl font-bold">
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="py-2.5 px-4 border rounded-xl text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"
+              >
                 Cancel
               </button>
             </div>

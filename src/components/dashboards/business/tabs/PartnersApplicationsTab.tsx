@@ -147,8 +147,15 @@ export function PartnersApplicationsTab({
       </div>
 
       {/* Partners List Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {filteredPartners.map((prt) => (
+      {filteredPartners.length === 0 ? (
+        <div className="text-center py-12 px-4 bg-slate-50/50 dark:bg-slate-800/40 rounded-2xl border border-dashed text-xs text-slate-500">
+          <Users className="w-8 h-8 mx-auto text-slate-400 mb-2" />
+          <div className="font-bold text-slate-700 dark:text-slate-300">No Partners in this Section</div>
+          <div className="mt-0.5">When verified sales partners, brokers, or content creators apply or are invited to your deals, they will appear here.</div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {filteredPartners.map((prt) => (
           <div
             key={prt.id}
             className="p-4 sm:p-5 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 space-y-3 flex flex-col justify-between"
@@ -277,6 +284,7 @@ export function PartnersApplicationsTab({
           </div>
         ))}
       </div>
+    )}
 
       {/* DIRECT MESSAGE MODAL */}
       {messageModal && (

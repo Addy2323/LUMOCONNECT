@@ -4,15 +4,18 @@ import React, { useState } from 'react'
 import {
   UserSearch,
   Search,
-  Filter,
   Star,
-  ShieldCheck,
-  Send,
   CheckCircle2,
-  Lock,
+  Send,
+  Filter,
+  MapPin,
+  Sparkles,
+  Shield,
+  Layers,
   ChevronRight,
+  Lock,
   X,
-  Award,
+  Users,
 } from 'lucide-react'
 import { BusinessOpportunityItem } from '../types'
 import { useBusinessToast } from '../BusinessToast'
@@ -30,60 +33,19 @@ export function PartnerDiscoveryTab({ opportunities }: PartnerDiscoveryTabProps)
   const [inviteModalPartner, setInviteModalPartner] = useState<any | null>(null)
   const [selectedOppId, setSelectedOppId] = useState(opportunities[0]?.id || '')
 
-  const discoveryCatalog = [
-    {
-      id: 'disc_1',
-      name: 'Salma Kibiki',
-      type: 'CONTENT_CREATOR',
-      avatar: 'SK',
-      region: 'Dar es Salaam & Pwani',
-      channels: ['Instagram (85k)', 'TikTok TZ (140k)'],
-      niche: 'Clean Energy & Smart Home Tech',
-      score: 97,
-      completedDeals: 19,
-      qualityRate: '99.4%',
-      rating: 4.9,
-    },
-    {
-      id: 'disc_2',
-      name: 'Twiga Agri & Solar Brokerage',
-      type: 'COMMERCIAL_BROKER',
-      avatar: 'TA',
-      region: 'Arusha & Kilimanjaro',
-      channels: ['Farmer Co-operatives', 'Coffee Estates'],
-      niche: 'Solar Irrigation & Agri-Pumps',
-      score: 95,
-      completedDeals: 12,
-      qualityRate: '98.8%',
-      rating: 5.0,
-    },
-    {
-      id: 'disc_3',
-      name: 'Rashid Bakari',
-      type: 'SALES_AGENT',
-      avatar: 'RB',
-      region: 'Mwanza & Lake Zone',
-      channels: ['Direct Field Agents', 'Local Markets'],
-      niche: 'Off-grid SHS & Appliances',
-      score: 92,
-      completedDeals: 24,
-      qualityRate: '97.2%',
-      rating: 4.8,
-    },
-    {
-      id: 'disc_4',
-      name: 'Coastal Tech Distributors Ltd',
-      type: 'DISTRIBUTOR',
-      avatar: 'CT',
-      region: 'Coastal & Dar es Salaam',
-      channels: ['Hardware Wholesalers', 'Electrical Retailers'],
-      niche: 'B2B Equipment & Inverters',
-      score: 98,
-      completedDeals: 7,
-      qualityRate: '100%',
-      rating: 5.0,
-    },
-  ]
+  const discoveryCatalog: {
+    id: string
+    name: string
+    type: string
+    avatar: string
+    region: string
+    channels: string[]
+    niche: string
+    score: number
+    completedDeals: number
+    qualityRate: string
+    rating: number
+  }[] = []
 
   const filtered = discoveryCatalog.filter((p) => {
     const matchesSearch =
@@ -123,7 +85,7 @@ export function PartnerDiscoveryTab({ opportunities }: PartnerDiscoveryTabProps)
         </div>
       </div>
 
-      {/* Consent Rule Banner */}
+      {/* Partner Consent Rule Callout */}
       <div className="p-3.5 rounded-2xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 text-xs text-blue-900 dark:text-blue-200 flex items-start gap-2.5">
         <Lock className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
         <div>
@@ -131,7 +93,7 @@ export function PartnerDiscoveryTab({ opportunities }: PartnerDiscoveryTabProps)
         </div>
       </div>
 
-      {/* Filter Bar */}
+      {/* Filters Bar */}
       <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
         <div className="sm:col-span-6 relative">
           <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
@@ -148,13 +110,13 @@ export function PartnerDiscoveryTab({ opportunities }: PartnerDiscoveryTabProps)
           <select
             value={partnerTypeFilter}
             onChange={(e) => setPartnerTypeFilter(e.target.value)}
-            className="w-full py-2 px-3 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
+            className="w-full py-2 px-3 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-medium"
           >
             <option value="ALL">All Partner Types</option>
-            <option value="CONTENT_CREATOR">Content Creators & Influencers</option>
-            <option value="SALES_AGENT">Direct Field Sales Agents</option>
-            <option value="COMMERCIAL_BROKER">Commercial B2B Brokers</option>
-            <option value="DISTRIBUTOR">Wholesale Distributors</option>
+            <option value="CONTENT_CREATOR">Content Creator / Influencer</option>
+            <option value="SALES_AGENT">Direct Field Sales Agent</option>
+            <option value="COMMERCIAL_BROKER">Commercial B2B Broker</option>
+            <option value="DISTRIBUTOR">Regional Distributor</option>
           </select>
         </div>
 
@@ -162,132 +124,141 @@ export function PartnerDiscoveryTab({ opportunities }: PartnerDiscoveryTabProps)
           <select
             value={regionFilter}
             onChange={(e) => setRegionFilter(e.target.value)}
-            className="w-full py-2 px-3 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
+            className="w-full py-2 px-3 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-medium"
           >
             <option value="ALL">All Regions</option>
             <option value="Dar es Salaam">Dar es Salaam & Pwani</option>
             <option value="Arusha">Arusha & Kilimanjaro</option>
             <option value="Mwanza">Mwanza & Lake Zone</option>
+            <option value="Dodoma">Dodoma & Central</option>
+            <option value="Mbeya">Mbeya & Southern Highlands</option>
           </select>
         </div>
       </div>
 
-      {/* Discovery Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {filtered.map((prt) => (
-          <div
-            key={prt.id}
-            className="p-5 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 space-y-4 flex flex-col justify-between"
-          >
-            <div className="space-y-3">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-2xl bg-[#0B132B] text-white font-black text-sm flex items-center justify-center">
-                    {prt.avatar}
-                  </div>
-                  <div>
-                    <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">
-                      {prt.name}
-                    </h4>
-                    <span className="text-[10px] font-mono bg-white dark:bg-slate-900 px-2 py-0.5 rounded border text-slate-500 font-bold">
-                      {prt.type.replace('_', ' ')}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="text-right">
-                  <div className="text-xs font-black text-emerald-600 font-mono">
-                    Score: {prt.score}/100
-                  </div>
-                  <div className="text-[10px] text-amber-500 font-bold flex items-center gap-0.5 justify-end">
-                    <Star className="w-3 h-3 fill-amber-500" />
-                    <span>{prt.rating} / 5.0</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-3 bg-white dark:bg-slate-900 rounded-2xl border text-xs space-y-1.5">
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Industry Niche:</span>
-                  <span className="font-bold text-slate-900 dark:text-white">{prt.niche}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Region Coverage:</span>
-                  <span className="font-medium text-slate-700 dark:text-slate-300">{prt.region}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Conversion Quality:</span>
-                  <span className="font-mono font-bold text-emerald-600">{prt.qualityRate}</span>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap gap-1">
-                {prt.channels.map((ch: string) => (
-                  <span key={ch} className="px-2 py-0.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded font-medium text-[10px]">
-                    {ch}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
-              <button
-                onClick={() => setInviteModalPartner(prt)}
-                className="w-full py-2 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold rounded-xl text-xs shadow-xs flex items-center justify-center gap-1.5 transition-all"
-              >
-                <Send className="w-3.5 h-3.5" />
-                <span>Invite to Opportunity</span>
-              </button>
-            </div>
+      {/* Discovery Grid */}
+      {filtered.length === 0 ? (
+        <div className="text-center py-16 px-4 bg-slate-50/50 dark:bg-slate-800/40 rounded-3xl border border-dashed text-xs text-slate-500 space-y-2">
+          <Users className="w-10 h-10 mx-auto text-slate-400 opacity-80" />
+          <div className="font-bold text-slate-700 dark:text-slate-300 text-sm">No Partners Listed in Directory Yet</div>
+          <div className="max-w-md mx-auto">
+            As verified sales agents, digital creators, and brokers subscribe to LUMO, their talent profiles will list here for direct deal invitations.
           </div>
-        ))}
-      </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {filtered.map((prt) => (
+            <div
+              key={prt.id}
+              className="p-4 sm:p-5 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 space-y-3.5 flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-[#0B132B] text-white font-black text-xs flex items-center justify-center">
+                      {prt.avatar}
+                    </div>
+                    <div>
+                      <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">
+                        {prt.name}
+                      </h4>
+                      <span className="text-[10px] font-mono text-slate-400 uppercase">
+                        {prt.type.replace(/_/g, ' ')}
+                      </span>
+                    </div>
+                  </div>
 
-      {/* INVITATION MODAL */}
+                  <div className="text-right">
+                    <div className="text-[10px] font-bold text-slate-400">Score: <strong className="text-emerald-600 font-mono">{prt.score}/100</strong></div>
+                    <div className="text-xs text-amber-500 font-black flex items-center justify-end gap-0.5">
+                      <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                      <span>{prt.rating.toFixed(1)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-3 p-3 bg-white dark:bg-slate-900 rounded-2xl border space-y-1.5 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Industry Niche:</span>
+                    <span className="font-bold text-slate-800 dark:text-slate-200">{prt.niche}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Region Coverage:</span>
+                    <span className="text-slate-600 dark:text-slate-400">{prt.region}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Conversion Quality:</span>
+                    <span className="text-emerald-600 font-mono font-bold">{prt.qualityRate}</span>
+                  </div>
+                </div>
+
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {prt.channels.map((ch: string) => (
+                    <span key={ch} className="text-[10px] bg-slate-200/80 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded-md font-medium">
+                      {ch}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-2 border-t flex gap-2">
+                <button
+                  onClick={() => setInviteModalPartner(prt)}
+                  className="flex-1 py-2 bg-[#FF6A00] hover:bg-[#EA580C] text-white rounded-xl font-extrabold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>Invite to Opportunity</span>
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Invite Modal */}
       {inviteModalPartner && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-xs">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b">
-              <div className="flex items-center gap-2">
-                <Send className="w-4 h-4 text-[#FF6A00]" />
-                <h3 className="text-base font-black text-slate-900 dark:text-white">
-                  Invite {inviteModalPartner.name}
-                </h3>
-              </div>
-              <button onClick={() => setInviteModalPartner(null)} className="p-1 text-slate-400">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+            <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+              <Send className="w-4 h-4 text-[#FF6A00]" />
+              <span>Invite Partner: {inviteModalPartner.name}</span>
+            </h3>
 
-            <div className="space-y-3 text-xs">
-              <p className="text-slate-500">
-                Select which live opportunity you would like to invite this partner to participate in:
-              </p>
-
-              <div>
-                <label className="font-bold block mb-1">Target Commercial Opportunity</label>
+            <div className="text-xs space-y-1">
+              <label className="font-bold block text-slate-700 dark:text-slate-300">
+                Select Target Commercial Opportunity
+              </label>
+              {opportunities.length === 0 ? (
+                <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 rounded-xl text-amber-800 dark:text-amber-200">
+                  No active opportunities created yet. Create an opportunity first before sending invites.
+                </div>
+              ) : (
                 <select
                   value={selectedOppId}
                   onChange={(e) => setSelectedOppId(e.target.value)}
-                  className="w-full p-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800"
+                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs"
                 >
-                  {opportunities.map((opp) => (
-                    <option key={opp.id} value={opp.id}>
-                      {opp.title} (TZS {opp.rewardValueTZS.toLocaleString()} / Result)
+                  {opportunities.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.title} (TZS {o.rewardValueTZS.toLocaleString()})
                     </option>
                   ))}
                 </select>
-              </div>
+              )}
             </div>
 
-            <div className="flex gap-2 pt-2 border-t">
+            <div className="flex gap-2 pt-2">
               <button
                 onClick={handleSendInvitation}
-                className="flex-1 py-2.5 bg-[#FF6A00] text-white font-extrabold rounded-xl text-xs shadow-xs flex items-center justify-center gap-1.5"
+                disabled={opportunities.length === 0}
+                className="flex-1 py-2.5 bg-[#FF6A00] hover:bg-[#EA580C] disabled:bg-slate-300 text-white font-extrabold rounded-xl text-xs cursor-pointer"
               >
-                <span>Send Formal Invitation</span>
+                Send Formal Invitation
               </button>
-              <button onClick={() => setInviteModalPartner(null)} className="py-2.5 px-4 border rounded-xl text-xs font-bold">
+              <button
+                onClick={() => setInviteModalPartner(null)}
+                className="py-2.5 px-4 border rounded-xl text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"
+              >
                 Cancel
               </button>
             </div>

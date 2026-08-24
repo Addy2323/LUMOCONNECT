@@ -37,71 +37,152 @@ export interface DealRoomAgreement {
   updatedAt: Date
 }
 
-const dealRooms: DealRoomAgreement[] = [
-  {
-    id: 'dr_safaribox_alex',
-    dealId: 'deal_sb_01',
-    businessId: 'org_safaribox',
-    businessName: 'SafariBox Serengeti',
-    partnerId: 'partner_alex',
-    partnerName: 'Alex Mushi',
-    title: 'Serengeti Migration Visual Creator Campaign',
-    currentVersion: 1,
-    fixedFeeTZS: BigInt(45000000), // TZS 450,000.00
-    commissionRateBps: 800, // 8.00%
-    currency: 'TZS',
-    status: 'IN_PROGRESS',
-    deliverables: [
-      {
-        id: 'del_1',
-        title: 'High-Res Photo Gallery (15 Curated Images)',
-        description: 'Delivered in RAW + processed JPEG format depicting camp amenities and safari game drives.',
-        dueDate: '2026-08-28',
-        status: 'APPROVED',
-        evidenceUrl: 'https://storage.lumo.co.tz/evidence/del_1_gallery.zip',
-        reviewNotes: 'Stunning visual quality! Approved for marketing library.',
-      },
-      {
-        id: 'del_2',
-        title: '3x 4K Instagram Reels / TikTok Shorts',
-        description: 'Featuring lodge tent sunrise, bush dinner, and hot air balloon experience with booking tags.',
-        dueDate: '2026-09-02',
-        status: 'SUBMITTED',
-        evidenceUrl: 'https://instagram.com/p/mock_reel_02',
-      },
-      {
-        id: 'del_3',
-        title: 'LUMO Tracking Link Performance Report',
-        description: 'Summary of click traffic and customer reservation inquiries.',
-        dueDate: '2026-09-15',
-        status: 'PENDING',
-      },
-    ],
-    messages: [
-      {
-        id: 'msg_1',
-        senderId: 'user_sb_01',
-        senderName: 'SafariBox Marketing',
-        senderRole: 'BUSINESS',
-        message: 'Welcome Alex! We have sent through the initial agreement with TZS 450,000 fixed fee and 8% booking commission.',
-        timestamp: new Date('2026-08-11T10:00:00Z'),
-      },
-      {
-        id: 'msg_2',
-        senderId: 'partner_alex',
-        senderName: 'Alex Mushi',
-        senderRole: 'PARTNER',
-        message: 'Offer accepted! First gallery deliverable has been uploaded for review.',
-        timestamp: new Date('2026-08-15T14:30:00Z'),
-      },
-    ],
-    createdAt: new Date('2026-08-11T10:00:00Z'),
-    updatedAt: new Date('2026-08-15T14:30:00Z'),
-  },
-]
+const dealRooms: DealRoomAgreement[] = []
 
 export function getDealRoom(id: string): DealRoomAgreement | undefined {
   return dealRooms.find((r) => r.id === id)
+}
+
+export function listDealRoomsForUser(userId: string): DealRoomAgreement[] {
+  return dealRooms.filter((r) => r.partnerId === userId || r.businessId === userId)
+}
+
+export function createDealRoom(params: {
+  dealId: string
+  businessId: string
+  businessName: string
+  partnerId: string
+  partnerName: string
+  title: string
+  fixedFeeTZS?: bigint
+  commissionRateBps?: number
+  deliverables?: Omit<DealRoomDeliverable, 'id' | 'status'>[]
+}): DealRoomAgreement {
+  const roomId = `dr_${Date.now()}`
+  const now = new Date()
+
+  const deliverables: DealRoomDeliverable[] = (params.deliverables || [
+    {
+      title: 'Initial Commercial Campaign Kickoff',
+      description: 'Review brand guidelines and confirm marketing channels.',
+      dueDate: new Date(now.getTime() + 7 * 86400000).toISOString().slice(0, 10),
+    },
+  ]).map((d, idx) => ({
+    ...d,
+    id: `del_${idx + 1}`,
+    status: 'PENDING',
+  }))
+
+  const room: DealRoomAgreement = {
+    id: roomId,
+    dealId: params.dealId,
+    businessId: params.businessId,
+    businessName: params.businessName,
+    partnerId: params.partnerId,
+    partnerName: params.partnerName,
+    title: params.title,
+    currentVersion: 1,
+    fixedFeeTZS: params.fixedFeeTZS || 0n,
+    commissionRateBps: params.commissionRateBps || 1000,
+    currency: 'TZS',
+    status: 'IN_PROGRESS',
+    deliverables,
+    messages: [
+      {
+        id: `msg_${Date.now()}`,
+        senderId: params.businessId,
+        senderName: params.businessName,
+        senderRole: 'BUSINESS',
+        message: `Deal room initialized for ${params.title}. Review agreed deliverables and timeline below.`,
+        timestamp: now,
+      },
+    ],
+    createdAt: now,
+    updatedAt: now,
+  }
+
+  dealRooms.unshift(room)
+  return room
+}
+
+export function submitDeliverable({
+  dealRoomId,
+  deliverableId,
+  evidenceUrl,
+  notes,
+}: {
+  dealRoomId: string
+  deliverableId: string
+  evidenceUrl: string
+  notes?: string
+}): DealRoomDeliverable {
+  const room = getDealRoom(dealRoomId)
+  if (!room) throw new Error('DEAL_ROOM_NOT_FOUND')
+
+  const del = room.deliverables.find((d) => d.id === deliverableId)
+  if (!del) throw new Error('DELIVERABLE_NOT_FOUND')
+
+  del.status = 'SUBMITTED'
+  del.evidenceUrl = evidenceUrl
+  if (notes) del.reviewNotes = notes
+  room.updatedAt = new Date()
+
+  // Add system message
+  room.messages.push({
+    id: `msg_${Date.now()}`,
+    senderId: room.partnerId,
+    senderName: room.partnerName,
+    senderRole: 'PARTNER',
+    message: `Submitted evidence for deliverable: "${del.title}". Review link: ${evidenceUrl}`,
+    attachmentUrl: evidenceUrl,
+    timestamp: new Date(),
+  })
+
+  return del
+}
+
+export function reviewDeliverable({
+  dealRoomId,
+  deliverableId,
+  status,
+  reviewNotes,
+  reviewerId,
+  reviewerName,
+}: {
+  dealRoomId: string
+  deliverableId: string
+  status: 'APPROVED' | 'REVISION_REQUESTED'
+  reviewNotes: string
+  reviewerId: string
+  reviewerName: string
+}): DealRoomDeliverable {
+  const room = getDealRoom(dealRoomId)
+  if (!room) throw new Error('DEAL_ROOM_NOT_FOUND')
+
+  const del = room.deliverables.find((d) => d.id === deliverableId)
+  if (!del) throw new Error('DELIVERABLE_NOT_FOUND')
+
+  del.status = status
+  del.reviewNotes = reviewNotes
+  room.updatedAt = new Date()
+
+  // Check if all deliverables are approved
+  const allApproved = room.deliverables.every((d) => d.status === 'APPROVED')
+  if (allApproved) {
+    room.status = 'COMPLETED'
+  }
+
+  // Add notification message to timeline
+  room.messages.push({
+    id: `msg_${Date.now()}`,
+    senderId: reviewerId,
+    senderName: reviewerName,
+    senderRole: 'BUSINESS',
+    message: `Deliverable "${del.title}" marked as ${status}. Feedback: ${reviewNotes}`,
+    timestamp: new Date(),
+  })
+
+  return del
 }
 
 export function postDealRoomMessage({
@@ -110,12 +191,14 @@ export function postDealRoomMessage({
   senderName,
   senderRole,
   message,
+  attachmentUrl,
 }: {
   dealRoomId: string
   senderId: string
   senderName: string
   senderRole: 'BUSINESS' | 'PARTNER' | 'LUMO_FACILITATOR'
   message: string
+  attachmentUrl?: string
 }): DealRoomMessage {
   const room = getDealRoom(dealRoomId)
   if (!room) throw new Error('DEAL_ROOM_NOT_FOUND')
@@ -126,6 +209,7 @@ export function postDealRoomMessage({
     senderName,
     senderRole,
     message,
+    attachmentUrl,
     timestamp: new Date(),
   }
 
@@ -133,3 +217,4 @@ export function postDealRoomMessage({
   room.updatedAt = new Date()
   return msg
 }
+
