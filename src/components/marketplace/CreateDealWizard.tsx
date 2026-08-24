@@ -38,6 +38,8 @@ export function CreateDealWizard({ onSuccess, onCancel }: CreateDealWizardProps)
   const [maxPartners, setMaxPartners] = useState(50)
   const [terms, setTerms] = useState('Reward is validated upon technician sign-off and customer down-payment confirmation. Attribution window is 30 days.')
   const [requiresApproval, setRequiresApproval] = useState(true)
+  const [featuredImageUrl, setFeaturedImageUrl] = useState('https://images.unsplash.com/photo-1509391365360-2e959784a276?w=800&auto=format&fit=crop&q=60')
+  const [promoVideoUrl, setPromoVideoUrl] = useState('')
 
   const handlePublish = () => {
     createDealOpportunity(
@@ -55,6 +57,8 @@ export function CreateDealWizard({ onSuccess, onCancel }: CreateDealWizardProps)
         region,
         termsAndConditions: terms,
         requiresApproval,
+        featuredImageUrl,
+        promoVideoUrl: promoVideoUrl || undefined,
         currency: 'TZS',
         attributionWindowDays: 30,
       },
@@ -204,6 +208,42 @@ export function CreateDealWizard({ onSuccess, onCancel }: CreateDealWizardProps)
               onChange={(e) => setTerms(e.target.value)}
               className="w-full text-xs p-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-800"
             />
+          </div>
+
+          {/* Media & Video Import */}
+          <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 space-y-3">
+            <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center justify-between">
+              <span>Deal Cover Image & Video Media</span>
+              <span className="text-[10px] text-orange-600 font-normal">Import Image / Video URL</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                  Featured Cover Image URL
+                </label>
+                <input
+                  type="url"
+                  value={featuredImageUrl}
+                  onChange={(e) => setFeaturedImageUrl(e.target.value)}
+                  placeholder="https://images.unsplash.com/photo-..."
+                  className="w-full text-xs p-2.5 border rounded-lg bg-white dark:bg-slate-900 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                  Promotional Video Pitch (YouTube / MP4)
+                </label>
+                <input
+                  type="url"
+                  value={promoVideoUrl}
+                  onChange={(e) => setPromoVideoUrl(e.target.value)}
+                  placeholder="https://youtube.com/watch?v=... or MP4 URL"
+                  className="w-full text-xs p-2.5 border rounded-lg bg-white dark:bg-slate-900 font-mono"
+                />
+              </div>
+            </div>
           </div>
         </div>
       )}

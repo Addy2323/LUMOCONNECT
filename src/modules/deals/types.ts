@@ -40,6 +40,9 @@ export const DealCreateSchema = z.object({
   region: z.string().default('All Tanzania'),
   termsAndConditions: z.string().min(20, 'Please specify verification terms and conditions'),
   requiresApproval: z.boolean().default(true),
+  featuredImageUrl: z.string().optional(),
+  promoVideoUrl: z.string().optional(),
+  galleryImageUrls: z.array(z.string()).optional(),
 })
 
 export type DealCreateInput = z.infer<typeof DealCreateSchema>
