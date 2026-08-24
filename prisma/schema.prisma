@@ -1,0 +1,1072 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ----------------------------------------------------
+// ENUMS
+// ----------------------------------------------------
+
+enum RoleType {
+  CUSTOMER
+  PARTNER
+  BUSINESS_OWNER
+  BUSINESS_STAFF
+  SALES
+  LOGISTICS
+  SUPPORT
+  FINANCE
+  RISK_REVIEWER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum RoleStatus {
+  PENDING_APPROVAL
+  ACTIVE
+  SUSPENDED
+  REVOKED
+}
+
+enum AccountStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+  SUSPENDED
+  LOCKED
+  CLOSED
+}
+
+enum OrganizationType {
+  BUSINESS
+  ENTERPRISE
+  CREATOR_AGENCY
+  PLATFORM_OPERATOR
+}
+
+enum VerificationStatus {
+  UNVERIFIED
+  PENDING_REVIEW
+  VERIFIED
+  REJECTED
+}
+
+enum OpportunityType {
+  PRODUCT_SALES
+  QUALIFIED_LEADS
+  CONTENT_CREATION
+  CUSTOMER_ACQUISITION
+  DISTRIBUTOR_SEARCH
+  B2B_INTRODUCTION
+  REVERSE_SOURCING
+  SUBSCRIPTION_PROMOTION
+  MILESTONE_BOUNTY
+}
+
+enum DealStatus {
+  DRAFT
+  PENDING_REVIEW
+  PUBLISHED
+  PAUSED
+  COMPLETED
+  ARCHIVED
+}
+
+enum RewardType {
+  PERCENTAGE_COMMISSION
+  FIXED_COMMISSION
+  COST_PER_LEAD
+  COST_PER_ACQUISITION
+  FIXED_CAMPAIGN_FEE
+  TIERED_COMMISSION
+  MILESTONE_BONUS
+  HYBRID
+}
+
+enum ApplicationStatus {
+  PENDING
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  WITHDRAWN
+}
+
+enum AttributionModel {
+  FIRST_CLICK
+  LAST_CLICK
+  PROMO_CODE_PRECEDENCE
+  EQUAL_SPLIT
+  CUSTOM_WEIGHTED
+}
+
+enum TouchType {
+  CLICK
+  QR_SCAN
+  PROMO_CODE
+  IMPRESSION
+  DIRECT_ENTRY
+}
+
+enum ConversionStatus {
+  TRACKED
+  PENDING
+  VALIDATING
+  APPROVED
+  PAYABLE
+  PAID
+  ON_HOLD
+  REJECTED
+  REVERSED
+  DISPUTED
+  EXPIRED
+}
+
+enum CommissionEventType {
+  CREATED
+  STATUS_CHANGE
+  ADJUSTMENT
+  REVERSAL
+  DISPUTE_HOLD
+  DISPUTE_RELEASE
+  PAYOUT_BATCHED
+  PAID
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  PROCESSING
+  FULFILLED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  CREATED
+  INITIATED
+  PENDING
+  PROCESSING
+  SUCCESSFUL
+  FAILED
+  EXPIRED
+  REVERSED
+  REFUNDED
+}
+
+enum PayoutStatus {
+  DRAFT
+  PENDING_APPROVAL
+  AUTHORIZED
+  PROCESSING
+  PAID
+  FAILED
+  REVERSED
+}
+
+enum DisputeStatus {
+  OPENED
+  UNDER_REVIEW
+  EVIDENCE_SUBMITTED
+  RESOLVED_PARTNER_FAVOR
+  RESOLVED_BUSINESS_FAVOR
+  CLOSED
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum SubscriptionStatus {
+  PENDING
+  ACTIVE
+  PAST_DUE
+  EXPIRED
+  CANCELLED
+  FAILED
+}
+
+// ----------------------------------------------------
+// 1. IDENTITY & AUTHENTICATION
+// ----------------------------------------------------
+
+model User {
+  id               String               @id @default(cuid())
+  email            String               @unique
+  emailVerified    Boolean              @default(false)
+  phoneNumber      String?              @unique
+  phoneVerified    Boolean              @default(false)
+  name             String
+  image            String?
+  accountStatus    AccountStatus        @default(PENDING_VERIFICATION)
+  twoFactorEnabled Boolean              @default(false)
+  twoFactorSecret  String?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  deletedAt        DateTime?
+
+  sessions         Session[]
+  accounts         Account[]
+  roleAssignments  UserRoleAssignment[]
+  memberships      OrganizationMembership[]
+  partnerProfile   PartnerProfile?
+  businessProfile  BusinessProfile?
+  customerProfile  CustomerProfile?
+  notifications    Notification[]
+  auditEvents      AuditEvent[]
+  disputeMessages  DisputeMessage[]
+  createdDeals     Deal[]               @relation("DealCreator")
+  authorizedPayouts Payout[]            @relation("PayoutAuthorizer")
+  subscriptions    UserSubscription[]
+  enterpriseInquiries EnterpriseInquiry[]
+
+  @@index([email])
+  @@index([phoneNumber])
+  @@index([accountStatus])
+}
+
+model Account {
+  id                String   @id @default(cuid())
+  userId            String
+  accountId         String
+  providerId        String
+  accessToken       String?
+  refreshToken      String?
+  accessTokenExpiresAt DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope             String?
+  idToken           String?
+  password          String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([identifier, value])
+  @@index([identifier])
+}
+
+model PlatformRole {
+  id          String               @id @default(cuid())
+  name        RoleType             @unique
+  description String
+  permissions String[]             // Array of permission strings e.g. ["deal.create", "payout.authorize"]
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  assignments UserRoleAssignment[]
+}
+
+model UserRoleAssignment {
+  id             String       @id @default(cuid())
+  userId         String
+  roleId         String
+  organizationId String?
+  status         RoleStatus   @default(ACTIVE)
+  assignedBy     String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role           PlatformRole @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId, organizationId])
+  @@index([userId])
+  @@index([roleId])
+  @@index([organizationId])
+}
+
+// ----------------------------------------------------
+// 2. ORGANIZATIONS & PROFILES
+// ----------------------------------------------------
+
+model Organization {
+  id                 String                   @id @default(cuid())
+  name               String
+  slug               String                   @unique
+  type               OrganizationType         @default(BUSINESS)
+  logoUrl            String?
+  countryCode        String                   @default("TZ")
+  registrationNumber String?
+  taxIdentificationNo String?                 // TIN
+  verificationStatus VerificationStatus       @default(UNVERIFIED)
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+  deletedAt          DateTime?
+
+  memberships        OrganizationMembership[]
+  roleAssignments    UserRoleAssignment[]
+  opportunities      Opportunity[]
+  deals              Deal[]
+  orders             Order[]
+  commissions        Commission[]
+  payouts            Payout[]
+  disputes           Dispute[]
+  auditEvents        AuditEvent[]
+  riskAlerts         RiskAlert[]
+
+  @@index([slug])
+  @@index([verificationStatus])
+}
+
+model OrganizationMembership {
+  id             String       @id @default(cuid())
+  organizationId String
+  userId         String
+  role           RoleType     @default(BUSINESS_STAFF)
+  status         RoleStatus   @default(ACTIVE)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([organizationId])
+  @@index([userId])
+}
+
+model PartnerProfile {
+  id                 String             @id @default(cuid())
+  userId             String             @unique
+  handle             String             @unique
+  bio                String?
+  countryCode        String             @default("TZ")
+  region             String?
+  partnerType        String             // "CREATOR", "AFFILIATE", "B2B_BROKER", "AGENCY"
+  categories         String[]           // ["SOLAR", "FINTECH", "HOSPITALITY", "ECOMMERCE"]
+  socialChannels     Json?              // e.g. { instagram: "@handle", youtube: "url", tiktok: "@handle" }
+  audienceSize       Int?
+  identityType       String?            // "NIDA", "PASSPORT", "VOTER_ID"
+  identityNumber     String?
+  verificationStatus VerificationStatus @default(UNVERIFIED)
+  taxClassification  String             @default("INDIVIDUAL_RESIDENT") // INDIVIDUAL_RESIDENT, INDIVIDUAL_NON_RESIDENT, CORPORATE
+  payoutMethod       String?            // "MPESA", "AIRTEL_MONEY", "TIGO_PESA", "BANK"
+  payoutAccountNo    String?
+  payoutAccountName  String?
+  lifetimeEarningsTZS BigInt            @default(0)
+  pendingEarningsTZS  BigInt            @default(0)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  applications       PartnerApplication[]
+  trackingLinks      TrackingLink[]
+  conversions        Conversion[]
+  commissions        Commission[]
+  payoutItems        PayoutItem[]
+  earningsStatements EarningsStatement[]
+
+  @@index([handle])
+  @@index([verificationStatus])
+}
+
+model BusinessProfile {
+  id                 String             @id @default(cuid())
+  userId             String             @unique
+  legalName          String
+  tradingName        String
+  registrationNo     String?
+  tinNumber          String?
+  vatRegistered      Boolean            @default(false)
+  category           String
+  websiteUrl         String?
+  address            String?
+  city               String             @default("Dar es Salaam")
+  countryCode        String             @default("TZ")
+  verificationStatus VerificationStatus @default(UNVERIFIED)
+  settlementCurrency String             @default("TZS")
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tradingName])
+}
+
+model CustomerProfile {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  countryCode String   @default("TZ")
+  city        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders      Order[]
+}
+
+// ----------------------------------------------------
+// 3. OPPORTUNITIES & DEALS
+// ----------------------------------------------------
+
+model Opportunity {
+  id                 String             @id @default(cuid())
+  organizationId     String
+  type               OpportunityType
+  title              String
+  slug               String             @unique
+  summary            String
+  description        String
+  category           String
+  countryCode        String             @default("TZ")
+  region             String?
+  currency           String             @default("TZS")
+  featuredImageUrl   String?
+  isFeatured         Boolean            @default(false)
+  status             DealStatus         @default(PUBLISHED)
+  totalBudgetTZS     BigInt?
+  spentBudgetTZS     BigInt             @default(0)
+  maxPartners        Int?
+  activePartnerCount Int                @default(0)
+  startDate          DateTime           @default(now())
+  endDate            DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  deletedAt          DateTime?
+
+  organization       Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  deals              Deal[]
+  applications       PartnerApplication[]
+  trackingLinks      TrackingLink[]
+
+  @@index([organizationId])
+  @@index([type])
+  @@index([category])
+  @@index([status])
+}
+
+model Deal {
+  id                 String             @id @default(cuid())
+  opportunityId      String
+  organizationId     String
+  createdById        String
+  version            Int                @default(1)
+  title              String
+  description        String
+  rewardType         RewardType
+  baseRewardValue    BigInt             // Minor units e.g. cents/cents of TZS, or bps for percentage
+  currency           String             @default("TZS")
+  attributionWindowDays Int             @default(30)
+  attributionModel   AttributionModel   @default(LAST_CLICK)
+  status             DealStatus         @default(DRAFT)
+  termsAndConditions String
+  isExclusive        Boolean            @default(false)
+  requiresApproval   Boolean            @default(true)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  opportunity        Opportunity        @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  organization       Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy          User               @relation("DealCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  versions           DealVersion[]
+  rewardRules        RewardRule[]
+  milestones         Milestone[]
+  applications       PartnerApplication[]
+  trackingLinks      TrackingLink[]
+  conversions        Conversion[]
+  commissions        Commission[]
+  disputes           Dispute[]
+
+  @@index([opportunityId])
+  @@index([organizationId])
+  @@index([status])
+}
+
+model DealVersion {
+  id             String   @id @default(cuid())
+  dealId         String
+  versionNumber  Int
+  termsSnapshot  Json
+  changeSummary  String?
+  createdAt      DateTime @default(now())
+
+  deal           Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  @@unique([dealId, versionNumber])
+  @@index([dealId])
+}
+
+model RewardRule {
+  id               String     @id @default(cuid())
+  dealId           String
+  rewardType       RewardType
+  fixedAmountTZS   BigInt?
+  percentageBps    Int?       // 1000 = 10.00%
+  minOrderValueTZS BigInt?
+  tierMinCount     Int?
+  tierMaxCount     Int?
+  description      String
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  deal             Deal       @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  @@index([dealId])
+}
+
+model Milestone {
+  id               String   @id @default(cuid())
+  dealId           String
+  name             String
+  targetCount      Int      // e.g. 10 conversions
+  targetVolumeTZS  BigInt?  // e.g. 10,000,000 TZS
+  bonusAmountTZS   BigInt   // e.g. 100,000 TZS
+  currency         String   @default("TZS")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  deal             Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  @@index([dealId])
+}
+
+model PartnerApplication {
+  id            String            @id @default(cuid())
+  opportunityId String
+  dealId        String
+  partnerId     String
+  status        ApplicationStatus @default(PENDING)
+  proposalNotes String?
+  reviewedBy    String?
+  reviewedAt    DateTime?
+  rejectionReason String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  opportunity   Opportunity       @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  deal          Deal              @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  partner       PartnerProfile    @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@unique([dealId, partnerId])
+  @@index([opportunityId])
+  @@index([dealId])
+  @@index([partnerId])
+  @@index([status])
+}
+
+// ----------------------------------------------------
+// 4. PERFORMANCE, TRACKING & ATTRIBUTION
+// ----------------------------------------------------
+
+model TrackingLink {
+  id            String             @id @default(cuid())
+  code          String             @unique
+  opportunityId String
+  dealId        String
+  partnerId     String
+  campaignName  String?
+  destinationUrl String
+  qrCodeUrl     String?
+  clickCount    Int                @default(0)
+  uniqueClicks  Int                @default(0)
+  isActive      Boolean            @default(true)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  opportunity   Opportunity        @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  deal          Deal               @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  partner       PartnerProfile     @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  touches       AttributionTouch[]
+  leads         Lead[]
+  conversions   Conversion[]
+
+  @@index([code])
+  @@index([partnerId])
+  @@index([dealId])
+}
+
+model AttributionTouch {
+  id             String            @id @default(cuid())
+  trackingLinkId String
+  touchType      TouchType         @default(CLICK)
+  visitorId      String            // Cookie or fingerprint hash
+  ipAddress      String?
+  userAgent      String?
+  referer        String?
+  countryCode    String?
+  touchTimestamp DateTime          @default(now())
+
+  trackingLink   TrackingLink      @relation(fields: [trackingLinkId], references: [id], onDelete: Cascade)
+  attributionResults AttributionResult[]
+
+  @@index([trackingLinkId])
+  @@index([visitorId])
+  @@index([touchTimestamp])
+}
+
+model AttributionResult {
+  id             String            @id @default(cuid())
+  conversionId   String            @unique
+  touchId        String
+  modelUsed      AttributionModel
+  attributionWeight Float          @default(1.0)
+  explanation    String
+  calculatedAt   DateTime          @default(now())
+
+  touch          AttributionTouch  @relation(fields: [touchId], references: [id], onDelete: Cascade)
+
+  @@index([touchId])
+}
+
+model Lead {
+  id             String         @id @default(cuid())
+  trackingLinkId String
+  customerName   String
+  customerPhone  String?
+  customerEmail  String?
+  leadScore      Int            @default(50)
+  status         String         @default("NEW") // NEW, CONTACTED, QUALIFIED, CONVERTED, DROPPED
+  metadata       Json?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  trackingLink   TrackingLink   @relation(fields: [trackingLinkId], references: [id], onDelete: Cascade)
+
+  @@index([trackingLinkId])
+  @@index([status])
+}
+
+model Conversion {
+  id             String           @id @default(cuid())
+  dealId         String
+  partnerId      String
+  trackingLinkId String?
+  orderId        String?          @unique
+  externalRef    String?          // Business order or lead reference
+  grossValueTZS  BigInt           // Order or transaction gross
+  commissionTZS  BigInt           // Calculated commission
+  currency       String           @default("TZS")
+  status         ConversionStatus @default(TRACKED)
+  validationEvidence Json?
+  riskScore      Int              @default(0) // 0 - 100
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  deal           Deal             @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  partner        PartnerProfile   @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  trackingLink   TrackingLink?    @relation(fields: [trackingLinkId], references: [id], onDelete: SetNull)
+  order          Order?           @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  commission     Commission?
+
+  @@index([dealId])
+  @@index([partnerId])
+  @@index([status])
+  @@index([externalRef])
+}
+
+// ----------------------------------------------------
+// 5. COMMISSIONS, ORDERS & FINANCIALS
+// ----------------------------------------------------
+
+model Order {
+  id             String         @id @default(cuid())
+  organizationId String
+  customerId     String?
+  orderNumber    String         @unique
+  currency       String         @default("TZS")
+  subtotalTZS    BigInt
+  taxAmountTZS   BigInt         @default(0)
+  totalAmountTZS BigInt
+  status         OrderStatus    @default(PENDING)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer       CustomerProfile? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  items          OrderItem[]
+  conversion     Conversion?
+  paymentAttempts PaymentAttempt[]
+
+  @@index([organizationId])
+  @@index([orderNumber])
+  @@index([status])
+}
+
+model OrderItem {
+  id          String   @id @default(cuid())
+  orderId     String
+  itemName    String
+  itemSku     String?
+  quantity    Int      @default(1)
+  unitPriceTZS BigInt
+  totalPriceTZS BigInt
+  createdAt   DateTime @default(now())
+
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+}
+
+model Commission {
+  id             String              @id @default(cuid())
+  organizationId String
+  dealId         String
+  partnerId      String
+  conversionId   String              @unique
+  amountTZS      BigInt
+  currency       String              @default("TZS")
+  status         ConversionStatus    @default(TRACKED)
+  taxWithheldTZS BigInt              @default(0)
+  platformFeeTZS BigInt              @default(0)
+  netAmountTZS   BigInt
+  approvedBy     String?
+  approvedAt     DateTime?
+  reversalReason String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  deal           Deal                @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  partner        PartnerProfile      @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  conversion     Conversion          @relation(fields: [conversionId], references: [id], onDelete: Cascade)
+  events         CommissionEvent[]
+  payoutItems    PayoutItem[]
+
+  @@index([organizationId])
+  @@index([partnerId])
+  @@index([status])
+  @@index([dealId])
+}
+
+model CommissionEvent {
+  id             String              @id @default(cuid())
+  commissionId   String
+  eventType      CommissionEventType
+  previousStatus ConversionStatus?
+  newStatus      ConversionStatus
+  actorId        String?
+  reason         String?
+  evidenceRef    String?
+  correlationId  String              @default(cuid())
+  createdAt      DateTime            @default(now())
+
+  commission     Commission          @relation(fields: [commissionId], references: [id], onDelete: Cascade)
+
+  @@index([commissionId])
+  @@index([correlationId])
+}
+
+model PaymentAttempt {
+  id             String         @id @default(cuid())
+  orderId        String
+  idempotencyKey String         @unique
+  provider       String         // "MONGIKE", "STRIPE", "MANUAL"
+  providerRef    String?
+  amountTZS      BigInt
+  currency       String         @default("TZS")
+  status         PaymentStatus  @default(CREATED)
+  paymentMethod  String?        // "MPESA", "AIRTEL", "CARD"
+  errorMessage   String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  order          Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([idempotencyKey])
+  @@index([providerRef])
+}
+
+model WebhookEvent {
+  id             String   @id @default(cuid())
+  provider       String   // "MONGIKE", "MESEJI", "EXTERNAL_COMMERCE"
+  eventId        String
+  payloadHash    String
+  rawPayload     Json
+  isProcessed    Boolean  @default(false)
+  processingError String?
+  receivedAt     DateTime @default(now())
+
+  @@unique([provider, eventId])
+  @@index([payloadHash])
+  @@index([receivedAt])
+}
+
+model Payout {
+  id             String       @id @default(cuid())
+  organizationId String?      // If business initiated or platform payout
+  payoutNumber   String       @unique
+  idempotencyKey String       @unique
+  totalAmountTZS BigInt
+  currency       String       @default("TZS")
+  status         PayoutStatus @default(DRAFT)
+  makerUserId    String
+  authorizerUserId String?
+  authorizedAt   DateTime?
+  provider       String       @default("MONGIKE")
+  providerBatchRef String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  authorizer     User?         @relation("PayoutAuthorizer", fields: [authorizerUserId], references: [id], onDelete: Restrict)
+  items          PayoutItem[]
+
+  @@index([payoutNumber])
+  @@index([status])
+}
+
+model PayoutItem {
+  id             String         @id @default(cuid())
+  payoutId       String
+  partnerId      String
+  commissionId   String?
+  amountTZS      BigInt
+  taxDeductionTZS BigInt        @default(0)
+  feeDeductionTZS BigInt        @default(0)
+  netAmountTZS   BigInt
+  destination    String         // "MPESA:+255712345678"
+  providerTxRef  String?
+  status         PayoutStatus   @default(DRAFT)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  payout         Payout         @relation(fields: [payoutId], references: [id], onDelete: Cascade)
+  partner        PartnerProfile @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  commission     Commission?    @relation(fields: [commissionId], references: [id], onDelete: SetNull)
+
+  @@index([payoutId])
+  @@index([partnerId])
+}
+
+// ----------------------------------------------------
+// 6. TAX, STATEMENTS & AUDIT
+// ----------------------------------------------------
+
+model TaxRule {
+  id                 String   @id @default(cuid())
+  countryCode        String   @default("TZ")
+  name               String
+  partnerType        String   // "INDIVIDUAL_RESIDENT", "INDIVIDUAL_NON_RESIDENT", "CORPORATE"
+  incomeType         String   // "COMMISSION", "ADVERTISING_FEE", "PROFESSIONAL_SERVICE"
+  withholdingRateBps Int      // e.g. 500 = 5.00%
+  effectiveFrom      DateTime
+  effectiveTo        DateTime?
+  description        String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([countryCode, partnerType])
+}
+
+model EarningsStatement {
+  id              String         @id @default(cuid())
+  statementNumber String         @unique
+  partnerId       String
+  periodStart     DateTime
+  periodEnd       DateTime
+  grossEarnedTZS  BigInt
+  taxWithheldTZS  BigInt
+  feesDeductedTZS BigInt
+  netPayableTZS   BigInt
+  statementPdfUrl String?
+  createdAt       DateTime       @default(now())
+
+  partner         PartnerProfile @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@index([partnerId])
+  @@index([statementNumber])
+}
+
+model RiskAlert {
+  id             String       @id @default(cuid())
+  organizationId String?
+  level          RiskLevel    @default(LOW)
+  flagType       String       // "SELF_REFERRAL", "HIGH_VELOCITY", "SUSPICIOUS_IP", "BOT_PATTERN"
+  score          Int
+  reason         String
+  evidence       Json?
+  isDismissed    Boolean      @default(false)
+  dismissedBy    String?
+  createdAt      DateTime     @default(now())
+
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([level])
+  @@index([isDismissed])
+}
+
+model Evidence {
+  id          String   @id @default(cuid())
+  fileUrl     String
+  fileName    String
+  fileSize    Int
+  mimeType    String
+  uploaderId  String
+  uploadedAt  DateTime @default(now())
+
+  @@index([uploaderId])
+}
+
+model Dispute {
+  id             String          @id @default(cuid())
+  organizationId String
+  dealId         String
+  disputeNumber  String          @unique
+  title          String
+  reason         String
+  status         DisputeStatus   @default(OPENED)
+  resolutionNotes String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  deal           Deal            @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  messages       DisputeMessage[]
+
+  @@index([organizationId])
+  @@index([disputeNumber])
+  @@index([status])
+}
+
+model DisputeMessage {
+  id         String   @id @default(cuid())
+  disputeId  String
+  senderId   String
+  message    String
+  evidenceUrls String[]
+  createdAt  DateTime @default(now())
+
+  dispute    Dispute  @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+  sender     User     @relation(fields: [senderId], references: [id], onDelete: Restrict)
+
+  @@index([disputeId])
+  @@index([senderId])
+}
+
+model Notification {
+  id         String   @id @default(cuid())
+  userId     String
+  title      String
+  message    String
+  linkUrl    String?
+  channel    String   @default("IN_APP") // IN_APP, EMAIL, SMS, PUSH
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
+}
+
+model AuditEvent {
+  id             String        @id @default(cuid())
+  organizationId String?
+  actorId        String?
+  module         String        // "DEALS", "COMMISSIONS", "PAYOUTS", "AUTH", "ROLES"
+  action         String        // "deal.create", "payout.authorize", "user.login"
+  targetId       String?
+  details        Json?
+  ipAddress      String?
+  correlationId  String        @default(cuid())
+  createdAt      DateTime      @default(now())
+
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  actor          User?         @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([actorId])
+  @@index([action])
+  @@index([correlationId])
+}
+
+// ----------------------------------------------------
+// 7. SUBSCRIPTIONS & ENTERPRISE INQUIRIES
+// ----------------------------------------------------
+
+model SubscriptionPlan {
+  id            String             @id @default(cuid())
+  code          String             @unique // "MONTHLY", "SEMI_ANNUAL", "ENTERPRISE"
+  name          String
+  billingPeriod String             // "MONTHLY", "SEMI_ANNUALLY", "ANNUALLY"
+  priceTZS      BigInt             // 25000, 100000, 0
+  isEnterprise  Boolean            @default(false)
+  features      String[]
+  isActive      Boolean            @default(true)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  subscriptions UserSubscription[]
+
+  @@index([code])
+}
+
+model UserSubscription {
+  id               String             @id @default(cuid())
+  userId           String
+  planId           String
+  status           SubscriptionStatus @default(PENDING)
+  startsAt         DateTime?
+  expiresAt        DateTime?
+  cancelledAt      DateTime?
+  paymentAttemptId String?
+  autoRenew        Boolean            @default(true)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan             SubscriptionPlan   @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  @@index([userId])
+  @@index([planId])
+  @@index([status])
+}
+
+model EnterpriseInquiry {
+  id                 String   @id @default(cuid())
+  userId             String?
+  businessName       String
+  workEmail          String
+  phoneNumber        String
+  teamSize           String
+  industry           String
+  expectedDealVolume String
+  aiRequirements     String?
+  message            String
+  status             String   @default("PENDING") // PENDING, CONTACTED, AGREED, DECLINED
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user               User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([workEmail])
+  @@index([status])
+}
+
