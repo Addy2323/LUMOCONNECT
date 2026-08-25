@@ -8,6 +8,7 @@ import {
   Trash2,
   Sparkles,
   ChevronRight,
+  ArrowRight,
 } from 'lucide-react'
 import { PartnerOpportunitySummary } from '../types'
 import { usePartnerToast } from '../PartnerToast'
@@ -33,6 +34,18 @@ export function SavedOpportunitiesTab({
     setOpportunities((prev) =>
       prev.map((o) => (o.id === id ? { ...o, isSaved: false } : o))
     )
+
+    if (typeof window !== 'undefined') {
+      try {
+        const savedIds: string[] = JSON.parse(localStorage.getItem('lumo_saved_deals') || '[]')
+        const updated = savedIds.filter((dealId) => dealId !== id)
+        localStorage.setItem('lumo_saved_deals', JSON.stringify(updated))
+        window.dispatchEvent(new Event('lumo:saved-deals-updated'))
+      } catch (e) {
+        console.warn('Could not update saved deals', e)
+      }
+    }
+
     showToast('info', 'Removed from Bookmarks', `"${title}" removed.`)
   }
 
@@ -54,7 +67,7 @@ export function SavedOpportunitiesTab({
 
         <button
           onClick={onExploreMore}
-          className="py-2 px-3.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-1.5 self-start sm:self-auto transition-colors"
+          className="py-2 px-3.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-1.5 self-start sm:self-auto transition-colors cursor-pointer"
         >
           <Sparkles className="w-3.5 h-3.5 text-[#FF6A00]" />
           <span>Discover More Deals</span>
@@ -72,9 +85,10 @@ export function SavedOpportunitiesTab({
           </p>
           <button
             onClick={onExploreMore}
-            className="py-2 px-5 bg-[#FF6A00] text-white font-extrabold text-xs rounded-xl shadow-xs"
+            className="py-2.5 px-6 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold text-xs rounded-xl shadow-xs transition-colors cursor-pointer inline-flex items-center gap-2"
           >
-            Explore Deals
+            <span>Explore Deals</span>
+            <ArrowRight className="w-4 h-4" />
           </button>
         </div>
       ) : (
@@ -82,10 +96,11 @@ export function SavedOpportunitiesTab({
           {savedList.map((opp) => (
             <div
               key={opp.id}
-              className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 overflow-hidden flex flex-col justify-between group hover:border-orange-300 transition-all shadow-xs"
+              onClick={() => onOpenOpportunityDetail(opp)}
+              className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 overflow-hidden flex flex-col justify-between group hover:border-orange-300 transition-all shadow-xs cursor-pointer"
             >
               <div>
-                {opp.coverImageUrl && (
+                {opp.coverImageUrl ? (
                   <div className="relative h-36 w-full bg-slate-900 overflow-hidden">
                     <img
                       src={opp.coverImageUrl}
@@ -102,7 +117,21 @@ export function SavedOpportunitiesTab({
 
                     <button
                       onClick={() => handleRemove(opp.id, opp.title)}
-                      className="absolute top-2.5 right-2.5 p-1.5 rounded-full bg-black/60 text-white hover:bg-red-600 transition-colors"
+                      className="absolute top-2.5 right-2.5 p-1.5 rounded-full bg-black/60 text-white hover:bg-red-600 transition-colors cursor-pointer"
+                      title="Remove Bookmark"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="relative h-24 w-full bg-gradient-to-br from-slate-800 to-slate-900 p-3 flex items-start justify-between">
+                    <span className="text-[10px] bg-[#FF6A00] text-white font-black uppercase px-2 py-0.5 rounded-full shadow-sm">
+                      {opp.category}
+                    </span>
+
+                    <button
+                      onClick={() => handleRemove(opp.id, opp.title)}
+                      className="p-1.5 rounded-full bg-black/60 text-white hover:bg-red-600 transition-colors cursor-pointer"
                       title="Remove Bookmark"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -129,7 +158,7 @@ export function SavedOpportunitiesTab({
               <div className="p-4 pt-0">
                 <button
                   onClick={() => onOpenOpportunityDetail(opp)}
-                  className="w-full py-2 bg-[#0B132B] hover:bg-slate-800 text-white font-extrabold text-xs rounded-xl transition-colors text-center"
+                  className="w-full py-2 bg-[#0B132B] hover:bg-slate-800 text-white font-extrabold text-xs rounded-xl transition-colors text-center cursor-pointer"
                 >
                   View Details & Join
                 </button>

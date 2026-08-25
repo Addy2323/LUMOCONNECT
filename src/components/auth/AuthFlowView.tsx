@@ -17,70 +17,184 @@ import {
   AlertCircle,
   Upload,
   Check,
+  FileText,
+  Trash2,
+  FileCheck,
+  Info,
 } from 'lucide-react'
-import type { UserRole, VerificationStatus, PartnerType } from '@/modules/identity/types'
-import { sendPhoneOtp, verifyPhoneOtp, getInitialSecuritySettings } from '@/modules/identity/service'
+import type { UserRole, PartnerType } from '@/modules/identity/types'
+import {
+  sendPhoneOtp,
+  verifyPhoneOtp,
+  getInitialSecuritySettings,
+  submitVerificationRecord,
+} from '@/modules/identity/service'
+
+interface UploadedDocItem {
+  id: string
+  slotKey: string
+  title: string
+  fileName: string
+  fileSize: string
+  previewUrl?: string
+  uploadedAt: string
+}
+
+export interface OnboardingProfilePayload {
+  name: string
+  legalName?: string
+  tradingName?: string
+  registrationNumber?: string
+  tinNumber?: string
+  industry?: string
+  contactPerson?: string
+  email?: string
+  phone?: string
+}
 
 interface AuthFlowViewProps {
   initialRole?: UserRole
   initialEmail?: string
   initialPhone?: string
-  onComplete: (role: UserRole) => void
+  initialPassword?: string
+  onComplete: (role: UserRole, profileData?: OnboardingProfilePayload) => void
   onCancel: () => void
 }
 
 export function AuthFlowView({
   initialRole = 'PARTNER',
-  initialEmail = 'alex.mushi@lumo.co.tz',
-  initialPhone = '+255 712 345 678',
+  initialEmail = '',
+  initialPhone = '',
+  initialPassword = '',
   onComplete,
   onCancel,
 }: AuthFlowViewProps) {
   const [currentStep, setCurrentStep] = useState<number>(2) // Step 1 was Create Account & Path Selection
   const [role, setRole] = useState<UserRole>(initialRole)
 
-  // Step 2: 6-Digit Phone OTP State
+  // Step 2: Phone Verification State
+  const [phone, setPhone] = useState(initialPhone)
   const [otpDigits, setOtpDigits] = useState<string[]>(['', '', '', '', '', ''])
-  const inputRefs = useRef<(HTMLInputElement | null)[]>([])
-  const [resendCountdown, setResendCountdown] = useState(60)
+  const [isVerifying, setIsVerifying] = useState(false)
+  const [otpError, setOtpError] = useState<string | null>(null)
+  const [resendCountdown, setResendCountdown] = useState<number>(60)
   const [canResend, setCanResend] = useState(false)
   const [attemptsRemaining, setAttemptsRemaining] = useState(3)
-  const [otpError, setOtpError] = useState<string | null>(null)
-  const [isVerifying, setIsVerifying] = useState(false)
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([])
   const [isPhoneVerified, setIsPhoneVerified] = useState(false)
 
   // Step 3: Role Profile State (Partner)
   const [entityType, setEntityType] = useState<'INDIVIDUAL' | 'COMPANY'>('INDIVIDUAL')
   const [partnerType, setPartnerType] = useState<PartnerType>('AFFILIATE_CREATOR')
   const [region, setRegion] = useState('Dar es Salaam')
-  const [district, setDistrict] = useState('Kinondoni')
-  const [selectedSkills, setSelectedSkills] = useState<string[]>([
-    'Solar & Clean Energy',
-    'Fintech & SME Payments',
-  ])
-  const [socialChannels, setSocialChannels] = useState('@alexmushi (Instagram & WhatsApp)')
+  const [district, setDistrict] = useState('')
+  const [selectedSkills, setSelectedSkills] = useState<string[]>([])
+  const [socialChannels, setSocialChannels] = useState('')
   const [identityType, setIdentityType] = useState<'NIDA_ID' | 'PASSPORT' | 'TIN_CERTIFICATE'>('NIDA_ID')
-  const [identityNumber, setIdentityNumber] = useState('19940823-14120-00001-29')
+  const [identityNumber, setIdentityNumber] = useState('')
 
   // Step 3: Role Profile State (Business)
-  const [bizLegalName, setBizLegalName] = useState('Kijani Solar Tech Limited')
-  const [bizTradingName, setBizTradingName] = useState('Kijani Solar')
-  const [brelaRegNumber, setBrelaRegNumber] = useState('149820-TZ')
-  const [traTin, setTraTin] = useState('142-998-310')
-  const [bizCategory, setBizCategory] = useState('Renewable Energy')
-  const [authorizedRepName, setAuthorizedRepName] = useState('Grace Mlay')
-  const [authorizedRepDesignation, setAuthorizedRepDesignation] = useState('Managing Director')
-  const [authorizedRepIdNumber, setAuthorizedRepIdNumber] = useState('19881105-12110-00002-18')
+  const [bizLegalName, setBizLegalName] = useState('')
+  const [bizTradingName, setBizTradingName] = useState('')
+  const [brelaRegNumber, setBrelaRegNumber] = useState('')
+  const [traTin, setTraTin] = useState('')
+  const [bizCategory, setBizCategory] = useState('')
+  const [authorizedRepName, setAuthorizedRepName] = useState('')
+  const [authorizedRepDesignation, setAuthorizedRepDesignation] = useState('')
+  const [authorizedRepIdNumber, setAuthorizedRepIdNumber] = useState('')
 
-  // Step 4: Verification Status (KYC / KYB)
-  const [verificationStatus, setVerificationStatus] = useState<VerificationStatus>('UNDER_REVIEW')
-  const [uploadedDocName, setUploadedDocName] = useState('NIDA_National_ID_Card.pdf')
-  const [reviewNotes, setReviewNotes] = useState(
-    'Documents submitted. Our compliance team verifies NIDA & BRELA records within 2 hours.'
-  )
+  // Step 4: Verification Status & Real Document Files (KYC / KYB) - Completely Empty for Clean Onboarding
+  const [uploadedDocs, setUploadedDocs] = useState<Record<string, UploadedDocItem>>({})
+  const [step4Error, setStep4Error] = useState<string | null>(null)
+
+  const handleFileUpload = (slotKey: string, title: string, file: File) => {
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string
+      setUploadedDocs((prev) => ({
+        ...prev,
+        [slotKey]: {
+          id: `doc_${Date.now()}_${slotKey}`,
+          slotKey,
+          title,
+          fileName: file.name,
+          fileSize: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
+          previewUrl: dataUrl,
+          uploadedAt: 'Just now',
+        },
+      }))
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleAdvanceToSecurity = () => {
+    setStep4Error(null)
+    if (Object.keys(uploadedDocs).length === 0) {
+      setStep4Error('Please attach at least your primary statutory document (NIDA or BRELA) to proceed.')
+      return
+    }
+
+    // Submit the verification case to the central registry so Admin can review and download
+    submitVerificationRecord({
+      entityType: role === 'BUSINESS' ? 'BUSINESS' : 'PARTNER',
+      businessName: role === 'BUSINESS' ? (bizTradingName || bizLegalName || 'New Registered Business') : (initialEmail.split('@')[0] || 'New Partner Applicant'),
+      registrationNumber: brelaRegNumber || identityNumber || 'PENDING-REG',
+      tinNumber: traTin || 'PENDING-TIN',
+      industry: bizCategory || (selectedSkills && selectedSkills[0]) || 'General Commerce',
+      contactPerson: authorizedRepName || 'Applicant Signatory',
+      email: initialEmail || 'business@lumo.co.tz',
+      phone: phone || initialPhone || '+255 700 000 000',
+      status: 'SUBMITTED',
+      documents: Object.values(uploadedDocs).map((doc) => ({
+        id: doc.id,
+        name: doc.fileName,
+        type: doc.slotKey === 'primary' ? (role === 'BUSINESS' ? 'BRELA_CERT' : 'ID_PASSPORT') : doc.slotKey === 'tin' ? 'TIN_CERT' : 'ID_PASSPORT',
+        fileSize: doc.fileSize,
+        previewUrl: doc.previewUrl,
+        status: 'PENDING',
+        uploadedAt: doc.uploadedAt,
+      })),
+      beneficialOwners: authorizedRepName ? [authorizedRepName] : ['Primary Signatory'],
+    })
+
+    // Asynchronously commit user, organization, verification case, and documents to PostgreSQL database
+    try {
+      fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: initialEmail || `enterprise_${Date.now()}@lumo.co.tz`,
+          name: role === 'BUSINESS' ? (bizTradingName || bizLegalName || 'Registered Enterprise') : (initialEmail.split('@')[0] || 'Registered Partner'),
+          phone: phone || initialPhone || undefined,
+          role,
+          bizDetails: role === 'BUSINESS' ? {
+            legalName: bizLegalName || undefined,
+            tradingName: bizTradingName || undefined,
+            brelaRegNumber: brelaRegNumber || undefined,
+            traTin: traTin || undefined,
+            bizCategory: bizCategory || undefined,
+            contactPerson: authorizedRepName || undefined,
+          } : undefined,
+          documents: Object.values(uploadedDocs).map((d) => ({
+            name: d.fileName,
+            type: d.title,
+            fileSize: d.fileSize,
+          })),
+        }),
+      }).catch((err) => console.warn('PostgreSQL Database Registration Sync:', err))
+    } catch (e) {
+      // Non-blocking catch
+    }
+
+    setCurrentStep(5)
+  }
 
   // Step 5: Security Setup (2FA & Trusted Device)
   const [securitySettings, setSecuritySettings] = useState(getInitialSecuritySettings())
+
+  useEffect(() => {
+    setSecuritySettings(getInitialSecuritySettings())
+  }, [])
 
   // Resend Countdown Timer
   useEffect(() => {
@@ -556,7 +670,8 @@ export function AuthFlowView({
                     type="text"
                     value={bizLegalName}
                     onChange={(e) => setBizLegalName(e.target.value)}
-                    className="w-full py-2.5 px-3.5 text-xs sm:text-sm border border-[#E2E8F0] dark:border-slate-800 rounded-xl bg-[#F0F5FA] text-[#0F172A] dark:text-white"
+                    placeholder="e.g. Kijani Solar Tech Limited"
+                    className="w-full py-2.5 px-3.5 text-xs sm:text-sm border border-[#E2E8F0] dark:border-slate-800 rounded-xl bg-[#F0F5FA] text-[#0F172A] dark:text-white placeholder:text-slate-400"
                   />
                 </div>
 
@@ -568,7 +683,8 @@ export function AuthFlowView({
                     type="text"
                     value={bizTradingName}
                     onChange={(e) => setBizTradingName(e.target.value)}
-                    className="w-full py-2.5 px-3.5 text-xs sm:text-sm border border-[#E2E8F0] dark:border-slate-800 rounded-xl bg-[#F0F5FA] text-[#0F172A] dark:text-white"
+                    placeholder="e.g. Kijani Solar"
+                    className="w-full py-2.5 px-3.5 text-xs sm:text-sm border border-[#E2E8F0] dark:border-slate-800 rounded-xl bg-[#F0F5FA] text-[#0F172A] dark:text-white placeholder:text-slate-400"
                   />
                 </div>
               </div>
@@ -582,7 +698,8 @@ export function AuthFlowView({
                     type="text"
                     value={brelaRegNumber}
                     onChange={(e) => setBrelaRegNumber(e.target.value)}
-                    className="w-full py-2.5 px-3.5 text-xs sm:text-sm border border-[#E2E8F0] dark:border-slate-800 rounded-xl bg-[#F0F5FA] text-[#0F172A] dark:text-white font-mono"
+                    placeholder="e.g. 149820-TZ"
+                    className="w-full py-2.5 px-3.5 text-xs sm:text-sm border border-[#E2E8F0] dark:border-slate-800 rounded-xl bg-[#F0F5FA] text-[#0F172A] dark:text-white font-mono placeholder:text-slate-400"
                   />
                 </div>
 
@@ -594,7 +711,8 @@ export function AuthFlowView({
                     type="text"
                     value={traTin}
                     onChange={(e) => setTraTin(e.target.value)}
-                    className="w-full py-2.5 px-3.5 text-xs sm:text-sm border border-[#E2E8F0] dark:border-slate-800 rounded-xl bg-[#F0F5FA] text-[#0F172A] dark:text-white font-mono"
+                    placeholder="e.g. 142-998-310"
+                    className="w-full py-2.5 px-3.5 text-xs sm:text-sm border border-[#E2E8F0] dark:border-slate-800 rounded-xl bg-[#F0F5FA] text-[#0F172A] dark:text-white font-mono placeholder:text-slate-400"
                   />
                 </div>
               </div>
@@ -609,6 +727,7 @@ export function AuthFlowView({
                   onChange={(e) => setBizCategory(e.target.value)}
                   className="w-full py-2.5 px-3.5 text-xs sm:text-sm border border-[#E2E8F0] dark:border-slate-800 rounded-xl bg-[#F0F5FA] text-[#0F172A] dark:text-white"
                 >
+                  <option value="">Select industry category...</option>
                   <option value="Renewable Energy">Renewable Energy & Solar</option>
                   <option value="Fintech & Payments">Fintech & Digital Payments</option>
                   <option value="FMCG & Retail">FMCG, Trade & Retail Distribution</option>
@@ -628,7 +747,8 @@ export function AuthFlowView({
                     type="text"
                     value={authorizedRepName}
                     onChange={(e) => setAuthorizedRepName(e.target.value)}
-                    className="w-full py-2.5 px-3.5 text-xs sm:text-sm border border-[#E2E8F0] dark:border-slate-800 rounded-xl bg-[#F0F5FA] text-[#0F172A] dark:text-white"
+                    placeholder="e.g. Grace Mlay"
+                    className="w-full py-2.5 px-3.5 text-xs sm:text-sm border border-[#E2E8F0] dark:border-slate-800 rounded-xl bg-[#F0F5FA] text-[#0F172A] dark:text-white placeholder:text-slate-400"
                   />
                 </div>
 
@@ -640,7 +760,8 @@ export function AuthFlowView({
                     type="text"
                     value={authorizedRepDesignation}
                     onChange={(e) => setAuthorizedRepDesignation(e.target.value)}
-                    className="w-full py-2.5 px-3.5 text-xs sm:text-sm border border-[#E2E8F0] dark:border-slate-800 rounded-xl bg-[#F0F5FA] text-[#0F172A] dark:text-white"
+                    placeholder="e.g. Managing Director"
+                    className="w-full py-2.5 px-3.5 text-xs sm:text-sm border border-[#E2E8F0] dark:border-slate-800 rounded-xl bg-[#F0F5FA] text-[#0F172A] dark:text-white placeholder:text-slate-400"
                   />
                 </div>
 
@@ -652,7 +773,8 @@ export function AuthFlowView({
                     type="text"
                     value={authorizedRepIdNumber}
                     onChange={(e) => setAuthorizedRepIdNumber(e.target.value)}
-                    className="w-full py-2.5 px-3.5 text-xs sm:text-sm border border-[#E2E8F0] dark:border-slate-800 rounded-xl bg-[#F0F5FA] text-[#0F172A] dark:text-white font-mono"
+                    placeholder="19881105-12110-00002-18"
+                    className="w-full py-2.5 px-3.5 text-xs sm:text-sm border border-[#E2E8F0] dark:border-slate-800 rounded-xl bg-[#F0F5FA] text-[#0F172A] dark:text-white font-mono placeholder:text-slate-400"
                   />
                 </div>
               </div>
@@ -689,87 +811,332 @@ export function AuthFlowView({
               Identity & Business Verification
             </h2>
             <p className="text-xs sm:text-sm text-[#64748B] dark:text-slate-400 mt-1">
-              Upload statutory verification files. Verification guarantees compliant commission settlements and TRA compliance.
+              Upload statutory verification files. Verification guarantees compliant commission settlements and TRA tax compliance.
             </p>
           </div>
 
-          {/* Status Tracker Banner with Interactive Statuses */}
-          <div className="p-4 sm:p-5 rounded-2xl border border-blue-200 dark:border-blue-900/50 bg-blue-50/70 dark:bg-blue-950/30 space-y-3">
+          {/* Compliance Info Banner */}
+          <div className="p-4 sm:p-5 rounded-2xl border border-blue-200 dark:border-blue-900/50 bg-blue-50/70 dark:bg-blue-950/30 space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="w-5 h-5 text-blue-600 shrink-0" />
                 <span className="font-bold text-xs sm:text-sm text-blue-950 dark:text-blue-200">
-                  Verification Lifecycle:
+                  Compliance Status:
                 </span>
               </div>
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-blue-600 text-white shadow-2xs">
+                {Object.keys(uploadedDocs).length > 0 ? 'READY FOR REVIEW' : 'PENDING UPLOAD'}
+              </span>
+            </div>
 
-              {/* Status Pills */}
-              <div className="flex items-center gap-1.5">
-                {(['DRAFT', 'SUBMITTED', 'UNDER_REVIEW', 'APPROVED', 'REJECTED'] as VerificationStatus[]).map(
-                  (status) => (
-                    <button
-                      key={status}
-                      type="button"
-                      onClick={() => setVerificationStatus(status)}
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-all ${
-                        verificationStatus === status
-                          ? status === 'APPROVED'
-                            ? 'bg-emerald-600 text-white shadow-xs'
-                            : status === 'REJECTED'
-                            ? 'bg-rose-600 text-white shadow-xs'
-                            : 'bg-blue-600 text-white shadow-xs'
-                          : 'bg-white/80 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700'
-                      }`}
-                    >
-                      {status}
-                    </button>
-                  )
+            <p className="text-xs text-blue-900 dark:text-blue-300 leading-relaxed">
+              Documents are encrypted with 256-bit AES statutory safeguarding. Verification against official BRELA and NIDA registries takes place within 24 hours. You can continue with setup right away.
+            </p>
+          </div>
+
+          {/* Document Upload Slots */}
+          <div className="space-y-4">
+            <div className="text-xs font-black uppercase tracking-wider text-slate-500">
+              Required Statutory Documents ({role === 'BUSINESS' ? 'Business Track' : 'Partner Track'})
+            </div>
+
+            {/* Document Slot 1: Primary ID / Incorporation */}
+            <div className="border border-slate-200 dark:border-slate-800 rounded-2xl p-4 bg-white dark:bg-slate-900 shadow-2xs space-y-3">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-orange-50 dark:bg-orange-950/40 text-[#FF6A00] flex items-center justify-center font-bold">
+                    <FileText className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-black text-slate-900 dark:text-white">
+                      {role === 'BUSINESS'
+                        ? 'BRELA Certificate of Incorporation / Registration'
+                        : 'NIDA National ID Card / Passport'}
+                    </div>
+                    <div className="text-[11px] text-slate-500">
+                      {role === 'BUSINESS'
+                        ? 'Official certificate issued by BRELA Tanzania'
+                        : 'Clear front and back photo or scanned PDF'}
+                    </div>
+                  </div>
+                </div>
+
+                {uploadedDocs.primary ? (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Attached</span>
+                  </span>
+                ) : (
+                  <span className="text-[11px] font-bold text-amber-600 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-md">
+                    Required
+                  </span>
                 )}
               </div>
+
+              {uploadedDocs.primary ? (
+                <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-slate-700 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2 overflow-hidden pr-2">
+                    <FileCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span className="font-bold text-slate-800 dark:text-slate-200 truncate">
+                      {uploadedDocs.primary.fileName}
+                    </span>
+                    <span className="text-[10px] text-slate-400 shrink-0">
+                      ({uploadedDocs.primary.fileSize})
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <label className="text-[11px] font-bold text-[#FF6A00] hover:underline cursor-pointer">
+                      <span>Replace</span>
+                      <input
+                        type="file"
+                        accept=".pdf,.png,.jpg,.jpeg"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) handleFileUpload('primary', role === 'BUSINESS' ? 'BRELA Certificate' : 'NIDA Card', file)
+                        }}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUploadedDocs((prev) => {
+                          const next = { ...prev }
+                          delete next.primary
+                          return next
+                        })
+                      }}
+                      className="p-1 text-slate-400 hover:text-rose-600 transition-colors"
+                      title="Remove file"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <label className="border-2 border-dashed border-slate-200 dark:border-slate-700 hover:border-[#FF6A00] dark:hover:border-[#FF6A00] rounded-xl p-4 flex flex-col items-center justify-center gap-1.5 cursor-pointer hover:bg-orange-50/20 transition-all text-center">
+                  <Upload className="w-6 h-6 text-[#FF6A00]" />
+                  <span className="text-xs font-extrabold text-slate-800 dark:text-slate-200">
+                    Click to browse or drop file here
+                  </span>
+                  <span className="text-[10px] text-slate-400">
+                    PDF, JPG or PNG up to 10MB
+                  </span>
+                  <input
+                    type="file"
+                    accept=".pdf,.png,.jpg,.jpeg"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) handleFileUpload('primary', role === 'BUSINESS' ? 'BRELA Certificate' : 'NIDA Card', file)
+                    }}
+                  />
+                </label>
+              )}
             </div>
 
-            <p className="text-xs text-blue-900 dark:text-blue-300">
-              {verificationStatus === 'APPROVED' &&
-                '✓ Verification approved! Your statutory documents have been successfully verified.'}
-              {verificationStatus === 'UNDER_REVIEW' && reviewNotes}
-              {verificationStatus === 'SUBMITTED' &&
-                'Documents uploaded. Pending queue assignment for compliance officer review.'}
-              {verificationStatus === 'DRAFT' &&
-                'Documents saved in draft mode. Click Submit to initiate verification.'}
-              {verificationStatus === 'REJECTED' &&
-                '⚠️ Document illegible or expired. Please upload a clear replacement copy.'}
-            </p>
+            {/* Document Slot 2: TRA TIN Certificate */}
+            <div className="border border-slate-200 dark:border-slate-800 rounded-2xl p-4 bg-white dark:bg-slate-900 shadow-2xs space-y-3">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-orange-50 dark:bg-orange-950/40 text-[#FF6A00] flex items-center justify-center font-bold">
+                    <FileText className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-black text-slate-900 dark:text-white">
+                      TRA Taxpayer Identification Number (TIN) Certificate
+                    </div>
+                    <div className="text-[11px] text-slate-500">
+                      Tanzania Revenue Authority Taxpayer Registration Certificate
+                    </div>
+                  </div>
+                </div>
+
+                {uploadedDocs.tin ? (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Attached</span>
+                  </span>
+                ) : (
+                  <span className="text-[11px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">
+                    Optional
+                  </span>
+                )}
+              </div>
+
+              {uploadedDocs.tin ? (
+                <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-slate-700 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2 overflow-hidden pr-2">
+                    <FileCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span className="font-bold text-slate-800 dark:text-slate-200 truncate">
+                      {uploadedDocs.tin.fileName}
+                    </span>
+                    <span className="text-[10px] text-slate-400 shrink-0">
+                      ({uploadedDocs.tin.fileSize})
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <label className="text-[11px] font-bold text-[#FF6A00] hover:underline cursor-pointer">
+                      <span>Replace</span>
+                      <input
+                        type="file"
+                        accept=".pdf,.png,.jpg,.jpeg"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) handleFileUpload('tin', 'TRA TIN Certificate', file)
+                        }}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUploadedDocs((prev) => {
+                          const next = { ...prev }
+                          delete next.tin
+                          return next
+                        })
+                      }}
+                      className="p-1 text-slate-400 hover:text-rose-600 transition-colors"
+                      title="Remove file"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <label className="border-2 border-dashed border-slate-200 dark:border-slate-700 hover:border-[#FF6A00] dark:hover:border-[#FF6A00] rounded-xl p-4 flex flex-col items-center justify-center gap-1.5 cursor-pointer hover:bg-orange-50/20 transition-all text-center">
+                  <Upload className="w-6 h-6 text-slate-400" />
+                  <span className="text-xs font-extrabold text-slate-700 dark:text-slate-300">
+                    Click to attach TIN Certificate
+                  </span>
+                  <span className="text-[10px] text-slate-400">
+                    PDF, JPG or PNG up to 10MB
+                  </span>
+                  <input
+                    type="file"
+                    accept=".pdf,.png,.jpg,.jpeg"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) handleFileUpload('tin', 'TRA TIN Certificate', file)
+                    }}
+                  />
+                </label>
+              )}
+            </div>
+
+            {/* Document Slot 3: Business Director ID (Business Only) */}
+            {role === 'BUSINESS' && (
+              <div className="border border-slate-200 dark:border-slate-800 rounded-2xl p-4 bg-white dark:bg-slate-900 shadow-2xs space-y-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-orange-50 dark:bg-orange-950/40 text-[#FF6A00] flex items-center justify-center font-bold">
+                      <FileText className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-black text-slate-900 dark:text-white">
+                        Authorized Director / Managing Signatory NIDA ID
+                      </div>
+                      <div className="text-[11px] text-slate-500">
+                        NIDA ID card or passport copy for {authorizedRepName || 'Managing Director'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {uploadedDocs.director ? (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>Attached</span>
+                    </span>
+                  ) : (
+                    <span className="text-[11px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">
+                      Optional
+                    </span>
+                  )}
+                </div>
+
+                {uploadedDocs.director ? (
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-slate-700 flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2 overflow-hidden pr-2">
+                      <FileCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span className="font-bold text-slate-800 dark:text-slate-200 truncate">
+                        {uploadedDocs.director.fileName}
+                      </span>
+                      <span className="text-[10px] text-slate-400 shrink-0">
+                        ({uploadedDocs.director.fileSize})
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <label className="text-[11px] font-bold text-[#FF6A00] hover:underline cursor-pointer">
+                        <span>Replace</span>
+                        <input
+                          type="file"
+                          accept=".pdf,.png,.jpg,.jpeg"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            if (file) handleFileUpload('director', 'Director NIDA ID', file)
+                          }}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUploadedDocs((prev) => {
+                            const next = { ...prev }
+                            delete next.director
+                            return next
+                          })
+                        }}
+                        className="p-1 text-slate-400 hover:text-rose-600 transition-colors"
+                        title="Remove file"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <label className="border-2 border-dashed border-slate-200 dark:border-slate-700 hover:border-[#FF6A00] dark:hover:border-[#FF6A00] rounded-xl p-4 flex flex-col items-center justify-center gap-1.5 cursor-pointer hover:bg-orange-50/20 transition-all text-center">
+                    <Upload className="w-6 h-6 text-slate-400" />
+                    <span className="text-xs font-extrabold text-slate-700 dark:text-slate-300">
+                      Click to attach Director NIDA ID
+                    </span>
+                    <span className="text-[10px] text-slate-400">
+                      PDF, JPG or PNG up to 10MB
+                    </span>
+                    <input
+                      type="file"
+                      accept=".pdf,.png,.jpg,.jpeg"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) handleFileUpload('director', 'Director NIDA ID', file)
+                      }}
+                    />
+                  </label>
+                )}
+              </div>
+            )}
           </div>
 
-          {/* Document Upload Area */}
-          <div className="border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl p-6 text-center hover:bg-slate-50/50 transition-colors">
-            <Upload className="w-8 h-8 text-[#FF6A00] mx-auto mb-2" />
-            <div className="font-bold text-xs text-slate-800 dark:text-slate-200">
-              {uploadedDocName}
+          {/* Validation error if any */}
+          {step4Error && (
+            <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 rounded-xl text-xs text-rose-700 dark:text-rose-300 font-semibold flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{step4Error}</span>
             </div>
-            <p className="text-[11px] text-slate-400 mt-1">
-              PDF, JPG or PNG up to 10MB (NIDA Card / BRELA Certificate / TIN Document)
-            </p>
-            <div className="mt-3 flex items-center justify-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setUploadedDocName('Updated_KYC_Verification_Document.pdf')
-                  setVerificationStatus('APPROVED')
-                  setReviewNotes('Document verified successfully! Your account is approved.')
-                }}
-                className="py-1.5 px-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 text-xs font-semibold rounded-lg"
-              >
-                Re-upload / Correct Document
-              </button>
-            </div>
-          </div>
+          )}
 
+          {/* Wizard Footer Navigation */}
           <div className="flex items-center justify-between pt-6 border-t border-slate-100 dark:border-slate-800">
             <button
               type="button"
               onClick={() => setCurrentStep(3)}
-              className="py-2.5 px-4 text-xs font-semibold border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 flex items-center gap-1"
+              className="py-2.5 px-4 text-xs font-semibold border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-1 cursor-pointer transition-colors"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               <span>Back</span>
@@ -777,8 +1144,8 @@ export function AuthFlowView({
 
             <button
               type="button"
-              onClick={() => setCurrentStep(5)}
-              className="py-3 px-6 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-xs transition-colors flex items-center gap-2"
+              onClick={handleAdvanceToSecurity}
+              className="py-3 px-6 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
             >
               <span>Security Setup</span>
               <ArrowRight className="w-4 h-4" />
@@ -908,8 +1275,24 @@ export function AuthFlowView({
 
             <button
               type="button"
-              onClick={() => onComplete(role)}
-              className="py-3 px-8 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-md transition-colors flex items-center gap-2"
+              onClick={() => {
+                const profilePayload: OnboardingProfilePayload = {
+                  name:
+                    role === 'BUSINESS'
+                      ? bizTradingName.trim() || bizLegalName.trim() || 'My Business'
+                      : initialEmail.split('@')[0] || 'Registered Partner',
+                  legalName: bizLegalName.trim() || undefined,
+                  tradingName: bizTradingName.trim() || undefined,
+                  registrationNumber: brelaRegNumber.trim() || identityNumber.trim() || undefined,
+                  tinNumber: traTin.trim() || undefined,
+                  industry: bizCategory.trim() || (selectedSkills && selectedSkills[0]) || undefined,
+                  contactPerson: authorizedRepName.trim() || undefined,
+                  email: initialEmail || undefined,
+                  phone: phone || initialPhone || undefined,
+                }
+                onComplete(role, profilePayload)
+              }}
+              className="py-3 px-8 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-md transition-colors flex items-center gap-2 cursor-pointer"
             >
               <Sparkles className="w-4 h-4" />
               <span>Activate Account & Enter {role === 'PARTNER' ? 'Partner Portal' : 'Business Hub'}</span>

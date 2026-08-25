@@ -72,6 +72,9 @@ export interface OpportunityItem {
   activePartnerCount: number
   isFeatured: boolean
   featuredImageUrl?: string
+  promoVideoUrl?: string
+  galleryImageUrls?: string[]
+  termsAndConditions?: string
   status: 'DRAFT' | 'PENDING_REVIEW' | 'PUBLISHED' | 'PAUSED' | 'COMPLETED'
   createdAt: Date
   expiryDate?: Date

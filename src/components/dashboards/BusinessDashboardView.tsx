@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
   Bell,
   Search,
@@ -40,6 +40,10 @@ import { TeamAccessTab } from './business/tabs/TeamAccessTab'
 import { SettingsSecurityTab } from './business/tabs/SettingsSecurityTab'
 import { HelpSupportTab } from './business/tabs/HelpSupportTab'
 
+// Services & Domain
+import { listOpportunities } from '@/modules/deals/service'
+import type { OpportunityItem } from '@/modules/deals/types'
+
 // Initial Data
 import {
   MOCK_BUSINESS_OPPORTUNITIES,
@@ -49,12 +53,50 @@ import {
 
 interface BusinessDashboardViewProps {
   businessName?: string
+  registrationNumber?: string
   onCreateDeal?: () => void
   onExploreDeals?: () => void
 }
 
+function mapDealToBusinessOpportunity(opp: OpportunityItem): BusinessOpportunityItem {
+  return {
+    id: opp.id,
+    slug: opp.slug,
+    title: opp.title,
+    publicSummary: opp.summary,
+    subscriberDescription: opp.description,
+    type: (opp.type as any) || 'COMMERCIAL_DEAL',
+    category: opp.category,
+    region: opp.region,
+    commercialResult: 'COMPLETED_SALE',
+    rewardStructure: 'FIXED_REWARD',
+    rewardValueTZS: Number((opp as any).baseRewardValue || (opp as any).rewardValue || 50000),
+    budgetTZS: 5000000,
+    spentTZS: 0,
+    status: (opp.status as any) || 'PUBLISHED',
+    version: 1,
+    activePartners: opp.activePartnerCount || 0,
+    totalConversions: 0,
+    trackingMethod: 'PROMO_CODE',
+    startDate: new Date().toISOString().split('T')[0],
+    endDate: 'Open Access',
+    attributionWindowDays: 30,
+    partnerDeliverables: opp.description,
+    evidenceRequired: opp.termsAndConditions || 'Verified customer receipt and merchant sign-off.',
+    cancellationTerms: '7 days written notice with protection for all verified conversions.',
+    coverImageUrl: opp.featuredImageUrl,
+    promoVideoUrl: opp.promoVideoUrl,
+    createdAt: 'Active',
+    marketingAssets: [
+      { id: '1', name: 'Product Banner 1080p', url: opp.featuredImageUrl || '', type: 'IMAGE', size: '1.2 MB' },
+      { id: '2', name: 'Commercial Term Sheet PDF', url: '#', type: 'PDF', size: '240 KB' },
+    ],
+  }
+}
+
 export function BusinessDashboardView({
-  businessName = 'Kijani Solar Tech',
+  businessName = 'My Business',
+  registrationNumber,
   onCreateDeal,
   onExploreDeals,
 }: BusinessDashboardViewProps) {
@@ -63,9 +105,60 @@ export function BusinessDashboardView({
   const [showWizardModal, setShowWizardModal] = useState(false)
 
   // Central state managed across tabs
-  const [opportunities, setOpportunities] = useState<BusinessOpportunityItem[]>(MOCK_BUSINESS_OPPORTUNITIES)
+  const [opportunities, setOpportunities] = useState<BusinessOpportunityItem[]>([])
   const [partners, setPartners] = useState<BusinessPartnerItem[]>(MOCK_BUSINESS_PARTNERS)
   const [fundingBalance, setFundingBalance] = useState<RewardFundingBalance>(MOCK_FUNDING_BALANCE)
+
+  const reloadData = useCallback(() => {
+    const rawOpps = listOpportunities()
+    const mapped = rawOpps.map(mapDealToBusinessOpportunity)
+    setOpportunities(mapped)
+
+    // Load active partners from joined deals in storage
+    if (typeof window !== 'undefined') {
+      try {
+        const joined = JSON.parse(localStorage.getItem('lumo_partner_joined_deals') || '[]')
+        if (Array.isArray(joined) && joined.length > 0) {
+          const partnerList: BusinessPartnerItem[] = joined.map((j: any, idx: number) => ({
+            id: `p_${idx}_${j.opportunityId}`,
+            partnerName: j.referralId ? `Partner (${j.referralId.slice(0, 8)})` : 'Verified Partner',
+            partnerType: 'SALES_AGENT',
+            avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
+            phoneMasked: '+255 712 *** ***',
+            channels: ['WhatsApp Groups', 'Direct Sales', 'Instagram'],
+            region: 'Dar es Salaam',
+            performanceScore: 94,
+            completedDeals: 12,
+            conversionQuality: '99.2%',
+            cancellationRate: '0.8%',
+            businessRating: 4.9,
+            appliedOpportunityId: j.opportunityId,
+            appliedOpportunityTitle: j.title || 'Commercial Campaign',
+            applicationDate: j.joinedDate || new Date().toLocaleDateString(),
+            applicationPitch: 'Direct distribution network with active corporate & retail client reach.',
+            status: 'ACTIVE',
+            joinedProgramDate: j.joinedDate || new Date().toLocaleDateString(),
+            totalEarnedTZS: j.earningsEarnedTZS || 0,
+            verifiedConversionsCount: j.verifiedConversionsCount || 0,
+          }))
+          setPartners(partnerList)
+        }
+      } catch (e) {
+        console.warn('Could not load joined partners for business', e)
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    reloadData()
+    const handleUpdate = () => reloadData()
+    window.addEventListener('lumo:deals-updated', handleUpdate)
+    window.addEventListener('lumo:joined-deals-updated', handleUpdate)
+    return () => {
+      window.removeEventListener('lumo:deals-updated', handleUpdate)
+      window.removeEventListener('lumo:joined-deals-updated', handleUpdate)
+    }
+  }, [reloadData])
 
   // Mobile fast navigation pills
   const mobilePills: { id: BusinessSidebarSection; label: string; isWizard?: boolean }[] = [
@@ -102,6 +195,7 @@ export function BusinessDashboardView({
           sidebarCollapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
           businessName={businessName}
+          registrationNumber={registrationNumber}
           pendingApplicationsCount={partners.filter((p) => p.status === 'APPLIED').length}
           activeDealRoomsCount={0}
           myOpportunitiesCount={opportunities.length}
@@ -176,7 +270,9 @@ export function BusinessDashboardView({
 
               <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-200 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="hidden sm:inline-block">BRELA #184920</span>
+                <span className="hidden sm:inline-block">
+                  {registrationNumber ? `BRELA #${registrationNumber}` : 'BRELA Verified'}
+                </span>
               </div>
             </div>
           </div>
@@ -244,7 +340,12 @@ export function BusinessDashboardView({
           {/* GROUP 4: ACCOUNT & SYSTEM */}
           {activeTab === 'tracking_integrations' && <TrackingIntegrationsTab />}
           {activeTab === 'billing_subscription' && <BillingSubscriptionTab />}
-          {activeTab === 'business_profile' && <BusinessProfileTab />}
+          {activeTab === 'business_profile' && (
+            <BusinessProfileTab
+              businessName={businessName}
+              registrationNumber={registrationNumber}
+            />
+          )}
           {activeTab === 'team_access' && <TeamAccessTab />}
           {activeTab === 'settings_security' && <SettingsSecurityTab />}
           {activeTab === 'help_support' && <HelpSupportTab />}

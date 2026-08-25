@@ -41,7 +41,7 @@ export function AccountSubscriptionSection({
   }
 
   const handleDownloadReceipt = () => {
-    alert(`Receipt for subscription ${subscription?.id || 'SUB'} downloaded (PDF format).`)
+    window.print()
   }
 
   if (!subscription || !subscription.isActive) {

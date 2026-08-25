@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Briefcase,
   Search,
@@ -16,18 +16,36 @@ import {
   FileSpreadsheet,
   Building,
   Tag,
+  Video,
+  Image as ImageIcon,
+  Film,
+  X,
+  FileText,
+  ShieldCheck,
 } from 'lucide-react'
-import { MOCK_ADMIN_DEALS } from '../mockData'
+import { listAdminDeals, createDealOpportunity, updateDealStatus } from '@/modules/deals/service'
 import { AdminDealItem } from '../types'
 import { useAdminToast } from '../AdminToast'
 
 export function DealsRegistryTab() {
   const { showToast } = useAdminToast()
-  const [deals, setDeals] = useState<AdminDealItem[]>(MOCK_ADMIN_DEALS)
+  const [deals, setDeals] = useState<AdminDealItem[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('ALL')
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL')
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [selectedDeal, setSelectedDeal] = useState<AdminDealItem | null>(null)
+
+  const reloadDeals = () => {
+    setDeals(listAdminDeals() as AdminDealItem[])
+  }
+
+  useEffect(() => {
+    reloadDeals()
+    const handleUpdate = () => reloadDeals()
+    window.addEventListener('lumo:deals-updated', handleUpdate)
+    return () => window.removeEventListener('lumo:deals-updated', handleUpdate)
+  }, [])
   const [newDealForm, setNewDealForm] = useState({
     title: '',
     businessName: 'Kijani Solar Tech Ltd',
@@ -47,46 +65,48 @@ export function DealsRegistryTab() {
   })
 
   const handleTogglePause = (id: string) => {
-    setDeals((prev) =>
-      prev.map((d) => {
-        if (d.id === id) {
-          const nextStatus = d.status === 'PUBLISHED' ? 'PAUSED' : 'PUBLISHED'
-          showToast('info', `Campaign ${nextStatus === 'PUBLISHED' ? 'Resumed' : 'Paused'}`, `"${d.title}" status updated.`)
-          return { ...d, status: nextStatus }
-        }
-        return d
-      })
+    const target = deals.find((d) => d.id === id)
+    if (!target) return
+    const nextStatus = target.status === 'PUBLISHED' ? 'PAUSED' : 'PUBLISHED'
+    updateDealStatus(id, nextStatus as any)
+    reloadDeals()
+    showToast(
+      'info',
+      `Campaign ${nextStatus === 'PUBLISHED' ? 'Resumed' : 'Paused'}`,
+      `"${target.title}" status updated.`
     )
   }
 
   const handleArchiveDeal = (id: string) => {
-    setDeals((prev) =>
-      prev.map((d) => {
-        if (d.id === id) return { ...d, status: 'ARCHIVED' }
-        return d
-      })
-    )
+    updateDealStatus(id, 'ARCHIVED')
+    reloadDeals()
     showToast('info', 'Opportunity Archived', 'Deal archived. Record retained in immutable platform ledger.')
   }
 
   const handleCreateDraft = () => {
-    if (!newDealForm.title) return
-    const newDeal: AdminDealItem = {
-      id: `deal_${Date.now()}`,
-      slug: newDealForm.title.toLowerCase().replace(/\s+/g, '-'),
-      title: newDealForm.title,
-      businessName: newDealForm.businessName,
-      category: newDealForm.category,
-      type: newDealForm.type,
-      rewardValueTZS: Number(newDealForm.rewardValueTZS),
-      budgetTZS: Number(newDealForm.budgetTZS),
-      spentTZS: 0,
-      status: 'DRAFT',
-      version: 1,
-      activePartners: 0,
-      createdAt: 'Today',
-    }
-    setDeals([newDeal, ...deals])
+    if (!newDealForm.title.trim()) return
+
+    createDealOpportunity(
+      {
+        title: newDealForm.title,
+        summary: `Performance commercial campaign for ${newDealForm.title}.`,
+        description: `Verified commercial opportunity. Complete the required deliverables to earn competitive milestone commissions.`,
+        category: newDealForm.category,
+        opportunityType: newDealForm.type as any,
+        rewardType: 'FIXED_COMMISSION',
+        baseRewardValue: Number(newDealForm.rewardValueTZS) || 50000,
+        currency: 'TZS',
+        totalBudgetTZS: Number(newDealForm.budgetTZS) || 20000000,
+        region: 'Dar es Salaam, Tanzania',
+        attributionWindowDays: 30,
+        termsAndConditions: 'Standard platform verified attribution and conversion terms apply.',
+        requiresApproval: true,
+      },
+      'org_admin_draft',
+      newDealForm.businessName
+    )
+
+    reloadDeals()
     setShowCreateModal(false)
     setNewDealForm({
       title: '',
@@ -96,7 +116,7 @@ export function DealsRegistryTab() {
       rewardValueTZS: 50000,
       budgetTZS: 20000000,
     })
-    showToast('success', 'Draft Created', 'Draft created on behalf of verified business. Ready for Maker submission.')
+    showToast('success', 'Opportunity Created', 'Opportunity saved to central repository. Visible in Maker-Checker queue.')
   }
 
   return (
@@ -253,13 +273,21 @@ export function DealsRegistryTab() {
 
                 <td className="p-3 text-right">
                   <div className="inline-flex items-center gap-1.5">
+                    <button
+                      onClick={() => setSelectedDeal(deal)}
+                      className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors cursor-pointer"
+                      title="Inspect Opportunity & Media Assets"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                    </button>
+
                     {deal.status === 'PUBLISHED' || deal.status === 'PAUSED' ? (
                       <button
                         onClick={() => handleTogglePause(deal.id)}
-                        className={`p-1.5 rounded-lg border text-xs font-bold ${
+                        className={`p-1.5 rounded-lg border text-xs font-bold cursor-pointer ${
                           deal.status === 'PUBLISHED'
-                            ? 'text-purple-600 hover:bg-purple-50'
-                            : 'text-emerald-600 hover:bg-emerald-50'
+                            ? 'text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950/40 border-purple-200 dark:border-purple-800'
+                            : 'text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800'
                         }`}
                         title={deal.status === 'PUBLISHED' ? 'Pause Deal' : 'Resume Deal'}
                       >
@@ -269,7 +297,7 @@ export function DealsRegistryTab() {
 
                     <button
                       onClick={() => handleArchiveDeal(deal.id)}
-                      className="p-1.5 rounded-lg border text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                      className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
                       title="Archive Deal"
                     >
                       <Archive className="w-3.5 h-3.5" />
@@ -282,6 +310,147 @@ export function DealsRegistryTab() {
           </tbody>
         </table>
       </div>
+
+      {/* INSPECT DEAL & MEDIA MODAL */}
+      {selectedDeal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto relative">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-orange-50 dark:bg-orange-950/50 text-[#FF6A00] flex items-center justify-center font-black">
+                  <Film className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white">
+                    {selectedDeal.title}
+                  </h3>
+                  <div className="text-xs text-slate-500">
+                    Publisher: <strong>{selectedDeal.businessName}</strong> · Status: <span className="font-bold text-[#FF6A00]">{selectedDeal.status}</span>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setSelectedDeal(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Commercial Terms Summary Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-200/80 dark:border-slate-700">
+                <div className="text-[10px] text-slate-400 font-bold uppercase">Partner Reward</div>
+                <div className="text-sm font-black text-[#FF6A00] font-mono mt-0.5">
+                  TZS {selectedDeal.rewardValueTZS.toLocaleString()}
+                </div>
+              </div>
+
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-200/80 dark:border-slate-700">
+                <div className="text-[10px] text-slate-400 font-bold uppercase">Escrow Budget</div>
+                <div className="text-sm font-black text-slate-900 dark:text-white font-mono mt-0.5">
+                  TZS {selectedDeal.budgetTZS.toLocaleString()}
+                </div>
+              </div>
+
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-200/80 dark:border-slate-700 col-span-2 sm:col-span-1">
+                <div className="text-[10px] text-slate-400 font-bold uppercase">Active Partners</div>
+                <div className="text-sm font-black text-slate-900 dark:text-white mt-0.5">
+                  {selectedDeal.activePartners} Enrolled
+                </div>
+              </div>
+            </div>
+
+            {/* Uploaded Media & Promotional Assets Review */}
+            <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Film className="w-4 h-4 text-[#FF6A00]" />
+                  <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                    Uploaded Media & Video Assets
+                  </h4>
+                </div>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-950/40 text-[#FF6A00]">
+                  Verified Media
+                </span>
+              </div>
+
+              {/* Media Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Video Preview */}
+                <div className="space-y-1.5">
+                  <div className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <Video className="w-3.5 h-3.5 text-purple-600" />
+                    <span>Promotional Pitch Video</span>
+                  </div>
+
+                  {selectedDeal.promoVideoUrl ? (
+                    <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-black aspect-video relative">
+                      <video
+                        src={selectedDeal.promoVideoUrl}
+                        controls
+                        className="w-full h-full object-contain"
+                        poster={selectedDeal.featuredImageUrl}
+                      />
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-700 p-4 text-center text-xs text-slate-400 aspect-video flex flex-col items-center justify-center gap-1 bg-white dark:bg-slate-900">
+                      <Video className="w-6 h-6 opacity-30 text-slate-400" />
+                      <span className="font-semibold">No Video Attached</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Banner Preview */}
+                <div className="space-y-1.5">
+                  <div className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <ImageIcon className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Featured Cover Banner</span>
+                  </div>
+
+                  {selectedDeal.featuredImageUrl ? (
+                    <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 aspect-video relative">
+                      <img
+                        src={selectedDeal.featuredImageUrl}
+                        alt={selectedDeal.title}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-700 p-4 text-center text-xs text-slate-400 aspect-video flex flex-col items-center justify-center gap-1 bg-white dark:bg-slate-900">
+                      <ImageIcon className="w-6 h-6 opacity-30 text-slate-400" />
+                      <span className="font-semibold">Default Banner</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Public Commercial Summary */}
+              {(selectedDeal.summary || selectedDeal.description) && (
+                <div className="pt-2 border-t border-slate-200 dark:border-slate-700 text-xs space-y-1">
+                  <div className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5 text-[#FF6A00]" />
+                    <span>Public Commercial Summary:</span>
+                  </div>
+                  <p className="text-slate-600 dark:text-slate-400 text-[11px] leading-relaxed bg-white dark:bg-slate-900 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700">
+                    {selectedDeal.summary || selectedDeal.description}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={() => setSelectedDeal(null)}
+                className="py-2 px-5 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-bold text-xs rounded-xl shadow-xs cursor-pointer hover:bg-slate-800"
+              >
+                Close Inspection
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* CREATE DRAFT MODAL */}
       {showCreateModal && (
@@ -336,7 +505,7 @@ export function DealsRegistryTab() {
                   <label className="font-bold block mb-1">Opportunity Type</label>
                   <select
                     value={newDealForm.type}
-                    onChange={(e) => setNewDealForm({ ...newDealForm, type: e.target.value })}
+                    onChange={(e) => setNewDealForm({ ...newDealForm, type: e.target.value as any })}
                     className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
                   >
                     <option value="CUSTOMER_ACQUISITION">Customer Acquisition</option>

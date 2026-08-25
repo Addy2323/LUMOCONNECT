@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { listOpportunities, getProtectedOpportunityDetails } from '@/modules/deals/service'
 import type { OpportunityItem } from '@/modules/deals/types'
 import type { ProtectedDealDetails } from '@/modules/deals/service'
@@ -70,19 +70,31 @@ const INITIAL_WORKSPACES: UserWorkspaceInfo[] = [
 
 export default function LumoApp() {
   const [activeView, setActiveView] = useState('marketplace')
-  const [savedDeals, setSavedDeals] = useState<string[]>([])
+  const [savedDeals, setSavedDeals] = useState<string[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        return JSON.parse(localStorage.getItem('lumo_saved_deals') || '[]')
+      } catch (e) {}
+    }
+    return []
+  })
   const [selectedRolePath, setSelectedRolePath] = useState<'PARTNER' | 'BUSINESS'>('PARTNER')
 
-  // Authentication State: Authenticated as Given M. with multi-workspace assignments
   const [currentUserId, setCurrentUserId] = useState<string | undefined>('usr_given_main')
-  const [userDetails, setUserDetails] = useState({
+  const [registeredPassword, setRegisteredPassword] = useState('')
+  const [userDetails, setUserDetails] = useState<{
+    name: string
+    email: string
+    phone: string
+    password?: string
+  }>({
     name: 'Given M.',
     email: 'given@lumo.co.tz',
     phone: '+255 700 000 000',
   })
 
   // Workspace & Admin Mode Security State
-  const [availableWorkspaces] = useState<UserWorkspaceInfo[]>(INITIAL_WORKSPACES)
+  const [availableWorkspaces, setAvailableWorkspaces] = useState<UserWorkspaceInfo[]>(INITIAL_WORKSPACES)
   const [activeWorkspace, setActiveWorkspace] = useState<UserWorkspaceInfo>(INITIAL_WORKSPACES[1]) // Partner Workspace
   const [isAdminModeActive, setIsAdminModeActive] = useState(false)
   const [showAdminStepUpModal, setShowAdminStepUpModal] = useState(false)
@@ -127,8 +139,29 @@ export default function LumoApp() {
 
   const hasActiveSubscription = Boolean(userSub && userSub.isActive)
 
+  const [dealsRevision, setDealsRevision] = useState(0)
+
+  useEffect(() => {
+    const handleUpdate = () => setDealsRevision((r) => r + 1)
+    const handleSavedUpdate = () => {
+      if (typeof window !== 'undefined') {
+        try {
+          setSavedDeals(JSON.parse(localStorage.getItem('lumo_saved_deals') || '[]'))
+        } catch (e) {}
+      }
+    }
+    window.addEventListener('lumo:deals-updated', handleUpdate)
+    window.addEventListener('lumo:saved-deals-updated', handleSavedUpdate)
+    window.addEventListener('storage', handleUpdate)
+    return () => {
+      window.removeEventListener('lumo:deals-updated', handleUpdate)
+      window.removeEventListener('lumo:saved-deals-updated', handleSavedUpdate)
+      window.removeEventListener('storage', handleUpdate)
+    }
+  }, [])
+
   // Filtered Opportunities from domain service
-  const allOpportunities = useMemo(() => listOpportunities(), [])
+  const allOpportunities = useMemo(() => listOpportunities(), [dealsRevision, activeView])
 
   const opportunities = useMemo(() => {
     return listOpportunities({
@@ -138,7 +171,7 @@ export default function LumoApp() {
       region: selectedRegion,
       sortBy,
     })
-  }, [searchQuery, selectedCategory, selectedType, selectedRegion, sortBy])
+  }, [searchQuery, selectedCategory, selectedType, selectedRegion, sortBy, dealsRevision, activeView])
 
   const activeFilterCount =
     (searchQuery ? 1 : 0) +
@@ -154,9 +187,55 @@ export default function LumoApp() {
   }
 
   const handleToggleSave = (dealId: string) => {
-    setSavedDeals((prev) =>
-      prev.includes(dealId) ? prev.filter((id) => id !== dealId) : [...prev, dealId]
+    setSavedDeals((prev) => {
+      const next = prev.includes(dealId) ? prev.filter((id) => id !== dealId) : [...prev, dealId]
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('lumo_saved_deals', JSON.stringify(next))
+          window.dispatchEvent(new Event('lumo:saved-deals-updated'))
+        } catch (e) {}
+      }
+      return next
+    })
+  }
+
+  // Page-to-Page Navigation Transition State
+  const [isPageTransitioning, setIsPageTransitioning] = useState(false)
+  const [nextViewName, setNextViewName] = useState<string>('')
+
+  const navigateToView = (view: string) => {
+    if (view === activeView) return
+    setIsPageTransitioning(true)
+    setNextViewName(
+      view === 'marketplace'
+        ? 'Marketplace Opportunities'
+        : view === 'subscriptions'
+        ? 'Subscription Plans & Pass'
+        : view === 'partner'
+        ? 'Partner Portal'
+        : view === 'business'
+        ? 'Business Hub'
+        : view === 'dealroom'
+        ? 'B2B Deal Room'
+        : view === 'admin'
+        ? 'Admin Operations Portal'
+        : view === 'customer_checkout'
+        ? 'Customer Portal'
+        : view === 'signin'
+        ? 'Account Sign In'
+        : view === 'signup'
+        ? 'Partner Registration'
+        : 'Loading Workspace...'
     )
+
+    // 6-Second Loader Transition as requested
+    setTimeout(() => {
+      setActiveView(view)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+      setTimeout(() => {
+        setIsPageTransitioning(false)
+      }, 400)
+    }, 5600)
   }
 
   /**
@@ -167,11 +246,11 @@ export default function LumoApp() {
     setIsAdminModeActive(false)
 
     if (workspace.type === 'PARTNER') {
-      setActiveView('partner')
+      navigateToView('partner')
     } else if (workspace.type === 'BUSINESS') {
-      setActiveView('business')
+      navigateToView('business')
     } else {
-      setActiveView('marketplace')
+      navigateToView('marketplace')
     }
   }
 
@@ -307,14 +386,31 @@ export default function LumoApp() {
             handleRequestAdminMode()
             return
           }
-          setActiveView(view)
-          window.scrollTo({ top: 0, behavior: 'smooth' })
+          navigateToView(view)
         }}
         onOpenHowItWorks={() => setShowHowItWorks(true)}
-        onOpenSignIn={() => setActiveView('signin')}
-        onOpenGetStarted={() => setActiveView('choose_path')}
+        onOpenSignIn={() => navigateToView('signin')}
+        onOpenGetStarted={() => navigateToView('choose_path')}
         onSignOut={handleSignOut}
       />
+
+      {/* Page-to-Page Route Transition Loader Overlay */}
+      {isPageTransitioning && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-950/75 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 shadow-2xl flex flex-col items-center space-y-5 max-w-xs text-center">
+            {/* Single Clean CSS Loader */}
+            <div className="loader mx-auto" />
+            <div>
+              <div className="font-extrabold text-base text-slate-900 dark:text-white">
+                {nextViewName || 'Loading Workspace...'}
+              </div>
+              <p className="text-xs text-slate-400 mt-1">
+                Please wait while we switch views
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Container */}
       <main className={`flex-1 ${isAuthView ? 'w-full px-4 sm:px-6' : 'lumo-container py-8 sm:py-10'}`}>
@@ -414,7 +510,9 @@ export default function LumoApp() {
         {/* VIEW 3: PARTNER PORTAL */}
         {activeView === 'partner' && (
           <PartnerDashboardView
-            partnerName={userDetails.name.split(' ')[0] || 'Amina'}
+            partnerName={userDetails.name || 'Partner'}
+            email={userDetails.email}
+            phone={userDetails.phone}
             onOpenStatement={() => setActiveView('statement')}
             onExploreDeals={() => setActiveView('marketplace')}
             onNavigateToSubscriptions={() => setActiveView('subscriptions')}
@@ -428,7 +526,7 @@ export default function LumoApp() {
         {/* VIEW 4: BUSINESS HUB */}
         {activeView === 'business' && (
           <BusinessDashboardView
-            businessName={activeWorkspace.type === 'BUSINESS' ? (activeWorkspace.organizationName || 'Kijani Solar Tech') : userDetails.name}
+            businessName={activeWorkspace.type === 'BUSINESS' ? (activeWorkspace.organizationName || `${userDetails.name}'s Business`) : userDetails.name}
             onCreateDeal={() => setShowCreateWizard(true)}
             onExploreDeals={() => setActiveView('marketplace')}
           />
@@ -440,8 +538,9 @@ export default function LumoApp() {
         {/* VIEW 6: ADMIN & AUDIT OPERATIONS */}
         {activeView === 'admin' && (
           <AdminDashboardView
-            adminName="Given"
+            adminName={userDetails.name || 'Platform Administrator'}
             onExploreDeals={() => setActiveView('marketplace')}
+            onExitAdminMode={handleExitAdminMode}
           />
         )}
 
@@ -478,9 +577,64 @@ export default function LumoApp() {
                 onSignUpSuccess={(role, details) => {
                   setSelectedRolePath(role)
                   setUserDetails(details)
-                  setCurrentUserId('usr_given_main')
-                  const target = availableWorkspaces.find((w) => (role === 'BUSINESS' ? w.type === 'BUSINESS' : w.type === 'PARTNER')) || availableWorkspaces[1]
-                  setActiveWorkspace(target)
+                  const pwd = details.password || '12345678'
+                  setRegisteredPassword(pwd)
+                  if (typeof window !== 'undefined') {
+                    sessionStorage.setItem('lumo_reg_pwd', pwd)
+                  }
+                  const newUserId = `usr_${Date.now()}`
+                  setCurrentUserId(newUserId)
+
+                  // Eagerly register credentials in DB right on Step 1 submission
+                  fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      email: details.email,
+                      password: pwd,
+                      name: details.name || details.email.split('@')[0],
+                      phone: details.phone,
+                      role,
+                    }),
+                  })
+                    .then(async (res) => {
+                      if (res.ok) {
+                        const data = await res.json()
+                        if (data.user?.id) {
+                          setCurrentUserId(data.user.id)
+                        }
+                      }
+                    })
+                    .catch((err) => console.warn('Step 1 registration network error:', err))
+
+                  if (role === 'BUSINESS') {
+                    const bizName = details.name ? `${details.name}'s Business` : 'My Business'
+                    const bizWs: UserWorkspaceInfo = {
+                      type: 'BUSINESS',
+                      id: `ws_${Date.now()}`,
+                      label: `${bizName} — Business`,
+                      organizationId: `org_${Date.now()}`,
+                      organizationName: bizName,
+                      role: 'BUSINESS_OWNER',
+                    }
+                    setAvailableWorkspaces((prev) => [
+                      ...prev.filter((w) => w.type !== 'BUSINESS'),
+                      bizWs,
+                    ])
+                    setActiveWorkspace(bizWs)
+                  } else {
+                    const partnerWs: UserWorkspaceInfo = {
+                      type: 'PARTNER',
+                      id: `ws_${Date.now()}`,
+                      label: `${details.name || 'Personal'} Workspace`,
+                      role: 'PARTNER',
+                    }
+                    setAvailableWorkspaces((prev) => [
+                      ...prev.filter((w) => w.type !== 'PARTNER'),
+                      partnerWs,
+                    ])
+                    setActiveWorkspace(partnerWs)
+                  }
                   setActiveView('auth_verify')
                 }}
                 onNavigateSignIn={() => setActiveView('signin')}
@@ -494,10 +648,97 @@ export default function LumoApp() {
                 initialRole={selectedRolePath}
                 initialEmail={userDetails.email}
                 initialPhone={userDetails.phone}
-                onComplete={(finalRole) => {
-                  setCurrentUserId('usr_given_main')
-                  const target = availableWorkspaces.find((w) => (finalRole === 'BUSINESS' ? w.type === 'BUSINESS' : w.type === 'PARTNER')) || availableWorkspaces[1]
-                  setActiveWorkspace(target)
+                initialPassword={
+                  registeredPassword ||
+                  userDetails.password ||
+                  (typeof window !== 'undefined' ? sessionStorage.getItem('lumo_reg_pwd') || '12345678' : '12345678')
+                }
+                onComplete={(finalRole, profileData) => {
+                  const chosenBizName =
+                    profileData?.tradingName ||
+                    profileData?.legalName ||
+                    profileData?.name ||
+                    (userDetails.name ? `${userDetails.name}'s Business` : 'My Business')
+
+                  const userName = profileData?.contactPerson || userDetails.name || (profileData?.email ? profileData.email.split('@')[0] : 'User')
+
+                  setUserDetails((prev) => ({
+                    ...prev,
+                    name: userName,
+                    email: profileData?.email || prev.email,
+                    phone: profileData?.phone || prev.phone,
+                  }))
+
+                  if (finalRole === 'BUSINESS') {
+                    const bizWorkspace: UserWorkspaceInfo = {
+                      type: 'BUSINESS',
+                      id: `ws_${Date.now()}`,
+                      label: `${chosenBizName} — Business`,
+                      organizationId: `org_${Date.now()}`,
+                      organizationName: chosenBizName,
+                      role: 'BUSINESS_OWNER',
+                    }
+                    setAvailableWorkspaces((prev) => [
+                      ...prev.filter((w) => w.type !== 'BUSINESS'),
+                      bizWorkspace,
+                    ])
+                    setActiveWorkspace(bizWorkspace)
+                  } else {
+                    const partnerWorkspace: UserWorkspaceInfo = {
+                      type: 'PARTNER',
+                      id: 'ws_partner',
+                      label: `${userName} Workspace`,
+                      role: 'PARTNER',
+                    }
+                    setAvailableWorkspaces((prev) => [
+                      ...prev.filter((w) => w.type !== 'PARTNER'),
+                      partnerWorkspace,
+                    ])
+                    setActiveWorkspace(partnerWorkspace)
+                  }
+
+                  const activePwd =
+                    registeredPassword ||
+                    userDetails.password ||
+                    (typeof window !== 'undefined' ? sessionStorage.getItem('lumo_reg_pwd') || '12345678' : '12345678')
+
+                  // Update full profile in PostgreSQL Database via /api/auth/register
+                  const regPayload = {
+                    email: profileData?.email || userDetails.email,
+                    password: activePwd,
+                    name: userName,
+                    phone: profileData?.phone || userDetails.phone,
+                    role: finalRole,
+                    bizDetails:
+                      finalRole === 'BUSINESS'
+                        ? {
+                            legalName: profileData?.legalName || chosenBizName,
+                            tradingName: profileData?.tradingName || chosenBizName,
+                            brelaRegNumber: profileData?.registrationNumber,
+                            traTin: profileData?.tinNumber,
+                            bizCategory: profileData?.industry,
+                            contactPerson: profileData?.contactPerson || userName,
+                          }
+                        : undefined,
+                  }
+
+                  fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(regPayload),
+                  })
+                    .then(async (res) => {
+                      if (res.ok) {
+                        const data = await res.json()
+                        if (data.user?.id) {
+                          setCurrentUserId(data.user.id)
+                        }
+                      }
+                    })
+                    .catch((err) => {
+                      console.warn('Registration network error:', err)
+                    })
+
                   if (subscriptionRedirectContext.returnTo) {
                     setActiveView('subscriptions')
                   } else if (finalRole === 'PARTNER') {
@@ -513,21 +754,71 @@ export default function LumoApp() {
             {/* SIGN IN */}
             {activeView === 'signin' && (
               <SignInView
-                onSignInSuccess={(role) => {
-                  setCurrentUserId('usr_given_main')
-                  const target = availableWorkspaces.find((w) => (role === 'BUSINESS' ? w.type === 'BUSINESS' : role === 'ADMIN' ? w.type === 'ADMIN' : w.type === 'PARTNER')) || availableWorkspaces[1]
-                  setActiveWorkspace(target)
-                  if (role === 'ADMIN') {
-                    setIsAdminModeActive(true)
+                onSignInSuccess={(role, credentials) => {
+                  const authUser = credentials?.user
+                  const email = (authUser?.email || credentials?.email || userDetails.email).trim().toLowerCase()
+                  const effectiveRole: 'PARTNER' | 'BUSINESS' | 'ADMIN' =
+                    authUser?.role === 'ADMIN' || email === 'admin@lumo.co.tz'
+                      ? 'ADMIN'
+                      : authUser?.role === 'BUSINESS'
+                      ? 'BUSINESS'
+                      : 'PARTNER'
+
+                  const displayName = authUser?.name || (email.includes('@') ? email.split('@')[0] : userDetails.name)
+                  
+                  setUserDetails((prev) => ({
+                    ...prev,
+                    email,
+                    name: effectiveRole === 'ADMIN' ? 'Platform Administrator' : displayName,
+                    phone: authUser?.phone || prev.phone,
+                  }))
+                  if (authUser?.id) {
+                    setCurrentUserId(authUser.id)
                   }
+
+                  let target = availableWorkspaces.find((w) => w.type === effectiveRole) || INITIAL_WORKSPACES.find((w) => w.type === effectiveRole) || availableWorkspaces[1]
+                  
+                  if (effectiveRole === 'BUSINESS') {
+                    const bizName = authUser?.organizationName || `${displayName}'s Business`
+                    const bizWs: UserWorkspaceInfo = {
+                      type: 'BUSINESS',
+                      id: `ws_${Date.now()}`,
+                      label: `${bizName} — Business`,
+                      organizationId: `org_${Date.now()}`,
+                      organizationName: bizName,
+                      role: 'BUSINESS_OWNER',
+                    }
+                    setAvailableWorkspaces((prev) => [
+                      ...prev.filter((w) => w.type !== 'BUSINESS'),
+                      bizWs,
+                    ])
+                    target = bizWs
+                  } else if (effectiveRole === 'ADMIN') {
+                    target = INITIAL_WORKSPACES[3] // LUMO Administration
+                    setIsAdminModeActive(true)
+                  } else {
+                    const partnerWs: UserWorkspaceInfo = {
+                      type: 'PARTNER',
+                      id: `ws_${Date.now()}`,
+                      label: `${displayName} — Partner`,
+                      role: 'PARTNER',
+                    }
+                    setAvailableWorkspaces((prev) => [
+                      ...prev.filter((w) => w.type !== 'PARTNER'),
+                      partnerWs,
+                    ])
+                    target = partnerWs
+                  }
+                  
+                  setActiveWorkspace(target)
                   if (subscriptionRedirectContext.returnTo) {
                     setActiveView('subscriptions')
-                  } else if (role === 'PARTNER') {
-                    setActiveView('partner')
-                  } else if (role === 'BUSINESS') {
+                  } else if (effectiveRole === 'ADMIN') {
+                    setActiveView('admin')
+                  } else if (effectiveRole === 'BUSINESS') {
                     setActiveView('business')
                   } else {
-                    setActiveView('admin')
+                    setActiveView('partner')
                   }
                 }}
                 onCreateAccount={() => setActiveView('choose_path')}

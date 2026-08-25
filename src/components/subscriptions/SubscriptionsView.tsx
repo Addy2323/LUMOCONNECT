@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Sparkles,
   Zap,
@@ -17,8 +17,10 @@ import {
 import {
   createSubscriptionCheckout,
   submitEnterpriseInquiry,
+  listSubscriptionPlans,
+  getUserSubscription,
 } from '@/modules/subscriptions/service'
-import type { EnterpriseInquiryInput } from '@/modules/subscriptions/types'
+import type { EnterpriseInquiryInput, SubscriptionPlanItem } from '@/modules/subscriptions/types'
 
 interface SubscriptionsViewProps {
   currentUserId?: string
@@ -38,11 +40,27 @@ export function SubscriptionsView({
   onSubscriptionSuccess,
   onNavigateHome,
 }: SubscriptionsViewProps) {
+  // Live Plans from configuration
+  const [plans, setPlans] = useState<SubscriptionPlanItem[]>(listSubscriptionPlans())
+
+  const reloadPlans = () => {
+    setPlans(listSubscriptionPlans())
+  }
+
+  useEffect(() => {
+    reloadPlans()
+    const handleUpdate = () => reloadPlans()
+    window.addEventListener('lumo:plans-updated', handleUpdate)
+    return () => window.removeEventListener('lumo:plans-updated', handleUpdate)
+  }, [])
+
   // Checkout Modal State
   const [selectedPlanCode, setSelectedPlanCode] = useState<'MONTHLY' | 'SEMI_ANNUAL' | null>(null)
   const [paymentMethod, setPaymentMethod] = useState<'MPESA' | 'AIRTEL' | 'TIGO' | 'HALOPESA'>('MPESA')
   const [phoneNumber, setPhoneNumber] = useState('+255 712 345 678')
   const [isProcessingPayment, setIsProcessingPayment] = useState(false)
+  const [simStep, setSimStep] = useState<number>(0)
+  const [simLog, setSimLog] = useState<string[]>([])
   const [paymentSuccessData, setPaymentSuccessData] = useState<{ planName: string; expiresAt?: Date } | null>(null)
 
   // Enterprise Inquiry Modal State
@@ -60,10 +78,38 @@ export function SubscriptionsView({
   })
   const [enterpriseSubmitted, setEnterpriseSubmitted] = useState(false)
 
-  const handleExecutePayment = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSimulatePayment = async () => {
     if (!selectedPlanCode) return
     setIsProcessingPayment(true)
+    setSimStep(1)
+    setSimLog([`Connecting to Mongike Gateway switch for ${paymentMethod}...`])
+
+    // Step 1: 1.5s
+    await new Promise((r) => setTimeout(r, 1500))
+    setSimStep(2)
+    setSimLog((prev) => [
+      ...prev,
+      `USSD Push sent to ${phoneNumber} (${paymentMethod}). Prompting PIN input...`,
+    ])
+
+    // Step 2: 1.5s
+    await new Promise((r) => setTimeout(r, 1500))
+    setSimStep(3)
+    setSimLog((prev) => [
+      ...prev,
+      `Mobile PIN Verified. TZS ${selectedPlanCode === 'MONTHLY' ? '25,000' : '120,000'} deducted from mobile wallet.`,
+    ])
+
+    // Step 3: 1.5s
+    await new Promise((r) => setTimeout(r, 1500))
+    setSimStep(4)
+    setSimLog((prev) => [
+      ...prev,
+      'TRA Withholding & e-Tax verified. Subscription Activated!',
+    ])
+
+    // Step 4: 1.5s (Total = 6.0 seconds)
+    await new Promise((r) => setTimeout(r, 1500))
 
     try {
       const result = await createSubscriptionCheckout({
@@ -82,6 +128,7 @@ export function SubscriptionsView({
         })
         setTimeout(() => {
           setSelectedPlanCode(null)
+          setSimStep(0)
           onSubscriptionSuccess(selectedPlanCode, returnTo)
         }, 1500)
       }
@@ -90,632 +137,656 @@ export function SubscriptionsView({
     }
   }
 
+  const handleExecutePayment = async (e: React.FormEvent) => {
+    e.preventDefault()
+    handleSimulatePayment()
+  }
+
   const handleEnterpriseSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     submitEnterpriseInquiry(enterpriseForm, currentUserId)
     setEnterpriseSubmitted(true)
   }
 
+  const monthlyPlan = plans.find((p) => p.code === 'MONTHLY') || plans[0]
+  const semiAnnualPlan = plans.find((p) => p.code === 'SEMI_ANNUAL') || plans[1]
+  const enterprisePlan = plans.find((p) => p.code === 'ENTERPRISE') || plans[2]
+
+  const activeUserSub = getUserSubscription(currentUserId || 'alex_partner')
+  const isUserProActive = Boolean(activeUserSub && activeUserSub.isActive && activeUserSub.status === 'ACTIVE')
+  const [showUpgradePlans, setShowUpgradePlans] = useState(!isUserProActive)
+
   return (
-    <div className="w-full max-w-7xl mx-auto py-2 sm:py-6 px-3 sm:px-6 pb-24 md:pb-12">
-      {/* Top Notification Alert Banner */}
-      <div className="mb-6 p-3.5 sm:p-4 rounded-2xl bg-[#FEF6EE] dark:bg-amber-950/40 border border-[#FEE4D2] dark:border-amber-800/60 flex items-center gap-3 shadow-2xs">
-        <Lock className="w-4 h-4 text-[#FF6A00] shrink-0" />
-        <p className="text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-200 leading-snug">
-          {reasonMessage || "Subscribe now to unlock this deal. You'll return automatically after payment."}
-        </p>
-      </div>
+    <div className="w-full max-w-7xl mx-auto py-2 sm:py-6 px-3 sm:px-6 pb-24 md:pb-12 space-y-6">
+      {/* Top Banner: For PRO Users vs Non-Subscribers */}
+      {isUserProActive && activeUserSub ? (
+        <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-[#0B132B] via-[#1C2541] to-[#0B132B] text-white shadow-xl space-y-6 border border-amber-500/40 relative overflow-hidden">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white font-black text-xs uppercase tracking-wider mb-2 shadow-xs">
+                <Sparkles className="w-3.5 h-3.5 fill-white" />
+                <span>ACTIVE PRO SUBSCRIBER</span>
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-black tracking-tight">
+                {activeUserSub.planName} Pass Active
+              </h2>
+              <p className="text-xs text-slate-300 mt-1">
+                You have full, unrestricted access to all commercial deals, sales toolkits, video pitches, and performance links.
+              </p>
+            </div>
+
+            <div className="bg-white/10 dark:bg-black/40 backdrop-blur-md p-4 rounded-2xl border border-white/15 text-left sm:text-right">
+              <div className="text-xs text-slate-300 font-bold uppercase tracking-wider">
+                Cycle Expiry
+              </div>
+              <div className="text-xl sm:text-2xl font-black font-mono text-[#FF6A00]">
+                {activeUserSub.daysRemaining} Days Remaining
+              </div>
+              <div className="text-[10px] text-emerald-400 font-bold mt-0.5">
+                ● Status: Active & In Good Standing
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-center gap-3 pt-2 border-t border-slate-700/80">
+            <button
+              onClick={onNavigateHome}
+              className="w-full sm:w-auto py-3 px-6 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>Explore All 7 Unlocked Deals</span>
+            </button>
+
+            <button
+              onClick={() => setShowUpgradePlans(!showUpgradePlans)}
+              className="w-full sm:w-auto py-3 px-6 bg-white/10 hover:bg-white/20 text-white font-bold text-xs sm:text-sm rounded-xl border border-white/20 transition-all text-center cursor-pointer"
+            >
+              {showUpgradePlans ? 'Hide Plan Options' : 'Upgrade or Extend Pass'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        /* Non-Subscriber Warning Banner */
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-[#FEF6EE] dark:bg-amber-950/40 border border-[#FEE4D2] dark:border-amber-800/60 flex items-center gap-3 shadow-2xs">
+          <Lock className="w-4 h-4 text-[#FF6A00] shrink-0" />
+          <p className="text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-200 leading-snug">
+            {reasonMessage || "Subscribe now to unlock this deal. You'll return automatically after payment."}
+          </p>
+        </div>
+      )}
 
       {/* Header Eyebrow & Title */}
-      <div className="text-center max-w-3xl mx-auto mb-8 sm:mb-12 space-y-2.5">
-        <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-white dark:bg-slate-900 text-[#FF6A00] text-[11px] font-extrabold border border-[#FF6A00]/40 shadow-2xs">
-          <Sparkles className="w-3.5 h-3.5 text-[#FF6A00]" />
-          <span>LUMO MEMBERSHIP PLANS</span>
-        </div>
+      {(showUpgradePlans || !isUserProActive) && (
+        <>
+          <div className="text-center max-w-3xl mx-auto mb-6 sm:mb-10 space-y-2.5">
+            <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-white dark:bg-slate-900 text-[#FF6A00] text-[11px] font-extrabold border border-[#FF6A00]/40 shadow-2xs">
+              <Sparkles className="w-3.5 h-3.5 text-[#FF6A00]" />
+              <span>LUMO MEMBERSHIP PLANS</span>
+            </div>
 
-        <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight text-[#0F172A] dark:text-white">
-          Unlock Every LUMO Opportunity
-        </h1>
+            <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight text-[#0F172A] dark:text-white">
+              {isUserProActive ? 'Upgrade or Extend Your Pass' : 'Unlock Every LUMO Opportunity'}
+            </h1>
 
-        <p className="text-xs sm:text-sm lg:text-base text-[#64748B] dark:text-slate-400 max-w-2xl mx-auto leading-relaxed">
-          Choose a plan and get unlimited access to verified deals, full opportunity details, deal participation, performance tracking and earning tools.
-        </p>
-      </div>
+            <p className="text-xs sm:text-sm lg:text-base text-[#64748B] dark:text-slate-400 max-w-2xl mx-auto leading-relaxed">
+              Choose a plan and get unlimited access to verified deals, full opportunity details, deal participation, performance tracking and earning tools.
+            </p>
+          </div>
 
-      {/* ========================================================================= */}
-      {/* DESKTOP / LAPTOP 3-COLUMN VIEW (hidden md:grid md:grid-cols-3)           */}
-      {/* ========================================================================= */}
-      <div className="hidden md:grid md:grid-cols-3 gap-6 lg:gap-8 items-stretch mb-10">
+          {/* ========================================================================= */}
+          {/* DESKTOP / LAPTOP 3-COLUMN VIEW (hidden md:grid md:grid-cols-3)           */}
+          {/* ========================================================================= */}
+          <div className="hidden md:grid md:grid-cols-3 gap-6 lg:gap-8 items-stretch mb-10">
         {/* DESKTOP CARD 1: MONTHLY */}
-        <div className="bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-6 lg:p-8 flex flex-col justify-between shadow-lg hover:shadow-xl transition-all">
-          <div>
-            <h3 className="text-xl lg:text-2xl font-black text-[#0F172A] dark:text-white">
-              Monthly
-            </h3>
-            <p className="text-xs text-[#64748B] dark:text-slate-400 mt-1.5 leading-relaxed min-h-[36px]">
-              Flexible access for individuals who want to discover and promote LUMO opportunities.
-            </p>
+        {monthlyPlan && (
+          <div className="bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-6 lg:p-8 flex flex-col justify-between shadow-lg hover:shadow-xl transition-all">
+            <div>
+              <h3 className="text-xl lg:text-2xl font-black text-[#0F172A] dark:text-white">
+                {monthlyPlan.name}
+              </h3>
+              <p className="text-xs text-[#64748B] dark:text-slate-400 mt-1.5 leading-relaxed min-h-[36px]">
+                {monthlyPlan.description}
+              </p>
 
-            <div className="flex items-baseline gap-1.5 my-6 pb-6 border-b border-slate-100 dark:border-slate-800">
-              <span className="text-3xl lg:text-4xl font-black text-[#0F172A] dark:text-white font-mono">
-                TZS 25,000
-              </span>
-              <span className="text-xs font-bold text-[#64748B] dark:text-slate-400">
-                /month
-              </span>
-            </div>
-
-            <div className="space-y-3 mb-8">
-              <div className="text-[10px] font-extrabold uppercase tracking-wider text-[#64748B] dark:text-slate-400">
-                WHAT&apos;S INCLUDED
-              </div>
-              {[
-                'Unlimited access to published deals',
-                'Unlimited deal-detail viewing',
-                'Join unlimited opportunities',
-                'Access complete reward and commission terms',
-                'Sales and promotional resources',
-                'Performance and referral tracking',
-                'Earnings dashboard',
-                'Real-time deal notifications',
-                'Standard customer support',
-                'Cancel before the next billing period',
-              ].map((feature, idx) => (
-                <div key={idx} className="flex items-start gap-2.5 text-xs text-[#0F172A] dark:text-slate-200">
-                  <span className="text-[#FF6A00] font-black text-xs shrink-0 mt-0.5">✓</span>
-                  <span className="leading-snug">{feature}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setSelectedPlanCode('MONTHLY')}
-            className="w-full py-3.5 px-4 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold text-xs lg:text-sm rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 active:scale-[0.99]"
-          >
-            <span>Subscribe Monthly</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* DESKTOP CARD 2: SEMI-ANNUAL (BEST VALUE) */}
-        <div className="bg-white dark:bg-slate-900 border-2 border-[#FF6A00] rounded-3xl p-6 lg:p-8 flex flex-col justify-between shadow-2xl relative scale-[1.02] z-10">
-          {/* Best Value Badge */}
-          <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-[#FF6A00] text-white px-4 py-1 rounded-full text-xs font-black tracking-wider uppercase shadow-md flex items-center gap-1.5">
-            <Zap className="w-3.5 h-3.5" />
-            <span>BEST VALUE</span>
-          </div>
-
-          <div>
-            <h3 className="text-xl lg:text-2xl font-black text-[#0F172A] dark:text-white">
-              Semi-Annual
-            </h3>
-            <p className="text-xs text-[#64748B] dark:text-slate-400 mt-1.5 leading-relaxed min-h-[36px]">
-              Six months of uninterrupted access for active partners and opportunity professionals.
-            </p>
-
-            <div className="my-6 pb-6 border-b border-slate-100 dark:border-slate-800">
-              <div className="flex items-baseline gap-1.5">
+              <div className="flex items-baseline gap-1.5 my-6 pb-6 border-b border-slate-100 dark:border-slate-800">
                 <span className="text-3xl lg:text-4xl font-black text-[#0F172A] dark:text-white font-mono">
-                  TZS 100,000
+                  {monthlyPlan.priceDisplay}
                 </span>
                 <span className="text-xs font-bold text-[#64748B] dark:text-slate-400">
-                  /6 months
+                  {monthlyPlan.periodDisplay}
                 </span>
               </div>
-              <div className="text-[11px] font-semibold text-[#FF6A00] mt-1.5">
-                Equivalent to approximately TZS 16,667 per month
-              </div>
-              <div className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
-                ✓ Save TZS 50,000 compared with monthly payments
-              </div>
-            </div>
 
-            <div className="space-y-3 mb-8">
-              <div className="text-[10px] font-extrabold uppercase tracking-wider text-[#64748B] dark:text-slate-400">
-                WHAT&apos;S INCLUDED
-              </div>
-              {[
-                'Everything in the Monthly plan',
-                'Unlimited access for six months',
-                'Join unlimited opportunities',
-                'Advanced performance insights',
-                'Priority opportunity notifications',
-                'Priority customer support',
-                'Early access to selected opportunities',
-                'One payment every six months',
-              ].map((feature, idx) => (
-                <div key={idx} className="flex items-start gap-2.5 text-xs text-[#0F172A] dark:text-slate-200">
-                  <span className="text-[#FF6A00] font-black text-xs shrink-0 mt-0.5">✓</span>
-                  <span className="leading-snug">{feature}</span>
+              <div className="space-y-3 mb-8">
+                <div className="text-[10px] font-extrabold uppercase tracking-wider text-[#64748B] dark:text-slate-400">
+                  WHAT&apos;S INCLUDED
                 </div>
-              ))}
+                {monthlyPlan.features.map((feature, idx) => (
+                  <div key={idx} className="flex items-start gap-2.5 text-xs text-[#0F172A] dark:text-slate-200">
+                    <span className="text-[#FF6A00] font-black text-xs shrink-0 mt-0.5">✓</span>
+                    <span className="leading-snug">{feature}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
 
-          <button
-            type="button"
-            onClick={() => setSelectedPlanCode('SEMI_ANNUAL')}
-            className="w-full py-3.5 px-4 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold text-xs lg:text-sm rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 active:scale-[0.99]"
-          >
-            <span>Choose Semi-Annual</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
-        </div>
+            <button
+              type="button"
+              onClick={() => setSelectedPlanCode('MONTHLY')}
+              className="w-full py-3.5 px-4 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold text-xs lg:text-sm rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 active:scale-[0.99] cursor-pointer"
+            >
+              <span>{monthlyPlan.ctaLabel || 'Subscribe Monthly'}</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {/* DESKTOP CARD 2: SEMI-ANNUAL (BEST VALUE) */}
+        {semiAnnualPlan && (
+          <div className="bg-white dark:bg-slate-900 border-2 border-[#FF6A00] rounded-3xl p-6 lg:p-8 flex flex-col justify-between shadow-2xl relative scale-[1.02] z-10">
+            {/* Best Value Badge */}
+            {semiAnnualPlan.isBestValue && (
+              <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-[#FF6A00] text-white px-4 py-1 rounded-full text-xs font-black tracking-wider uppercase shadow-md flex items-center gap-1.5">
+                <Zap className="w-3.5 h-3.5" />
+                <span>BEST VALUE</span>
+              </div>
+            )}
+
+            <div>
+              <h3 className="text-xl lg:text-2xl font-black text-[#0F172A] dark:text-white">
+                {semiAnnualPlan.name}
+              </h3>
+              <p className="text-xs text-[#64748B] dark:text-slate-400 mt-1.5 leading-relaxed min-h-[36px]">
+                {semiAnnualPlan.description}
+              </p>
+
+              <div className="my-6 pb-6 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-3xl lg:text-4xl font-black text-[#0F172A] dark:text-white font-mono">
+                    {semiAnnualPlan.priceDisplay}
+                  </span>
+                  <span className="text-xs font-bold text-[#64748B] dark:text-slate-400">
+                    {semiAnnualPlan.periodDisplay}
+                  </span>
+                </div>
+                {semiAnnualPlan.equivalentMonthlyDisplay && (
+                  <div className="text-[11px] font-semibold text-[#FF6A00] mt-1.5">
+                    {semiAnnualPlan.equivalentMonthlyDisplay}
+                  </div>
+                )}
+                {semiAnnualPlan.savingsDisplay && (
+                  <div className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                    ✓ {semiAnnualPlan.savingsDisplay}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-3 mb-8">
+                <div className="text-[10px] font-extrabold uppercase tracking-wider text-[#64748B] dark:text-slate-400">
+                  WHAT&apos;S INCLUDED
+                </div>
+                {semiAnnualPlan.features.map((feature, idx) => (
+                  <div key={idx} className="flex items-start gap-2.5 text-xs text-[#0F172A] dark:text-slate-200">
+                    <span className="text-[#FF6A00] font-black text-xs shrink-0 mt-0.5">✓</span>
+                    <span className="leading-snug">{feature}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setSelectedPlanCode('SEMI_ANNUAL')}
+              className="w-full py-3.5 px-4 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold text-xs lg:text-sm rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 active:scale-[0.99] cursor-pointer"
+            >
+              <span>{semiAnnualPlan.ctaLabel || 'Choose Semi-Annual'}</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        )}
 
         {/* DESKTOP CARD 3: AI-POWERED ENTERPRISE */}
-        <div className="bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-6 lg:p-8 flex flex-col justify-between shadow-lg hover:shadow-xl transition-all">
-          <div>
-            <h3 className="text-xl lg:text-2xl font-black text-[#0F172A] dark:text-white">
-              AI-Powered Enterprise
-            </h3>
-            <p className="text-xs text-[#64748B] dark:text-slate-400 mt-1.5 leading-relaxed min-h-[36px]">
-              AI-powered opportunity intelligence and enterprise access for organizations and professional teams.
-            </p>
+        {enterprisePlan && (
+          <div className="bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-6 lg:p-8 flex flex-col justify-between shadow-lg hover:shadow-xl transition-all">
+            <div>
+              <h3 className="text-xl lg:text-2xl font-black text-[#0F172A] dark:text-white">
+                {enterprisePlan.name}
+              </h3>
+              <p className="text-xs text-[#64748B] dark:text-slate-400 mt-1.5 leading-relaxed min-h-[36px]">
+                {enterprisePlan.description}
+              </p>
 
-            <div className="flex items-baseline justify-between my-6 pb-6 border-b border-slate-100 dark:border-slate-800">
-              <div>
-                <span className="text-2xl lg:text-3xl font-black text-[#0F172A] dark:text-white">
-                  Custom pricing
-                </span>
-              </div>
-              <div className="text-xs font-bold text-[#64748B] dark:text-slate-400">
-                Annual agreement
-              </div>
-            </div>
-
-            <div className="space-y-3 mb-8">
-              <div className="text-[10px] font-extrabold uppercase tracking-wider text-[#64748B] dark:text-slate-400">
-                WHAT&apos;S INCLUDED
-              </div>
-              {[
-                'Everything in the Semi-Annual plan',
-                'Unlimited enterprise deal access',
-                'AI-powered opportunity recommendations',
-                'AI deal-to-partner matching',
-                'AI-generated sales insights',
-                'AI-assisted promotional content',
-                'Team member access',
-                'Organization performance dashboard',
-                'Advanced reporting and exports',
-                'Dedicated account manager',
-                'Priority onboarding',
-                'API and business-system integration options',
-                'Custom support and service agreement',
-              ].map((feature, idx) => (
-                <div key={idx} className="flex items-start gap-2.5 text-xs text-[#0F172A] dark:text-slate-200">
-                  <span className="text-[#FF6A00] font-black text-xs shrink-0 mt-0.5">✓</span>
-                  <span className="leading-snug">{feature}</span>
+              <div className="flex items-baseline justify-between my-6 pb-6 border-b border-slate-100 dark:border-slate-800">
+                <div>
+                  <span className="text-2xl lg:text-3xl font-black text-[#0F172A] dark:text-white">
+                    {enterprisePlan.priceDisplay}
+                  </span>
                 </div>
-              ))}
-            </div>
-          </div>
+                <div className="text-xs font-bold text-[#64748B] dark:text-slate-400">
+                  {enterprisePlan.periodDisplay}
+                </div>
+              </div>
 
-          <button
-            type="button"
-            onClick={() => setShowEnterpriseModal(true)}
-            className="w-full py-3.5 px-4 bg-[#0B132B] hover:bg-slate-800 text-white font-extrabold text-xs lg:text-sm rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 active:scale-[0.99]"
-          >
-            <span>Talk to Sales</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
-        </div>
+              <div className="space-y-3 mb-8">
+                <div className="text-[10px] font-extrabold uppercase tracking-wider text-[#64748B] dark:text-slate-400">
+                  WHAT&apos;S INCLUDED
+                </div>
+                {enterprisePlan.features.map((feature, idx) => (
+                  <div key={idx} className="flex items-start gap-2.5 text-xs text-[#0F172A] dark:text-slate-200">
+                    <span className="text-[#FF6A00] font-black text-xs shrink-0 mt-0.5">✓</span>
+                    <span className="leading-snug">{feature}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowEnterpriseModal(true)}
+              className="w-full py-3.5 px-4 bg-[#0B132B] hover:bg-slate-800 text-white font-extrabold text-xs lg:text-sm rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 active:scale-[0.99] cursor-pointer"
+            >
+              <span>{enterprisePlan.ctaLabel || 'Talk to Sales'}</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ========================================================================= */}
-      {/* MOBILE STACKED VIEW (md:hidden - preserves exact mobile reference)        */}
+      {/* MOBILE STACKED VIEW (md:hidden)                                           */}
       {/* ========================================================================= */}
       <div className="md:hidden space-y-4 mb-6">
         {/* 1. MOBILE MONTHLY */}
-        <div className="bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-5 shadow-xs relative">
-          <div className="grid grid-cols-1 gap-4 items-start mb-4">
-            <div>
-              <h3 className="text-lg font-extrabold text-[#0F172A] dark:text-white">
-                Monthly
-              </h3>
-              <div className="flex items-baseline gap-1.5 my-1.5">
-                <span className="text-2xl font-black text-[#0F172A] dark:text-white font-mono">
-                  TZS 25,000
-                </span>
-                <span className="text-xs font-bold text-[#64748B] dark:text-slate-400">
-                  / month
-                </span>
-              </div>
-              <p className="text-xs text-[#64748B] dark:text-slate-400 leading-relaxed">
-                Flexible access for individuals ready to discover and promote LUMO opportunities.
-              </p>
-            </div>
-
-            <div className="space-y-2 pt-1">
-              {[
-                'Unlimited published deals',
-                'Full deal details',
-                'Join unlimited opportunities',
-                'Rewards and commission terms',
-                'Performance and earnings tracking',
-                'Real-time notifications',
-              ].map((item, idx) => (
-                <div key={idx} className="flex items-center gap-2 text-xs font-semibold text-slate-800 dark:text-slate-200">
-                  <span className="w-4 h-4 rounded-full bg-orange-50 dark:bg-orange-950/40 text-[#FF6A00] flex items-center justify-center shrink-0 text-[10px] font-black">
-                    ✓
+        {monthlyPlan && (
+          <div className="bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-5 shadow-xs relative">
+            <div className="grid grid-cols-1 gap-4 items-start mb-4">
+              <div>
+                <h3 className="text-lg font-extrabold text-[#0F172A] dark:text-white">
+                  {monthlyPlan.name}
+                </h3>
+                <div className="flex items-baseline gap-1.5 my-1.5">
+                  <span className="text-2xl font-black text-[#0F172A] dark:text-white font-mono">
+                    {monthlyPlan.priceDisplay}
                   </span>
-                  <span>{item}</span>
+                  <span className="text-xs font-bold text-[#64748B] dark:text-slate-400">
+                    {monthlyPlan.periodDisplay}
+                  </span>
                 </div>
-              ))}
-            </div>
-          </div>
+                <p className="text-xs text-[#64748B] dark:text-slate-400 leading-relaxed">
+                  {monthlyPlan.description}
+                </p>
+              </div>
 
-          <button
-            type="button"
-            onClick={() => setSelectedPlanCode('MONTHLY')}
-            className="w-full py-3.5 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold text-xs rounded-xl shadow-xs transition-all text-center active:scale-[0.99]"
-          >
-            Subscribe Monthly
-          </button>
-        </div>
+              <div className="space-y-2 pt-1">
+                {monthlyPlan.features.slice(0, 6).map((item, idx) => (
+                  <div key={idx} className="flex items-center gap-2 text-xs font-semibold text-slate-800 dark:text-slate-200">
+                    <span className="w-4 h-4 rounded-full bg-orange-50 dark:bg-orange-950/40 text-[#FF6A00] flex items-center justify-center shrink-0 text-[10px] font-black">
+                      ✓
+                    </span>
+                    <span>{item}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setSelectedPlanCode('MONTHLY')}
+              className="w-full py-3.5 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold text-xs rounded-xl shadow-xs transition-all text-center active:scale-[0.99] cursor-pointer"
+            >
+              {monthlyPlan.ctaLabel || 'Subscribe Monthly'}
+            </button>
+          </div>
+        )}
 
         {/* 2. MOBILE SEMI-ANNUAL (BEST VALUE) */}
-        <div className="bg-white dark:bg-slate-900 border-2 border-[#FF6A00] rounded-3xl p-5 shadow-md relative pt-6">
-          <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-[#FF6A00] text-white px-4 py-1 rounded-full text-[11px] font-black tracking-wider uppercase shadow-xs flex items-center gap-1.5">
-            <Zap className="w-3.5 h-3.5" />
-            <span>BEST VALUE</span>
-          </div>
+        {semiAnnualPlan && (
+          <div className="bg-white dark:bg-slate-900 border-2 border-[#FF6A00] rounded-3xl p-5 shadow-md relative pt-6">
+            {semiAnnualPlan.isBestValue && (
+              <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-[#FF6A00] text-white px-4 py-1 rounded-full text-[11px] font-black tracking-wider uppercase shadow-xs flex items-center gap-1.5">
+                <Zap className="w-3.5 h-3.5" />
+                <span>BEST VALUE</span>
+              </div>
+            )}
 
-          <div className="grid grid-cols-1 gap-4 items-start mb-4">
-            <div>
-              <h3 className="text-lg font-extrabold text-[#0F172A] dark:text-white">
-                Semi-Annual
-              </h3>
-              <div className="flex items-baseline gap-1.5 my-1.5">
-                <span className="text-2xl font-black text-[#0F172A] dark:text-white font-mono">
-                  TZS 100,000
-                </span>
-                <span className="text-xs font-bold text-[#64748B] dark:text-slate-400">
-                  / 6 months
-                </span>
-              </div>
-              <div className="text-[11px] text-[#64748B] dark:text-slate-400 font-medium">
-                About TZS 16,667 per month
-              </div>
-              <div className="text-xs font-extrabold text-emerald-600 dark:text-emerald-400 my-0.5">
-                Save TZS 50,000
-              </div>
-              <p className="text-xs text-[#64748B] dark:text-slate-400 leading-relaxed mt-1">
-                Six months of uninterrupted access for active partners.
-              </p>
-            </div>
-
-            <div className="space-y-2 pt-1">
-              {[
-                'Everything in Monthly',
-                'Unlimited access for six months',
-                'Advanced performance insights',
-                'Priority opportunity alerts',
-                'Priority support',
-              ].map((item, idx) => (
-                <div key={idx} className="flex items-center gap-2 text-xs font-semibold text-slate-800 dark:text-slate-200">
-                  <span className="w-4 h-4 rounded-full bg-orange-50 dark:bg-orange-950/40 text-[#FF6A00] flex items-center justify-center shrink-0 text-[10px] font-black">
-                    ✓
+            <div className="grid grid-cols-1 gap-4 items-start mb-4">
+              <div>
+                <h3 className="text-lg font-extrabold text-[#0F172A] dark:text-white">
+                  {semiAnnualPlan.name}
+                </h3>
+                <div className="flex items-baseline gap-1.5 my-1.5">
+                  <span className="text-2xl font-black text-[#0F172A] dark:text-white font-mono">
+                    {semiAnnualPlan.priceDisplay}
                   </span>
-                  <span>{item}</span>
+                  <span className="text-xs font-bold text-[#64748B] dark:text-slate-400">
+                    {semiAnnualPlan.periodDisplay}
+                  </span>
                 </div>
-              ))}
-            </div>
-          </div>
+                {semiAnnualPlan.equivalentMonthlyDisplay && (
+                  <div className="text-[11px] text-[#64748B] dark:text-slate-400 font-medium">
+                    {semiAnnualPlan.equivalentMonthlyDisplay}
+                  </div>
+                )}
+                {semiAnnualPlan.savingsDisplay && (
+                  <div className="text-xs font-extrabold text-emerald-600 dark:text-emerald-400 my-0.5">
+                    ✓ {semiAnnualPlan.savingsDisplay}
+                  </div>
+                )}
+              </div>
 
-          <button
-            type="button"
-            onClick={() => setSelectedPlanCode('SEMI_ANNUAL')}
-            className="w-full py-3.5 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold text-xs rounded-xl shadow-xs transition-all text-center active:scale-[0.99]"
-          >
-            Choose Semi-Annual
-          </button>
-        </div>
+              <div className="space-y-2 pt-1">
+                {semiAnnualPlan.features.slice(0, 6).map((item, idx) => (
+                  <div key={idx} className="flex items-center gap-2 text-xs font-semibold text-slate-800 dark:text-slate-200">
+                    <span className="w-4 h-4 rounded-full bg-orange-50 dark:bg-orange-950/40 text-[#FF6A00] flex items-center justify-center shrink-0 text-[10px] font-black">
+                      ✓
+                    </span>
+                    <span>{item}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setSelectedPlanCode('SEMI_ANNUAL')}
+              className="w-full py-3.5 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold text-xs rounded-xl shadow-xs transition-all text-center active:scale-[0.99] cursor-pointer"
+            >
+              {semiAnnualPlan.ctaLabel || 'Choose Semi-Annual'}
+            </button>
+          </div>
+        )}
 
         {/* 3. MOBILE AI-POWERED ENTERPRISE */}
-        <div className="bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-5 shadow-xs relative">
-          <div className="grid grid-cols-1 gap-4 items-start mb-4">
-            <div>
-              <h3 className="text-lg font-extrabold text-[#0F172A] dark:text-white">
-                AI-Powered Enterprise
-              </h3>
-              <div className="flex items-baseline gap-1.5 my-1.5">
-                <span className="text-2xl font-black text-[#0F172A] dark:text-white">
-                  Custom pricing
-                </span>
-              </div>
-              <div className="text-[11px] text-[#64748B] dark:text-slate-400 font-medium mb-1">
-                Annual agreement
-              </div>
-              <p className="text-xs text-[#64748B] dark:text-slate-400 leading-relaxed">
-                AI-powered opportunity intelligence and enterprise access for professional teams.
-              </p>
-            </div>
-
-            <div className="space-y-2 pt-1">
-              {[
-                'Everything in Semi-Annual',
-                'Unlimited enterprise deal access',
-                'AI opportunity recommendations',
-                'AI deal-to-partner matching',
-                'AI-generated sales insights',
-                'Team access and advanced reporting',
-                'Dedicated account manager',
-              ].map((item, idx) => (
-                <div key={idx} className="flex items-center gap-2 text-xs font-semibold text-slate-800 dark:text-slate-200">
-                  <span className="w-4 h-4 rounded-full bg-orange-50 dark:bg-orange-950/40 text-[#FF6A00] flex items-center justify-center shrink-0 text-[10px] font-black">
-                    ✓
+        {enterprisePlan && (
+          <div className="bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-5 shadow-xs relative">
+            <div className="grid grid-cols-1 gap-4 items-start mb-4">
+              <div>
+                <h3 className="text-lg font-extrabold text-[#0F172A] dark:text-white">
+                  {enterprisePlan.name}
+                </h3>
+                <div className="flex items-baseline gap-1.5 my-1.5">
+                  <span className="text-2xl font-black text-[#0F172A] dark:text-white">
+                    {enterprisePlan.priceDisplay}
                   </span>
-                  <span>{item}</span>
                 </div>
-              ))}
+                <div className="text-[11px] text-[#64748B] dark:text-slate-400 font-medium mb-1">
+                  {enterprisePlan.periodDisplay}
+                </div>
+                <p className="text-xs text-[#64748B] dark:text-slate-400 leading-relaxed">
+                  {enterprisePlan.description}
+                </p>
+              </div>
+
+              <div className="space-y-2 pt-1">
+                {enterprisePlan.features.slice(0, 6).map((item, idx) => (
+                  <div key={idx} className="flex items-center gap-2 text-xs font-semibold text-slate-800 dark:text-slate-200">
+                    <span className="w-4 h-4 rounded-full bg-orange-50 dark:bg-orange-950/40 text-[#FF6A00] flex items-center justify-center shrink-0 text-[10px] font-black">
+                      ✓
+                    </span>
+                    <span>{item}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
 
-          <button
-            type="button"
-            onClick={() => setShowEnterpriseModal(true)}
-            className="w-full py-3.5 bg-[#0B132B] hover:bg-slate-800 text-white font-extrabold text-xs rounded-xl shadow-xs transition-all text-center active:scale-[0.99]"
-          >
-            Talk to Sales
-          </button>
-        </div>
-      </div>
-
-      {/* BOTTOM COMPLIANCE INFO BOX */}
-      <div className="p-4 rounded-2xl bg-white dark:bg-slate-900/60 border border-[#E2E8F0] dark:border-slate-800 flex items-start gap-3 text-xs text-[#64748B] dark:text-slate-400 shadow-2xs max-w-4xl mx-auto">
-        <Info className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
-        <p className="leading-relaxed">
-          All paid plans include unlimited deal access. Plan differences are based on duration, support and AI capabilities.
-        </p>
-      </div>
-
-      {/* MOBILE MONEY CHECKOUT MODAL */}
-      {selectedPlanCode && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl relative overflow-hidden">
             <button
-              onClick={() => setSelectedPlanCode(null)}
-              className="absolute top-4 right-4 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white"
+              type="button"
+              onClick={() => setShowEnterpriseModal(true)}
+              className="w-full py-3.5 bg-[#0B132B] hover:bg-slate-800 text-white font-extrabold text-xs rounded-xl shadow-xs transition-all text-center active:scale-[0.99] cursor-pointer"
             >
-              <X className="w-5 h-5" />
+              {enterprisePlan.ctaLabel || 'Talk to Sales'}
             </button>
+          </div>
+        )}
+      </div>
+    </>
+  )}
+
+      {/* ========================================================================= */}
+      {/* CHECKOUT MODAL: INSTANT MOBILE MONEY POPUP (M-PESA / AIRTEL / TIGO)       */}
+      {/* ========================================================================= */}
+      {selectedPlanCode && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-[#FF6A00]" />
+                <h3 className="text-base font-black text-slate-900 dark:text-white">
+                  Confirm Subscription
+                </h3>
+              </div>
+              <button
+                onClick={() => setSelectedPlanCode(null)}
+                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-lg cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
             {paymentSuccessData ? (
-              <div className="text-center py-6 space-y-4">
-                <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 mx-auto flex items-center justify-center animate-in zoom-in-95 duration-200">
-                  <CheckCircle2 className="w-10 h-10" />
-                </div>
-                <h3 className="text-2xl font-black text-[#0F172A] dark:text-white">
-                  Subscription Active!
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  You now have full unlimited access to all LUMO opportunities on the <strong>{paymentSuccessData.planName}</strong> plan.
+              <div className="py-8 text-center space-y-3">
+                <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto" />
+                <h4 className="text-lg font-black text-slate-900 dark:text-white">
+                  Payment Successful!
+                </h4>
+                <p className="text-xs text-slate-500">
+                  You are now subscribed to <strong>{paymentSuccessData.planName}</strong>.
                 </p>
-                <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 rounded-xl text-xs font-bold text-emerald-800 dark:text-emerald-300">
-                  Returning to your opportunity workspace...
+                <div className="text-[11px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 p-2.5 rounded-xl border border-emerald-200">
+                  Redirecting you back to your commercial opportunities...
                 </div>
               </div>
-            ) : (
-              <form onSubmit={handleExecutePayment} className="space-y-4">
-                <div>
-                  <div className="flex items-center gap-1.5 text-xs font-extrabold text-[#FF6A00] uppercase tracking-wider mb-1">
-                    <ShieldCheck className="w-4 h-4" />
-                    <span>LUMO SECURE CHECKOUT</span>
+            ) : isProcessingPayment ? (
+              <div className="py-8 space-y-5 text-xs text-center">
+                <div className="flex flex-col items-center justify-center py-2 space-y-4">
+                  {/* Single Clean CSS Loader */}
+                  <div className="loader mx-auto" />
+                  <div className="text-slate-900 dark:text-white font-extrabold text-base">
+                    Processing Payment & USSD Push
                   </div>
-                  <h3 className="text-2xl font-black text-[#0F172A] dark:text-white">
-                    {selectedPlanCode === 'MONTHLY' ? 'Monthly' : 'Semi-Annual'} Plan
-                  </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Amount: <strong className="font-mono text-slate-900 dark:text-white">{selectedPlanCode === 'MONTHLY' ? 'TZS 25,000' : 'TZS 100,000'}</strong>
+                  <p className="text-xs text-slate-500 max-w-xs mx-auto">
+                    Please approve the prompt on your phone for {paymentMethod} ({phoneNumber})
                   </p>
                 </div>
 
-                {/* Mobile Money Provider Radio Group */}
+                <div className="flex items-center justify-between text-slate-700 dark:text-slate-300 font-bold px-1">
+                  <span className="flex items-center gap-1.5 text-xs">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#FF6A00] animate-ping" />
+                    <span>Switch: {paymentMethod} Gateway</span>
+                  </span>
+                  <span className="text-[#FF6A00] font-mono font-black text-xs">Step {simStep} of 4</span>
+                </div>
+
+                {/* Simulation Logs Terminal */}
+                <div className="p-3.5 bg-slate-950 text-slate-200 rounded-2xl font-mono text-[11px] space-y-1.5 shadow-inner">
+                  {simLog.map((log, idx) => (
+                    <div key={idx} className="flex items-start gap-2">
+                      <span className="text-[#FF6A00] font-bold">›</span>
+                      <span>{log}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="p-3 bg-orange-50 dark:bg-slate-800 border border-orange-200 rounded-xl text-[11px] text-orange-950 dark:text-orange-200 flex items-center gap-2">
+                  <Smartphone className="w-4 h-4 text-[#FF6A00] shrink-0" />
+                  <span>Dispatched real-time USSD PIN push to Tanzania telecom switch...</span>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={(e) => { e.preventDefault(); handleSimulatePayment(); }} className="space-y-4 text-xs">
+                <div className="p-3.5 bg-orange-50/50 dark:bg-slate-800 rounded-2xl border border-orange-200/60 dark:border-slate-700 flex items-center justify-between">
+                  <div>
+                    <span className="font-extrabold text-slate-900 dark:text-white block">
+                      {selectedPlanCode === 'MONTHLY' ? monthlyPlan.name : semiAnnualPlan.name}
+                    </span>
+                    <span className="text-[10px] text-slate-500">Instant Activation</span>
+                  </div>
+                  <span className="text-base font-black font-mono text-[#FF6A00]">
+                    {selectedPlanCode === 'MONTHLY' ? monthlyPlan.priceDisplay : semiAnnualPlan.priceDisplay}
+                  </span>
+                </div>
+
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                     Select Mobile Money Provider
                   </label>
                   <div className="grid grid-cols-2 gap-2">
-                    {[
-                      { id: 'MPESA', name: 'M-Pesa', desc: 'Vodacom TZ' },
-                      { id: 'AIRTEL', name: 'Airtel Money', desc: 'Airtel TZ' },
-                      { id: 'TIGO', name: 'Tigo Pesa', desc: 'Tigo TZ' },
-                      { id: 'HALOPESA', name: 'HaloPesa', desc: 'Halotel TZ' },
-                    ].map((provider) => (
+                    {(['MPESA', 'AIRTEL', 'TIGO', 'HALOPESA'] as const).map((method) => (
                       <button
-                        key={provider.id}
+                        key={method}
                         type="button"
-                        onClick={() => setPaymentMethod(provider.id as any)}
-                        className={`p-3 rounded-xl text-left border text-xs font-bold transition-all ${
-                          paymentMethod === provider.id
-                            ? 'border-[#FF6A00] bg-orange-50/60 dark:bg-orange-950/40 text-[#FF6A00] ring-2 ring-[#FF6A00]/20'
-                            : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 text-slate-700 dark:text-slate-300'
+                        onClick={() => setPaymentMethod(method)}
+                        className={`p-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                          paymentMethod === method
+                            ? 'border-[#FF6A00] bg-orange-50 dark:bg-slate-800 text-[#FF6A00] ring-1 ring-[#FF6A00]'
+                            : 'border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50'
                         }`}
                       >
-                        <div>{provider.name}</div>
-                        <div className="text-[10px] font-normal text-slate-400">{provider.desc}</div>
+                        {method === 'MPESA'
+                          ? 'Vodacom M-Pesa'
+                          : method === 'AIRTEL'
+                          ? 'Airtel Money'
+                          : method === 'TIGO'
+                          ? 'Tigo Pesa'
+                          : 'HaloPesa'}
                       </button>
                     ))}
                   </div>
                 </div>
 
-                {/* Phone Number Input */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Mobile Money Phone Number
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Mobile Money Phone Number (Tanzania)
                   </label>
                   <div className="relative">
-                    <Smartphone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <Smartphone className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
                     <input
                       type="tel"
                       required
                       value={phoneNumber}
                       onChange={(e) => setPhoneNumber(e.target.value)}
-                      placeholder="+255 712 345 678"
-                      className="w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm border border-slate-200 dark:border-slate-800 rounded-xl bg-[#F0F5FA] font-mono text-[#0F172A] dark:text-white focus:bg-white"
+                      className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono"
                     />
                   </div>
                 </div>
 
-                {/* Submit Payment CTA */}
-                <button
-                  type="submit"
-                  disabled={isProcessingPayment}
-                  className="w-full py-3.5 bg-[#FF6A00] hover:bg-[#EA580C] disabled:bg-slate-300 text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2 active:scale-[0.99]"
-                >
-                  {isProcessingPayment ? (
-                    <span>Processing USSD Prompt...</span>
-                  ) : (
-                    <>
-                      <span>Authorize Payment ({selectedPlanCode === 'MONTHLY' ? 'TZS 25,000' : 'TZS 100,000'})</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </>
-                  )}
-                </button>
+                <div className="space-y-2 pt-1">
+                  <button
+                    type="submit"
+                    disabled={isProcessingPayment}
+                    className="w-full py-3 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  >
+                    <span>⚡ Confirm & Simulate Instant M-Pesa Approval</span>
+                  </button>
+
+                  <p className="text-[10px] text-center text-slate-400">
+                    Live Mongike Payment Gateway simulator · Generates authentic transaction ID and unlocks all deals immediately.
+                  </p>
+                </div>
               </form>
             )}
           </div>
         </div>
       )}
 
-      {/* ENTERPRISE SALES ENQUIRY MODAL */}
+      {/* ========================================================================= */}
+      {/* ENTERPRISE INQUIRY MODAL                                                  */}
+      {/* ========================================================================= */}
       {showEnterpriseModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl relative overflow-y-auto max-h-[90vh]">
-            <button
-              onClick={() => {
-                setShowEnterpriseModal(false)
-                setEnterpriseSubmitted(false)
-              }}
-              className="absolute top-4 right-4 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white"
-            >
-              <X className="w-5 h-5" />
-            </button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <Building2 className="w-5 h-5 text-[#FF6A00]" />
+                <h3 className="text-base font-black text-slate-900 dark:text-white">
+                  Enterprise AI & Custom API Inquiry
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowEnterpriseModal(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-lg cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
             {enterpriseSubmitted ? (
-              <div className="text-center py-6 space-y-4">
-                <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 mx-auto flex items-center justify-center">
-                  <CheckCircle2 className="w-10 h-10" />
-                </div>
-                <h3 className="text-2xl font-black text-[#0F172A] dark:text-white">
-                  Enterprise Enquiry Received!
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed">
-                  Thank you, <strong>{enterpriseForm.fullName}</strong>. Your enterprise inquiry for <strong>{enterpriseForm.businessName}</strong> has been logged. Our team will contact you shortly.
+              <div className="py-8 text-center space-y-3">
+                <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto" />
+                <h4 className="text-lg font-black text-slate-900 dark:text-white">
+                  Inquiry Submitted!
+                </h4>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                  Our enterprise onboarding team will reach out to you within 2 business hours.
                 </p>
                 <button
-                  type="button"
-                  onClick={() => {
-                    setShowEnterpriseModal(false)
-                    setEnterpriseSubmitted(false)
-                  }}
-                  className="py-2.5 px-6 bg-slate-900 text-white text-xs font-bold rounded-xl"
+                  onClick={() => setShowEnterpriseModal(false)}
+                  className="py-2 px-4 bg-slate-900 text-white text-xs font-bold rounded-xl"
                 >
                   Close
                 </button>
               </div>
             ) : (
-              <form onSubmit={handleEnterpriseSubmit} className="space-y-3.5">
+              <form onSubmit={handleEnterpriseSubmit} className="space-y-3 text-xs">
                 <div>
-                  <div className="flex items-center gap-1.5 text-xs font-extrabold text-[#FF6A00] uppercase tracking-wider mb-1">
-                    <Building2 className="w-4 h-4" />
-                    <span>ENTERPRISE SOLUTIONS</span>
-                  </div>
-                  <h3 className="text-xl font-black text-[#0F172A] dark:text-white">
-                    Talk to Enterprise Sales
-                  </h3>
+                  <label className="font-bold block mb-1 text-slate-700 dark:text-slate-300">Full Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={enterpriseForm.fullName}
+                    onChange={(e) => setEnterpriseForm({ ...enterpriseForm, fullName: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+                  />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                      Full Name
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={enterpriseForm.fullName}
-                      onChange={(e) => setEnterpriseForm({ ...enterpriseForm, fullName: e.target.value })}
-                      placeholder="e.g. Grace Mlay"
-                      className="w-full text-xs p-2.5 border rounded-xl bg-slate-50 dark:bg-slate-800"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                      Business Name
-                    </label>
+                    <label className="font-bold block mb-1 text-slate-700 dark:text-slate-300">Organization / Company</label>
                     <input
                       type="text"
                       required
                       value={enterpriseForm.businessName}
                       onChange={(e) => setEnterpriseForm({ ...enterpriseForm, businessName: e.target.value })}
-                      placeholder="e.g. Serengeti Corp"
-                      className="w-full text-xs p-2.5 border rounded-xl bg-slate-50 dark:bg-slate-800"
+                      className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
                     />
                   </div>
-                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                      Work Email
-                    </label>
+                    <label className="font-bold block mb-1 text-slate-700 dark:text-slate-300">Work Email</label>
                     <input
                       type="email"
                       required
                       value={enterpriseForm.workEmail}
                       onChange={(e) => setEnterpriseForm({ ...enterpriseForm, workEmail: e.target.value })}
-                      placeholder="grace@company.com"
-                      className="w-full text-xs p-2.5 border rounded-xl bg-slate-50 dark:bg-slate-800"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                      Phone Number
-                    </label>
-                    <input
-                      type="tel"
-                      required
-                      value={enterpriseForm.phoneNumber}
-                      onChange={(e) => setEnterpriseForm({ ...enterpriseForm, phoneNumber: e.target.value })}
-                      placeholder="+255 712 345 678"
-                      className="w-full text-xs p-2.5 border rounded-xl bg-slate-50 dark:bg-slate-800 font-mono"
+                      className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Message / Business Goals
-                  </label>
+                  <label className="font-bold block mb-1 text-slate-700 dark:text-slate-300">Custom Requirements or Message</label>
                   <textarea
                     rows={3}
-                    required
                     value={enterpriseForm.message}
                     onChange={(e) => setEnterpriseForm({ ...enterpriseForm, message: e.target.value })}
-                    placeholder="Tell us about your team and scale requirements..."
-                    className="w-full text-xs p-2.5 border rounded-xl bg-slate-50 dark:bg-slate-800"
+                    placeholder="Tell us about your team size, expected deal volume, or API integration requirements..."
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
                   />
                 </div>
 
-                <div className="flex gap-2 pt-2">
+                <div className="flex justify-end gap-2 pt-2">
                   <button
                     type="button"
                     onClick={() => setShowEnterpriseModal(false)}
-                    className="w-1/2 py-2.5 text-xs font-semibold border rounded-xl"
+                    className="py-2 px-4 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="w-1/2 py-2.5 bg-slate-900 text-white hover:bg-slate-800 font-bold text-xs rounded-xl shadow-sm flex items-center justify-center gap-1.5"
+                    className="py-2 px-5 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold rounded-xl text-xs shadow-xs"
                   >
-                    <Send className="w-3.5 h-3.5" />
-                    <span>Submit Enquiry</span>
+                    Send Enterprise Inquiry
                   </button>
                 </div>
               </form>

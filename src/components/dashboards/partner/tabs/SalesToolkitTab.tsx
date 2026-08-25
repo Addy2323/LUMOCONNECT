@@ -116,6 +116,91 @@ export function SalesToolkitTab({ joinedDeals }: SalesToolkitTabProps) {
         </select>
       </div>
 
+      {/* Creative Assets & Media Kit */}
+      {selectedDeal && (
+        <div className="p-5 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+              <Film className="w-4 h-4 text-[#FF6A00]" />
+              <span>Deal Promotional Creatives & Video Pitch</span>
+            </h3>
+            {selectedDeal.coverImageUrl && (
+              <a
+                href={selectedDeal.coverImageUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="py-1.5 px-3 bg-[#FF6A00] hover:bg-[#EA580C] text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Download Media Pack</span>
+              </a>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Promo Banner Preview */}
+            {selectedDeal.coverImageUrl ? (
+              <div className="h-44 rounded-2xl overflow-hidden bg-slate-900 border relative group">
+                <img
+                  src={selectedDeal.coverImageUrl}
+                  alt={selectedDeal.title}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                />
+                <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-md">
+                  Official High-Res Flyer
+                </div>
+              </div>
+            ) : (
+              <div className="h-44 rounded-2xl bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-slate-400 text-xs font-bold">
+                No flyer uploaded
+              </div>
+            )}
+
+            {/* Video Pitch Player or Information */}
+            {selectedDeal.promoVideoUrl ? (
+              <div className="h-44 rounded-2xl overflow-hidden bg-black border border-slate-800 flex items-center justify-center">
+                {selectedDeal.promoVideoUrl.includes('youtube.com') || selectedDeal.promoVideoUrl.includes('youtu.be') ? (
+                  <iframe
+                    src={
+                      selectedDeal.promoVideoUrl.includes('watch?v=')
+                        ? selectedDeal.promoVideoUrl.replace('watch?v=', 'embed/')
+                        : selectedDeal.promoVideoUrl.includes('youtu.be/')
+                        ? selectedDeal.promoVideoUrl.replace('youtu.be/', 'www.youtube.com/embed/')
+                        : selectedDeal.promoVideoUrl
+                    }
+                    title={selectedDeal.title}
+                    className="w-full h-full border-0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                ) : (
+                  <video
+                    controls
+                    src={selectedDeal.promoVideoUrl}
+                    className="w-full h-full object-contain"
+                    poster={selectedDeal.coverImageUrl}
+                  >
+                    Your browser does not support video streaming.
+                  </video>
+                )}
+              </div>
+            ) : (
+              <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border flex flex-col justify-center space-y-2">
+                <div className="font-bold text-xs text-slate-900 dark:text-white">
+                  Merchant Pitch Summary
+                </div>
+                <p className="text-[11px] text-slate-500 line-clamp-3">
+                  {selectedDeal.deliverablesSummary || 'Promote this opportunity across your channels to earn verified commissions on every qualified transaction.'}
+                </p>
+                <div className="text-[10px] font-mono font-black text-[#FF6A00]">
+                  Reward: {selectedDeal.rewardDisplay}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* 1-Click WhatsApp Sharing Generator */}
       <div className="p-5 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 space-y-3">
         <div className="flex items-center justify-between">

@@ -140,12 +140,11 @@ export function AdminProfileModal({
             { id: 'security', label: 'Security & MFA' },
             { id: 'sessions', label: `Active Sessions (${sessions.length})` },
             { id: 'activity', label: 'Personal Audit' },
-            { id: 'roles', label: 'Switch Role' },
           ].map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`px-3 py-1.5 rounded-xl whitespace-nowrap transition-colors ${
+              className={`px-3 py-1.5 rounded-xl whitespace-nowrap transition-colors cursor-pointer ${
                 activeTab === tab.id
                   ? 'bg-[#FF6A00] text-white shadow-2xs'
                   : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -413,15 +412,15 @@ export function AdminProfileModal({
         <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
           <button
             onClick={onSignOut}
-            className="text-xs text-red-600 hover:text-red-700 font-bold flex items-center gap-1.5"
+            className="text-xs text-red-600 hover:text-red-700 font-bold flex items-center gap-1.5 cursor-pointer"
           >
             <LogOut className="w-3.5 h-3.5" />
-            <span>Sign Out of Admin Console</span>
+            <span>Exit Admin Mode</span>
           </button>
 
           <button
             onClick={onClose}
-            className="py-1.5 px-4 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-bold text-xs rounded-xl"
+            className="py-1.5 px-4 bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-white text-white dark:text-slate-900 font-bold text-xs rounded-xl transition-colors cursor-pointer"
           >
             Done
           </button>

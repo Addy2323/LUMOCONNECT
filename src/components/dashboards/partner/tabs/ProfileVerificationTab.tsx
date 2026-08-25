@@ -17,10 +17,25 @@ import { MOCK_PARTNER_KYC } from '../mockData'
 import { PartnerKYCProfile } from '../types'
 import { usePartnerToast } from '../PartnerToast'
 
-export function ProfileVerificationTab() {
+interface ProfileVerificationTabProps {
+  partnerName?: string
+  email?: string
+  phone?: string
+}
+
+export function ProfileVerificationTab({
+  partnerName = 'Alex M.',
+  email = 'alex@gmail.com',
+  phone = '+255 754 000 000',
+}: ProfileVerificationTabProps) {
   const { showToast } = usePartnerToast()
 
-  const [profile, setProfile] = useState<PartnerKYCProfile>(MOCK_PARTNER_KYC)
+  const [profile, setProfile] = useState<PartnerKYCProfile>({
+    ...MOCK_PARTNER_KYC,
+    fullName: partnerName,
+    email,
+    phoneMasked: phone,
+  })
   const [identityChanged, setIdentityChanged] = useState(false)
 
   const handleSave = () => {

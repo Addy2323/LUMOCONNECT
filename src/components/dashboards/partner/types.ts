@@ -231,6 +231,7 @@ export interface PartnerSubscriptionPlan {
   cycle: 'MONTHLY' | 'SEMI_ANNUAL'
   expiryDate: string
   autoRenew: boolean
+  expiresAtISO?: string
 }
 
 export interface PartnerKYCProfile {

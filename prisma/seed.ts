@@ -14,6 +14,7 @@
  */
 
 import { PrismaClient } from '@prisma/client'
+import crypto from 'crypto'
 
 const prisma = new PrismaClient()
 
@@ -386,7 +387,29 @@ async function main() {
     })
   }
 
-  console.log('  ✅ Root Admin initialized: admin@lumo.co.tz')
+  // Set permanent credentials for Super Admin (Admin@Lumo2026!)
+  const salt = crypto.randomBytes(16).toString('hex')
+  const hashedPassword = crypto.scryptSync('Admin@Lumo2026!', salt, 64).toString('hex') + ':' + salt
+  
+  await prisma.account.upsert({
+    where: {
+      providerId_accountId: {
+        providerId: 'credential',
+        accountId: 'admin@lumo.co.tz',
+      },
+    },
+    update: {
+      password: hashedPassword,
+    },
+    create: {
+      userId: adminUser.id,
+      providerId: 'credential',
+      accountId: 'admin@lumo.co.tz',
+      password: hashedPassword,
+    },
+  })
+
+  console.log('  ✅ Root Admin initialized: admin@lumo.co.tz (Password configured)')
   console.log('\n🎉 LUMO clean production database seeded successfully!')
 }
 

@@ -30,6 +30,7 @@ interface DiscoverOpportunitiesTabProps {
   subscription: PartnerSubscriptionPlan
   onJoinOpportunity: (opp: PartnerOpportunitySummary) => void
   onNavigateTab: (tab: PartnerSidebarSection) => void
+  onNavigateToSubscriptions?: () => void
 }
 
 const FILTER_TAGS = [
@@ -58,6 +59,7 @@ export function DiscoverOpportunitiesTab({
   subscription,
   onJoinOpportunity,
   onNavigateTab,
+  onNavigateToSubscriptions,
 }: DiscoverOpportunitiesTabProps) {
   const { showToast } = usePartnerToast()
 
@@ -65,6 +67,8 @@ export function DiscoverOpportunitiesTab({
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedOpp, setSelectedOpp] = useState<PartnerOpportunitySummary | null>(null)
   const [showSubscriptionGateModal, setShowSubscriptionGateModal] = useState(false)
+  const [mediaViewMode, setMediaViewMode] = useState<'PHOTO' | 'VIDEO'>('PHOTO')
+  const [isPlayingVideo, setIsPlayingVideo] = useState(false)
 
   // Price Range State
   const [priceRange, setPriceRange] = useState<
@@ -74,7 +78,20 @@ export function DiscoverOpportunitiesTab({
   const [customMaxPrice, setCustomMaxPrice] = useState<number | ''>('')
   const [sortBy, setSortBy] = useState<'recommended' | 'price_high_to_low' | 'price_low_to_high' | 'closing_soon'>('recommended')
 
-  const isSubscribed = subscription.status === 'ACTIVE'
+  const isSubscribed = subscription?.status === 'ACTIVE'
+
+  const redirectToSubscription = () => {
+    showToast(
+      'warning',
+      'Subscription Required',
+      'Active Partner Pass is required to unlock commercial deal terms and participation.'
+    )
+    if (onNavigateToSubscriptions) {
+      onNavigateToSubscriptions()
+    } else {
+      onNavigateTab('subscription')
+    }
+  }
 
   const filtered = opportunities
     .filter((opp) => {
@@ -130,29 +147,51 @@ export function DiscoverOpportunitiesTab({
 
   const toggleSave = (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
+    let isNowSaved = false
     setOpportunities((prev) =>
       prev.map((o) => {
         if (o.id === id) {
-          const nextSaved = !o.isSaved
-          showToast(
-            'info',
-            nextSaved ? 'Opportunity Bookmarked' : 'Removed from Bookmarks',
-            nextSaved ? `"${o.title}" saved to your Saved Opportunities tab.` : undefined
-          )
-          return { ...o, isSaved: nextSaved }
+          isNowSaved = !o.isSaved
+          return { ...o, isSaved: isNowSaved }
         }
         return o
       })
     )
+
+    if (typeof window !== 'undefined') {
+      try {
+        const savedIds: string[] = JSON.parse(localStorage.getItem('lumo_saved_deals') || '[]')
+        let updated: string[]
+        if (savedIds.includes(id)) {
+          updated = savedIds.filter((dealId) => dealId !== id)
+        } else {
+          updated = [...savedIds, id]
+        }
+        localStorage.setItem('lumo_saved_deals', JSON.stringify(updated))
+        window.dispatchEvent(new Event('lumo:saved-deals-updated'))
+      } catch (e) {
+        console.warn('Could not update saved deals', e)
+      }
+    }
+
+    showToast(
+      'info',
+      isNowSaved ? 'Opportunity Bookmarked' : 'Removed from Bookmarks',
+      isNowSaved ? `Saved to your Saved Opportunities tab.` : undefined
+    )
   }
 
   const handleOpenDeal = (opp: PartnerOpportunitySummary) => {
+    if (!isSubscribed) {
+      redirectToSubscription()
+      return
+    }
     setSelectedOpp(opp)
   }
 
   const handleJoinClick = (opp: PartnerOpportunitySummary) => {
     if (!isSubscribed) {
-      setShowSubscriptionGateModal(true)
+      redirectToSubscription()
       return
     }
 
@@ -192,7 +231,7 @@ export function DiscoverOpportunitiesTab({
           <button
             key={tag}
             onClick={() => setActiveFilter(tag)}
-            className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
+            className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all shrink-0 cursor-pointer ${
               activeFilter === tag
                 ? 'bg-[#0B132B] text-white shadow-2xs font-extrabold'
                 : 'bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 hover:bg-slate-100'
@@ -217,7 +256,7 @@ export function DiscoverOpportunitiesTab({
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as any)}
-              className="py-1.5 px-3 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-bold text-slate-800 dark:text-slate-200"
+              className="py-1.5 px-3 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-bold text-slate-800 dark:text-slate-200 cursor-pointer"
             >
               <option value="recommended">Recommended</option>
               <option value="price_high_to_low">Reward: Highest to Lowest</option>
@@ -239,7 +278,7 @@ export function DiscoverOpportunitiesTab({
             <button
               key={pill.id}
               onClick={() => setPriceRange(pill.id as any)}
-              className={`px-3 py-1.5 rounded-xl font-bold transition-all ${
+              className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer ${
                 priceRange === pill.id
                   ? 'bg-[#FF6A00] text-white shadow-2xs'
                   : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100'
@@ -294,53 +333,95 @@ export function DiscoverOpportunitiesTab({
       </div>
 
       {/* Opportunities Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filtered.map((opp) => (
-          <div
-            key={opp.id}
-            onClick={() => handleOpenDeal(opp)}
-            className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 overflow-hidden flex flex-col justify-between group hover:border-orange-300 transition-all shadow-xs cursor-pointer"
+      {filtered.length === 0 ? (
+        <div className="py-12 text-center space-y-3">
+          <Sparkles className="w-10 h-10 text-slate-300 mx-auto" />
+          <h3 className="text-base font-black text-slate-900 dark:text-white">
+            No opportunities match your current filter
+          </h3>
+          <p className="text-xs text-slate-500 max-w-sm mx-auto">
+            Try adjusting your search query, clearing category filters, or selecting "All Deals".
+          </p>
+          <button
+            onClick={() => {
+              setActiveFilter('All Deals')
+              setPriceRange('ALL')
+              setSearchQuery('')
+            }}
+            className="py-2 px-4 bg-slate-900 text-white text-xs font-bold rounded-xl cursor-pointer"
           >
-            <div>
-              {/* Media Banner */}
-              {opp.coverImageUrl && (
-                <div className="relative h-40 w-full bg-slate-900 overflow-hidden">
-                  <img
-                    src={opp.coverImageUrl}
-                    alt={opp.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-
-                  <div className="absolute top-2.5 left-2.5">
-                    <span className="text-[10px] bg-[#FF6A00] text-white font-black uppercase px-2.5 py-0.5 rounded-full shadow-sm">
-                      {opp.category}
-                    </span>
-                  </div>
-
-                  <button
-                    onClick={(e) => toggleSave(opp.id, e)}
-                    className="absolute top-2.5 right-2.5 p-1.5 rounded-full bg-black/50 backdrop-blur-xs text-white hover:bg-black/80 transition-colors"
-                  >
-                    <Bookmark
-                      className={`w-3.5 h-3.5 ${opp.isSaved ? 'fill-[#FF6A00] text-[#FF6A00]' : 'text-white'}`}
+            Reset Filters
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filtered.map((opp) => (
+            <div
+              key={opp.id}
+              onClick={() => handleOpenDeal(opp)}
+              className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 overflow-hidden flex flex-col justify-between group hover:border-orange-300 transition-all shadow-xs cursor-pointer"
+            >
+              <div>
+                {/* Media Banner */}
+                {opp.coverImageUrl ? (
+                  <div className="relative h-40 w-full bg-slate-900 overflow-hidden">
+                    <img
+                      src={opp.coverImageUrl}
+                      alt={opp.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
-                  </button>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
 
-                  {opp.promoVideoUrl && (
-                    <div className="absolute bottom-2.5 right-2.5 bg-black/60 backdrop-blur-xs text-white text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-                      <Film className="w-3 h-3 text-[#FF6A00]" />
-                      <span>Video Pitch</span>
+                    <div className="absolute top-2.5 left-2.5">
+                      <span className="text-[10px] bg-[#FF6A00] text-white font-black uppercase px-2.5 py-0.5 rounded-full shadow-sm">
+                        {opp.category}
+                      </span>
                     </div>
-                  )}
 
-                  <div className="absolute bottom-2.5 left-2.5 text-white">
-                    <span className="text-xs font-mono font-black bg-black/50 px-2 py-0.5 rounded-md backdrop-blur-xs">
-                      {opp.rewardDisplay}
-                    </span>
+                    <button
+                      onClick={(e) => toggleSave(opp.id, e)}
+                      className="absolute top-2.5 right-2.5 p-1.5 rounded-full bg-black/50 backdrop-blur-xs text-white hover:bg-black/80 transition-colors cursor-pointer"
+                      title={opp.isSaved ? 'Remove Bookmark' : 'Save Opportunity'}
+                    >
+                      <Bookmark
+                        className={`w-3.5 h-3.5 ${opp.isSaved ? 'fill-[#FF6A00] text-[#FF6A00]' : 'text-white'}`}
+                      />
+                    </button>
+
+                    {opp.promoVideoUrl && (
+                      <div className="absolute bottom-2.5 right-2.5 bg-black/60 backdrop-blur-xs text-white text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <Film className="w-3 h-3 text-[#FF6A00]" />
+                        <span>Video Pitch</span>
+                      </div>
+                    )}
+
+                    <div className="absolute bottom-2.5 left-2.5 text-white">
+                      <span className="text-xs font-mono font-black bg-black/50 px-2 py-0.5 rounded-md backdrop-blur-xs">
+                        {opp.rewardDisplay}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              )}
+                ) : (
+                  <div className="relative h-28 w-full bg-gradient-to-br from-slate-800 to-slate-900 p-3.5 flex flex-col justify-between">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] bg-[#FF6A00] text-white font-black uppercase px-2.5 py-0.5 rounded-full shadow-sm">
+                        {opp.category}
+                      </span>
+                      <button
+                        onClick={(e) => toggleSave(opp.id, e)}
+                        className="p-1.5 rounded-full bg-black/50 backdrop-blur-xs text-white hover:bg-black/80 transition-colors cursor-pointer"
+                        title={opp.isSaved ? 'Remove Bookmark' : 'Save Opportunity'}
+                      >
+                        <Bookmark
+                          className={`w-3.5 h-3.5 ${opp.isSaved ? 'fill-[#FF6A00] text-[#FF6A00]' : 'text-white'}`}
+                        />
+                      </button>
+                    </div>
+                    <div className="text-white font-mono font-black text-xs">
+                      {opp.rewardDisplay}
+                    </div>
+                  </div>
+                )}
 
               <div className="p-4 space-y-2">
                 <div className="flex items-center justify-between text-xs text-slate-500">
@@ -366,21 +447,22 @@ export function DiscoverOpportunitiesTab({
               </div>
             </div>
 
-            <div className="p-4 pt-0">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleOpenDeal(opp)
-                }}
-                className="w-full py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white group-hover:bg-[#FF6A00] group-hover:text-white group-hover:border-transparent font-extrabold text-xs rounded-xl transition-all text-center"
-              >
-                View Deal & Terms
-              </button>
+              <div className="p-4 pt-0">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleOpenDeal(opp)
+                  }}
+                  className="w-full py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white group-hover:bg-[#FF6A00] group-hover:text-white group-hover:border-transparent font-extrabold text-xs rounded-xl transition-all text-center cursor-pointer"
+                >
+                  View Deal & Terms
+                </button>
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* OPPORTUNITY DETAIL & SUBSCRIPTION GATED MODAL */}
       {selectedOpp && (
@@ -398,25 +480,104 @@ export function DiscoverOpportunitiesTab({
               </button>
             </div>
 
-            {/* Media Cover */}
-            {selectedOpp.coverImageUrl && (
-              <div className="relative h-44 rounded-2xl overflow-hidden bg-slate-900">
-                <img
-                  src={selectedOpp.coverImageUrl}
-                  alt={selectedOpp.title}
-                  className="w-full h-full object-cover"
-                />
-                {selectedOpp.promoVideoUrl && (
-                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                    <div className="w-12 h-12 rounded-full bg-white/90 text-slate-900 flex items-center justify-center shadow-lg">
-                      <Play className="w-5 h-5 fill-slate-900 ml-0.5 text-slate-900" />
-                    </div>
-                  </div>
+            {/* Media Tabs & Interactive Viewer */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => { setMediaViewMode('PHOTO'); setIsPlayingVideo(false); }}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      mediaViewMode === 'PHOTO'
+                        ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                        : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    🖼️ Product Images
+                  </button>
+                  {selectedOpp.promoVideoUrl && (
+                    <button
+                      type="button"
+                      onClick={() => { setMediaViewMode('VIDEO'); setIsPlayingVideo(true); }}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                        mediaViewMode === 'VIDEO'
+                          ? 'bg-[#FF6A00] text-white shadow-xs'
+                          : 'text-slate-500 hover:text-[#FF6A00]'
+                      }`}
+                    >
+                      <Film className="w-3.5 h-3.5" />
+                      <span>🎬 Video Pitch</span>
+                    </button>
+                  )}
+                </div>
+
+                {selectedOpp.coverImageUrl && (
+                  <a
+                    href={selectedOpp.coverImageUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[11px] font-bold text-[#FF6A00] hover:underline flex items-center gap-1"
+                  >
+                    <span>Download Media</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
                 )}
               </div>
-            )}
 
-            <div className="space-y-2">
+              {mediaViewMode === 'VIDEO' && selectedOpp.promoVideoUrl ? (
+                <div className="relative rounded-2xl overflow-hidden bg-black aspect-video flex items-center justify-center border border-slate-800 shadow-md">
+                  {selectedOpp.promoVideoUrl.includes('youtube.com') || selectedOpp.promoVideoUrl.includes('youtu.be') ? (
+                    <iframe
+                      src={
+                        selectedOpp.promoVideoUrl.includes('watch?v=')
+                          ? selectedOpp.promoVideoUrl.replace('watch?v=', 'embed/')
+                          : selectedOpp.promoVideoUrl.includes('youtu.be/')
+                          ? selectedOpp.promoVideoUrl.replace('youtu.be/', 'www.youtube.com/embed/')
+                          : selectedOpp.promoVideoUrl
+                      }
+                      title={selectedOpp.title}
+                      className="w-full h-full border-0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  ) : (
+                    <video
+                      controls
+                      autoPlay={isPlayingVideo}
+                      src={selectedOpp.promoVideoUrl}
+                      className="w-full h-full object-contain"
+                      poster={selectedOpp.coverImageUrl}
+                    >
+                      Your browser does not support HTML5 video streaming.
+                    </video>
+                  )}
+                </div>
+              ) : selectedOpp.coverImageUrl ? (
+                <div className="relative h-48 sm:h-56 rounded-2xl overflow-hidden bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs group">
+                  <img
+                    src={selectedOpp.coverImageUrl}
+                    alt={selectedOpp.title}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
+                  {selectedOpp.promoVideoUrl && (
+                    <button
+                      type="button"
+                      onClick={() => { setMediaViewMode('VIDEO'); setIsPlayingVideo(true); }}
+                      className="absolute inset-0 m-auto w-12 h-12 rounded-full bg-white/90 text-slate-900 flex items-center justify-center shadow-lg hover:scale-110 transition-transform cursor-pointer"
+                    >
+                      <Play className="w-5 h-5 fill-slate-900 ml-0.5 text-slate-900" />
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="h-32 rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center text-slate-400 font-bold text-xs">
+                  No media uploaded by merchant
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-3 pt-2">
               <div className="flex items-center gap-1.5">
                 <span className="font-bold text-sm text-slate-800 dark:text-slate-200">{selectedOpp.businessName}</span>
                 {selectedOpp.isBusinessVerified && <ShieldCheck className="w-4 h-4 text-emerald-600" />}
@@ -426,16 +587,19 @@ export function DiscoverOpportunitiesTab({
                 {selectedOpp.title}
               </h3>
 
-              <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-2xl border flex items-center justify-between">
-                <span className="text-slate-500 font-bold">Partner Compensation:</span>
-                <span className="font-mono font-black text-base text-[#FF6A00]">
+              <div className="p-3.5 bg-orange-50/60 dark:bg-slate-800 rounded-2xl border border-orange-200 dark:border-slate-700 flex items-center justify-between">
+                <div>
+                  <span className="text-slate-500 font-bold block text-[11px]">Verified Partner Compensation</span>
+                  <span className="text-[10px] text-slate-400">Direct M-Pesa / TZS Bank Settlement</span>
+                </div>
+                <span className="font-mono font-black text-lg text-[#FF6A00]">
                   {selectedOpp.rewardDisplay}
                 </span>
               </div>
 
               <div>
-                <h4 className="font-bold text-slate-900 dark:text-white mb-1">Public Summary:</h4>
-                <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
+                <h4 className="font-bold text-slate-900 dark:text-white mb-1">Commercial Summary & Product Overview:</h4>
+                <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-xs">
                   {selectedOpp.publicSummary}
                 </p>
               </div>
@@ -448,17 +612,17 @@ export function DiscoverOpportunitiesTab({
                     <span>Confidential Commercial Guidelines (Subscription Active)</span>
                   </div>
 
-                  <p className="text-slate-700 dark:text-slate-200 leading-relaxed text-[11px]">
+                  <p className="text-slate-700 dark:text-slate-200 leading-relaxed text-xs">
                     {selectedOpp.confidentialTerms.subscriberDescription}
                   </p>
 
-                  <div className="grid grid-cols-2 gap-2 text-[11px]">
-                    <div className="p-2 bg-white dark:bg-slate-900 rounded-xl border">
-                      <span className="text-slate-400 block">Attribution Window:</span>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="p-2.5 bg-white dark:bg-slate-900 rounded-xl border">
+                      <span className="text-slate-400 block text-[10px]">Attribution Window:</span>
                       <span className="font-bold">{selectedOpp.confidentialTerms.attributionWindowDays} Days</span>
                     </div>
-                    <div className="p-2 bg-white dark:bg-slate-900 rounded-xl border">
-                      <span className="text-slate-400 block">Evidence Required:</span>
+                    <div className="p-2.5 bg-white dark:bg-slate-900 rounded-xl border">
+                      <span className="text-slate-400 block text-[10px]">Evidence Required:</span>
                       <span className="font-bold">{selectedOpp.confidentialTerms.evidenceRequired}</span>
                     </div>
                   </div>
@@ -475,9 +639,9 @@ export function DiscoverOpportunitiesTab({
                   <button
                     onClick={() => {
                       setSelectedOpp(null)
-                      setShowSubscriptionGateModal(true)
+                      redirectToSubscription()
                     }}
-                    className="py-1.5 px-4 bg-[#FF6A00] text-white font-bold rounded-xl text-xs"
+                    className="py-1.5 px-4 bg-[#FF6A00] text-white font-bold rounded-xl text-xs cursor-pointer"
                   >
                     Activate Access Pass
                   </button>

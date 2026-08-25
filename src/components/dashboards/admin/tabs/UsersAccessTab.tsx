@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Users,
   Search,
@@ -36,6 +36,17 @@ export function UsersAccessTab() {
     user: UserAccount
   } | null>(null)
   const [actionReason, setActionReason] = useState('')
+
+  useEffect(() => {
+    fetch('/api/admin/overview')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.users && data.users.length > 0) {
+          setUsers(data.users)
+        }
+      })
+      .catch((err) => console.warn('Failed to fetch live users:', err))
+  }, [])
 
   // New Invite Form State
   const [inviteForm, setInviteForm] = useState({

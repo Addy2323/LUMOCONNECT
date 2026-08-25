@@ -324,6 +324,90 @@ export function OverviewTab({
         </div>
       </div>
 
+      {/* Active Enrolled Deals Section */}
+      {activeDeals.length > 0 && (
+        <div className="bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-4 sm:p-6 shadow-xs space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white">
+                  My Active Enrolled Deals
+                </h3>
+                <span className="text-[10px] bg-orange-100 dark:bg-orange-950 text-[#FF6A00] font-black px-2 py-0.5 rounded-full">
+                  {activeDeals.length} Active
+                </span>
+              </div>
+              <p className="text-xs text-slate-500">
+                Your live commercial campaigns, unique tracking links, and marketing collateral.
+              </p>
+            </div>
+
+            <button
+              onClick={() => onNavigateTab('my_deals')}
+              className="text-xs font-bold text-[#FF6A00] hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              <span>Manage All My Deals</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {activeDeals.map((deal) => (
+              <div
+                key={deal.id}
+                className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 space-y-3"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      {deal.businessName} · {deal.category}
+                    </span>
+                    <h4 className="font-black text-sm text-slate-900 dark:text-white leading-snug mt-0.5">
+                      {deal.title}
+                    </h4>
+                  </div>
+                  <span className="text-[10px] font-mono font-black text-[#FF6A00] bg-orange-50 dark:bg-slate-800 px-2 py-1 rounded-lg border border-orange-200 dark:border-slate-700 shrink-0">
+                    {deal.rewardDisplay}
+                  </span>
+                </div>
+
+                {/* Tracking Link & Copy */}
+                <div className="p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-2 text-xs">
+                  <span className="font-mono text-[11px] text-slate-600 dark:text-slate-300 truncate">
+                    {deal.trackingLink}
+                  </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      navigator.clipboard.writeText(deal.trackingLink)
+                      showToast('success', 'Link Copied', 'Your referral link is copied to clipboard.')
+                    }}
+                    className="py-1 px-2 bg-slate-100 dark:bg-slate-800 hover:bg-[#FF6A00] hover:text-white rounded-lg text-[10px] font-bold shrink-0 transition-colors cursor-pointer"
+                  >
+                    Copy Link
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    onClick={() => onNavigateTab('leads_referrals')}
+                    className="flex-1 py-1.5 bg-[#FF6A00] hover:bg-[#EA580C] text-white text-xs font-bold rounded-xl text-center transition-colors cursor-pointer"
+                  >
+                    + Submit Lead
+                  </button>
+                  <button
+                    onClick={() => onNavigateTab('sales_toolkit')}
+                    className="flex-1 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 text-slate-800 dark:text-slate-200 text-xs font-bold rounded-xl text-center transition-colors cursor-pointer"
+                  >
+                    Sales Toolkit
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Recommended Opportunities List with Images & Video Badges */}
       <div className="bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-4 sm:p-6 shadow-xs space-y-4">
         <div className="flex items-center justify-between">
@@ -338,7 +422,7 @@ export function OverviewTab({
 
           <button
             onClick={() => onNavigateTab('discover')}
-            className="text-xs font-bold text-[#FF6A00] hover:underline flex items-center gap-1"
+            className="text-xs font-bold text-[#FF6A00] hover:underline flex items-center gap-1 cursor-pointer"
           >
             <span>View All Opportunities</span>
             <ChevronRight className="w-3.5 h-3.5" />
@@ -349,7 +433,8 @@ export function OverviewTab({
           {opportunities.map((opp) => (
             <div
               key={opp.id}
-              className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 overflow-hidden flex flex-col justify-between group hover:border-orange-300 transition-all shadow-xs"
+              onClick={() => onOpenOpportunityDetail(opp)}
+              className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 overflow-hidden flex flex-col justify-between group hover:border-orange-300 transition-all shadow-xs cursor-pointer"
             >
               <div>
                 {/* Cover Image & Video Badge */}

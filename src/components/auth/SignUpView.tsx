@@ -17,7 +17,7 @@ import {
 
 interface SignUpViewProps {
   role?: 'PARTNER' | 'BUSINESS'
-  onSignUpSuccess: (role: 'PARTNER' | 'BUSINESS', details: { name: string; email: string; phone: string }) => void
+  onSignUpSuccess: (role: 'PARTNER' | 'BUSINESS', details: { name: string; email: string; phone: string; password?: string }) => void
   onNavigateSignIn: () => void
   onChangePath?: () => void
 }
@@ -39,7 +39,7 @@ export function SignUpView({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    onSignUpSuccess(role, { name: fullName, email, phone })
+    onSignUpSuccess(role, { name: fullName, email, phone, password })
   }
 
   return (

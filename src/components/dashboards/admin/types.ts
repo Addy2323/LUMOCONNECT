@@ -85,6 +85,12 @@ export interface AdminDealItem {
   createdAt: string
   publishedAt?: string
   checkerNotes?: string
+  featuredImageUrl?: string
+  promoVideoUrl?: string
+  galleryImageUrls?: string[]
+  summary?: string
+  description?: string
+  termsAndConditions?: string
 }
 
 export interface ConversionRecord {
@@ -107,14 +113,15 @@ export interface SubscriptionTransaction {
   id: string
   userId: string
   userName: string
-  planCode: 'MONTHLY' | 'SEMI_ANNUAL' | 'ENTERPRISE_AI'
+  planCode: 'MONTHLY' | 'SEMI_ANNUAL' | 'ENTERPRISE_AI' | 'ENTERPRISE'
   planName: string
   amountTZS: number
   status: 'PENDING' | 'ACTIVE' | 'PAST_DUE' | 'SUSPENDED' | 'EXPIRED' | 'CANCELLED'
   providerRef: string
   startsAt: string
   expiresAt: string
-  autoRenew: boolean
+  autoRenew?: boolean
+  createdAt?: string
 }
 
 export interface PaymentLedgerItem {

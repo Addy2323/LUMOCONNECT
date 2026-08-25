@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Compass,
   Users,
@@ -64,8 +64,13 @@ export function SiteHeader({
   onRequestAdminMode,
   isAdminModeActive = false,
 }: SiteHeaderProps) {
+  const [mounted, setMounted] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const isAuthenticated = Boolean(currentUserId)
 
@@ -216,7 +221,18 @@ export function SiteHeader({
                 </>
               ) : (
                 /* Authenticated User Workspace Switcher Dropdown */
-                <div className="relative ml-0.5 sm:ml-1">
+                <div className="relative ml-0.5 sm:ml-1 flex items-center gap-2">
+                  {mounted && hasActiveSubscription && (
+                    <button
+                      onClick={() => onNavigate('subscriptions')}
+                      className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] font-black tracking-wider uppercase shadow-xs hover:opacity-95 transition-opacity cursor-pointer animate-pulse"
+                      title="Active PRO Subscriber"
+                    >
+                      <Sparkles className="w-3 h-3 fill-white" />
+                      <span>PRO</span>
+                    </button>
+                  )}
+
                   <button
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
                     className={`w-9 h-9 rounded-2xl font-black text-xs flex items-center justify-center border transition-all shadow-xs cursor-pointer ${
@@ -224,8 +240,8 @@ export function SiteHeader({
                         ? 'bg-purple-950 text-purple-300 border-purple-600 ring-2 ring-purple-500/30'
                         : activeWorkspace?.type === 'BUSINESS'
                         ? 'bg-blue-950 text-blue-300 border-blue-600 ring-2 ring-blue-500/30'
-                        : hasActiveSubscription
-                        ? 'bg-[#0B132B] text-white border-emerald-500 ring-2 ring-emerald-500/30'
+                        : mounted && hasActiveSubscription
+                        ? 'bg-[#0B132B] text-white border-amber-500 ring-2 ring-amber-500/30'
                         : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-white border-slate-300 dark:border-slate-700'
                     }`}
                     aria-label="User profile & workspace menu"
@@ -246,12 +262,17 @@ export function SiteHeader({
                           <span className="font-black text-slate-900 dark:text-white truncate">
                             {userProfile.name}
                           </span>
-                          {isAdminModeActive ? (
+                          {hasActiveSubscription ? (
+                            <span className="text-[10px] bg-gradient-to-r from-amber-500 to-orange-500 text-white font-extrabold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-2xs">
+                              <Sparkles className="w-2.5 h-2.5 fill-white" />
+                              <span>PRO Member</span>
+                            </span>
+                          ) : isAdminModeActive ? (
                             <span className="text-[10px] bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 font-extrabold px-2 py-0.5 rounded-full border border-purple-300 dark:border-purple-800">
                               Admin Mode
                             </span>
                           ) : (
-                            <span className="text-[10px] bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold px-2 py-0.5 rounded-full">
+                            <span className="text-[10px] bg-orange-100 dark:bg-orange-950/60 text-[#FF6A00] font-bold px-2 py-0.5 rounded-full">
                               {activeWorkspace?.type || 'Personal'}
                             </span>
                           )}
@@ -259,85 +280,13 @@ export function SiteHeader({
                         <div className="text-[11px] text-slate-500 font-mono mt-0.5 truncate">
                           {userProfile.email}
                         </div>
+                        {activeWorkspace?.organizationName && activeWorkspace.type === 'BUSINESS' && (
+                          <div className="text-[10px] text-blue-600 dark:text-blue-400 font-semibold mt-1.5 pt-1 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center gap-1 truncate">
+                            <Building2 className="w-3 h-3 shrink-0" />
+                            <span className="truncate">{activeWorkspace.organizationName}</span>
+                          </div>
+                        )}
                       </div>
-
-                      {/* SWITCH WORKSPACE SECTION */}
-                      <div className="space-y-1">
-                        <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 px-2 flex items-center gap-1">
-                          <Layers className="w-3 h-3" />
-                          <span>Switch Workspace</span>
-                        </div>
-
-                        {/* List only server-authorized assigned workspaces */}
-                        {availableWorkspaces
-                          .filter((w) => w.type !== 'ADMIN')
-                          .map((ws) => {
-                            const isCurrent = activeWorkspace?.id === ws.id
-                            return (
-                              <button
-                                key={ws.id}
-                                onClick={() => {
-                                  onSelectWorkspace?.(ws)
-                                  setUserMenuOpen(false)
-                                }}
-                                className={`w-full px-2.5 py-2 rounded-xl text-left flex items-center justify-between transition-colors cursor-pointer ${
-                                  isCurrent
-                                    ? 'bg-orange-50 dark:bg-orange-950/40 text-[#FF6A00] font-bold border border-orange-200 dark:border-orange-900/50'
-                                    : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
-                                }`}
-                              >
-                                <div className="flex items-center gap-2">
-                                  {ws.type === 'BUSINESS' ? (
-                                    <Building2 className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                                  ) : ws.type === 'PARTNER' ? (
-                                    <Users className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                                  ) : (
-                                    <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                  )}
-                                  <span className="truncate max-w-[170px]">{ws.label}</span>
-                                </div>
-                                {isCurrent && <CheckCircle2 className="w-3.5 h-3.5 text-[#FF6A00] shrink-0" />}
-                              </button>
-                            )
-                          })}
-                      </div>
-
-                      {/* ADMIN MODE ENTRY (Only visible for authorized admin accounts) */}
-                      {hasAdminPrivilege && (
-                        <div className="pt-1 border-t border-slate-100 dark:border-slate-800">
-                          {isAdminModeActive ? (
-                            <button
-                              onClick={() => {
-                                onNavigate('admin')
-                                setUserMenuOpen(false)
-                              }}
-                              className="w-full px-2.5 py-2 text-left rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 font-bold flex items-center justify-between cursor-pointer"
-                            >
-                              <span className="flex items-center gap-2">
-                                <ShieldCheck className="w-4 h-4 text-purple-600" />
-                                <span>Open Admin Portal</span>
-                              </span>
-                              <ChevronRight className="w-3.5 h-3.5" />
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => {
-                                onRequestAdminMode?.()
-                                setUserMenuOpen(false)
-                              }}
-                              className="w-full px-2.5 py-2 text-left rounded-xl bg-purple-50/50 hover:bg-purple-50 dark:bg-purple-950/20 dark:hover:bg-purple-950/40 border border-purple-200/80 dark:border-purple-800/80 text-purple-800 dark:text-purple-300 font-bold flex items-center justify-between cursor-pointer"
-                            >
-                              <span className="flex items-center gap-2">
-                                <KeyRound className="w-4 h-4 text-purple-600" />
-                                <span>Enter Admin Mode (MFA)</span>
-                              </span>
-                              <span className="text-[9px] bg-purple-200 dark:bg-purple-900 text-purple-900 dark:text-purple-100 font-extrabold px-1.5 py-0.5 rounded">
-                                Step-Up
-                              </span>
-                            </button>
-                          )}
-                        </div>
-                      )}
 
                       {/* Footer Actions */}
                       <div className="pt-1.5 border-t border-slate-100 dark:border-slate-800 space-y-1">

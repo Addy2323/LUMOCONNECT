@@ -42,11 +42,13 @@ import { SystemSettingsTab } from './admin/tabs/SystemSettingsTab'
 interface AdminDashboardViewProps {
   adminName?: string
   onExploreDeals?: () => void
+  onExitAdminMode?: () => void
 }
 
 export function AdminDashboardView({
   adminName = 'Given',
   onExploreDeals,
+  onExitAdminMode,
 }: AdminDashboardViewProps) {
   const [activeTab, setActiveTab] = useState<AdminSidebarSection>('overview')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
@@ -246,7 +248,11 @@ export function AdminDashboardView({
         onSwitchRole={(role) => setCurrentAdminRole(role)}
         onSignOut={() => {
           setShowProfileModal(false)
-          alert('Signed out of Admin Console.')
+          if (onExitAdminMode) {
+            onExitAdminMode()
+          } else if (onExploreDeals) {
+            onExploreDeals()
+          }
         }}
       />
 

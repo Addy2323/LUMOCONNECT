@@ -37,6 +37,7 @@ import {
   BusinessOpportunityItem,
 } from '../types'
 import { useBusinessToast } from '../BusinessToast'
+import { createDealOpportunity } from '@/modules/deals/service'
 
 interface CreateOpportunityWizardModalProps {
   isOpen: boolean
@@ -253,12 +254,37 @@ export function CreateOpportunityWizardModal({
       createdAt: 'Today',
     }
 
+    createDealOpportunity(
+      {
+        title: formData.title,
+        opportunityType: (formData.type as any) || 'CUSTOMER_ACQUISITION',
+        category: formData.category || 'Renewable Energy',
+        summary: formData.publicSummary || formData.title,
+        description: formData.subscriberDescription || formData.publicSummary || formData.title,
+        rewardType: formData.rewardStructure === 'PERCENTAGE_COMMISSION' ? 'PERCENTAGE_COMMISSION' : 'COST_PER_ACQUISITION',
+        baseRewardValue: Number(formData.rewardValueTZS) || 50000,
+        currency: 'TZS',
+        attributionWindowDays: Number(formData.attributionWindowDays) || 30,
+        percentageBps: Number(formData.rewardPercent) ? Number(formData.rewardPercent) * 100 : undefined,
+        totalBudgetTZS: Number(formData.estimatedBudgetTZS) || 10000000,
+        maxPartners: 50,
+        region: formData.region || 'All Tanzania',
+        termsAndConditions: formData.cancellationTerms || 'Reward is validated upon delivery note and verification.',
+        requiresApproval: true,
+        featuredImageUrl: formData.coverImageUrl,
+        promoVideoUrl: formData.promoVideoUrl,
+      },
+      'org_current',
+      formData.title ? 'Verified Business Ltd' : 'My Business Ltd',
+      'PENDING_REVIEW'
+    )
+
     onOpportunityCreated(created)
     onClose()
     showToast(
       'success',
       'Opportunity Submitted to LUMO Review',
-      `"${created.title}" with rich media assets is now under review by LUMO Compliance Checkers.`
+      `"${created.title}" with rich media assets is now in the Admin Maker-Checker review queue.`
     )
   }
 

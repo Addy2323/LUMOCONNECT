@@ -116,12 +116,19 @@ export function PartnerSidebar({
             <div>
               <div className="flex items-center gap-1.5">
                 <span className="font-black text-xs tracking-tight text-[#0F172A] dark:text-white">LUMO</span>
-                <span className="text-[9px] bg-orange-100 dark:bg-orange-950/60 text-[#FF6A00] font-extrabold px-1.5 py-0.2 rounded-full uppercase">
-                  Partner
-                </span>
+                {subscription.status === 'ACTIVE' ? (
+                  <span className="text-[9px] bg-gradient-to-r from-amber-500 to-orange-500 text-white font-extrabold px-1.5 py-0.2 rounded-full uppercase flex items-center gap-0.5 shadow-2xs animate-pulse">
+                    <Sparkles className="w-2.5 h-2.5 fill-white" />
+                    <span>PRO</span>
+                  </span>
+                ) : (
+                  <span className="text-[9px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-extrabold px-1.5 py-0.2 rounded-full uppercase">
+                    Partner
+                  </span>
+                )}
               </div>
               <span className="text-[10px] text-slate-500 font-medium block truncate max-w-[140px]">
-                {partnerName} · Verified Partner
+                {partnerName} · {subscription.status === 'ACTIVE' ? 'PRO Partner' : 'Standard Member'}
               </span>
             </div>
           </div>
@@ -129,7 +136,7 @@ export function PartnerSidebar({
 
         <button
           onClick={onToggleCollapse}
-          className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors mx-auto"
+          className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors mx-auto cursor-pointer"
           title={sidebarCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
           aria-label={sidebarCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
         >
@@ -149,34 +156,34 @@ export function PartnerSidebar({
 
             <div className="space-y-0.5">
               {group.items.map((item) => {
-                const Icon = item.icon
+                const IconComponent = item.icon
                 const isActive = activeTab === item.id
 
                 return (
                   <button
                     key={item.id}
                     onClick={() => onSelectTab(item.id)}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-2xl font-bold text-xs transition-all text-left group ${
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-2xl text-xs font-bold transition-all group cursor-pointer ${
                       isActive
-                        ? 'bg-orange-50/80 dark:bg-slate-800 text-[#FF6A00] dark:text-[#FF6A00] shadow-2xs font-extrabold'
-                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-200'
+                        ? 'bg-[#0B132B] text-white shadow-xs'
+                        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'
                     }`}
-                    title={`${item.label} (${item.opType})`}
+                    title={sidebarCollapsed ? item.label : undefined}
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <Icon
+                    <div className="flex items-center gap-2.5">
+                      <IconComponent
                         className={`w-4 h-4 shrink-0 transition-colors ${
                           isActive
                             ? 'text-[#FF6A00]'
-                            : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300'
+                            : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200'
                         }`}
                       />
                       {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
                     </div>
 
                     {!sidebarCollapsed && (
-                      <div className="flex items-center gap-1.5 shrink-0 ml-1">
-                        {item.badge !== undefined && item.badge > 0 && (
+                      <div className="flex items-center gap-1.5">
+                        {item.badge !== undefined && (
                           <span
                             className={`text-[10px] font-black px-1.5 py-0.2 rounded-full font-mono ${
                               item.badgeColor || 'bg-slate-100 text-slate-700'
@@ -198,28 +205,68 @@ export function PartnerSidebar({
       {/* Bottom Subscription Access Pass Card */}
       {!sidebarCollapsed && (
         <div className="pt-3 border-t border-slate-100 dark:border-slate-800 shrink-0 space-y-2">
-          <div className="p-3 rounded-2xl bg-gradient-to-r from-orange-50 to-amber-50 dark:from-slate-800 dark:to-slate-800/60 border border-orange-200/80 dark:border-slate-700 space-y-1.5 text-xs">
-            <div className="flex items-center justify-between">
-              <span className="font-extrabold text-[11px] text-slate-900 dark:text-white">
-                {subscription.planName}
-              </span>
-              <span className="text-[9px] bg-emerald-100 text-emerald-700 font-extrabold px-1.5 py-0.2 rounded-full">
-                ● Active
-              </span>
+          {subscription.status === 'ACTIVE' ? (
+            <div className="p-3 rounded-2xl bg-gradient-to-r from-orange-50 to-amber-50 dark:from-slate-800 dark:to-slate-800/60 border border-orange-200/80 dark:border-slate-700 space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="font-extrabold text-[11px] text-slate-900 dark:text-white flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-[#FF6A00] fill-[#FF6A00]" />
+                  <span>{subscription.planName}</span>
+                </span>
+                <span className="text-[9px] bg-emerald-100 text-emerald-700 font-black px-1.5 py-0.2 rounded-full flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>PRO ACTIVE</span>
+                </span>
+              </div>
+
+              {/* Countdown Ticker & Progress Bar */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-[10px] font-mono font-bold text-slate-600 dark:text-slate-300">
+                  <span>⏳ Remaining Time:</span>
+                  <span className="text-[#FF6A00]">{subscription.daysRemaining} Days</span>
+                </div>
+                <div className="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
+                  <div
+                    className="bg-gradient-to-r from-[#FF6A00] to-emerald-500 h-full rounded-full"
+                    style={{
+                      width: `${Math.min(
+                        100,
+                        Math.max(10, (subscription.daysRemaining / (subscription.cycle === 'SEMI_ANNUAL' ? 180 : 30)) * 100)
+                      )}%`,
+                    }}
+                  />
+                </div>
+              </div>
+
+              <button
+                onClick={() => {
+                  if (onManagePlan) onManagePlan()
+                  else onSelectTab('subscription')
+                }}
+                className="w-full py-1.5 bg-white dark:bg-slate-900 border border-orange-200 dark:border-slate-700 text-[#FF6A00] font-extrabold rounded-xl text-[11px] hover:bg-orange-50 transition-colors text-center cursor-pointer shadow-2xs"
+              >
+                Manage Access Pass
+              </button>
             </div>
-            <div className="text-[10px] text-slate-500">
-              {subscription.daysRemaining} days remaining · Full Access
+          ) : (
+            <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-[11px] text-slate-700 dark:text-slate-300">No Active Pass</span>
+                <span className="text-[9px] bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400 font-bold px-1.5 py-0.2 rounded-full">
+                  Locked
+                </span>
+              </div>
+              <div className="text-[10px] text-slate-500">0 days remaining · Subscribe to unlock deals</div>
+              <button
+                onClick={() => {
+                  if (onManagePlan) onManagePlan()
+                  else onSelectTab('subscription')
+                }}
+                className="w-full py-1.5 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold rounded-xl text-[11px] transition-colors text-center cursor-pointer shadow-xs"
+              >
+                ⚡ Get PRO Pass
+              </button>
             </div>
-            <button
-              onClick={() => {
-                if (onManagePlan) onManagePlan()
-                else onSelectTab('subscription')
-              }}
-              className="w-full py-1.5 bg-white dark:bg-slate-900 border border-orange-200 dark:border-slate-700 text-[#FF6A00] font-extrabold rounded-xl text-[11px] hover:bg-orange-50 transition-colors text-center"
-            >
-              Manage Access Pass
-            </button>
-          </div>
+          )}
         </div>
       )}
     </aside>

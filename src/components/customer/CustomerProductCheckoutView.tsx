@@ -44,11 +44,13 @@ export function CustomerProductCheckoutView({
   const [paymentMethod, setPaymentMethod] = useState<'MPESA' | 'AIRTEL_MONEY' | 'TIGO_PESA' | 'CARD'>('MPESA')
   const [placedOrder, setPlacedOrder] = useState<OrderItem | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [formError, setFormError] = useState<string | null>(null)
 
   const handleProceedToPayment = (e: React.FormEvent) => {
     e.preventDefault()
+    setFormError(null)
     if (!customerName || !customerPhone || !street) {
-      alert('Please fill in your name, phone number, and delivery street.')
+      setFormError('Please fill in your name, phone number, and delivery street.')
       return
     }
     setStep('PAYMENT')
@@ -56,6 +58,7 @@ export function CustomerProductCheckoutView({
 
   const handleCompletePayment = async () => {
     setIsProcessing(true)
+    setFormError(null)
     try {
       const order = createCustomerOrder({
         opportunityId: 'opp_kijani_solar',
@@ -75,7 +78,7 @@ export function CustomerProductCheckoutView({
       setPlacedOrder(order)
       setStep('SUCCESS')
     } catch (err: unknown) {
-      alert('Payment processing failed. Please try again.')
+      setFormError('Payment processing failed. Please try again.')
     } finally {
       setIsProcessing(false)
     }

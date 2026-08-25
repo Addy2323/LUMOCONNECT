@@ -14,6 +14,9 @@ import {
   QrCode,
   Share2,
   Sparkles,
+  Film,
+  Play,
+  ExternalLink,
 } from 'lucide-react'
 import type { ProtectedDealDetails } from '@/modules/deals/service'
 import { joinOpportunityDeal } from '@/modules/deals/service'
@@ -40,6 +43,7 @@ export function ProtectedDealDetailsModal({
   const [isJoining, setIsJoining] = useState(false)
   const [joinedCode, setJoinedCode] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const [mediaMode, setMediaMode] = useState<'PHOTO' | 'VIDEO'>('PHOTO')
 
   if (!isOpen || !deal) return null
 
@@ -69,7 +73,7 @@ export function ProtectedDealDetailsModal({
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative overflow-y-auto max-h-[90vh] space-y-6">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800"
+          className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
         >
           <X className="w-5 h-5" />
         </button>
@@ -95,11 +99,93 @@ export function ProtectedDealDetailsModal({
           </p>
         </div>
 
-        {deal.featuredImageUrl && (
-          <div className="h-44 sm:h-52 w-full rounded-2xl overflow-hidden shadow-xs border border-slate-200 dark:border-slate-800">
-            <img src={deal.featuredImageUrl} alt={deal.title} className="w-full h-full object-cover" />
+        {/* Media & Video Pitch Explorer */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+              <button
+                type="button"
+                onClick={() => setMediaMode('PHOTO')}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  mediaMode === 'PHOTO'
+                    ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                🖼️ High-Res Image
+              </button>
+              {deal.promoVideoUrl && (
+                <button
+                  type="button"
+                  onClick={() => setMediaMode('VIDEO')}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                    mediaMode === 'VIDEO'
+                      ? 'bg-[#FF6A00] text-white shadow-xs'
+                      : 'text-slate-500 hover:text-[#FF6A00]'
+                  }`}
+                >
+                  <Film className="w-3.5 h-3.5" />
+                  <span>🎬 Video Pitch</span>
+                </button>
+              )}
+            </div>
+
+            {deal.featuredImageUrl && (
+              <a
+                href={deal.featuredImageUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-[11px] font-bold text-[#FF6A00] hover:underline flex items-center gap-1"
+              >
+                <span>Full Resolution</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            )}
           </div>
-        )}
+
+          {mediaMode === 'VIDEO' && deal.promoVideoUrl ? (
+            <div className="relative rounded-2xl overflow-hidden bg-black aspect-video flex items-center justify-center border border-slate-800 shadow-md">
+              {deal.promoVideoUrl.includes('youtube.com') || deal.promoVideoUrl.includes('youtu.be') ? (
+                <iframe
+                  src={
+                    deal.promoVideoUrl.includes('watch?v=')
+                      ? deal.promoVideoUrl.replace('watch?v=', 'embed/')
+                      : deal.promoVideoUrl.includes('youtu.be/')
+                      ? deal.promoVideoUrl.replace('youtu.be/', 'www.youtube.com/embed/')
+                      : deal.promoVideoUrl
+                  }
+                  title={deal.title}
+                  className="w-full h-full border-0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              ) : (
+                <video
+                  controls
+                  autoPlay
+                  src={deal.promoVideoUrl}
+                  className="w-full h-full object-contain"
+                  poster={deal.featuredImageUrl}
+                >
+                  Your browser does not support HTML5 video streaming.
+                </video>
+              )}
+            </div>
+          ) : deal.featuredImageUrl ? (
+            <div className="h-44 sm:h-52 w-full rounded-2xl overflow-hidden shadow-xs border border-slate-200 dark:border-slate-800 relative group bg-slate-900">
+              <img src={deal.featuredImageUrl} alt={deal.title} className="w-full h-full object-cover" />
+              {deal.promoVideoUrl && (
+                <button
+                  type="button"
+                  onClick={() => setMediaMode('VIDEO')}
+                  className="absolute inset-0 m-auto w-12 h-12 rounded-full bg-white/90 text-slate-900 flex items-center justify-center shadow-lg hover:scale-110 transition-transform cursor-pointer"
+                >
+                  <Play className="w-5 h-5 fill-slate-900 ml-0.5 text-slate-900" />
+                </button>
+              )}
+            </div>
+          ) : null}
+        </div>
 
         {/* Reward & Payout Box */}
         <div className="p-4 rounded-2xl bg-orange-50/60 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-900/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">

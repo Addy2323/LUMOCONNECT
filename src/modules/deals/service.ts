@@ -6,6 +6,52 @@ import type { DealAccessDecision } from '@/modules/subscriptions/types'
 
 let inMemoryOpportunities: OpportunityItem[] = [...INITIAL_OPPORTUNITIES]
 
+// Load from localStorage in browser environment
+function loadFromStorage() {
+  if (typeof window !== 'undefined') {
+    try {
+      const stored = localStorage.getItem('lumo_deals')
+      if (stored) {
+        const parsed = JSON.parse(stored)
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const storedIds = new Set(parsed.map((p: any) => p.id))
+          const missingInitial = INITIAL_OPPORTUNITIES.filter((init) => !storedIds.has(init.id))
+          const combined = [...parsed, ...missingInitial]
+          inMemoryOpportunities = combined.map((item) => ({
+            ...item,
+            createdAt: new Date(item.createdAt),
+            expiryDate: item.expiryDate ? new Date(item.expiryDate) : undefined,
+            totalBudgetTZS: item.totalBudgetTZS ? BigInt(item.totalBudgetTZS) : undefined,
+            spentBudgetTZS: item.spentBudgetTZS ? BigInt(item.spentBudgetTZS) : BigInt(0),
+          }))
+          return
+        }
+      }
+    } catch (e) {
+      console.warn('Could not load deals from localStorage', e)
+    }
+  }
+}
+
+function syncToStorage() {
+  if (typeof window !== 'undefined') {
+    try {
+      const serialized = inMemoryOpportunities.map((item) => ({
+        ...item,
+        totalBudgetTZS: item.totalBudgetTZS ? item.totalBudgetTZS.toString() : undefined,
+        spentBudgetTZS: item.spentBudgetTZS ? item.spentBudgetTZS.toString() : '0',
+      }))
+      localStorage.setItem('lumo_deals', JSON.stringify(serialized))
+      window.dispatchEvent(new Event('lumo:deals-updated'))
+    } catch (e) {
+      console.warn('Could not sync deals to localStorage', e)
+    }
+  }
+}
+
+// Initial load
+loadFromStorage()
+
 // Track enrolled users per deal to prevent duplicate participation
 const inMemoryEnrollments: Map<string, Set<string>> = new Map() // dealId -> Set of userIds
 
@@ -16,6 +62,7 @@ export interface OpportunityFilterParams {
   region?: string
   minReward?: number
   sortBy?: 'recommended' | 'highest_reward' | 'newest' | 'ending_soon'
+  includeAllStatuses?: boolean
 }
 
 export interface PublicDealSummary {
@@ -50,7 +97,13 @@ export interface ProtectedDealDetails extends OpportunityItem {
 }
 
 export function listOpportunities(filters?: OpportunityFilterParams): OpportunityItem[] {
+  loadFromStorage()
   let items = [...inMemoryOpportunities]
+
+  // Strictly enforce Maker-Checker segregation: Only PUBLISHED deals appear on public marketplace
+  if (!filters?.includeAllStatuses) {
+    items = items.filter((item) => item.status === 'PUBLISHED')
+  }
 
   if (filters?.query && filters.query.trim()) {
     const q = filters.query.toLowerCase().trim()
@@ -82,10 +135,21 @@ export function listOpportunities(filters?: OpportunityFilterParams): Opportunit
   return items
 }
 
+export function getOpportunityById(id: string): OpportunityItem | null {
+  loadFromStorage()
+  return inMemoryOpportunities.find((d) => d.id === id) || null
+}
+
+export function getOpportunityBySlug(slug: string): OpportunityItem | null {
+  loadFromStorage()
+  return inMemoryOpportunities.find((d) => d.slug === slug) || null
+}
+
 /**
  * Returns public-only summary. Redacts confidential terms, formulas, and contacts.
  */
 export function getPublicDealSummary(slugOrId: string): PublicDealSummary | null {
+  loadFromStorage()
   const item = inMemoryOpportunities.find((d) => d.slug === slugOrId || d.id === slugOrId)
   if (!item) return null
 
@@ -108,169 +172,222 @@ export function getPublicDealSummary(slugOrId: string): PublicDealSummary | null
   }
 }
 
-export function getOpportunityBySlug(slug: string): OpportunityItem | undefined {
-  return inMemoryOpportunities.find((item) => item.slug === slug || item.id === slug)
-}
-
-export function getOpportunityById(id: string): OpportunityItem | undefined {
-  return inMemoryOpportunities.find((item) => item.id === id)
-}
-
 /**
- * Retrieves full protected deal details with strict subscription/ownership authorization check.
+ * Returns full protected deal details with subscription guard.
  */
 export function getProtectedOpportunityDetails(
   slugOrId: string,
-  params: { userId?: string; userRole?: string; userOrgId?: string }
-): { success: boolean; data?: ProtectedDealDetails; decision: DealAccessDecision; error?: string } {
-  const deal = getOpportunityById(slugOrId) || getOpportunityBySlug(slugOrId)
-  if (!deal) {
-    return {
-      success: false,
-      decision: {
-        isAuthorized: false,
-        canViewFullDetails: false,
-        canJoinDeal: false,
-        isOwner: false,
-        isAdmin: false,
-        hasActiveSubscription: false,
-        requiresSubscription: false,
-        reason: 'Deal not found',
-      },
-      error: 'Deal not found',
+  authContext?: {
+    userId?: string
+    userRole?: string
+    userOrgId?: string
+  }
+): {
+  success: boolean
+  decision: DealAccessDecision
+  data: ProtectedDealDetails | null
+} {
+  loadFromStorage()
+  const item = inMemoryOpportunities.find((d) => d.slug === slugOrId || d.id === slugOrId)
+
+  if (!item) {
+    const deniedDecision: DealAccessDecision = {
+      isAuthorized: false,
+      canViewFullDetails: false,
+      canJoinDeal: false,
+      requiresSubscription: false,
+      hasActiveSubscription: false,
+      isOwner: false,
+      isAdmin: false,
+      reason: 'Opportunity not found.',
     }
+    return { success: false, decision: deniedDecision, data: null }
   }
 
   const decision = requireActiveDealSubscription({
-    userId: params.userId,
-    userRole: params.userRole,
-    userOrgId: params.userOrgId,
-    dealIdOrSlug: deal.id,
+    userId: authContext?.userId,
+    userRole: authContext?.userRole,
+    userOrgId: authContext?.userOrgId,
+    dealIdOrSlug: item.id,
     intent: 'view',
   })
 
   if (!decision.isAuthorized) {
-    return {
-      success: false,
-      decision,
-      error: decision.reason,
-    }
+    return { success: false, decision, data: null }
   }
 
-  const enrolledUsers = inMemoryEnrollments.get(deal.id) || new Set()
-  const isAlreadyJoined = params.userId ? enrolledUsers.has(params.userId) : false
+  const userEnrollments = inMemoryEnrollments.get(item.id)
+  const isAlreadyJoined = authContext?.userId ? (userEnrollments?.has(authContext.userId) ?? false) : false
 
-  const protectedData: ProtectedDealDetails = {
-    ...deal,
+  const protectedDetails: ProtectedDealDetails = {
+    ...item,
     isSubscribed: decision.hasActiveSubscription,
     isOwner: decision.isOwner,
     isAdmin: decision.isAdmin,
     isAlreadyJoined,
     commissionFormula:
-      deal.rewardType === 'PERCENTAGE_COMMISSION'
-        ? 'Base Gross Order × Tier % (TRA 5% statutory withholding automatically computed)'
-        : 'Fixed verification fee per verified sales milestone deposited to M-Pesa',
-    salesAssetsUrl: `https://assets.lumo.co.tz/deals/${deal.slug}/sales-kit.zip`,
-    businessContactEmail: `partnerships@${deal.companyName.toLowerCase().replace(/[^a-z0-9]/g, '')}.co.tz`,
-    businessContactPhone: '+255 22 211 8900',
+      item.rewardType === 'PERCENTAGE_COMMISSION'
+        ? `${((item as any).percentageBps ?? 1000) / 100}% on Net Invoice Value`
+        : 'Fixed Tiered Milestone Bounty',
+    salesAssetsUrl: `https://vault.lumo.co.tz/deals/${item.slug}/assets.zip`,
+    businessContactEmail: `partner-desk@${item.slug.replace(/-/g, '')}.co.tz`,
+    businessContactPhone: '+255 700 123 456',
     eligibilityRequirements: [
-      'Active verified LUMO partner membership',
-      'Valid M-Pesa / Airtel Money payout account registered',
-      'No self-referrals or unverified synthetic traffic',
+      'Active LUMO Commercial Pass',
+      'Verified National Identity (NIDA) or Tax PIN',
+      'Compliant Lead Tracking Link Attribution',
     ],
     deliverableChecklist: [
-      'Share tracking link or promotional QR code with prospective clients',
-      'Ensure buyer completes purchase through official LUMO payment checkout',
-      'Review real-time conversion status in Partner Earnings Portal',
+      'Customer KYC and contact authorization verification',
+      'Signed Commercial Proposal or Proof of Purchase receipt',
+      'Submission within standard 30-day attribution window',
     ],
   }
 
-  return {
-    success: true,
-    data: protectedData,
-    decision,
-  }
+  return { success: true, decision, data: protectedDetails }
 }
 
+export const getDealDetailsForUser = getProtectedOpportunityDetails
+
 /**
- * Joins a deal after enforcing active subscription and preventing duplicates.
+ * Joins a deal with subscription guard.
  */
 export function joinOpportunityDeal(
-  slugOrId: string,
-  params: { userId: string; userRole?: string; userOrgId?: string; proposalNotes?: string }
-): { success: boolean; trackingCode?: string; message: string; isAlreadyEnrolled?: boolean; decision: DealAccessDecision } {
-  const deal = getOpportunityById(slugOrId) || getOpportunityBySlug(slugOrId)
-  if (!deal) {
-    return {
-      success: false,
-      message: 'Deal not found.',
-      decision: {
-        isAuthorized: false,
-        canViewFullDetails: false,
-        canJoinDeal: false,
-        isOwner: false,
-        isAdmin: false,
-        hasActiveSubscription: false,
-        requiresSubscription: false,
-      },
-    }
+  dealId: string,
+  authContext?: {
+    userId?: string
+    userRole?: string
+    userOrgId?: string
+    proposalNotes?: string
+  }
+): {
+  success: boolean
+  message: string
+  decision: DealAccessDecision
+  trackingCode?: string
+  isAlreadyEnrolled?: boolean
+} {
+  loadFromStorage()
+  const item = inMemoryOpportunities.find((d) => d.id === dealId || d.slug === dealId)
+
+  const defaultDeniedDecision: DealAccessDecision = {
+    isAuthorized: false,
+    canViewFullDetails: false,
+    canJoinDeal: false,
+    requiresSubscription: true,
+    hasActiveSubscription: false,
+    isOwner: false,
+    isAdmin: false,
+    reason: 'Deal not found.',
+  }
+
+  if (!item) {
+    return { success: false, message: 'Deal not found.', decision: defaultDeniedDecision }
   }
 
   const decision = requireActiveDealSubscription({
-    userId: params.userId,
-    userRole: params.userRole,
-    userOrgId: params.userOrgId,
-    dealIdOrSlug: deal.id,
+    userId: authContext?.userId,
+    userRole: authContext?.userRole,
+    userOrgId: authContext?.userOrgId,
+    dealIdOrSlug: item.id,
     intent: 'join',
   })
 
   if (!decision.isAuthorized) {
     return {
       success: false,
-      message: decision.reason || 'Active LUMO subscription required to join deals.',
+      message: decision.reason || 'Active membership plan required to enroll in this commercial deal.',
       decision,
     }
   }
 
-  if (!inMemoryEnrollments.has(deal.id)) {
-    inMemoryEnrollments.set(deal.id, new Set())
+  let enrolled = inMemoryEnrollments.get(item.id)
+  if (!enrolled) {
+    enrolled = new Set()
+    inMemoryEnrollments.set(item.id, enrolled)
   }
-  const enrollments = inMemoryEnrollments.get(deal.id)!
 
-  if (enrollments.has(params.userId)) {
+  const userId = authContext?.userId || 'usr_anonymous'
+  const trackingCode = `LUMO-${userId.slice(-4).toUpperCase()}-${item.slug.slice(0, 6).toUpperCase()}`
+
+  if (enrolled.has(userId)) {
     return {
       success: true,
-      isAlreadyEnrolled: true,
-      trackingCode: `LUMO-${deal.companyLogo || 'TZ'}-${params.userId.slice(-4).toUpperCase()}`,
-      message: 'You are already an active participant in this deal.',
+      message: 'You are already an active participant in this deal. View your links in the Deal Room.',
       decision,
+      trackingCode,
+      isAlreadyEnrolled: true,
     }
   }
 
-  // Record participation and increment active partner count
-  enrollments.add(params.userId)
-  deal.activePartnerCount += 1
+  enrolled.add(userId)
+  item.activePartnerCount += 1
+  syncToStorage()
 
-  const trackingCode = `LUMO-${deal.companyLogo || 'TZ'}-${params.userId.slice(-4).toUpperCase()}`
+  if (typeof window !== 'undefined') {
+    try {
+      const existingJoined: any[] = JSON.parse(localStorage.getItem('lumo_partner_joined_deals') || '[]')
+      const isAlready = existingJoined.some((d) => d.opportunityId === item.id || d.id === item.id)
+      if (!isAlready) {
+        const partnerCode = (authContext?.userId || 'alex').toLowerCase().replace(/[^a-z0-9]/g, '_')
+        const newJoined = {
+          id: `joined_${Date.now()}_${item.id.slice(-4)}`,
+          opportunityId: item.id,
+          title: item.title,
+          businessName: item.companyName,
+          category: item.category,
+          status: 'ACTIVE',
+          joinedDate: new Date().toLocaleDateString(),
+          rewardDisplay: item.rewardDisplay,
+          rewardValueTZS: Number((item as any).baseRewardValue || (item as any).rewardValue || 50000),
+          trackingLink: `https://lumo.co.tz/d/${item.slug}?ref=${trackingCode}`,
+          referralId: trackingCode,
+          promoCode: `${partnerCode.slice(0, 4).toUpperCase()}${item.slug.slice(0, 4).toUpperCase()}`,
+          qrCodeUrl: `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://lumo.co.tz/d/${item.slug}?ref=${trackingCode}`,
+          activeLeadsCount: 0,
+          verifiedConversionsCount: 0,
+          earningsEarnedTZS: 0,
+          deliverablesSummary: item.description,
+          evidenceRequired: item.termsAndConditions || 'Verified transaction matching.',
+          milestoneProgressPercent: 0,
+          canExit: true,
+          coverImageUrl: item.featuredImageUrl,
+          promoVideoUrl: item.promoVideoUrl,
+        }
+        localStorage.setItem('lumo_partner_joined_deals', JSON.stringify([newJoined, ...existingJoined]))
+        window.dispatchEvent(new Event('lumo:joined-deals-updated'))
+      }
+    } catch (e) {
+      console.warn('Could not persist joined deal to storage', e)
+    }
+  }
 
   return {
     success: true,
-    isAlreadyEnrolled: false,
-    trackingCode,
-    message: 'Successfully enrolled into deal! Your unique tracking code is generated.',
+    message: `Successfully enrolled in "${item.title}". Your commercial link is ready.`,
     decision,
+    trackingCode,
+    isAlreadyEnrolled: false,
   }
 }
 
+export const joinDeal = joinOpportunityDeal
+
+/**
+ * Creates a new Deal Opportunity in memory and persists to storage.
+ */
 export function createDealOpportunity(
   input: DealCreateInput,
-  organizationId: string,
-  companyName: string = 'My Business Ltd'
+  organizationId = 'org_kijani_solar',
+  companyName = 'Verified Business Ltd',
+  initialStatus: 'PENDING_REVIEW' | 'PUBLISHED' | 'DRAFT' = 'PUBLISHED'
 ): OpportunityItem {
   const newSlug = input.title
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)+/g, '')
+
+  const computedStatus = (input as any).status || initialStatus
 
   const newOpp: OpportunityItem = {
     id: `opp_${Date.now()}`,
@@ -299,12 +416,81 @@ export function createDealOpportunity(
     maxPartners: input.maxPartners,
     activePartnerCount: 0,
     isFeatured: false,
-    status: 'PUBLISHED',
+    featuredImageUrl: input.featuredImageUrl,
+    promoVideoUrl: input.promoVideoUrl,
+    galleryImageUrls: input.galleryImageUrls,
+    termsAndConditions: input.termsAndConditions,
+    status: computedStatus,
     createdAt: new Date(),
   }
 
   inMemoryOpportunities.unshift(newOpp)
+  syncToStorage()
   return newOpp
+}
+
+export function listAdminDeals(): Array<{
+  id: string
+  slug: string
+  title: string
+  businessName: string
+  category: string
+  type: string
+  rewardValueTZS: number
+  budgetTZS: number
+  spentTZS: number
+  status: 'DRAFT' | 'SUBMITTED' | 'UNDER_REVIEW' | 'APPROVED' | 'PUBLISHED' | 'PAUSED' | 'CLOSED' | 'ARCHIVED'
+  version: number
+  activePartners: number
+  createdAt: string
+  publishedAt?: string
+  checkerNotes?: string
+  featuredImageUrl?: string
+  promoVideoUrl?: string
+  galleryImageUrls?: string[]
+  summary?: string
+  description?: string
+  termsAndConditions?: string
+}> {
+  loadFromStorage()
+  return inMemoryOpportunities.map((opp) => ({
+    id: opp.id,
+    slug: opp.slug,
+    title: opp.title,
+    businessName: opp.companyName,
+    category: opp.category,
+    type: opp.type,
+    rewardValueTZS: 50000,
+    budgetTZS: opp.totalBudgetTZS ? Number(opp.totalBudgetTZS) / 100 : 10000000,
+    spentTZS: 0,
+    status: (opp.status === 'PENDING_REVIEW' || opp.status === 'DRAFT'
+      ? 'UNDER_REVIEW'
+      : opp.status === 'PUBLISHED'
+      ? 'PUBLISHED'
+      : 'APPROVED') as any,
+    version: 1,
+    activePartners: opp.activePartnerCount,
+    createdAt: opp.createdAt.toISOString().slice(0, 10),
+    featuredImageUrl: opp.featuredImageUrl,
+    promoVideoUrl: opp.promoVideoUrl,
+    galleryImageUrls: opp.galleryImageUrls,
+    summary: opp.summary,
+    description: opp.description,
+    termsAndConditions: opp.termsAndConditions,
+  }))
+}
+
+export function updateDealStatus(
+  dealId: string,
+  status: 'PUBLISHED' | 'REJECTED' | 'PAUSED' | 'ARCHIVED' | 'APPROVED',
+  notes?: string
+) {
+  loadFromStorage()
+  const opp = inMemoryOpportunities.find((o) => o.id === dealId || o.slug === dealId)
+  if (opp) {
+    opp.status = (status === 'PUBLISHED' || status === 'APPROVED' ? 'PUBLISHED' : status) as any
+    syncToStorage()
+  }
 }
 
 export const createOpportunity = createDealOpportunity
@@ -312,6 +498,7 @@ export const createOpportunity = createDealOpportunity
 export function resetOpportunities(items: OpportunityItem[] = []): void {
   inMemoryOpportunities = [...items]
   inMemoryEnrollments.clear()
+  syncToStorage()
 }
 
 export function seedTestOpportunity(opp: OpportunityItem): void {
@@ -321,6 +508,5 @@ export function seedTestOpportunity(opp: OpportunityItem): void {
   } else {
     inMemoryOpportunities.push(opp)
   }
+  syncToStorage()
 }
-
-

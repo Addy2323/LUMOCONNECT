@@ -43,8 +43,8 @@ export function EarningsStatementView({ onBack }: { onBack?: () => void }) {
             Print
           </button>
           <button
-            onClick={() => alert('Earnings statement downloaded as PDF.')}
-            className="py-2 px-4 bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5"
+            onClick={() => window.print()}
+            className="py-2 px-4 bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer"
           >
             <Download className="w-3.5 h-3.5" />
             Download PDF

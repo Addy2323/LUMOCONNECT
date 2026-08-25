@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   FileText,
   Search,
@@ -21,11 +21,22 @@ import { useAdminToast } from '../AdminToast'
 export function AuditLogsTab() {
   const { showToast } = useAdminToast()
 
-  const [logs] = useState<AuditLogEntry[]>(MOCK_AUDIT_LOGS)
+  const [logs, setLogs] = useState<AuditLogEntry[]>(MOCK_AUDIT_LOGS)
   const [searchQuery, setSearchQuery] = useState('')
   const [moduleFilter, setModuleFilter] = useState('ALL')
   const [selectedLog, setSelectedLog] = useState<AuditLogEntry | null>(null)
   const [showExportModal, setShowExportModal] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/admin/overview')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.auditLogs && data.auditLogs.length > 0) {
+          setLogs(data.auditLogs)
+        }
+      })
+      .catch((err) => console.warn('Failed to load audit logs:', err))
+  }, [])
 
   const filtered = logs.filter((l) => {
     const matchesSearch =

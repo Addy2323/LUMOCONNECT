@@ -71,3 +71,84 @@ html, body {
     padding-right: 32px;
   }
 }
+
+/* ========================================================================= */
+/* CUSTOM CSS LOADERS (PAYMENTS, USSD PUSH & PAGE-TO-PAGE ROUTE TRANSITIONS) */
+/* ========================================================================= */
+
+/* 1. Double Rotating Rings Loader */
+.loader-rings,
+.loader {
+  width: 50px;
+  aspect-ratio: 1;
+  display: grid;
+  border: 4px solid #0000;
+  border-radius: 50%;
+  border-color: #FF6A00 #0000;
+  animation: l16 1s infinite linear;
+}
+.loader-rings::before,
+.loader-rings::after,
+.loader::before,
+.loader::after {    
+  content: "";
+  grid-area: 1/1;
+  margin: 2px;
+  border: inherit;
+  border-radius: 50%;
+}
+.loader-rings::before,
+.loader::before {
+  border-color: #f03355 #0000;
+  animation: inherit; 
+  animation-duration: .5s;
+  animation-direction: reverse;
+}
+.loader-rings::after,
+.loader::after {
+  margin: 8px;
+}
+@keyframes l16 { 
+  100%{transform: rotate(1turn)}
+}
+
+/* 2. Orbital Dots Loader */
+.loader-dots {
+  --d: 22px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  color: #25b09b;
+  box-shadow: 
+    calc(1*var(--d))      calc(0*var(--d))     0 0,
+    calc(0.707*var(--d))  calc(0.707*var(--d)) 0 1px,
+    calc(0*var(--d))      calc(1*var(--d))     0 2px,
+    calc(-0.707*var(--d)) calc(0.707*var(--d)) 0 3px,
+    calc(-1*var(--d))     calc(0*var(--d))     0 4px,
+    calc(-0.707*var(--d)) calc(-0.707*var(--d))0 5px,
+    calc(0*var(--d))      calc(-1*var(--d))    0 6px;
+  animation: l27 1s infinite steps(8);
+  display: inline-block;
+}
+@keyframes l27 {
+  100% {transform: rotate(1turn)}
+}
+
+/* 3. Sawtooth / Zigzag Progress Bar Loader */
+.loader-zigzag {
+  height: 27px;
+  aspect-ratio: 5;
+  --c: #FF6A00 90deg, #0000 0;
+  background:
+   conic-gradient(from 135deg at top, var(--c)),
+   conic-gradient(from -45deg at bottom, var(--c)) 12.5% 100%;
+  background-size: 20% 50%;
+  background-repeat: repeat-x;
+  clip-path: inset(0 100% 0 0);
+  animation: l11 2.5s infinite steps(11, jump-none);
+  display: block;
+}
+@keyframes l11 {
+  to {clip-path: inset(0)}
+}
+

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Users,
   ShieldCheck,
@@ -70,15 +70,37 @@ export function OverviewTab({ adminName, onOpenReviewQueue, onNavigateTab }: Ove
   const [regionFilter, setRegionFilter] = useState('ALL')
   const [opportunityTypeFilter, setOpportunityTypeFilter] = useState('ALL')
 
-  const totalUsers = 0
-  const verifiedBusinesses = 0
-  const liveOpportunities = 0
-  const platformRevenueTZS = 0
+  const [metrics, setMetrics] = useState({
+    totalUsers: 0,
+    verifiedBusinesses: 0,
+    liveOpportunities: 0,
+    platformRevenueTZS: 0,
+    pendingVerifications: 0,
+    pendingDeals: 0,
+    pendingPayouts: 0,
+    flaggedFraud: 0,
+  })
 
-  const pendingVerifications = 0
-  const pendingDeals = 0
-  const pendingPayouts = 0
-  const flaggedFraud = 0
+  useEffect(() => {
+    fetch('/api/admin/overview')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.metrics) {
+          setMetrics(data.metrics)
+        }
+      })
+      .catch((err) => console.warn('Failed to load admin metrics:', err))
+  }, [])
+
+  const totalUsers = metrics.totalUsers
+  const verifiedBusinesses = metrics.verifiedBusinesses
+  const liveOpportunities = metrics.liveOpportunities
+  const platformRevenueTZS = metrics.platformRevenueTZS
+
+  const pendingVerifications = metrics.pendingVerifications
+  const pendingDeals = metrics.pendingDeals
+  const pendingPayouts = metrics.pendingPayouts
+  const flaggedFraud = metrics.flaggedFraud
   const totalReviewItems = pendingVerifications + pendingDeals + pendingPayouts + flaggedFraud
 
   const chartData =

@@ -157,11 +157,11 @@ export function PromotionalToolkitModal({
           </button>
 
           <button
-            onClick={() => alert(`Downloading high-resolution marketing media banner for ${companyName}...`)}
+            onClick={handleCopyLink}
             className="py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition-colors flex items-center justify-center gap-2 shadow-xs cursor-pointer"
           >
-            <Download className="w-4 h-4" />
-            <span>Download Promo Banner</span>
+            <Copy className="w-4 h-4" />
+            <span>{copiedLink ? 'Link Copied!' : 'Copy Partner Link'}</span>
           </button>
         </div>
       </div>

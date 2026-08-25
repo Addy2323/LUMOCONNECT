@@ -14,18 +14,26 @@ import {
 } from 'lucide-react'
 import { useBusinessToast } from '../BusinessToast'
 
-export function BusinessProfileTab() {
+interface BusinessProfileTabProps {
+  businessName?: string
+  registrationNumber?: string
+}
+
+export function BusinessProfileTab({
+  businessName = 'My Business Ltd',
+  registrationNumber,
+}: BusinessProfileTabProps) {
   const { showToast } = useBusinessToast()
 
   const [profile, setProfile] = useState({
-    businessName: 'Kijani Solar Tech Ltd',
-    tagline: 'Clean Energy & Pay-As-You-Go Solar Solutions across Tanzania',
-    industry: 'Renewable Energy & Off-Grid Cleantech',
-    website: 'https://kijanisolar.co.tz',
-    email: 'info@kijanisolar.co.tz',
-    phone: '+255 754 882 910',
-    hqAddress: 'Plot 42, Ali Hassan Mwinyi Road, Dar es Salaam',
-    brelaRegNumber: 'BRELA-INC-184920',
+    businessName,
+    tagline: 'Verified Commercial Merchant on the LUMO Ecosystem',
+    industry: 'Renewable Energy, Technology & Trade',
+    website: `https://${businessName.toLowerCase().replace(/[^a-z0-9]/g, '')}.co.tz`,
+    email: `info@${businessName.toLowerCase().replace(/[^a-z0-9]/g, '')}.co.tz`,
+    phone: '+255 754 000 000',
+    hqAddress: 'Dar es Salaam, Tanzania',
+    brelaRegNumber: registrationNumber || 'BRELA-VERIFIED',
     tinNumber: '148-291-002',
     vatNumber: '40-028491-K',
   })

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   CheckCircle,
   Search,
@@ -15,22 +15,41 @@ import {
   Wallet,
   Clock,
   Sparkles,
+  Video,
+  Image as ImageIcon,
+  Film,
+  Play,
+  Maximize2,
+  X,
+  FileText,
 } from 'lucide-react'
-import { MOCK_ADMIN_DEALS } from '../mockData'
+import { listAdminDeals, updateDealStatus } from '@/modules/deals/service'
 import { AdminDealItem } from '../types'
 import { useAdminToast } from '../AdminToast'
 
 export function DealApprovalsTab() {
   const { showToast } = useAdminToast()
-  const [deals, setDeals] = useState<AdminDealItem[]>(
-    MOCK_ADMIN_DEALS.filter((d) => d.status === 'UNDER_REVIEW' || d.status === 'SUBMITTED')
-  )
-  const [selectedDeal, setSelectedDeal] = useState<AdminDealItem | null>(deals[0] || null)
+  const [deals, setDeals] = useState<AdminDealItem[]>([])
+  const [selectedDeal, setSelectedDeal] = useState<AdminDealItem | null>(null)
+  const [mediaLightbox, setMediaLightbox] = useState<string | null>(null)
   const [approvalModal, setApprovalModal] = useState<{
     type: 'APPROVE' | 'REJECT' | 'RETURN_FOR_CORRECTION'
     deal: AdminDealItem
   } | null>(null)
   const [checkerNotes, setCheckerNotes] = useState('')
+
+  const loadDeals = () => {
+    const all = listAdminDeals() as AdminDealItem[]
+    const pending = all.filter((d) => d.status === 'UNDER_REVIEW' || d.status === 'SUBMITTED')
+    setDeals(pending)
+    if (pending.length > 0) {
+      setSelectedDeal(pending[0])
+    }
+  }
+
+  useEffect(() => {
+    loadDeals()
+  }, [])
 
   // Maker-Checker checklist state
   const [checks, setChecks] = useState({
@@ -50,11 +69,14 @@ export function DealApprovalsTab() {
     }
     const { type, deal } = approvalModal
 
+    const newStatus = type === 'APPROVE' ? 'PUBLISHED' : type === 'REJECT' ? 'REJECTED' : 'PAUSED'
+    updateDealStatus(deal.id, newStatus, checkerNotes)
     setDeals((prev) => prev.filter((d) => d.id !== deal.id))
+
     showToast(
       'success',
-      `Maker-Checker decision ${type}`,
-      `Signed by Super Admin/Checker for "${deal.title}". Notes logged in audit ledger.`
+      `Maker-Checker Decision: ${type}`,
+      `Signed by Super Admin/Checker for "${deal.title}". Opportunity marked as ${newStatus}.`
     )
     setApprovalModal(null)
     setCheckerNotes('')
@@ -63,6 +85,25 @@ export function DealApprovalsTab() {
 
   return (
     <div className="space-y-5 bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-4 sm:p-6 shadow-xs">
+      {/* Lightbox Modal */}
+      {mediaLightbox && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="relative max-w-4xl w-full max-h-[90vh] flex flex-col items-center">
+            <button
+              onClick={() => setMediaLightbox(null)}
+              className="absolute -top-12 right-0 p-2 text-white/80 hover:text-white bg-white/10 rounded-full hover:bg-white/20 transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <img
+              src={mediaLightbox}
+              alt="Full Preview"
+              className="max-w-full max-h-[85vh] rounded-2xl object-contain border border-slate-700 shadow-2xl"
+            />
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
         <div>
@@ -73,7 +114,7 @@ export function DealApprovalsTab() {
             </span>
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Strict Dual-Control: Validate business KYB, reward economics, conversion criteria, escrow funding, and compliance.
+            Strict Dual-Control: Validate business KYB, reward economics, media claims, escrow funding, and advertising compliance.
           </p>
         </div>
 
@@ -109,7 +150,7 @@ export function DealApprovalsTab() {
               <button
                 key={d.id}
                 onClick={() => setSelectedDeal(d)}
-                className={`w-full p-3.5 rounded-2xl border text-left transition-all space-y-2 ${
+                className={`w-full p-3.5 rounded-2xl border text-left transition-all space-y-2 cursor-pointer ${
                   selectedDeal?.id === d.id
                     ? 'border-[#FF6A00] ring-2 ring-orange-500/20 bg-orange-50/20 dark:bg-slate-800'
                     : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300'
@@ -119,7 +160,7 @@ export function DealApprovalsTab() {
                   <div className="font-extrabold text-xs text-slate-900 dark:text-white leading-tight">
                     {d.title}
                   </div>
-                  <span className="text-[9px] font-bold px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded shrink-0">
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 rounded shrink-0">
                     {d.status}
                   </span>
                 </div>
@@ -147,25 +188,25 @@ export function DealApprovalsTab() {
                     {selectedDeal.title}
                   </h3>
                   <div className="text-xs text-slate-500 mt-0.5">
-                    Published by: <strong>{selectedDeal.businessName}</strong>
+                    Published by: <strong>{selectedDeal.businessName}</strong> · Category: <strong>{selectedDeal.category}</strong>
                   </div>
                 </div>
 
-                <span className="text-xs font-mono font-bold px-2 py-1 bg-white dark:bg-slate-900 rounded-lg border">
+                <span className="text-xs font-mono font-bold px-2 py-1 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
                   v{selectedDeal.version}
                 </span>
               </div>
 
               {/* Commercial Terms Summary Grid */}
               <div className="grid grid-cols-2 gap-3 text-xs">
-                <div className="p-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
+                <div className="p-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs">
                   <div className="text-[10px] text-slate-400 font-bold uppercase">Partner Commission</div>
                   <div className="text-base font-black text-[#FF6A00] font-mono mt-0.5">
                     TZS {selectedDeal.rewardValueTZS.toLocaleString()}
                   </div>
                 </div>
 
-                <div className="p-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
+                <div className="p-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs">
                   <div className="text-[10px] text-slate-400 font-bold uppercase">Escrow Budget Deposit</div>
                   <div className="text-base font-black text-slate-900 dark:text-white font-mono mt-0.5">
                     TZS {selectedDeal.budgetTZS.toLocaleString()}
@@ -173,8 +214,97 @@ export function DealApprovalsTab() {
                 </div>
               </div>
 
+              {/* ========================================================= */}
+              {/* UPLOADED MEDIA & VIDEO REVIEW SECTION                     */}
+              {/* ========================================================= */}
+              <div className="p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3 shadow-2xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Film className="w-4 h-4 text-[#FF6A00]" />
+                    <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                      Uploaded Media & Promotional Assets Review
+                    </h4>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-50 text-[#FF6A00] dark:bg-orange-950/40 border border-orange-200/60 dark:border-orange-800/60">
+                    Content Verification
+                  </span>
+                </div>
+
+                {/* Media Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Promotional Video Player */}
+                  <div className="space-y-1.5">
+                    <div className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                      <Video className="w-3.5 h-3.5 text-purple-600" />
+                      <span>Promotional Video Pitch</span>
+                    </div>
+
+                    {selectedDeal.promoVideoUrl ? (
+                      <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-black aspect-video relative group">
+                        <video
+                          src={selectedDeal.promoVideoUrl}
+                          controls
+                          className="w-full h-full object-contain"
+                          poster={selectedDeal.featuredImageUrl}
+                        />
+                      </div>
+                    ) : (
+                      <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-700 p-4 text-center text-xs text-slate-400 aspect-video flex flex-col items-center justify-center gap-1 bg-slate-50 dark:bg-slate-800/40">
+                        <Video className="w-6 h-6 opacity-30 text-slate-400" />
+                        <span className="font-semibold">No Video Attached</span>
+                        <span className="text-[10px] text-slate-400">Deal relies on banner graphics</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Cover / Banner Image Preview */}
+                  <div className="space-y-1.5">
+                    <div className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                      <ImageIcon className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Cover Banner & Media Assets</span>
+                    </div>
+
+                    {selectedDeal.featuredImageUrl ? (
+                      <div
+                        onClick={() => setMediaLightbox(selectedDeal.featuredImageUrl!)}
+                        className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 aspect-video relative group cursor-pointer"
+                        title="Click to inspect full image"
+                      >
+                        <img
+                          src={selectedDeal.featuredImageUrl}
+                          alt={selectedDeal.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1.5">
+                          <Maximize2 className="w-4 h-4" />
+                          <span>Inspect Full Banner</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-700 p-4 text-center text-xs text-slate-400 aspect-video flex flex-col items-center justify-center gap-1 bg-slate-50 dark:bg-slate-800/40">
+                        <ImageIcon className="w-6 h-6 opacity-30 text-slate-400" />
+                        <span className="font-semibold">Default Banner</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Public Commercial Summary */}
+                {(selectedDeal.summary || selectedDeal.description) && (
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800 text-xs space-y-1">
+                    <div className="font-extrabold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                      <FileText className="w-3.5 h-3.5 text-[#FF6A00]" />
+                      <span>Public Commercial Summary:</span>
+                    </div>
+                    <p className="text-slate-600 dark:text-slate-400 text-[11px] leading-relaxed bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
+                      {selectedDeal.summary || selectedDeal.description}
+                    </p>
+                  </div>
+                )}
+              </div>
+
               {/* Dual-Control Checker Checklist */}
-              <div className="space-y-2 pt-2">
+              <div className="space-y-2 pt-1">
                 <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-500">
                   Dual-Control Checker Checklist (All Required)
                 </h4>
@@ -223,10 +353,10 @@ export function DealApprovalsTab() {
                 <button
                   disabled={!allChecksPassed}
                   onClick={() => setApprovalModal({ type: 'APPROVE', deal: selectedDeal })}
-                  className={`flex-1 py-2.5 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-all ${
+                  className={`flex-1 py-2.5 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-all cursor-pointer ${
                     allChecksPassed
                       ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                      : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                      : 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
                   }`}
                 >
                   <CheckCircle2 className="w-4 h-4" />
@@ -235,14 +365,14 @@ export function DealApprovalsTab() {
 
                 <button
                   onClick={() => setApprovalModal({ type: 'RETURN_FOR_CORRECTION', deal: selectedDeal })}
-                  className="py-2.5 px-3 bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-bold rounded-xl text-xs hover:bg-purple-200"
+                  className="py-2.5 px-3 bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-bold rounded-xl text-xs hover:bg-purple-200 cursor-pointer"
                 >
                   Return to Maker
                 </button>
 
                 <button
                   onClick={() => setApprovalModal({ type: 'REJECT', deal: selectedDeal })}
-                  className="py-2.5 px-3 border border-red-200 text-red-600 rounded-xl text-xs font-bold hover:bg-red-50"
+                  className="py-2.5 px-3 border border-red-200 text-red-600 rounded-xl text-xs font-bold hover:bg-red-50 cursor-pointer"
                 >
                   Reject
                 </button>
@@ -252,45 +382,53 @@ export function DealApprovalsTab() {
         </div>
       )}
 
-      {/* APPROVAL DECISION MODAL */}
+      {/* APPROVAL / REJECTION DIALOG */}
       {approvalModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-200">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
             <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
-              <CheckCircle className="w-5 h-5 text-emerald-600" />
-              <span>Record Maker-Checker Action: {approvalModal.type}</span>
+              <ShieldCheck className="w-5 h-5 text-[#FF6A00]" />
+              <span>Compliance Checker Audit Sign-Off</span>
             </h3>
 
-            <div className="text-xs text-slate-600 dark:text-slate-300">
-              Deal: <strong>{approvalModal.deal.title}</strong>
-            </div>
+            <p className="text-xs text-slate-500">
+              You are rendering a formal Maker-Checker compliance decision on{' '}
+              <strong>"{approvalModal.deal.title}"</strong>.
+            </p>
 
-            <div className="text-xs space-y-1">
-              <label className="font-bold block text-slate-800 dark:text-slate-200">
-                Checker Approval Notes / Reasons <span className="text-red-500">* (Mandatory)</span>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Audit Log Reason / Checker Notes (Required)
               </label>
               <textarea
-                rows={3}
                 required
-                placeholder="e.g. Escrow deposit verified at CRDB Bank. Evidence requirements confirmed with operations team..."
                 value={checkerNotes}
                 onChange={(e) => setCheckerNotes(e.target.value)}
-                className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs"
+                placeholder="e.g. Media assets verified, pricing compliant with Tanzania advertising standards, escrow deposit confirmed."
+                className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-2xl bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900"
+                rows={3}
               />
             </div>
 
-            <div className="flex gap-2 pt-2">
-              <button
-                onClick={handleExecuteApproval}
-                className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl text-xs"
-              >
-                Sign & Authorize Deal
-              </button>
+            <div className="flex items-center justify-end gap-2 pt-2">
               <button
                 onClick={() => setApprovalModal(null)}
-                className="py-2.5 px-4 border rounded-xl text-xs font-bold"
+                className="py-2 px-3.5 border border-slate-200 dark:border-slate-700 text-xs font-bold rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800"
               >
                 Cancel
+              </button>
+
+              <button
+                onClick={handleExecuteApproval}
+                className={`py-2 px-4 text-white text-xs font-extrabold rounded-xl shadow-xs cursor-pointer ${
+                  approvalModal.type === 'APPROVE'
+                    ? 'bg-emerald-600 hover:bg-emerald-700'
+                    : approvalModal.type === 'RETURN_FOR_CORRECTION'
+                    ? 'bg-purple-600 hover:bg-purple-700'
+                    : 'bg-red-600 hover:bg-red-700'
+                }`}
+              >
+                Sign & Execute {approvalModal.type}
               </button>
             </div>
           </div>

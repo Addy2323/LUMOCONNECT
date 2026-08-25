@@ -36,6 +36,7 @@ interface BusinessSidebarProps {
   sidebarCollapsed: boolean
   onToggleCollapse: () => void
   businessName?: string
+  registrationNumber?: string
   pendingApplicationsCount?: number
   activeDealRoomsCount?: number
   myOpportunitiesCount?: number
@@ -57,7 +58,8 @@ export function BusinessSidebar({
   onOpenCreateWizard,
   sidebarCollapsed,
   onToggleCollapse,
-  businessName = 'Kijani Solar Tech',
+  businessName = 'My Business',
+  registrationNumber,
   pendingApplicationsCount = 0,
   activeDealRoomsCount = 0,
   myOpportunitiesCount = 0,
@@ -258,7 +260,7 @@ export function BusinessSidebar({
                   Verified Business
                 </span>
                 <span className="text-[9px] text-emerald-700 dark:text-emerald-400">
-                  BRELA #184920 · TIN Verified
+                  {registrationNumber ? `BRELA #${registrationNumber} · TIN Verified` : 'BRELA · TIN Verified'}
                 </span>
               </div>
             </div>
