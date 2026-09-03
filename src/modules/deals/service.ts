@@ -41,8 +41,10 @@ function loadFromStorage() {
               title: bundledItem.title,
               summary: bundledItem.summary,
               description: bundledItem.description,
+              principalPriceDisplay: bundledItem.principalPriceDisplay,
               featuredImageUrl: bundledItem.featuredImageUrl,
               galleryImageUrls: bundledItem.galleryImageUrls,
+              expiryDate: bundledItem.expiryDate,
             }
           })
           const combined = [...refreshedStored, ...missingInitial]
@@ -459,6 +461,9 @@ export function createDealOpportunity(
         : `TZS ${input.baseRewardValue.toLocaleString()}`,
     rewardDetail:
       input.rewardType === 'PERCENTAGE_COMMISSION' ? 'on completed order total' : 'per verified completion',
+    principalPriceDisplay: input.principalPriceTZS
+      ? `TZS ${input.principalPriceTZS.toLocaleString()}`
+      : 'Price on request',
     totalBudgetTZS: input.totalBudgetTZS ? toMinorUnits(input.totalBudgetTZS) : undefined,
     spentBudgetTZS: BigInt(0),
     maxPartners: input.maxPartners,
@@ -470,6 +475,7 @@ export function createDealOpportunity(
     termsAndConditions: input.termsAndConditions,
     status: computedStatus,
     createdAt: new Date(),
+    expiryDate: new Date(Date.now() + (input.expiryDays ?? 30) * 24 * 60 * 60 * 1000),
   }
 
   inMemoryOpportunities.unshift(newOpp)

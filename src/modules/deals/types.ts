@@ -32,6 +32,7 @@ export const DealCreateSchema = z.object({
   description: z.string().min(30, 'Provide a detailed description of deliverables'),
   rewardType: RewardTypeSchema,
   baseRewardValue: z.number().positive('Reward value must be greater than 0'),
+  principalPriceTZS: z.number().positive('Principal price must be greater than 0').optional(),
   currency: z.string().default('TZS'),
   percentageBps: z.number().min(10).max(10000).optional(), // 100 = 1%
   fixedRewardTZS: z.number().nonnegative().optional(),
@@ -44,6 +45,7 @@ export const DealCreateSchema = z.object({
   featuredImageUrl: z.string().optional(),
   promoVideoUrl: z.string().optional(),
   galleryImageUrls: z.array(z.string()).optional(),
+  expiryDays: z.number().int().min(1).max(365).optional(),
 })
 
 export type DealCreateInput = z.infer<typeof DealCreateSchema>
@@ -67,6 +69,7 @@ export interface OpportunityItem {
   rewardType: z.infer<typeof RewardTypeSchema>
   rewardDisplay: string
   rewardDetail: string
+  principalPriceDisplay?: string
   potentialBonus?: string
   totalBudgetTZS?: bigint
   spentBudgetTZS: bigint

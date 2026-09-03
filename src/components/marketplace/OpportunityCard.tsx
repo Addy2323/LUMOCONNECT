@@ -7,6 +7,7 @@ import {
   Bookmark,
   Check,
   Lock,
+  Clock3,
 } from 'lucide-react'
 import type { OpportunityItem } from '@/modules/deals/types'
 
@@ -27,6 +28,19 @@ export function OpportunityCard({
   onApply,
   onViewDetails,
 }: OpportunityCardProps) {
+  const expiry = item.expiryDate ? new Date(item.expiryDate) : null
+  const millisecondsPerDay = 24 * 60 * 60 * 1000
+  const daysRemaining = expiry
+    ? Math.max(0, Math.ceil((expiry.getTime() - Date.now()) / millisecondsPerDay))
+    : null
+  const expiryLabel = daysRemaining === null
+    ? 'No expiry date'
+    : expiry!.getTime() <= Date.now()
+      ? 'Expired'
+      : daysRemaining === 1
+        ? '1 day remaining'
+        : `${daysRemaining} days remaining`
+
   const getCategoryPill = (category: string) => {
     switch (category) {
       case 'Renewable Energy':
@@ -114,9 +128,24 @@ export function OpportunityCard({
               {item.isVerified && <CheckCircle className="h-3 w-3 shrink-0 text-emerald-500" />}
             </dd>
           </div>
+          <div className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-2.5 py-2 dark:bg-slate-800/70">
+            <dt className="font-bold text-slate-600 dark:text-slate-300">Principal price</dt>
+            <dd className="max-w-[68%] text-right font-black text-[#0F172A] dark:text-white">
+              {item.principalPriceDisplay || 'Price on request'}
+            </dd>
+          </div>
           <div className="flex items-center justify-between gap-3">
-            <dt className="font-semibold text-slate-500">Reward</dt>
+            <dt className="font-semibold text-slate-500">Partner reward</dt>
             <dd className="text-right font-black text-orange-600">{item.rewardDisplay}</dd>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <dt className="font-semibold text-slate-500">Time left</dt>
+            <dd className={`flex items-center justify-end gap-1 text-right font-bold ${
+              expiryLabel === 'Expired' ? 'text-rose-600' : 'text-emerald-700 dark:text-emerald-400'
+            }`} title={expiry ? `Expires ${expiry.toLocaleDateString()}` : undefined}>
+              <Clock3 className="h-3.5 w-3.5 shrink-0" />
+              <span>{expiryLabel}</span>
+            </dd>
           </div>
           <div className="flex items-center justify-between gap-3">
             <dt className="font-semibold text-slate-500">Location</dt>
