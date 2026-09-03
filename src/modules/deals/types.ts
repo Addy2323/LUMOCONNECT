@@ -27,6 +27,7 @@ export const DealCreateSchema = z.object({
   title: z.string().min(5, 'Title must be at least 5 characters').max(120),
   opportunityType: OpportunityTypeSchema,
   category: z.string().min(2, 'Category is required'),
+  subcategory: z.string().min(2).optional(),
   summary: z.string().min(10, 'Summary must be at least 10 characters').max(300),
   description: z.string().min(30, 'Provide a detailed description of deliverables'),
   rewardType: RewardTypeSchema,
@@ -59,6 +60,7 @@ export interface OpportunityItem {
   summary: string
   description: string
   category: string
+  subcategory?: string
   countryCode: string
   region: string
   currency: string

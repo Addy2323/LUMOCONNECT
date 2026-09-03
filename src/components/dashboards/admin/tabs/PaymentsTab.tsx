@@ -219,7 +219,10 @@ export function PaymentsTab() {
                 <td className="p-3 text-[11px] text-slate-500">
                   <div>{pay.createdAt}</div>
                   {pay.verifiedAt && (
-                    <div className="text-[10px] text-emerald-600 font-bold">✓ {pay.verifiedAt}</div>
+                    <div className="flex items-center gap-1 text-[10px] text-emerald-600 font-bold">
+                      <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
+                      <span>{pay.verifiedAt}</span>
+                    </div>
                   )}
                   {pay.providerMessage && (
                     <div className="text-[10px] text-red-500">{pay.providerMessage}</div>

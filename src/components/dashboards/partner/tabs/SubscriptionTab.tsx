@@ -297,8 +297,9 @@ export function SubscriptionTab({
                   </span>
                   <span className="text-xs text-slate-500 font-bold">/ 180 days</span>
                 </div>
-                <div className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
-                  ✓ Save TZS 50,000 compared to monthly payments
+                <div className="flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                  <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
+                  Save TZS 50,000 compared to monthly payments
                 </div>
               </div>
 

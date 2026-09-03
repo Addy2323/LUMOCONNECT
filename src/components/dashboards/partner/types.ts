@@ -8,18 +8,11 @@ export type PartnerSidebarSection =
   | 'deal_rooms'
   // Performance
   | 'performance'
-  | 'tracking_links_codes'
   | 'earnings_payouts'
   | 'notifications'
-  // Grow
-  | 'sales_toolkit'
-  | 'training_center'
-  | 'partner_score'
   // Account
   | 'profile_verification'
   | 'subscription'
-  | 'payout_methods_tax'
-  | 'settings_security'
   | 'help_support'
 
 export type PartnerOpportunityType =
@@ -150,21 +143,6 @@ export interface PartnerPerformanceMetrics {
   rejectedResultsCount: number
   reversalsCount: number
   milestoneProgressPercent: number
-  partnerScore: number // e.g. 96/100
-}
-
-export interface PartnerTrackingLinkItem {
-  id: string
-  dealTitle: string
-  url: string
-  promoCode: string
-  qrCodeUrl: string
-  clicks: number
-  conversions: number
-  conversionRate: string
-  attributionWindowDays: number
-  isActive: boolean
-  createdAt: string
 }
 
 export type RewardStatus =
@@ -202,16 +180,6 @@ export interface PartnerPayoutRequest {
   accountNumberMasked: string
   status: 'REQUESTED' | 'APPROVED' | 'PROCESSING' | 'PAID' | 'FAILED'
   referenceNumber: string
-}
-
-export interface PartnerScoreDetail {
-  overallScore: number // e.g. 96
-  tierName: string // e.g. "Diamond Elite Seller"
-  conversionQualityPercent: number // 99.2%
-  responsivenessScore: number // 98%
-  complianceRating: number // 5.0
-  completedDealsCount: number // 24
-  tipsToLevelUp: string[]
 }
 
 export interface PartnerPayoutMethod {

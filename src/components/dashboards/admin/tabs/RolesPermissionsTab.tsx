@@ -372,7 +372,9 @@ export function RolesPermissionsTab() {
                       <div className="text-[10px] text-slate-400 font-mono">{perm.code} · {perm.group}</div>
                     </div>
                     {isActive ? (
-                      <span className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs">✓</span>
+                      <span className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center">
+                        <Check className="h-3 w-3" aria-hidden="true" />
+                      </span>
                     ) : (
                       <span className="w-5 h-5 rounded-full border border-slate-300 flex items-center justify-center text-xs text-slate-400">+</span>
                     )}

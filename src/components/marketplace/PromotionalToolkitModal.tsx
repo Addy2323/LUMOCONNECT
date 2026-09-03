@@ -12,6 +12,7 @@ import {
   Sparkles,
   ExternalLink,
 } from 'lucide-react'
+import { useLanguage } from '@/lib/i18n'
 
 interface PromotionalToolkitModalProps {
   dealTitle: string
@@ -28,15 +29,16 @@ export function PromotionalToolkitModal({
   rewardDisplay,
   onClose,
 }: PromotionalToolkitModalProps) {
+  const { locale } = useLanguage()
   const [copiedLink, setCopiedLink] = useState(false)
   const [copiedCaption, setCopiedCaption] = useState(false)
-  const [selectedLanguage, setSelectedLanguage] = useState<'SW' | 'EN'>('SW')
+  const [selectedLanguage, setSelectedLanguage] = useState<'SW' | 'EN'>(locale === 'sw' ? 'SW' : 'EN')
 
   const referralUrl = `https://lumo.co.tz/p/${trackingCode}`
 
-  const swahiliCaption = `Habari! 🔥 Kama unahitaji ${dealTitle} kutoka kwa ${companyName}, tumia link hii maalum upate ofa ya kipekee na usalama wa ununuzi kupitia LUMO Escrow:\n\n👉 ${referralUrl}\n\nUhakika wa bidhaa na huduma bora Tanzania nzima!`
+  const swahiliCaption = `Habari! Kama unahitaji ${dealTitle} kutoka kwa ${companyName}, tumia link hii maalum upate ofa ya kipekee na usalama wa ununuzi kupitia LUMO Escrow:\n\n${referralUrl}\n\nUhakika wa bidhaa na huduma bora Tanzania nzima!`
 
-  const englishCaption = `Hello! 🔥 Looking for ${dealTitle} by ${companyName}? Use this exclusive link to order securely with verified LUMO escrow buyer protection:\n\n👉 ${referralUrl}\n\nFast delivery & verified quality across Tanzania!`
+  const englishCaption = `Hello! Looking for ${dealTitle} by ${companyName}? Use this exclusive link to order securely with verified LUMO escrow buyer protection:\n\n${referralUrl}\n\nFast delivery & verified quality across Tanzania!`
 
   const activeCaption = selectedLanguage === 'SW' ? swahiliCaption : englishCaption
 

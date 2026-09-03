@@ -3,6 +3,7 @@ import type { OpportunityItem, DealCreateInput } from './types'
 import { toMinorUnits } from '@/lib/money'
 import { requireActiveDealSubscription } from '@/modules/subscriptions/authorization'
 import type { DealAccessDecision } from '@/modules/subscriptions/types'
+import { matchesOpportunityCategory } from './taxonomy'
 
 let inMemoryOpportunities: OpportunityItem[] = [...INITIAL_OPPORTUNITIES]
 
@@ -16,7 +17,22 @@ function loadFromStorage() {
         if (Array.isArray(parsed) && parsed.length > 0) {
           const storedIds = new Set(parsed.map((p: any) => p.id))
           const missingInitial = INITIAL_OPPORTUNITIES.filter((init) => !storedIds.has(init.id))
-          const combined = [...parsed, ...missingInitial]
+          // Refresh presentation content for bundled opportunities while preserving
+          // user-created deals and live participation/budget state.
+          const refreshedStored = parsed.map((storedItem: OpportunityItem) => {
+            const bundledItem = INITIAL_OPPORTUNITIES.find((item) => item.id === storedItem.id)
+            if (!bundledItem) return storedItem
+
+            return {
+              ...storedItem,
+              title: bundledItem.title,
+              summary: bundledItem.summary,
+              description: bundledItem.description,
+              featuredImageUrl: bundledItem.featuredImageUrl,
+              galleryImageUrls: bundledItem.galleryImageUrls,
+            }
+          })
+          const combined = [...refreshedStored, ...missingInitial]
           inMemoryOpportunities = combined.map((item) => ({
             ...item,
             createdAt: new Date(item.createdAt),
@@ -112,12 +128,14 @@ export function listOpportunities(filters?: OpportunityFilterParams): Opportunit
         item.title.toLowerCase().includes(q) ||
         item.companyName.toLowerCase().includes(q) ||
         item.summary.toLowerCase().includes(q) ||
-        item.category.toLowerCase().includes(q)
+        item.category.toLowerCase().includes(q) ||
+        item.subcategory?.toLowerCase().includes(q) ||
+        item.region.toLowerCase().includes(q)
     )
   }
 
   if (filters?.category && filters.category !== 'ALL') {
-    items = items.filter((item) => item.category.toLowerCase() === filters.category!.toLowerCase())
+    items = items.filter((item) => matchesOpportunityCategory(item.category, filters.category!, item.subcategory))
   }
 
   if (filters?.type && filters.type !== 'ALL') {
@@ -128,8 +146,24 @@ export function listOpportunities(filters?: OpportunityFilterParams): Opportunit
     items = items.filter((item) => item.region.toLowerCase().includes(filters.region!.toLowerCase()))
   }
 
+  const rewardAmount = (item: OpportunityItem) => {
+    if (item.rewardType === 'PERCENTAGE_COMMISSION') return 0
+    const numericReward = item.rewardDisplay.match(/[\d,]+/)
+    return numericReward ? Number(numericReward[0].replace(/,/g, '')) : 0
+  }
+
+  if (filters?.minReward && filters.minReward > 0) {
+    items = items.filter((item) => {
+      return rewardAmount(item) >= filters.minReward!
+    })
+  }
+
   if (filters?.sortBy === 'newest') {
     items.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+  } else if (filters?.sortBy === 'highest_reward') {
+    items.sort((a, b) => rewardAmount(b) - rewardAmount(a))
+  } else if (filters?.sortBy === 'ending_soon') {
+    items.sort((a, b) => (a.expiryDate?.getTime() ?? Number.MAX_SAFE_INTEGER) - (b.expiryDate?.getTime() ?? Number.MAX_SAFE_INTEGER))
   }
 
   return items
@@ -401,6 +435,7 @@ export function createDealOpportunity(
     summary: input.summary,
     description: input.description,
     category: input.category,
+    subcategory: input.subcategory,
     countryCode: 'TZ',
     region: input.region,
     currency: input.currency,

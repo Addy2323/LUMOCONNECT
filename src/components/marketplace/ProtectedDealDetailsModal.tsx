@@ -17,6 +17,7 @@ import {
   Film,
   Play,
   ExternalLink,
+  Image as ImageIcon,
 } from 'lucide-react'
 import type { ProtectedDealDetails } from '@/modules/deals/service'
 import { joinOpportunityDeal } from '@/modules/deals/service'
@@ -44,6 +45,7 @@ export function ProtectedDealDetailsModal({
   const [joinedCode, setJoinedCode] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [mediaMode, setMediaMode] = useState<'PHOTO' | 'VIDEO'>('PHOTO')
+  const [termsAccepted, setTermsAccepted] = useState(false)
 
   if (!isOpen || !deal) return null
 
@@ -106,13 +108,14 @@ export function ProtectedDealDetailsModal({
               <button
                 type="button"
                 onClick={() => setMediaMode('PHOTO')}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                className={`flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   mediaMode === 'PHOTO'
                     ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
                     : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                🖼️ High-Res Image
+                <ImageIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>High-Res Image</span>
               </button>
               {deal.promoVideoUrl && (
                 <button
@@ -125,7 +128,7 @@ export function ProtectedDealDetailsModal({
                   }`}
                 >
                   <Film className="w-3.5 h-3.5" />
-                  <span>🎬 Video Pitch</span>
+                  <span>Video Pitch</span>
                 </button>
               )}
             </div>
@@ -309,19 +312,25 @@ export function ProtectedDealDetailsModal({
               </div>
             </div>
           ) : (
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-              <p className="text-xs text-slate-300">
-                Start promoting this opportunity to generate verifiable sales and earn rewards.
-              </p>
+            <div className="space-y-3">
+              <label className="flex cursor-pointer items-start gap-2 rounded-xl bg-slate-800 p-3 text-xs text-slate-200">
+                <input type="checkbox" required checked={termsAccepted} onChange={(event) => setTermsAccepted(event.target.checked)} className="mt-0.5 h-4 w-4 accent-[#FF6A00]" />
+                <span>I understand and accept these commercial terms</span>
+              </label>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                <p className="text-xs text-slate-300">
+                  Start promoting this opportunity to generate verifiable sales and earn rewards.
+                </p>
               <button
                 type="button"
                 onClick={handleJoin}
-                disabled={isJoining}
+                disabled={isJoining || !termsAccepted}
                 className="py-3 px-6 bg-[#FF6A00] hover:bg-[#EA580C] disabled:bg-slate-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 shrink-0"
               >
                 {isJoining ? 'Joining Deal...' : 'Join Deal & Generate Link'}
                 <ArrowRight className="w-4 h-4" />
               </button>
+              </div>
             </div>
           )}
         </div>

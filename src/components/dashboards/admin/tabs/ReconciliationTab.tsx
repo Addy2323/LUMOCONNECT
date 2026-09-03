@@ -147,7 +147,10 @@ export function ReconciliationTab() {
 
                 <td className="p-3 font-mono">
                   {r.varianceTZS === 0 ? (
-                    <span className="text-emerald-600 font-bold">✓ TZS 0.00 (Balanced)</span>
+                    <span className="inline-flex items-center gap-1 text-emerald-600 font-bold">
+                      <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+                      TZS 0.00 (Balanced)
+                    </span>
                   ) : (
                     <span className="text-red-600 font-bold">
                       - TZS {r.varianceTZS.toLocaleString()}

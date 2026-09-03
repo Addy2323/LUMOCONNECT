@@ -10,9 +10,11 @@ import {
   Activity,
   User,
   ExternalLink,
+  Menu,
+  X,
 } from 'lucide-react'
 import { AdminSidebarSection, AdminRole } from './admin/types'
-import { AdminSidebar } from './admin/AdminSidebar'
+import { AdminMobileSidebar, AdminSidebar } from './admin/AdminSidebar'
 import { SystemStatusModal } from './admin/SystemStatusModal'
 import { AdminProfileModal } from './admin/AdminProfileModal'
 import { AdminToastProvider } from './admin/AdminToast'
@@ -43,12 +45,14 @@ interface AdminDashboardViewProps {
   adminName?: string
   onExploreDeals?: () => void
   onExitAdminMode?: () => void
+  onSignOut?: () => void
 }
 
 export function AdminDashboardView({
   adminName = 'Given',
   onExploreDeals,
   onExitAdminMode,
+  onSignOut,
 }: AdminDashboardViewProps) {
   const [activeTab, setActiveTab] = useState<AdminSidebarSection>('overview')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
@@ -57,21 +61,18 @@ export function AdminDashboardView({
   const [showReviewQueueModal, setShowReviewQueueModal] = useState(false)
   const [reviewFilter, setReviewFilter] = useState<'ALL' | 'VERIFICATIONS' | 'DEALS' | 'REWARDS' | 'FLAGGED'>('ALL')
   const [currentAdminRole, setCurrentAdminRole] = useState<AdminRole>('SUPER_ADMIN')
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
 
-  // Mobile fast navigation pills
-  const mobilePills: { id: AdminSidebarSection; label: string }[] = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'verifications', label: 'Verifications' },
-    { id: 'approvals', label: 'Deal Approvals' },
-    { id: 'conversions', label: 'Attribution' },
-    { id: 'payments', label: 'Payments' },
-    { id: 'payouts', label: 'Payouts' },
-    { id: 'tax', label: 'TRA 5% Tax' },
-    { id: 'risk', label: 'Fraud & Risk' },
-    { id: 'disputes', label: 'Disputes' },
-    { id: 'logs', label: 'Audit Logs' },
-    { id: 'integrations', label: 'Webhooks' },
-  ]
+  const adminRoleLabel =
+    currentAdminRole === 'SUPER_ADMIN'
+      ? 'Super Administrator'
+      : currentAdminRole === 'MAKER_OPERATIONS'
+      ? 'Maker / Operations'
+      : currentAdminRole === 'CHECKER_COMPLIANCE'
+      ? 'Checker / Compliance'
+      : currentAdminRole === 'FINANCE_ADMIN'
+      ? 'Finance Admin'
+      : 'Support Officer'
 
   const handleOpenReviewQueue = (filter: 'ALL' | 'VERIFICATIONS' | 'DEALS' | 'REWARDS' | 'FLAGGED' = 'ALL') => {
     setReviewFilter(filter)
@@ -80,7 +81,7 @@ export function AdminDashboardView({
 
   return (
     <AdminToastProvider>
-      <div className="w-full bg-[#F8FAFC] dark:bg-[#0B1220] min-h-[calc(100vh-80px)] text-[#0F172A] dark:text-slate-100 flex flex-col lg:flex-row gap-6 items-start pb-20 md:pb-16 transition-colors">
+      <div className="dashboard-shell w-full bg-[#F8FAFC] dark:bg-[#0B1220] min-h-screen text-[#0F172A] dark:text-slate-100 flex flex-col lg:flex-row transition-colors">
       {/* ========================================================================= */}
       {/* DESKTOP 4-GROUP STRUCTURED ADMIN SIDEBAR                                  */}
       {/* ========================================================================= */}
@@ -90,17 +91,7 @@ export function AdminDashboardView({
         sidebarCollapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
         adminName={`${adminName} M.`}
-        adminRole={
-          currentAdminRole === 'SUPER_ADMIN'
-            ? 'Super Administrator'
-            : currentAdminRole === 'MAKER_OPERATIONS'
-            ? 'Maker / Operations'
-            : currentAdminRole === 'CHECKER_COMPLIANCE'
-            ? 'Checker / Compliance'
-            : currentAdminRole === 'FINANCE_ADMIN'
-            ? 'Finance Admin'
-            : 'Support Officer'
-        }
+        adminRole={adminRoleLabel}
         onOpenSystemStatus={() => setShowStatusModal(true)}
         onOpenAdminProfile={() => setShowProfileModal(true)}
         pendingVerificationsCount={0}
@@ -109,35 +100,41 @@ export function AdminDashboardView({
         openDisputesCount={0}
       />
 
+      <AdminMobileSidebar
+        open={mobileSidebarOpen}
+        onClose={() => setMobileSidebarOpen(false)}
+        activeTab={activeTab}
+        onSelectTab={setActiveTab}
+        adminName={`${adminName} M.`}
+        adminRole={adminRoleLabel}
+        onOpenSystemStatus={() => setShowStatusModal(true)}
+        onOpenAdminProfile={() => setShowProfileModal(true)}
+        pendingVerificationsCount={0}
+        pendingDealsCount={0}
+        flaggedRiskCount={0}
+        openDisputesCount={0}
+        onBrowseMarketplace={onExploreDeals}
+        onSignOut={onSignOut}
+      />
+
       {/* ========================================================================= */}
       {/* MAIN DASHBOARD CONTENT AREA                                               */}
       {/* ========================================================================= */}
-      <main className="flex-1 w-full space-y-5 sm:space-y-6">
-        {/* MOBILE HORIZONTAL PILLS SCROLLER (VISIBLE ONLY ON MOBILE <lg) */}
-        <div className="lg:hidden flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar pt-1">
-          {mobilePills.map((pill) => {
-            const isActive = activeTab === pill.id
-            return (
-              <button
-                key={pill.id}
-                onClick={() => setActiveTab(pill.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all shadow-2xs shrink-0 ${
-                  isActive
-                    ? 'bg-[#FF6A00] text-white shadow-xs'
-                    : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800'
-                }`}
-              >
-                <span>{pill.label}</span>
-              </button>
-            )
-          })}
-        </div>
-
+      <main className="dashboard-main min-w-0 flex-1 w-full space-y-5 sm:space-y-6">
         {/* Top Header Bar */}
-        <div className="bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-3.5 sm:p-5 flex items-center justify-between shadow-2xs">
-          <div className="flex items-center gap-3">
-            <h1 className="text-base sm:text-xl font-black text-[#0F172A] dark:text-white truncate">
-              {activeTab === 'overview' && 'Overview & Performance Monitor'}
+        <div className="dashboard-topbar bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 flex items-center justify-between gap-3">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setMobileSidebarOpen(true)}
+              className="lg:hidden flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-[#FF6A00] dark:border-slate-700 sm:h-10 sm:w-10"
+              aria-label="Open admin navigation"
+              aria-expanded={mobileSidebarOpen}
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+            <h1 className="min-w-0 truncate text-sm font-black text-[#0F172A] dark:text-white sm:text-xl">
+              {activeTab === 'overview' && 'Admin Overview'}
               {activeTab === 'users' && 'Users, Access & Role Management'}
               {activeTab === 'verifications' && 'Business KYB Document Approvals'}
               {activeTab === 'deals' && 'Deals & Opportunities Repository'}
@@ -160,7 +157,7 @@ export function AdminDashboardView({
             </h1>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+          <div className="hidden shrink-0 items-center gap-4 sm:flex">
             <button
               onClick={() => handleOpenReviewQueue('ALL')}
               className="relative p-2 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
@@ -266,7 +263,7 @@ export function AdminDashboardView({
               onClick={() => setShowReviewQueueModal(false)}
               className="absolute top-4 right-4 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white"
             >
-              ✕
+              <X className="h-4 w-4" aria-hidden="true" />
             </button>
 
             <div className="flex items-center gap-2.5">

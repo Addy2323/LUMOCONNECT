@@ -30,6 +30,7 @@ import { usePartnerToast } from '../PartnerToast'
 interface PerformanceTabProps {
   performance: PartnerPerformanceMetrics
   joinedDeals: JoinedDealItem[]
+  profileCompletion: number
 }
 
 const PERFORMANCE_DATA_7D = [
@@ -42,7 +43,7 @@ const PERFORMANCE_DATA_7D = [
   { date: '24 Aug', clicks: 0, leads: 0, conversions: 0, earnings: 0 },
 ]
 
-export function PerformanceTab({ performance, joinedDeals }: PerformanceTabProps) {
+export function PerformanceTab({ performance, joinedDeals, profileCompletion }: PerformanceTabProps) {
   const { showToast } = usePartnerToast()
   const [period, setPeriod] = useState<'7D' | '30D' | '6M' | '12M'>('7D')
 
@@ -120,11 +121,11 @@ export function PerformanceTab({ performance, joinedDeals }: PerformanceTabProps
         </div>
 
         <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border">
-          <span className="text-[10px] font-bold text-slate-400 uppercase block">Partner Score</span>
+          <span className="text-[10px] font-bold text-slate-400 uppercase block">Profile Completed</span>
           <div className="text-xl font-black text-[#FF6A00] font-mono mt-0.5">
-            {performance.partnerScore}/100
+            {profileCompletion}%
           </div>
-          <span className="text-[9px] text-emerald-600 font-bold">Active Standing</span>
+          <span className="text-[9px] text-slate-400">Partner profile progress</span>
         </div>
       </div>
 

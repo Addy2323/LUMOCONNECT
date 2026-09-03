@@ -1,23 +1,10 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import {
-  Bell,
-  Search,
-  Sparkles,
-  ShieldCheck,
-  Briefcase,
-  Users,
-  Target,
-  Wallet,
-  Megaphone,
-  BarChart3,
-  Building2,
-  Lock,
-} from 'lucide-react'
+import { Menu } from 'lucide-react'
 import { BusinessSidebarSection, BusinessOpportunityItem, BusinessPartnerItem, RewardFundingBalance } from './business/types'
 import { BusinessToastProvider } from './business/BusinessToast'
-import { BusinessSidebar } from './business/BusinessSidebar'
+import { BusinessMobileSidebar, BusinessSidebar } from './business/BusinessSidebar'
 import { CreateOpportunityWizardModal } from './business/tabs/CreateOpportunityWizardModal'
 
 // Tab components
@@ -52,10 +39,13 @@ import {
 } from './business/mockData'
 
 interface BusinessDashboardViewProps {
+  initialTab?: BusinessSidebarSection
   businessName?: string
+  profilePhotoUrl?: string
   registrationNumber?: string
   onCreateDeal?: () => void
   onExploreDeals?: () => void
+  onSignOut?: () => void
 }
 
 function mapDealToBusinessOpportunity(opp: OpportunityItem): BusinessOpportunityItem {
@@ -95,14 +85,18 @@ function mapDealToBusinessOpportunity(opp: OpportunityItem): BusinessOpportunity
 }
 
 export function BusinessDashboardView({
+  initialTab = 'overview',
   businessName = 'My Business',
+  profilePhotoUrl,
   registrationNumber,
   onCreateDeal,
   onExploreDeals,
+  onSignOut,
 }: BusinessDashboardViewProps) {
-  const [activeTab, setActiveTab] = useState<BusinessSidebarSection>('overview')
+  const [activeTab, setActiveTab] = useState<BusinessSidebarSection>(initialTab)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [showWizardModal, setShowWizardModal] = useState(false)
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
 
   // Central state managed across tabs
   const [opportunities, setOpportunities] = useState<BusinessOpportunityItem[]>([])
@@ -160,23 +154,6 @@ export function BusinessDashboardView({
     }
   }, [reloadData])
 
-  // Mobile fast navigation pills
-  const mobilePills: { id: BusinessSidebarSection; label: string; isWizard?: boolean }[] = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'create_opportunity', label: '+ Create Opportunity', isWizard: true },
-    { id: 'my_opportunities', label: 'My Opportunities' },
-    { id: 'partners_applications', label: 'Partners' },
-    { id: 'deal_rooms', label: 'Deal Rooms' },
-    { id: 'deal_performance', label: 'Performance' },
-    { id: 'conversions_results', label: 'Conversions' },
-    { id: 'rewards_commissions', label: 'Rewards' },
-    { id: 'payments_funding', label: 'Reward Balance' },
-    { id: 'campaigns', label: 'Campaigns' },
-    { id: 'partner_discovery', label: 'Find Partners' },
-    { id: 'tracking_integrations', label: 'Integrations' },
-    { id: 'billing_subscription', label: 'Billing' },
-  ]
-
   const handleOpportunityCreated = (newOpp: BusinessOpportunityItem) => {
     setOpportunities([newOpp, ...opportunities])
     setActiveTab('my_opportunities')
@@ -184,7 +161,7 @@ export function BusinessDashboardView({
 
   return (
     <BusinessToastProvider>
-      <div className="w-full bg-[#F8FAFC] dark:bg-[#0B1220] min-h-[calc(100vh-80px)] text-[#0F172A] dark:text-slate-100 flex flex-col lg:flex-row gap-6 items-start pb-20 md:pb-16 transition-colors">
+      <div className="dashboard-shell w-full bg-[#F8FAFC] dark:bg-[#0B1220] min-h-screen text-[#0F172A] dark:text-slate-100 flex flex-col lg:flex-row transition-colors">
         {/* ========================================================================= */}
         {/* DESKTOP 4-GROUP STRUCTURED BUSINESS SIDEBAR                               */}
         {/* ========================================================================= */}
@@ -195,49 +172,47 @@ export function BusinessDashboardView({
           sidebarCollapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
           businessName={businessName}
+          profilePhotoUrl={profilePhotoUrl}
           registrationNumber={registrationNumber}
           pendingApplicationsCount={partners.filter((p) => p.status === 'APPLIED').length}
           activeDealRoomsCount={0}
           myOpportunitiesCount={opportunities.length}
         />
 
+        <BusinessMobileSidebar
+          open={mobileSidebarOpen}
+          onClose={() => setMobileSidebarOpen(false)}
+          activeTab={activeTab}
+          onSelectTab={setActiveTab}
+          onOpenCreateWizard={() => setShowWizardModal(true)}
+          businessName={businessName}
+          profilePhotoUrl={profilePhotoUrl}
+          registrationNumber={registrationNumber}
+          pendingApplicationsCount={partners.filter((p) => p.status === 'APPLIED').length}
+          activeDealRoomsCount={0}
+          myOpportunitiesCount={opportunities.length}
+          onBrowseMarketplace={onExploreDeals}
+          onSignOut={onSignOut}
+        />
+
         {/* ========================================================================= */}
         {/* MAIN DASHBOARD CONTENT AREA                                               */}
         {/* ========================================================================= */}
-        <main className="flex-1 w-full space-y-5 sm:space-y-6">
-          {/* MOBILE HORIZONTAL PILLS SCROLLER (VISIBLE ONLY ON MOBILE <lg) */}
-          <div className="lg:hidden flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar pt-1">
-            {mobilePills.map((pill) => {
-              const isActive = activeTab === pill.id
-              return (
-                <button
-                  key={pill.id}
-                  onClick={() => {
-                    if (pill.isWizard) {
-                      setShowWizardModal(true)
-                    } else {
-                      setActiveTab(pill.id)
-                    }
-                  }}
-                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all shadow-2xs shrink-0 ${
-                    pill.isWizard
-                      ? 'bg-[#FF6A00] text-white shadow-xs'
-                      : isActive
-                      ? 'bg-[#0B132B] text-white shadow-xs font-extrabold'
-                      : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800'
-                  }`}
-                >
-                  <span>{pill.label}</span>
-                </button>
-              )
-            })}
-          </div>
-
+        <main className="dashboard-main min-w-0 flex-1 w-full space-y-5 sm:space-y-6">
           {/* Top Header Bar */}
-          <div className="bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-3.5 sm:p-5 flex items-center justify-between shadow-2xs">
-            <div className="flex items-center gap-3">
-              <h1 className="text-base sm:text-xl font-black text-[#0F172A] dark:text-white truncate">
-                {activeTab === 'overview' && 'Business Overview & Commercial Pulse'}
+          <div className="dashboard-topbar bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 flex items-center justify-between gap-3">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setMobileSidebarOpen(true)}
+                className="lg:hidden flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-[#FF6A00] dark:border-slate-700 sm:h-10 sm:w-10"
+                aria-label="Open business navigation"
+                aria-expanded={mobileSidebarOpen}
+              >
+                <Menu className="h-5 w-5" />
+              </button>
+              <h1 className="min-w-0 truncate text-sm font-black text-[#0F172A] dark:text-white sm:text-xl">
+                {activeTab === 'overview' && 'Business Overview'}
                 {activeTab === 'create_opportunity' && 'Create Commercial Opportunity'}
                 {activeTab === 'my_opportunities' && 'My Opportunities & Terms Registry'}
                 {activeTab === 'partners_applications' && 'Partners & Opportunity Applications'}
@@ -259,15 +234,7 @@ export function BusinessDashboardView({
               </h1>
             </div>
 
-            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-              <button
-                onClick={() => setShowWizardModal(true)}
-                className="hidden sm:flex py-2 px-3.5 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold text-xs rounded-xl shadow-xs items-center gap-1.5 transition-all"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>+ Create Opportunity</span>
-              </button>
-
+            <div className="hidden shrink-0 items-center gap-3 sm:flex">
               <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-200 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 <span className="hidden sm:inline-block">
@@ -343,6 +310,7 @@ export function BusinessDashboardView({
           {activeTab === 'business_profile' && (
             <BusinessProfileTab
               businessName={businessName}
+              profilePhotoUrl={profilePhotoUrl}
               registrationNumber={registrationNumber}
             />
           )}

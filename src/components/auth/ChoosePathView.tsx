@@ -36,7 +36,7 @@ export function ChoosePathView({
 
             {/* Title */}
             <h2 className="text-xl font-extrabold text-[#0F172A] dark:text-white mb-3">
-              Join as Partner
+              Join as Mshirika wa Mauzo / Partner
             </h2>
 
             {/* Description */}
@@ -51,7 +51,7 @@ export function ChoosePathView({
             onClick={() => onSelectPath('PARTNER')}
             className="w-full py-3 px-4 rounded-xl bg-[#F0F5FA] hover:bg-[#FFF7ED] dark:bg-slate-800 dark:hover:bg-orange-950/40 text-[#F97316] font-bold text-xs sm:text-sm border border-slate-200 dark:border-slate-700 hover:border-[#F97316] transition-all shadow-2xs"
           >
-            Select Partner Path
+            Select Mshirika wa Mauzo / Partner
           </button>
         </div>
 

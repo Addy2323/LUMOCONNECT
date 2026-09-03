@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import {
   Compass,
+  Store,
   Users,
   Building2,
   Handshake,
@@ -19,6 +20,7 @@ import {
   ChevronRight,
   Shield,
   Layers,
+  LayoutDashboard,
 } from 'lucide-react'
 import { BrandMark } from './BrandMark'
 import type { UserWorkspaceInfo, WorkspaceType } from '@/lib/session'
@@ -36,6 +38,7 @@ interface SiteHeaderProps {
   userProfile?: {
     name: string
     email: string
+    profilePhotoUrl?: string
   }
   activeWorkspace?: UserWorkspaceInfo
   availableWorkspaces?: UserWorkspaceInfo[]
@@ -81,9 +84,10 @@ export function SiteHeader({
   // Admin Mode: Admin Portal only shown when explicitly authorized/elevated
   const navItems = [
     { id: 'marketplace', label: 'Discover', icon: Compass },
+    { id: 'marketplace_catalog', label: 'Marketplace', icon: Store },
     { id: 'subscriptions', label: 'Subscriptions', icon: Sparkles },
     ...(isAuthenticated && (activeWorkspace?.type === 'PARTNER' || activeWorkspace?.type === 'PERSONAL' || !activeWorkspace)
-      ? [{ id: 'partner', label: 'Partner Portal', icon: Users }]
+      ? [{ id: 'partner', label: 'Mshirika wa Mauzo / Partner', icon: Users }]
       : []),
     ...(isAuthenticated && activeWorkspace?.type === 'BUSINESS'
       ? [{ id: 'business', label: 'Business Hub', icon: Building2 }]
@@ -246,16 +250,20 @@ export function SiteHeader({
                     }`}
                     aria-label="User profile & workspace menu"
                   >
-                    {userProfile.name
-                      .split(' ')
-                      .map((p) => p[0])
-                      .join('')
-                      .slice(0, 2)
-                      .toUpperCase()}
+                    {userProfile.profilePhotoUrl ? (
+                      <img src={userProfile.profilePhotoUrl} alt={userProfile.name} className="h-full w-full rounded-2xl object-cover" />
+                    ) : (
+                      userProfile.name
+                        .split(' ')
+                        .map((p) => p[0])
+                        .join('')
+                        .slice(0, 2)
+                        .toUpperCase()
+                    )}
                   </button>
 
                   {userMenuOpen && (
-                    <div className="absolute right-0 mt-2 w-72 bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl shadow-2xl p-3 z-50 text-xs animate-in fade-in zoom-in-95 duration-150 space-y-2.5">
+                    <div className="fixed inset-x-3 top-16 z-50 max-h-[calc(100dvh-4.75rem)] overflow-y-auto overscroll-contain rounded-3xl border border-[#E2E8F0] bg-white p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] text-xs shadow-2xl animate-in fade-in zoom-in-95 duration-150 space-y-2.5 dark:border-slate-800 dark:bg-slate-900 sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:w-72 sm:max-h-[calc(100dvh-6rem)]">
                       {/* Authenticated User Identity */}
                       <div className="px-2.5 py-2 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80">
                         <div className="flex items-center justify-between">
@@ -290,6 +298,22 @@ export function SiteHeader({
 
                       {/* Footer Actions */}
                       <div className="pt-1.5 border-t border-slate-100 dark:border-slate-800 space-y-1">
+                        <button
+                          onClick={() => {
+                            const dashboardView = isAdminModeActive
+                              ? 'admin'
+                              : activeWorkspace?.type === 'BUSINESS'
+                                ? 'business'
+                                : 'partner'
+                            onNavigate(dashboardView)
+                            setUserMenuOpen(false)
+                          }}
+                          className="w-full px-2.5 py-1.5 text-left rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2 font-bold cursor-pointer"
+                        >
+                          <LayoutDashboard className="w-3.5 h-3.5 text-[#FF6A00]" />
+                          <span>Go to Dashboard</span>
+                        </button>
+
                         <button
                           onClick={() => {
                             onNavigate('subscriptions')

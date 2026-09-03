@@ -263,7 +263,7 @@ export function SubscriptionsView({
                 </div>
                 {monthlyPlan.features.map((feature, idx) => (
                   <div key={idx} className="flex items-start gap-2.5 text-xs text-[#0F172A] dark:text-slate-200">
-                    <span className="text-[#FF6A00] font-black text-xs shrink-0 mt-0.5">✓</span>
+                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#FF6A00]" aria-hidden="true" />
                     <span className="leading-snug">{feature}</span>
                   </div>
                 ))}
@@ -315,8 +315,9 @@ export function SubscriptionsView({
                   </div>
                 )}
                 {semiAnnualPlan.savingsDisplay && (
-                  <div className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
-                    ✓ {semiAnnualPlan.savingsDisplay}
+                  <div className="mt-0.5 flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                    <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
+                    {semiAnnualPlan.savingsDisplay}
                   </div>
                 )}
               </div>
@@ -327,7 +328,7 @@ export function SubscriptionsView({
                 </div>
                 {semiAnnualPlan.features.map((feature, idx) => (
                   <div key={idx} className="flex items-start gap-2.5 text-xs text-[#0F172A] dark:text-slate-200">
-                    <span className="text-[#FF6A00] font-black text-xs shrink-0 mt-0.5">✓</span>
+                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#FF6A00]" aria-hidden="true" />
                     <span className="leading-snug">{feature}</span>
                   </div>
                 ))}
@@ -373,7 +374,7 @@ export function SubscriptionsView({
                 </div>
                 {enterprisePlan.features.map((feature, idx) => (
                   <div key={idx} className="flex items-start gap-2.5 text-xs text-[#0F172A] dark:text-slate-200">
-                    <span className="text-[#FF6A00] font-black text-xs shrink-0 mt-0.5">✓</span>
+                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#FF6A00]" aria-hidden="true" />
                     <span className="leading-snug">{feature}</span>
                   </div>
                 ))}
@@ -420,8 +421,8 @@ export function SubscriptionsView({
               <div className="space-y-2 pt-1">
                 {monthlyPlan.features.slice(0, 6).map((item, idx) => (
                   <div key={idx} className="flex items-center gap-2 text-xs font-semibold text-slate-800 dark:text-slate-200">
-                    <span className="w-4 h-4 rounded-full bg-orange-50 dark:bg-orange-950/40 text-[#FF6A00] flex items-center justify-center shrink-0 text-[10px] font-black">
-                      ✓
+                    <span className="w-4 h-4 rounded-full bg-orange-50 dark:bg-orange-950/40 text-[#FF6A00] flex items-center justify-center shrink-0">
+                      <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
                     </span>
                     <span>{item}</span>
                   </div>
@@ -468,8 +469,9 @@ export function SubscriptionsView({
                   </div>
                 )}
                 {semiAnnualPlan.savingsDisplay && (
-                  <div className="text-xs font-extrabold text-emerald-600 dark:text-emerald-400 my-0.5">
-                    ✓ {semiAnnualPlan.savingsDisplay}
+                  <div className="my-0.5 flex items-center gap-1 text-xs font-extrabold text-emerald-600 dark:text-emerald-400">
+                    <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+                    {semiAnnualPlan.savingsDisplay}
                   </div>
                 )}
               </div>
@@ -477,8 +479,8 @@ export function SubscriptionsView({
               <div className="space-y-2 pt-1">
                 {semiAnnualPlan.features.slice(0, 6).map((item, idx) => (
                   <div key={idx} className="flex items-center gap-2 text-xs font-semibold text-slate-800 dark:text-slate-200">
-                    <span className="w-4 h-4 rounded-full bg-orange-50 dark:bg-orange-950/40 text-[#FF6A00] flex items-center justify-center shrink-0 text-[10px] font-black">
-                      ✓
+                    <span className="w-4 h-4 rounded-full bg-orange-50 dark:bg-orange-950/40 text-[#FF6A00] flex items-center justify-center shrink-0">
+                      <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
                     </span>
                     <span>{item}</span>
                   </div>
@@ -520,8 +522,8 @@ export function SubscriptionsView({
               <div className="space-y-2 pt-1">
                 {enterprisePlan.features.slice(0, 6).map((item, idx) => (
                   <div key={idx} className="flex items-center gap-2 text-xs font-semibold text-slate-800 dark:text-slate-200">
-                    <span className="w-4 h-4 rounded-full bg-orange-50 dark:bg-orange-950/40 text-[#FF6A00] flex items-center justify-center shrink-0 text-[10px] font-black">
-                      ✓
+                    <span className="w-4 h-4 rounded-full bg-orange-50 dark:bg-orange-950/40 text-[#FF6A00] flex items-center justify-center shrink-0">
+                      <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
                     </span>
                     <span>{item}</span>
                   </div>
@@ -676,7 +678,8 @@ export function SubscriptionsView({
                     disabled={isProcessingPayment}
                     className="w-full py-3 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                   >
-                    <span>⚡ Confirm & Simulate Instant M-Pesa Approval</span>
+                    <Zap className="h-4 w-4" aria-hidden="true" />
+                    <span>Confirm & Simulate Instant M-Pesa Approval</span>
                   </button>
 
                   <p className="text-[10px] text-center text-slate-400">

@@ -17,6 +17,8 @@ import {
   FileSpreadsheet,
   X,
   Plus,
+  ShoppingBag,
+  ShoppingCart,
 } from 'lucide-react'
 import { useBusinessToast } from '../BusinessToast'
 
@@ -249,8 +251,8 @@ export function TrackingIntegrationsTab() {
       {activeTool === 'PLUGINS' && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
           <div className="p-5 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border space-y-3">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-black">
-              🛍️
+            <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+              <ShoppingBag className="h-5 w-5" aria-hidden="true" />
             </div>
             <div>
               <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">Shopify One-Click Plugin</h4>
@@ -267,8 +269,8 @@ export function TrackingIntegrationsTab() {
           </div>
 
           <div className="p-5 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border space-y-3">
-            <div className="w-10 h-10 rounded-2xl bg-purple-100 text-purple-700 flex items-center justify-center font-black">
-              🛒
+            <div className="w-10 h-10 rounded-2xl bg-purple-100 text-purple-700 flex items-center justify-center">
+              <ShoppingCart className="h-5 w-5" aria-hidden="true" />
             </div>
             <div>
               <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">WooCommerce Extension</h4>

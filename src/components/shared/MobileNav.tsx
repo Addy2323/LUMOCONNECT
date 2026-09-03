@@ -11,13 +11,14 @@ interface MobileNavProps {
 export function MobileNav({ activeView, onNavigate }: MobileNavProps) {
   const items = [
     { id: 'marketplace', label: 'Home', icon: Home },
-    { id: 'discover', label: 'Discover', icon: LayoutGrid, target: 'marketplace' },
-    { id: 'deals', label: 'My Deals', icon: Tag, target: 'partner' },
-    { id: 'earnings', label: 'Earnings', icon: TrendingUp, target: 'partner' },
-    { id: 'account', label: 'Account', icon: User, target: 'signin' },
+    { id: 'marketplace_catalog', label: 'Marketplace', icon: LayoutGrid },
+    { id: 'deals', label: 'My Deals', icon: Tag },
+    { id: 'earnings', label: 'Earnings', icon: TrendingUp },
+    { id: 'account', label: 'Account', icon: User },
   ]
 
   const isAccountActive =
+    activeView === 'choose_path' ||
     activeView === 'signin' ||
     activeView === 'signup' ||
     activeView === 'auth_verify' ||
@@ -30,16 +31,16 @@ export function MobileNav({ activeView, onNavigate }: MobileNavProps) {
         const isActive =
           item.id === 'account'
             ? isAccountActive
-            : item.id === 'discover'
-            ? activeView === 'marketplace' || activeView === 'subscriptions'
+            : item.id === 'marketplace_catalog'
+            ? activeView === 'marketplace_catalog'
             : item.id === 'marketplace'
             ? activeView === 'marketplace' && !isAccountActive
-            : activeView === item.id || (item.target && activeView === item.target && !isAccountActive)
+            : activeView === item.id
 
         return (
           <button
             key={item.id}
-            onClick={() => onNavigate(item.target || item.id)}
+            onClick={() => onNavigate(item.id)}
             className={`touch-target flex flex-col items-center justify-center p-1 rounded-xl transition-all ${
               isActive
                 ? 'text-[#F97316] font-bold scale-105'

@@ -76,6 +76,57 @@ html, body {
 /* CUSTOM CSS LOADERS (PAYMENTS, USSD PUSH & PAGE-TO-PAGE ROUTE TRANSITIONS) */
 /* ========================================================================= */
 
+/* Non-blocking navigation progress. Remounting it restarts the CSS animation;
+   no JavaScript timer or overlay can leave the interface stuck. */
+.lumo-page-loader {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 100;
+  height: 4px;
+  overflow: hidden;
+  pointer-events: none;
+  animation: lumo-page-loader-hide 700ms ease-out forwards;
+}
+
+.lumo-page-loader__bar {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform: scaleX(0.03);
+  transform-origin: left center;
+  background: linear-gradient(90deg, #ff6a00 0%, #fb923c 46%, #facc15 76%, #fff7ed 100%);
+  box-shadow: 0 0 12px rgb(249 115 22 / 85%), 0 0 24px rgb(251 146 60 / 45%);
+  animation: lumo-page-loader-progress 650ms cubic-bezier(.22, 1, .36, 1) forwards;
+}
+
+.lumo-page-loader__bar::after {
+  content: "";
+  display: block;
+  width: 22%;
+  height: 100%;
+  margin-left: auto;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 90%));
+}
+
+@keyframes lumo-page-loader-progress {
+  0% { transform: scaleX(0.03); }
+  35% { transform: scaleX(0.48); }
+  72% { transform: scaleX(0.86); }
+  100% { transform: scaleX(1); }
+}
+
+@keyframes lumo-page-loader-hide {
+  0%, 82% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lumo-page-loader,
+  .lumo-page-loader__bar {
+    animation-duration: 1ms;
+  }
+}
+
 /* 1. Double Rotating Rings Loader */
 .loader-rings,
 .loader {
@@ -150,5 +201,144 @@ html, body {
 }
 @keyframes l11 {
   to {clip-path: inset(0)}
+}
+
+/* Low-data mode keeps the interface useful on slower mobile connections. */
+.lumo-low-data *,
+.lumo-low-data *::before,
+.lumo-low-data *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  scroll-behavior: auto !important;
+  transition-duration: 0.01ms !important;
+}
+
+.lumo-low-data .backdrop-blur-sm,
+.lumo-low-data .backdrop-blur-md,
+.lumo-low-data .backdrop-blur-lg,
+.lumo-low-data .backdrop-blur-xs {
+  backdrop-filter: none !important;
+}
+
+/* Full-screen dashboard application shell */
+.dashboard-shell {
+  min-height: 100dvh;
+  align-items: stretch;
+  gap: 0;
+  padding-bottom: 0;
+  background: #f7f9fc;
+}
+
+.dashboard-main {
+  padding: 0 16px 32px;
+}
+
+.dashboard-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  min-height: 72px;
+  margin: 0 -16px 24px;
+  padding: 12px 16px;
+  border-top: 0;
+  border-right: 0;
+  border-left: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.dashboard-shell .rounded-3xl {
+  border-radius: 14px;
+}
+
+.dashboard-shell .shadow-xs,
+.dashboard-shell .shadow-2xs {
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
+}
+
+.dashboard-welcome {
+  padding: 2px 4px 0;
+  background: transparent;
+}
+
+.dashboard-sidebar nav,
+.dashboard-sidebar button {
+  letter-spacing: -0.01em;
+}
+
+/* Keep dashboard sidebars scrollable without showing the browser scrollbar. */
+.dashboard-sidebar,
+.dashboard-sidebar * {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.dashboard-sidebar::-webkit-scrollbar,
+.dashboard-sidebar *::-webkit-scrollbar {
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .dashboard-main {
+    padding-right: 24px;
+    padding-bottom: 40px;
+    padding-left: 24px;
+  }
+
+  .dashboard-topbar {
+    min-height: 76px;
+    margin-right: -24px;
+    margin-left: -24px;
+    padding-right: 32px;
+    padding-left: 32px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .auth-page-root {
+    height: 100dvh;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .auth-page-root::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Keep the complete authentication card visible on common laptop screens. */
+  .auth-shell {
+    width: 125%;
+    min-height: 125dvh;
+    margin-left: -12.5%;
+    zoom: 0.8;
+  }
+
+  /* Match the reference's compact, browser-zoomed dashboard density. */
+  .dashboard-shell {
+    zoom: 0.8;
+    min-height: 125dvh;
+  }
+
+  .dashboard-sidebar {
+    height: 125dvh;
+  }
+
+  .dashboard-main {
+    padding-right: 32px;
+    padding-left: 32px;
+  }
+
+  .dashboard-topbar {
+    margin-right: -32px;
+    margin-left: -32px;
+  }
+
+}
+
+.dark .dashboard-shell {
+  background: #0b1220;
 }
 

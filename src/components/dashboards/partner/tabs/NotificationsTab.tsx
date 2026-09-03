@@ -10,11 +10,17 @@ import {
   Clock,
   Trash2,
   Sliders,
+  MessageCircle,
+  Smartphone,
 } from 'lucide-react'
 import { usePartnerToast } from '../PartnerToast'
+import { useLanguage } from '@/lib/i18n'
 
 export function NotificationsTab() {
   const { showToast } = usePartnerToast()
+  const { locale } = useLanguage()
+  const [smsEnabled, setSmsEnabled] = useState(true)
+  const [whatsAppEnabled, setWhatsAppEnabled] = useState(true)
 
   const [notifications, setNotifications] = useState<
     {
@@ -54,6 +60,17 @@ export function NotificationsTab() {
         >
           Mark All as Read
         </button>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-3 sm:grid-cols-2 dark:border-emerald-900 dark:bg-emerald-950/20">
+        <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl bg-white p-3 text-xs dark:bg-slate-900">
+          <span className="flex items-center gap-2"><Smartphone className="h-4 w-4 text-[#FF6A00]" /><span><strong className="block">SMS notifications</strong><small className="text-slate-500">{locale === 'sw' ? 'Kwa Kiswahili' : 'In English'}</small></span></span>
+          <input type="checkbox" checked={smsEnabled} onChange={(event) => setSmsEnabled(event.target.checked)} className="h-4 w-4 accent-[#FF6A00]" />
+        </label>
+        <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl bg-white p-3 text-xs dark:bg-slate-900">
+          <span className="flex items-center gap-2"><MessageCircle className="h-4 w-4 text-emerald-600" /><span><strong className="block">WhatsApp notifications</strong><small className="text-slate-500">{locale === 'sw' ? 'Kwa Kiswahili' : 'In English'}</small></span></span>
+          <input type="checkbox" checked={whatsAppEnabled} onChange={(event) => setWhatsAppEnabled(event.target.checked)} className="h-4 w-4 accent-emerald-600" />
+        </label>
       </div>
 
       {notifications.length === 0 ? (

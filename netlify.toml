@@ -1,0 +1,9 @@
+[build]
+  command = "pnpm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
+  PNPM_VERSION = "10.15.1"
+  NETLIFY_NEXT_SKEW_PROTECTION = "true"
+

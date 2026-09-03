@@ -31,8 +31,8 @@ export function initializeNotificationWorker(): void {
     // Dispatch in-app notification
     await sendNotification({
       userId: payload.partnerId,
-      title: 'New Conversion Attributed! 💰',
-      message: `Hongera! You earned TZS ${netTZS} from conversion #${payload.conversionId.slice(-6)}.`,
+      title: 'Mauzo mapya yamethibitishwa / New conversion verified',
+      message: `Hongera! Umepata TZS ${netTZS}. / Congratulations! You earned TZS ${netTZS}. Ref #${payload.conversionId.slice(-6)}.`,
       linkUrl: '/partner',
       phone: '+255712345678',
       email: 'alex.mushi@lumo.co.tz',
@@ -41,7 +41,7 @@ export function initializeNotificationWorker(): void {
     // Dispatch SMS via Meseji
     await providers.sms.sendSms({
       recipientPhone: '+255712345678',
-      messageText: `LUMO: Hongera! Umepata commission ya TZS ${netTZS} kutoka rufaa mpya. Ingia app kuangalia maelezo.`,
+      messageText: `LUMO: Hongera! Umepata TZS ${netTZS} kwa mauzo yaliyothibitishwa. / You earned TZS ${netTZS} from a verified sale.`,
     })
   })
 
@@ -56,7 +56,7 @@ export function initializeNotificationWorker(): void {
 
     await providers.sms.sendSms({
       recipientPhone: '+255712345678',
-      messageText: `LUMO: Malipo yako ya TZS ${totalTZS} (${payload.payoutNumber}) yametumwa kwa M-Pesa. Ahsante kwa kufanya kazi na LUMO!`,
+      messageText: `LUMO: Malipo ya TZS ${totalTZS} (${payload.payoutNumber}) yametumwa M-Pesa. / Your TZS ${totalTZS} payout was sent to M-Pesa.`,
     })
 
     await providers.email.sendEmail({
@@ -80,7 +80,7 @@ export function initializeNotificationWorker(): void {
     if (payload.deliverableTitle) {
       await providers.sms.sendSms({
         recipientPhone: '+255712345678',
-        messageText: `LUMO Deal Room: Deliverable "${payload.deliverableTitle}" status updated to ${payload.status || 'UPDATED'}.`,
+        messageText: `LUMO: Hali ya kazi "${payload.deliverableTitle}" ni ${payload.status || 'UPDATED'}. / Deliverable status updated to ${payload.status || 'UPDATED'}.`,
       })
     }
   })

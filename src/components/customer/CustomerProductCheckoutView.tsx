@@ -326,8 +326,9 @@ export function CustomerProductCheckoutView({
               <div className="text-[11px] font-mono bg-white p-2 rounded border border-orange-200 text-slate-700 select-all mb-1.5">
                 https://lumo.co.tz/track/{placedOrder.customerAccessToken}
               </div>
-              <p className="text-[11px] text-orange-800">
-                🛡️ <strong>Auto-Expiry Policy:</strong> For customer privacy and financial security, this tracking link will automatically expire and close as soon as delivery is accepted and funds are released to both parties.
+              <p className="flex items-start gap-1.5 text-[11px] text-orange-800">
+                <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                <span><strong>Auto-Expiry Policy:</strong> For customer privacy and financial security, this tracking link will automatically expire and close as soon as delivery is accepted and funds are released to both parties.</span>
               </p>
             </div>
 
@@ -339,7 +340,9 @@ export function CustomerProductCheckoutView({
 
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold">✓</div>
+                  <div className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center">
+                    <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                  </div>
                   <div>
                     <div className="text-xs font-bold text-slate-900">Payment Received & Protected in Escrow</div>
                     <div className="text-[11px] text-slate-500">Merchant notified to prepare dispatch</div>

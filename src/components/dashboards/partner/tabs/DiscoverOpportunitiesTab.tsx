@@ -16,6 +16,7 @@ import {
   ExternalLink,
   ChevronRight,
   CreditCard,
+  Image as ImageIcon,
 } from 'lucide-react'
 import {
   PartnerOpportunitySummary,
@@ -487,13 +488,14 @@ export function DiscoverOpportunitiesTab({
                   <button
                     type="button"
                     onClick={() => { setMediaViewMode('PHOTO'); setIsPlayingVideo(false); }}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    className={`flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                       mediaViewMode === 'PHOTO'
                         ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
                         : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
                     }`}
                   >
-                    🖼️ Product Images
+                    <ImageIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>Product Images</span>
                   </button>
                   {selectedOpp.promoVideoUrl && (
                     <button
@@ -506,7 +508,7 @@ export function DiscoverOpportunitiesTab({
                       }`}
                     >
                       <Film className="w-3.5 h-3.5" />
-                      <span>🎬 Video Pitch</span>
+                      <span>Video Pitch</span>
                     </button>
                   )}
                 </div>

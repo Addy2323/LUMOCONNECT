@@ -56,7 +56,10 @@ export function BillingSubscriptionTab() {
             <div className="text-2xl font-black font-mono text-[#FF6A00]">
               TZS {sub.priceTZS.toLocaleString()} / Year
             </div>
-            <span className="text-[10px] text-emerald-400 font-bold">✓ Active & Good Standing</span>
+            <span className="flex items-center gap-1 text-[10px] text-emerald-400 font-bold">
+              <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
+              Active & Good Standing
+            </span>
           </div>
         </div>
 

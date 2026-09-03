@@ -46,36 +46,17 @@ export function OpportunityCard({
     }
   }
 
-  const getCompanyAvatarBg = (logo: string) => {
-    switch (logo) {
-      case 'KS':
-        return 'bg-[#0B1220] text-[#FF6A00]'
-      case 'MP':
-        return 'bg-[#0B1220] text-blue-400'
-      case 'SB':
-        return 'bg-[#0B1220] text-purple-400'
-      case 'KF':
-        return 'bg-[#042f2e] text-emerald-400'
-      case 'BT':
-        return 'bg-[#0B1220] text-cyan-400'
-      case 'TC':
-        return 'bg-[#451a03] text-amber-400'
-      default:
-        return 'bg-[#0B1220] text-orange-400'
-    }
-  }
-
   return (
-    <article className="group bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-3.5 sm:p-4 shadow-2xs hover:shadow-xl hover:border-slate-300 dark:hover:border-slate-700 transition-all flex flex-col justify-between overflow-hidden">
+    <article className="group flex flex-col justify-between overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white p-3 shadow-sm transition-all hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-xl dark:border-slate-800 dark:bg-slate-900">
       <div>
-        {/* Sample Image Container with Floating Category & Bookmark Badges */}
-        <div className="relative h-44 sm:h-48 w-full rounded-2xl overflow-hidden mb-3.5 bg-slate-100 dark:bg-slate-800">
+        <div className="relative mb-4 h-56 w-full overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800 sm:h-60">
           {item.featuredImageUrl ? (
             <img
               src={item.featuredImageUrl}
               alt={item.title}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.025]"
               loading="lazy"
+              decoding="async"
             />
           ) : (
             <div className="w-full h-full bg-linear-to-br from-slate-800 to-slate-950 flex items-center justify-center text-slate-500 font-bold text-xs">
@@ -83,18 +64,16 @@ export function OpportunityCard({
             </div>
           )}
 
-          {/* Floating Category Pill on Top-Left */}
           <div className="absolute top-2.5 left-2.5 z-10">
             <span
               className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full backdrop-blur-md shadow-xs ${getCategoryPill(
                 item.category
               )}`}
             >
-              {item.category}
+              {item.subcategory || item.category}
             </span>
           </div>
 
-          {/* Floating Bookmark Button on Top-Right */}
           <div className="absolute top-2.5 right-2.5 z-10">
             <button
               onClick={onToggleSave}
@@ -109,65 +88,45 @@ export function OpportunityCard({
             </button>
           </div>
 
-          {/* Company Avatar Floating on Bottom-Left */}
-          <div className="absolute bottom-2.5 left-2.5 z-10 flex items-center gap-2">
-            <div
-              className={`w-9 h-9 rounded-xl font-extrabold text-xs flex items-center justify-center shrink-0 border border-white/40 dark:border-slate-700/60 shadow-md ${getCompanyAvatarBg(
-                item.companyLogo || item.companyName.slice(0, 2)
-              )}`}
-            >
-              {item.companyLogo || item.companyName.slice(0, 2).toUpperCase()}
-            </div>
-            <div className="bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-lg flex items-center gap-1">
-              <span className="text-[11px] font-bold text-white truncate max-w-[140px]">{item.companyName}</span>
-              {item.isVerified && (
-                <CheckCircle className="w-3 h-3 text-emerald-400 fill-emerald-400/20 shrink-0" />
-              )}
-            </div>
-          </div>
         </div>
 
-        {/* Region & Location Indicator */}
-        <div className="flex items-center gap-1 text-[11px] font-medium text-[#64748B] dark:text-slate-400 mb-1.5 truncate">
-          <MapPin className="w-3 h-3 shrink-0 text-slate-400" />
-          <span className="truncate">{item.region}</span>
-        </div>
-
-        {/* Deal Title */}
-        <h3 className="font-extrabold text-[#0F172A] dark:text-white text-sm sm:text-base leading-snug mb-3 line-clamp-2 group-hover:text-[#FF6A00] transition-colors">
+        <h3 className="mb-4 line-clamp-2 min-h-11 text-center text-sm font-black leading-snug text-[#0F172A] transition-colors group-hover:text-[#FF6A00] dark:text-white sm:text-base">
           {item.title}
         </h3>
+
+        <p className="mb-4 line-clamp-3 min-h-15 text-xs leading-5 text-slate-600 dark:text-slate-400">
+          {item.summary}
+        </p>
+
+        <dl className="mb-4 space-y-2.5 border-t border-slate-100 pt-3 text-[11px] dark:border-slate-800">
+          <div className="flex items-center justify-between gap-3">
+            <dt className="font-semibold text-slate-500">Category</dt>
+            <dd className="max-w-[65%] truncate text-right font-bold text-slate-800 dark:text-slate-200">{item.subcategory || item.category}</dd>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <dt className="font-semibold text-slate-500">Posted by</dt>
+            <dd className="flex max-w-[65%] items-center gap-1 truncate text-right font-bold text-blue-600">
+              <span className="truncate">{item.companyName}</span>
+              {item.isVerified && <CheckCircle className="h-3 w-3 shrink-0 text-emerald-500" />}
+            </dd>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <dt className="font-semibold text-slate-500">Reward</dt>
+            <dd className="text-right font-black text-orange-600">{item.rewardDisplay}</dd>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <dt className="font-semibold text-slate-500">Location</dt>
+            <dd className="flex max-w-[65%] items-center gap-1 truncate text-right font-bold text-slate-700 dark:text-slate-300"><MapPin className="h-3 w-3 shrink-0 text-orange-500" /><span className="truncate">{item.region}</span></dd>
+          </div>
+        </dl>
       </div>
 
-      {/* Bottom Section: Reward Stats & Action Buttons */}
-      <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800">
-        {/* Reward & Partners Row */}
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-[10px] font-bold text-[#64748B] dark:text-slate-400 uppercase tracking-wider">
-              POTENTIAL REWARD
-            </div>
-            <div className="text-base sm:text-lg font-black text-[#FF6A00] font-mono mt-0.5">
-              {item.rewardDisplay}
-            </div>
-          </div>
-
-          <div className="text-right">
-            <div className="text-[10px] font-bold text-[#64748B] dark:text-slate-400 uppercase tracking-wider">
-              PARTNERS
-            </div>
-            <div className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200 mt-0.5">
-              {item.activePartnerCount}+ active
-            </div>
-          </div>
-        </div>
-
-        {/* 2 Equal Action Buttons: Details & Join Deal */}
-        <div className="grid grid-cols-2 gap-2.5 pt-1">
+      <div className="border-t border-slate-100 pt-3 dark:border-slate-800">
+        <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
             onClick={onViewDetails}
-            className="w-full py-2.5 px-2.5 text-xs font-extrabold text-[#0F172A] dark:text-slate-200 border border-[#E2E8F0] dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl transition-colors text-center shadow-2xs flex items-center justify-center gap-1.5"
+            className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-[#E2E8F0] bg-white px-2.5 py-2.5 text-center text-xs font-extrabold text-[#0F172A] shadow-2xs transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
           >
             {!isSubscribed && <Lock className="w-3 h-3 text-[#FF6A00]" />}
             <span>{isSubscribed ? 'View Details' : 'View Full Deal'}</span>
@@ -176,7 +135,7 @@ export function OpportunityCard({
           <button
             type="button"
             onClick={onApply}
-            className="w-full py-2.5 px-2.5 text-xs font-extrabold text-white bg-[#FF6A00] hover:bg-[#EA580C] rounded-xl shadow-xs transition-colors text-center active:scale-[0.98] flex items-center justify-center gap-1.5"
+            className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#FF6A00] px-2.5 py-2.5 text-center text-xs font-extrabold text-white shadow-xs transition-colors hover:bg-[#EA580C] active:scale-[0.98]"
           >
             {!isSubscribed && <Lock className="w-3 h-3 text-white/90" />}
             <span>{isSubscribed ? 'Join Deal' : 'Subscribe to Join'}</span>

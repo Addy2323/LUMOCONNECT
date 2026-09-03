@@ -17,6 +17,7 @@ export function DealApplyModal({ deal, isOpen, onClose, onSuccess }: DealApplyMo
   const [channel, setChannel] = useState('WHATSAPP')
   const [customCode, setCustomCode] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [termsAccepted, setTermsAccepted] = useState(false)
   const [createdLink, setCreatedLink] = useState<{ code: string; qrCode: string; url: string } | null>(null)
 
   if (!isOpen || !deal) return null
@@ -167,6 +168,11 @@ export function DealApplyModal({ deal, isOpen, onClose, onSuccess }: DealApplyMo
                 </span>
               </div>
 
+              <label className="flex cursor-pointer items-start gap-2 rounded-xl border border-slate-200 p-3 text-[11px] text-slate-600 dark:border-slate-700 dark:text-slate-300">
+                <input type="checkbox" required checked={termsAccepted} onChange={(event) => setTermsAccepted(event.target.checked)} className="mt-0.5 h-4 w-4 accent-[#FF6A00]" />
+                <span>I understand and accept these commercial terms</span>
+              </label>
+
               <div className="flex gap-2 pt-2">
                 <button
                   type="button"
@@ -177,7 +183,7 @@ export function DealApplyModal({ deal, isOpen, onClose, onSuccess }: DealApplyMo
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !termsAccepted}
                   className="w-1/2 py-2.5 bg-orange-600 hover:bg-orange-500 text-white font-semibold text-xs rounded-xl transition-colors shadow-sm flex items-center justify-center gap-1.5"
                 >
                   {isSubmitting ? 'Generating Links...' : 'Accept & Get Link'}

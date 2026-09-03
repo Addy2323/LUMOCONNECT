@@ -7,7 +7,13 @@ __v0_jsx-dev-runtime.ts
 .vercel/
 
 # Environment variables
+.env
+.env.*
+!.env.example
 .env*.local
+
+# Netlify local state
+.netlify/
 
 # Common ignores
 node_modules

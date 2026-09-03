@@ -9,14 +9,11 @@ import { getUserSubscription, setUserSubscription } from '@/modules/subscription
 import { SiteHeader } from '@/components/shared/SiteHeader'
 import { Footer } from '@/components/shared/Footer'
 import { MobileNav } from '@/components/shared/MobileNav'
+import { NavigationLoader } from '@/components/shared/NavigationLoader'
 import { HeroSection } from '@/components/marketplace/HeroSection'
 import { TrustStrip } from '@/components/marketplace/TrustStrip'
-import { MarketplaceSectionHeader } from '@/components/marketplace/MarketplaceSectionHeader'
-import { MarketplaceFilters } from '@/components/marketplace/MarketplaceFilters'
-import { OpportunityCard } from '@/components/marketplace/OpportunityCard'
-import {
-  MarketplaceEmptyState,
-} from '@/components/marketplace/MarketplaceStates'
+import { OpportunityDiscoveryFeed } from '@/components/marketplace/OpportunityDiscoveryFeed'
+import { MarketplaceCatalog } from '@/components/marketplace/MarketplaceCatalog'
 import { DealApplyModal } from '@/components/marketplace/DealApplyModal'
 import { CreateDealWizard } from '@/components/marketplace/CreateDealWizard'
 import { BusinessPublishNoticeModal } from '@/components/marketplace/BusinessPublishNoticeModal'
@@ -36,7 +33,10 @@ import { AuthLayout } from '@/components/auth/AuthLayout'
 import { HowItWorksModal } from '@/components/shared/HowItWorksModal'
 import { AdminStepUpModal } from '@/components/auth/AdminStepUpModal'
 import { AdminModeBanner } from '@/components/shared/AdminModeBanner'
+import { LanguageSwitch } from '@/components/shared/LanguageSwitch'
 import type { UserWorkspaceInfo, WorkspaceType } from '@/lib/session'
+import type { PartnerSidebarSection } from '@/components/dashboards/partner/types'
+import type { BusinessSidebarSection } from '@/components/dashboards/business/types'
 
 // Authenticated User Workspace Configuration (Server-retrieved)
 const INITIAL_WORKSPACES: UserWorkspaceInfo[] = [
@@ -70,6 +70,8 @@ const INITIAL_WORKSPACES: UserWorkspaceInfo[] = [
 
 export default function LumoApp() {
   const [activeView, setActiveView] = useState('marketplace')
+  const [partnerDashboardTab, setPartnerDashboardTab] = useState<PartnerSidebarSection>('overview')
+  const [businessDashboardTab, setBusinessDashboardTab] = useState<BusinessSidebarSection>('overview')
   const [savedDeals, setSavedDeals] = useState<string[]>(() => {
     if (typeof window !== 'undefined') {
       try {
@@ -87,6 +89,7 @@ export default function LumoApp() {
     email: string
     phone: string
     password?: string
+    profilePhotoUrl?: string
   }>({
     name: 'Given M.',
     email: 'given@lumo.co.tz',
@@ -115,6 +118,7 @@ export default function LumoApp() {
   const [selectedCategory, setSelectedCategory] = useState('ALL')
   const [selectedType, setSelectedType] = useState('ALL')
   const [selectedRegion, setSelectedRegion] = useState('ALL')
+  const [minReward, setMinReward] = useState(0)
   const [sortBy, setSortBy] = useState<'recommended' | 'highest_reward' | 'newest' | 'ending_soon'>('recommended')
 
   // Modals
@@ -140,6 +144,13 @@ export default function LumoApp() {
   const hasActiveSubscription = Boolean(userSub && userSub.isActive)
 
   const [dealsRevision, setDealsRevision] = useState(0)
+
+  useEffect(() => {
+    const lockedPhoto = localStorage.getItem(`lumo_locked_profile_photo:${userDetails.email.toLowerCase()}`)
+    if (lockedPhoto) {
+      setUserDetails((previous) => ({ ...previous, profilePhotoUrl: lockedPhoto }))
+    }
+  }, [])
 
   useEffect(() => {
     const handleUpdate = () => setDealsRevision((r) => r + 1)
@@ -169,21 +180,24 @@ export default function LumoApp() {
       category: selectedCategory,
       type: selectedType,
       region: selectedRegion,
+      minReward,
       sortBy,
     })
-  }, [searchQuery, selectedCategory, selectedType, selectedRegion, sortBy, dealsRevision, activeView])
+  }, [searchQuery, selectedCategory, selectedType, selectedRegion, minReward, sortBy, dealsRevision, activeView])
 
   const activeFilterCount =
     (searchQuery ? 1 : 0) +
     (selectedCategory !== 'ALL' ? 1 : 0) +
     (selectedType !== 'ALL' ? 1 : 0) +
-    (selectedRegion !== 'ALL' ? 1 : 0)
+    (selectedRegion !== 'ALL' ? 1 : 0) +
+    (minReward > 0 ? 1 : 0)
 
   const handleClearFilters = () => {
     setSearchQuery('')
     setSelectedCategory('ALL')
     setSelectedType('ALL')
     setSelectedRegion('ALL')
+    setMinReward(0)
   }
 
   const handleToggleSave = (dealId: string) => {
@@ -199,43 +213,10 @@ export default function LumoApp() {
     })
   }
 
-  // Page-to-Page Navigation Transition State
-  const [isPageTransitioning, setIsPageTransitioning] = useState(false)
-  const [nextViewName, setNextViewName] = useState<string>('')
-
   const navigateToView = (view: string) => {
     if (view === activeView) return
-    setIsPageTransitioning(true)
-    setNextViewName(
-      view === 'marketplace'
-        ? 'Marketplace Opportunities'
-        : view === 'subscriptions'
-        ? 'Subscription Plans & Pass'
-        : view === 'partner'
-        ? 'Partner Portal'
-        : view === 'business'
-        ? 'Business Hub'
-        : view === 'dealroom'
-        ? 'B2B Deal Room'
-        : view === 'admin'
-        ? 'Admin Operations Portal'
-        : view === 'customer_checkout'
-        ? 'Customer Portal'
-        : view === 'signin'
-        ? 'Account Sign In'
-        : view === 'signup'
-        ? 'Partner Registration'
-        : 'Loading Workspace...'
-    )
-
-    // 6-Second Loader Transition as requested
-    setTimeout(() => {
-      setActiveView(view)
-      window.scrollTo({ top: 0, behavior: 'smooth' })
-      setTimeout(() => {
-        setIsPageTransitioning(false)
-      }, 400)
-    }, 5600)
+    setActiveView(view)
+    window.scrollTo({ top: 0, behavior: 'auto' })
   }
 
   /**
@@ -284,8 +265,42 @@ export default function LumoApp() {
 
   const handleSignOut = () => {
     setCurrentUserId(undefined)
+    setUserDetails((previous) => ({ ...previous, profilePhotoUrl: undefined }))
     setIsAdminModeActive(false)
     setActiveView('marketplace')
+  }
+
+  const handleMobileNavigation = (destination: string) => {
+    if (destination === 'marketplace' || destination === 'marketplace_catalog') {
+      setActiveView(destination)
+      return
+    }
+
+    if (!currentUserId) {
+      setActiveView('choose_path')
+      return
+    }
+
+    if (activeWorkspace.type === 'BUSINESS') {
+      setBusinessDashboardTab(
+        destination === 'deals'
+          ? 'my_opportunities'
+          : destination === 'earnings'
+            ? 'payments_funding'
+            : 'business_profile'
+      )
+      setActiveView('business')
+      return
+    }
+
+    setPartnerDashboardTab(
+      destination === 'deals'
+        ? 'my_deals'
+        : destination === 'earnings'
+          ? 'earnings_payouts'
+          : 'profile_verification'
+    )
+    setActiveView('partner')
   }
 
   /**
@@ -358,10 +373,19 @@ export default function LumoApp() {
     activeView === 'signin' ||
     activeView === 'auth_verify'
 
+  const isDashboardView =
+    activeView === 'partner' ||
+    activeView === 'business' ||
+    activeView === 'admin' ||
+    activeView === 'dealroom' ||
+    activeView === 'statement'
+
   return (
-    <div className="min-h-screen flex flex-col bg-[#F8FAFC] dark:bg-[#0B1220] text-[#0F172A] dark:text-slate-100 transition-colors">
+    <div id="lumo-localized-app" className={`${isAuthView ? 'auth-page-root' : ''} min-h-screen flex flex-col bg-[#F8FAFC] dark:bg-[#0B1220] text-[#0F172A] dark:text-slate-100 transition-colors`}>
+      <NavigationLoader key={activeView} />
+      <LanguageSwitch />
       {/* Persistent Admin Mode Security Warning Banner */}
-      {isAdminModeActive && (
+      {isAdminModeActive && !isDashboardView && (
         <AdminModeBanner
           adminEmail={userDetails.email}
           adminRoleName="Super Administrator"
@@ -369,8 +393,8 @@ export default function LumoApp() {
         />
       )}
 
-      {/* 70px Site Header with Legitimate Workspace Switcher */}
-      <SiteHeader
+      {/* Public header is hidden on dashboards and focused authentication screens. */}
+      {!isDashboardView && !isAuthView && <SiteHeader
         activeView={activeView}
         currentUserId={currentUserId}
         currentUserRole={activeWorkspace.role}
@@ -392,28 +416,18 @@ export default function LumoApp() {
         onOpenSignIn={() => navigateToView('signin')}
         onOpenGetStarted={() => navigateToView('choose_path')}
         onSignOut={handleSignOut}
-      />
-
-      {/* Page-to-Page Route Transition Loader Overlay */}
-      {isPageTransitioning && (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-950/75 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 shadow-2xl flex flex-col items-center space-y-5 max-w-xs text-center">
-            {/* Single Clean CSS Loader */}
-            <div className="loader mx-auto" />
-            <div>
-              <div className="font-extrabold text-base text-slate-900 dark:text-white">
-                {nextViewName || 'Loading Workspace...'}
-              </div>
-              <p className="text-xs text-slate-400 mt-1">
-                Please wait while we switch views
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
+      />}
 
       {/* Main Container */}
-      <main className={`flex-1 ${isAuthView ? 'w-full px-4 sm:px-6' : 'lumo-container py-8 sm:py-10'}`}>
+      <main
+        className={`flex-1 ${
+          isDashboardView
+            ? 'w-full'
+            : isAuthView
+            ? 'w-full px-4 sm:px-6'
+            : 'lumo-container py-8 sm:py-10'
+        }`}
+      >
         {/* VIEW 1: MARKETPLACE DISCOVERY */}
         {activeView === 'marketplace' && (
           <div className="space-y-8">
@@ -437,19 +451,21 @@ export default function LumoApp() {
             {/* Trust & Performance Strip */}
             <TrustStrip />
 
-            {/* Section Header */}
-            <div id="marketplace-filters-section" className="pt-2">
-              <MarketplaceSectionHeader
-                onPostOpportunity={handleTriggerCreateDeal}
-                currentUserRole={currentUserRole}
-                sortBy={sortBy}
-                onSortChange={setSortBy}
-                totalCount={opportunities.length}
-              />
-            </div>
+            <OpportunityDiscoveryFeed
+              region={selectedRegion}
+              onRegionChange={setSelectedRegion}
+              onSelectCategory={(category) => {
+                setSearchQuery('')
+                setSelectedCategory(category)
+              }}
+              onViewAll={() => {
+                const filterElem = document.getElementById('marketplace-filters-section')
+                if (filterElem) filterElem.scrollIntoView({ behavior: 'smooth' })
+              }}
+            />
 
-            {/* Elevated 5-Column Search & Filters Bar */}
-            <MarketplaceFilters
+            <MarketplaceCatalog
+              opportunities={opportunities}
               query={searchQuery}
               onQueryChange={setSearchQuery}
               selectedCategory={selectedCategory}
@@ -462,36 +478,45 @@ export default function LumoApp() {
               onSortChange={setSortBy}
               onClearFilters={handleClearFilters}
               activeFilterCount={activeFilterCount}
-              totalResults={opportunities.length}
+              minReward={minReward}
+              onMinRewardChange={setMinReward}
+              currentUserRole={currentUserRole}
+              currentUserOrgId={currentUserOrgId}
+              hasActiveSubscription={hasActiveSubscription}
+              savedDeals={savedDeals}
+              onToggleSave={handleToggleSave}
+              onDealAction={handleDealAction}
+              onPostOpportunity={handleTriggerCreateDeal}
             />
-
-            {/* Opportunity Grid */}
-            {opportunities.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-12">
-                {opportunities.map((item) => {
-                  const isOwner = Boolean(currentUserOrgId && currentUserOrgId === item.organizationId)
-                  const isAdmin = currentUserRole === 'ADMIN'
-                  const isAuthorizedForThisDeal = hasActiveSubscription || isOwner || isAdmin
-
-                  return (
-                    <OpportunityCard
-                      key={item.id}
-                      item={item}
-                      isSubscribed={isAuthorizedForThisDeal}
-                      isSaved={savedDeals.includes(item.id)}
-                      onToggleSave={() => handleToggleSave(item.id)}
-                      onApply={() => handleDealAction(item, 'join')}
-                      onViewDetails={() => handleDealAction(item, 'view')}
-                    />
-                  )
-                })}
-              </div>
-            ) : (
-              <div className="pb-12">
-                <MarketplaceEmptyState onReset={handleClearFilters} />
-              </div>
-            )}
           </div>
+        )}
+
+        {/* DEDICATED MARKETPLACE: COMPLETE DEAL CATALOGUE */}
+        {activeView === 'marketplace_catalog' && (
+          <MarketplaceCatalog
+            opportunities={opportunities}
+            query={searchQuery}
+            onQueryChange={setSearchQuery}
+            selectedCategory={selectedCategory}
+            onCategoryChange={setSelectedCategory}
+            selectedType={selectedType}
+            onTypeChange={setSelectedType}
+            selectedRegion={selectedRegion}
+            onRegionChange={setSelectedRegion}
+            sortBy={sortBy}
+            onSortChange={setSortBy}
+            onClearFilters={handleClearFilters}
+            activeFilterCount={activeFilterCount}
+            minReward={minReward}
+            onMinRewardChange={setMinReward}
+            currentUserRole={currentUserRole}
+            currentUserOrgId={currentUserOrgId}
+            hasActiveSubscription={hasActiveSubscription}
+            savedDeals={savedDeals}
+            onToggleSave={handleToggleSave}
+            onDealAction={handleDealAction}
+            onPostOpportunity={handleTriggerCreateDeal}
+          />
         )}
 
         {/* VIEW 2: SUBSCRIPTION PLANS (/subscriptions) */}
@@ -510,11 +535,14 @@ export default function LumoApp() {
         {/* VIEW 3: PARTNER PORTAL */}
         {activeView === 'partner' && (
           <PartnerDashboardView
+            initialTab={partnerDashboardTab}
             partnerName={userDetails.name || 'Partner'}
             email={userDetails.email}
             phone={userDetails.phone}
+            profilePhotoUrl={userDetails.profilePhotoUrl}
             onOpenStatement={() => setActiveView('statement')}
             onExploreDeals={() => setActiveView('marketplace')}
+            onSignOut={handleSignOut}
             onNavigateToSubscriptions={() => setActiveView('subscriptions')}
             onSelectOpportunity={(dealId) => {
               const opp = listOpportunities().find((o) => o.id === dealId || o.slug === dealId)
@@ -526,9 +554,12 @@ export default function LumoApp() {
         {/* VIEW 4: BUSINESS HUB */}
         {activeView === 'business' && (
           <BusinessDashboardView
+            initialTab={businessDashboardTab}
             businessName={activeWorkspace.type === 'BUSINESS' ? (activeWorkspace.organizationName || `${userDetails.name}'s Business`) : userDetails.name}
+            profilePhotoUrl={userDetails.profilePhotoUrl}
             onCreateDeal={() => setShowCreateWizard(true)}
             onExploreDeals={() => setActiveView('marketplace')}
+            onSignOut={handleSignOut}
           />
         )}
 
@@ -541,6 +572,7 @@ export default function LumoApp() {
             adminName={userDetails.name || 'Platform Administrator'}
             onExploreDeals={() => setActiveView('marketplace')}
             onExitAdminMode={handleExitAdminMode}
+            onSignOut={handleSignOut}
           />
         )}
 
@@ -667,7 +699,12 @@ export default function LumoApp() {
                     name: userName,
                     email: profileData?.email || prev.email,
                     phone: profileData?.phone || prev.phone,
+                    profilePhotoUrl: profileData?.profilePhotoUrl || prev.profilePhotoUrl,
                   }))
+                  if (profileData?.profilePhotoUrl) {
+                    const profileEmail = (profileData.email || userDetails.email).toLowerCase()
+                    localStorage.setItem(`lumo_locked_profile_photo:${profileEmail}`, profileData.profilePhotoUrl)
+                  }
 
                   if (finalRole === 'BUSINESS') {
                     const bizWorkspace: UserWorkspaceInfo = {
@@ -708,6 +745,7 @@ export default function LumoApp() {
                     password: activePwd,
                     name: userName,
                     phone: profileData?.phone || userDetails.phone,
+                    image: profileData?.profilePhotoUrl,
                     role: finalRole,
                     bizDetails:
                       finalRole === 'BUSINESS'
@@ -771,6 +809,10 @@ export default function LumoApp() {
                     email,
                     name: effectiveRole === 'ADMIN' ? 'Platform Administrator' : displayName,
                     phone: authUser?.phone || prev.phone,
+                    profilePhotoUrl:
+                      authUser?.image ||
+                      localStorage.getItem(`lumo_locked_profile_photo:${email}`) ||
+                      undefined,
                   }))
                   if (authUser?.id) {
                     setCurrentUserId(authUser.id)
@@ -899,10 +941,10 @@ export default function LumoApp() {
       />
 
       {/* Mobile Navigation Bottom Bar */}
-      <MobileNav activeView={activeView} onNavigate={setActiveView} />
+      {!isDashboardView && <MobileNav activeView={activeView} onNavigate={handleMobileNavigation} />}
 
       {/* Footer ONLY on non-auth views */}
-      {!isAuthView && <Footer onNavigate={setActiveView} />}
+      {!isAuthView && !isDashboardView && <Footer onNavigate={setActiveView} />}
     </div>
   )
 }

@@ -8,6 +8,7 @@ const registerSchema = z.object({
   password: z.string().optional(),
   name: z.string().min(1),
   phone: z.string().optional(),
+  image: z.string().startsWith('data:image/').max(2_000_000).optional(),
   role: z.enum(['PARTNER', 'BUSINESS']),
   bizDetails: z
     .object({
@@ -42,7 +43,7 @@ export async function POST(req: Request) {
       )
     }
 
-    const { email, password, name, phone, role, bizDetails, documents } = parsed.data
+    const { email, password, name, phone, image, role, bizDetails, documents } = parsed.data
     const normalizedEmail = email.trim().toLowerCase()
     const effectivePassword = password && password.trim().length >= 6 ? password.trim() : '12345678'
 
@@ -67,6 +68,8 @@ export async function POST(req: Request) {
           data: {
             name: name || existing.name,
             phone: phone || existing.phone,
+            // A verified onboarding portrait is immutable through normal profile updates.
+            image: existing.image || image,
             phoneVerified: Boolean(phone || existing.phoneVerified),
             emailVerified: true,
             accountStatus: 'ACTIVE',
@@ -115,6 +118,7 @@ export async function POST(req: Request) {
           emailVerified: true,
           name,
           phone: phone || null,
+          image: image || null,
           phoneVerified: Boolean(phone),
           accountStatus: 'ACTIVE',
           twoFactorEnabled: true,

@@ -38,6 +38,7 @@ import {
 } from '../types'
 import { useBusinessToast } from '../BusinessToast'
 import { createDealOpportunity } from '@/modules/deals/service'
+import { TANZANIA_OPPORTUNITY_CATEGORIES, TANZANIA_REGIONS } from '@/modules/deals/taxonomy'
 
 interface CreateOpportunityWizardModalProps {
   isOpen: boolean
@@ -93,8 +94,9 @@ export function CreateOpportunityWizardModal({
     title: '',
     publicSummary: '',
     subscriberDescription: '',
-    category: 'Renewable Energy',
-    region: 'Coastal & Dar es Salaam',
+    category: 'Products',
+    subcategory: 'Electronics',
+    region: 'Dar es Salaam',
     startDate: '2026-09-01',
     endDate: '2026-12-31',
     partnersRequired: 50,
@@ -259,6 +261,7 @@ export function CreateOpportunityWizardModal({
         title: formData.title,
         opportunityType: (formData.type as any) || 'CUSTOMER_ACQUISITION',
         category: formData.category || 'Renewable Energy',
+        subcategory: formData.subcategory || undefined,
         summary: formData.publicSummary || formData.title,
         description: formData.subscriberDescription || formData.publicSummary || formData.title,
         rewardType: formData.rewardStructure === 'PERCENTAGE_COMMISSION' ? 'PERCENTAGE_COMMISSION' : 'COST_PER_ACQUISITION',
@@ -492,7 +495,10 @@ export function CreateOpportunityWizardModal({
                       className="w-16 h-12 object-cover rounded-xl shrink-0"
                     />
                     <div className="flex-1 min-w-0">
-                      <span className="text-[10px] text-emerald-600 font-bold block">✓ Cover Image Active</span>
+                      <span className="flex items-center gap-1 text-[10px] text-emerald-600 font-bold">
+                        <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
+                        Cover Image Active
+                      </span>
                       <span className="text-[11px] text-slate-500 truncate block font-mono">
                         {formData.coverImageUrl}
                       </span>
@@ -614,14 +620,29 @@ export function CreateOpportunityWizardModal({
                   <label className="font-bold block mb-1">Industry Category</label>
                   <select
                     value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                    onChange={(e) => {
+                      const category = e.target.value
+                      const group = TANZANIA_OPPORTUNITY_CATEGORIES.find((item) => item.value === category)
+                      setFormData({ ...formData, category, subcategory: group?.subcategories[0] || '' })
+                    }}
                     className="w-full p-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800"
                   >
-                    <option value="Renewable Energy">Renewable Energy & Solar</option>
-                    <option value="FinTech & Banking">FinTech & Mobile Money</option>
-                    <option value="AgriBusiness">AgriBusiness & Inputs</option>
-                    <option value="Health & FMCG">Health & FMCG Goods</option>
-                    <option value="Education & Skills">Education & Vocational Skills</option>
+                    {TANZANIA_OPPORTUNITY_CATEGORIES.map((item) => (
+                      <option key={item.value} value={item.value}>{item.icon} {item.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="font-bold block mb-1">Specific Category</label>
+                  <select
+                    value={formData.subcategory}
+                    onChange={(e) => setFormData({ ...formData, subcategory: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800"
+                  >
+                    {TANZANIA_OPPORTUNITY_CATEGORIES.find((item) => item.value === formData.category)?.subcategories.map((item) => (
+                      <option key={item} value={item}>{item}</option>
+                    ))}
                   </select>
                 </div>
 
@@ -632,11 +653,7 @@ export function CreateOpportunityWizardModal({
                     onChange={(e) => setFormData({ ...formData, region: e.target.value })}
                     className="w-full p-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800"
                   >
-                    <option value="Coastal & Dar es Salaam">Dar es Salaam, Pwani, Morogoro</option>
-                    <option value="Arusha & Kilimanjaro">Arusha, Kilimanjaro, Manyara</option>
-                    <option value="Mwanza & Lake Zone">Mwanza, Mara, Kagera, Shinyanga</option>
-                    <option value="Central & Dodoma">Dodoma, Singida, Tabora</option>
-                    <option value="National (Tanzania Mainland)">National (All Regions)</option>
+                    {TANZANIA_REGIONS.map((item) => <option key={item} value={item}>{item}</option>)}
                   </select>
                 </div>
               </div>

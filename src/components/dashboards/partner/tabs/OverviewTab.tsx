@@ -41,6 +41,7 @@ interface OverviewTabProps {
   performance: PartnerPerformanceMetrics
   opportunities: PartnerOpportunitySummary[]
   joinedDeals: JoinedDealItem[]
+  profileCompletion: number
   onNavigateTab: (tab: PartnerSidebarSection) => void
   onOpenOpportunityDetail: (opp: PartnerOpportunitySummary) => void
   onOpenPayoutRequest: () => void
@@ -77,6 +78,7 @@ export function OverviewTab({
   performance,
   opportunities,
   joinedDeals,
+  profileCompletion,
   onNavigateTab,
   onOpenOpportunityDetail,
   onOpenPayoutRequest,
@@ -96,7 +98,7 @@ export function OverviewTab({
   return (
     <div className="space-y-6">
       {/* Top Welcome Card */}
-      <div className="bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="dashboard-welcome flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-xl sm:text-2xl font-black text-[#0F172A] dark:text-white tracking-tight">
@@ -104,7 +106,7 @@ export function OverviewTab({
             </h2>
             <span className="text-[10px] bg-emerald-100 text-emerald-700 font-extrabold px-2 py-0.5 rounded-full flex items-center gap-1">
               <ShieldCheck className="w-3 h-3" />
-              <span>Score: {performance.partnerScore}/100</span>
+              <span>Profile completed: {profileCompletion}%</span>
             </span>
           </div>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
@@ -391,15 +393,9 @@ export function OverviewTab({
                 <div className="flex items-center gap-2 pt-1">
                   <button
                     onClick={() => onNavigateTab('leads_referrals')}
-                    className="flex-1 py-1.5 bg-[#FF6A00] hover:bg-[#EA580C] text-white text-xs font-bold rounded-xl text-center transition-colors cursor-pointer"
+                    className="w-full py-1.5 bg-[#FF6A00] hover:bg-[#EA580C] text-white text-xs font-bold rounded-xl text-center transition-colors cursor-pointer"
                   >
                     + Submit Lead
-                  </button>
-                  <button
-                    onClick={() => onNavigateTab('sales_toolkit')}
-                    className="flex-1 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 text-slate-800 dark:text-slate-200 text-xs font-bold rounded-xl text-center transition-colors cursor-pointer"
-                  >
-                    Sales Toolkit
                   </button>
                 </div>
               </div>

@@ -4,10 +4,8 @@ import {
   PartnerLeadItem,
   PartnerDealRoom,
   PartnerPerformanceMetrics,
-  PartnerTrackingLinkItem,
   PartnerEarningsRecord,
   PartnerPayoutRequest,
-  PartnerScoreDetail,
   PartnerPayoutMethod,
   PartnerSubscriptionPlan,
   PartnerKYCProfile,
@@ -32,29 +30,12 @@ export const MOCK_PARTNER_PERFORMANCE: PartnerPerformanceMetrics = {
   rejectedResultsCount: 0,
   reversalsCount: 0,
   milestoneProgressPercent: 0,
-  partnerScore: 50,
 }
-
-export const MOCK_TRACKING_LINKS: PartnerTrackingLinkItem[] = []
 
 export const MOCK_PARTNER_EARNINGS: PartnerEarningsRecord[] = []
 export const MOCK_EARNINGS_RECORDS = MOCK_PARTNER_EARNINGS
 
 export const MOCK_PAYOUT_REQUESTS: PartnerPayoutRequest[] = []
-
-export const MOCK_PARTNER_SCORE: PartnerScoreDetail = {
-  overallScore: 50,
-  tierName: 'Emerging Sales Creator',
-  conversionQualityPercent: 100,
-  responsivenessScore: 100,
-  complianceRating: 5.0,
-  completedDealsCount: 0,
-  tipsToLevelUp: [
-    'Subscribe to unlock full commercial deal terms and marketing toolkits',
-    'Share verified WhatsApp and social referral links with your network',
-    'Fulfill customer orders promptly to build high reliability ratings',
-  ],
-}
 
 export const MOCK_PAYOUT_METHODS: PartnerPayoutMethod[] = []
 

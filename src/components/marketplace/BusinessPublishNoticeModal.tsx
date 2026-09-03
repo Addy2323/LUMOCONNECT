@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { X, Building2, ShieldCheck, Sparkles, ArrowRight, UserCheck } from 'lucide-react'
+import { X, Building2, ShieldCheck, Sparkles, ArrowRight, UserCheck, CheckCircle2 } from 'lucide-react'
 
 interface BusinessPublishNoticeModalProps {
   isOpen: boolean
@@ -53,7 +53,7 @@ export function BusinessPublishNoticeModal({
         <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 space-y-3 text-xs">
           <div className="flex items-start gap-2.5">
             <div className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5 font-bold">
-              ✓
+              <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
             </div>
             <div>
               <strong className="text-slate-900 dark:text-white">Partners (Creators & Promoters):</strong>
@@ -65,7 +65,7 @@ export function BusinessPublishNoticeModal({
 
           <div className="flex items-start gap-2.5 pt-2 border-t border-slate-200 dark:border-slate-700">
             <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-950/60 text-blue-600 flex items-center justify-center shrink-0 mt-0.5 font-bold">
-              ✓
+              <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
             </div>
             <div>
               <strong className="text-slate-900 dark:text-white">Businesses (Enterprises & Merchants):</strong>

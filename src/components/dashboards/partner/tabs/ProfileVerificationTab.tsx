@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   ShieldCheck,
   Save,
@@ -16,17 +16,22 @@ import {
 import { MOCK_PARTNER_KYC } from '../mockData'
 import { PartnerKYCProfile } from '../types'
 import { usePartnerToast } from '../PartnerToast'
+import { calculatePartnerProfileCompletion } from '../profileCompletion'
 
 interface ProfileVerificationTabProps {
   partnerName?: string
   email?: string
   phone?: string
+  profilePhotoUrl?: string
+  onCompletionChange?: (completion: number) => void
 }
 
 export function ProfileVerificationTab({
   partnerName = 'Alex M.',
   email = 'alex@gmail.com',
   phone = '+255 754 000 000',
+  profilePhotoUrl,
+  onCompletionChange,
 }: ProfileVerificationTabProps) {
   const { showToast } = usePartnerToast()
 
@@ -37,6 +42,11 @@ export function ProfileVerificationTab({
     phoneMasked: phone,
   })
   const [identityChanged, setIdentityChanged] = useState(false)
+  const profileCompletion = calculatePartnerProfileCompletion(profile)
+
+  useEffect(() => {
+    onCompletionChange?.(profileCompletion)
+  }, [onCompletionChange, profileCompletion])
 
   const handleSave = () => {
     if (identityChanged) {
@@ -58,7 +68,7 @@ export function ProfileVerificationTab({
           <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <span>Partner Profile & Verified KYC Identity</span>
             <span className="text-[10px] bg-emerald-100 text-emerald-700 font-extrabold px-2 py-0.5 rounded-full">
-              NIDA Verified
+              Profile {profileCompletion}% complete
             </span>
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
@@ -74,6 +84,21 @@ export function ProfileVerificationTab({
           <span>Save Changes</span>
         </button>
       </div>
+
+      {profilePhotoUrl && (
+        <div className="flex items-center gap-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-950/30">
+          <img src={profilePhotoUrl} alt={`${partnerName} verified profile`} className="h-16 w-16 rounded-2xl object-cover ring-2 ring-emerald-500" />
+          <div>
+            <p className="flex items-center gap-1.5 text-sm font-extrabold text-emerald-900 dark:text-emerald-200">
+              <Lock className="h-4 w-4" />
+              Face-verified profile photo
+            </p>
+            <p className="mt-1 text-[11px] text-emerald-700 dark:text-emerald-400">
+              This onboarding capture is locked and cannot be changed from profile settings.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Reverification Notice */}
       <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2.5">
@@ -146,8 +171,9 @@ export function ProfileVerificationTab({
             <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">
               National Identity & Tax Verification
             </h3>
-            <span className="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded">
-              ✓ NIDA Verified
+            <span className="inline-flex items-center gap-1 text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded">
+              <ShieldCheck className="h-3 w-3" aria-hidden="true" />
+              NIDA Verified
             </span>
           </div>
 

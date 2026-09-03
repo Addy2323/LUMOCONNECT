@@ -21,6 +21,9 @@ import {
   Trash2,
   FileCheck,
   Info,
+  LoaderCircle,
+  Camera,
+  ScanFace,
 } from 'lucide-react'
 import type { UserRole, PartnerType } from '@/modules/identity/types'
 import {
@@ -50,6 +53,7 @@ export interface OnboardingProfilePayload {
   contactPerson?: string
   email?: string
   phone?: string
+  profilePhotoUrl?: string
 }
 
 interface AuthFlowViewProps {
@@ -92,6 +96,10 @@ export function AuthFlowView({
   const [socialChannels, setSocialChannels] = useState('')
   const [identityType, setIdentityType] = useState<'NIDA_ID' | 'PASSPORT' | 'TIN_CERTIFICATE'>('NIDA_ID')
   const [identityNumber, setIdentityNumber] = useState('')
+  const [identityCheck, setIdentityCheck] = useState<{
+    status: 'IDLE' | 'CHECKING' | 'VERIFIED' | 'ERROR'
+    message: string
+  }>({ status: 'IDLE', message: '' })
 
   // Step 3: Role Profile State (Business)
   const [bizLegalName, setBizLegalName] = useState('')
@@ -106,6 +114,66 @@ export function AuthFlowView({
   // Step 4: Verification Status & Real Document Files (KYC / KYB) - Completely Empty for Clean Onboarding
   const [uploadedDocs, setUploadedDocs] = useState<Record<string, UploadedDocItem>>({})
   const [step4Error, setStep4Error] = useState<string | null>(null)
+
+  // Step 5: Consent-based live selfie capture. The accepted image is intentionally locked.
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+  const cameraStreamRef = useRef<MediaStream | null>(null)
+  const [cameraReady, setCameraReady] = useState(false)
+  const [facePhotoUrl, setFacePhotoUrl] = useState<string | null>(null)
+  const [faceCheck, setFaceCheck] = useState<{
+    status: 'IDLE' | 'CHECKING' | 'VERIFIED' | 'ERROR'
+    message: string
+  }>({ status: 'IDLE', message: '' })
+
+  const validateIdentityNumber = (
+    documentType: 'NIDA_ID' | 'PASSPORT' | 'TIN_CERTIFICATE',
+    rawValue: string
+  ) => {
+    const value = rawValue.trim().toUpperCase()
+
+    if (documentType === 'NIDA_ID') {
+      return value.replace(/\D/g, '').length === 20
+        ? null
+        : 'Enter the complete 20-digit NIDA number.'
+    }
+
+    if (documentType === 'PASSPORT') {
+      return /^(?=.*\d)[A-Z0-9]{6,12}$/.test(value)
+        ? null
+        : 'Enter 6–12 passport letters and numbers without spaces.'
+    }
+
+    return /^\d{9}$/.test(value.replace(/[-\s]/g, ''))
+      ? null
+      : 'Enter a valid 9-digit TRA TIN.'
+  }
+
+  const handleIdentityVerification = async () => {
+    const error = validateIdentityNumber(identityType, identityNumber)
+    if (error) {
+      setIdentityCheck({ status: 'ERROR', message: error })
+      return
+    }
+
+    setIdentityCheck({ status: 'CHECKING', message: 'Checking document format and data consistency…' })
+    await new Promise((resolve) => setTimeout(resolve, 900))
+    setIdentityCheck({
+      status: 'VERIFIED',
+      message: 'Format confirmed. Final identity matching happens after document review.',
+    })
+  }
+
+  const handleAdvanceToDocuments = () => {
+    if (role === 'PARTNER' && identityCheck.status !== 'VERIFIED') {
+      const error = validateIdentityNumber(identityType, identityNumber)
+      setIdentityCheck({
+        status: 'ERROR',
+        message: error || 'Select Verify number before continuing to document upload.',
+      })
+      return
+    }
+    setCurrentStep(4)
+  }
 
   const handleFileUpload = (slotKey: string, title: string, file: File) => {
     const reader = new FileReader()
@@ -127,7 +195,129 @@ export function AuthFlowView({
     reader.readAsDataURL(file)
   }
 
-  const handleAdvanceToSecurity = () => {
+  const stopCamera = () => {
+    cameraStreamRef.current?.getTracks().forEach((track) => track.stop())
+    cameraStreamRef.current = null
+    setCameraReady(false)
+  }
+
+  const startFaceCamera = async () => {
+    setFaceCheck({ status: 'IDLE', message: '' })
+    try {
+      stopCamera()
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          facingMode: 'user',
+          width: { ideal: 720 },
+          height: { ideal: 720 },
+        },
+      })
+      cameraStreamRef.current = stream
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        await videoRef.current.play()
+      }
+      setCameraReady(true)
+    } catch {
+      setFaceCheck({
+        status: 'ERROR',
+        message: 'Camera access was blocked. Allow camera access in your browser and try again.',
+      })
+    }
+  }
+
+  const captureAndVerifyFace = async () => {
+    const video = videoRef.current
+    if (!video || !cameraReady || video.videoWidth === 0 || video.videoHeight === 0) {
+      setFaceCheck({ status: 'ERROR', message: 'The camera is not ready yet. Please wait and try again.' })
+      return
+    }
+
+    setFaceCheck({ status: 'CHECKING', message: 'Checking framing, lighting, and face visibility…' })
+
+    const canvas = document.createElement('canvas')
+    canvas.width = 480
+    canvas.height = 480
+    const context = canvas.getContext('2d', { willReadFrequently: true })
+    if (!context) {
+      setFaceCheck({ status: 'ERROR', message: 'Your browser could not process the camera frame.' })
+      return
+    }
+
+    const sourceSize = Math.min(video.videoWidth, video.videoHeight)
+    const sourceX = (video.videoWidth - sourceSize) / 2
+    const sourceY = (video.videoHeight - sourceSize) / 2
+    context.drawImage(video, sourceX, sourceY, sourceSize, sourceSize, 0, 0, 480, 480)
+
+    const pixels = context.getImageData(0, 0, 480, 480).data
+    let brightnessTotal = 0
+    let brightnessSquaredTotal = 0
+    let samples = 0
+    for (let index = 0; index < pixels.length; index += 64) {
+      const brightness = (pixels[index] + pixels[index + 1] + pixels[index + 2]) / 3
+      brightnessTotal += brightness
+      brightnessSquaredTotal += brightness * brightness
+      samples += 1
+    }
+    const averageBrightness = brightnessTotal / samples
+    const brightnessVariance = brightnessSquaredTotal / samples - averageBrightness * averageBrightness
+
+    await new Promise((resolve) => setTimeout(resolve, 700))
+
+    if (averageBrightness < 35) {
+      setFaceCheck({ status: 'ERROR', message: 'The image is too dark. Face a light source and capture again.' })
+      return
+    }
+    if (averageBrightness > 235) {
+      setFaceCheck({ status: 'ERROR', message: 'The image is overexposed. Move away from direct light and retry.' })
+      return
+    }
+    if (brightnessVariance < 120) {
+      setFaceCheck({ status: 'ERROR', message: 'No clear facial detail was detected. Center your face and retry.' })
+      return
+    }
+
+    const FaceDetectorConstructor = (window as Window & {
+      FaceDetector?: new (options?: { fastMode?: boolean; maxDetectedFaces?: number }) => {
+        detect: (source: CanvasImageSource) => Promise<unknown[]>
+      }
+    }).FaceDetector
+
+    if (FaceDetectorConstructor) {
+      const detectedFaces = await new FaceDetectorConstructor({ fastMode: true, maxDetectedFaces: 2 }).detect(canvas)
+      if (detectedFaces.length !== 1) {
+        setFaceCheck({
+          status: 'ERROR',
+          message: detectedFaces.length === 0
+            ? 'No face was detected. Look directly at the camera and retry.'
+            : 'More than one face was detected. Only the account holder should be visible.',
+        })
+        return
+      }
+    }
+
+    const capturedPhoto = canvas.toDataURL('image/jpeg', 0.84)
+    setFacePhotoUrl(capturedPhoto)
+    setFaceCheck({
+      status: 'VERIFIED',
+      message: FaceDetectorConstructor
+        ? 'One face detected and capture quality verified. The photo is now locked.'
+        : 'Capture quality verified. Final face-to-document matching remains part of compliance review.',
+    })
+    stopCamera()
+  }
+
+  useEffect(() => {
+    if (currentStep !== 5) stopCamera()
+    return () => {
+      if (currentStep === 5) {
+        cameraStreamRef.current?.getTracks().forEach((track) => track.stop())
+      }
+    }
+  }, [currentStep])
+
+  const handleAdvanceToFaceVerification = () => {
     setStep4Error(null)
     if (Object.keys(uploadedDocs).length === 0) {
       setStep4Error('Please attach at least your primary statutory document (NIDA or BRELA) to proceed.')
@@ -332,20 +522,21 @@ export function AuthFlowView({
       <div className="mb-8 pb-6 border-b border-slate-100 dark:border-slate-800">
         <div className="flex items-center justify-between mb-3">
           <span className="text-xs font-extrabold text-[#F97316] uppercase tracking-wider">
-            Step {currentStep} of 5 ·{' '}
+            Step {currentStep} of 6 ·{' '}
             {currentStep === 2 && 'Verify Phone Number'}
             {currentStep === 3 && 'Complete Role Profile'}
             {currentStep === 4 && 'Identity & Business Verification (KYC/KYB)'}
-            {currentStep === 5 && 'Security Setup & Activation'}
+            {currentStep === 5 && 'Live Face Verification'}
+            {currentStep === 6 && 'Security Setup & Activation'}
           </span>
           <span className="text-xs font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full">
             {role === 'PARTNER' ? 'Partner Track' : 'Business Track'}
           </span>
         </div>
 
-        {/* 5 Step Indicator Segments */}
-        <div className="grid grid-cols-5 gap-2">
-          {[1, 2, 3, 4, 5].map((i) => (
+        {/* 6 Step Indicator Segments */}
+        <div className="grid grid-cols-6 gap-2">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
             <div
               key={i}
               className={`h-2 rounded-full transition-all duration-300 ${
@@ -633,7 +824,11 @@ export function AuthFlowView({
                   </label>
                   <select
                     value={identityType}
-                    onChange={(e) => setIdentityType(e.target.value as any)}
+                    onChange={(e) => {
+                      setIdentityType(e.target.value as typeof identityType)
+                      setIdentityNumber('')
+                      setIdentityCheck({ status: 'IDLE', message: '' })
+                    }}
                     className="w-full py-2.5 px-3.5 text-xs sm:text-sm border border-[#E2E8F0] dark:border-slate-800 rounded-xl bg-[#F0F5FA] text-[#0F172A] dark:text-white"
                   >
                     <option value="NIDA_ID">NIDA National ID (Tanzania)</option>
@@ -649,10 +844,72 @@ export function AuthFlowView({
                   <input
                     type="text"
                     value={identityNumber}
-                    onChange={(e) => setIdentityNumber(e.target.value)}
+                    onChange={(e) => {
+                      const rawValue = e.target.value.toUpperCase()
+                      if (identityType === 'NIDA_ID') {
+                        const digits = rawValue.replace(/\D/g, '').slice(0, 20)
+                        setIdentityNumber(
+                          [digits.slice(0, 8), digits.slice(8, 13), digits.slice(13, 18), digits.slice(18, 20)]
+                            .filter(Boolean)
+                            .join('-')
+                        )
+                      } else {
+                        setIdentityNumber(rawValue)
+                      }
+                      setIdentityCheck({ status: 'IDLE', message: '' })
+                    }}
                     placeholder="19940823-14120-00001-29"
-                    className="w-full py-2.5 px-3.5 text-xs sm:text-sm border border-[#E2E8F0] dark:border-slate-800 rounded-xl bg-[#F0F5FA] text-[#0F172A] dark:text-white font-mono"
+                    aria-invalid={identityCheck.status === 'ERROR'}
+                    className={`w-full py-2.5 px-3.5 text-xs sm:text-sm border rounded-xl bg-[#F0F5FA] text-[#0F172A] dark:text-white font-mono ${
+                      identityCheck.status === 'ERROR'
+                        ? 'border-red-400 focus:border-red-500'
+                        : identityCheck.status === 'VERIFIED'
+                          ? 'border-emerald-400 focus:border-emerald-500'
+                          : 'border-[#E2E8F0] dark:border-slate-800'
+                    }`}
                   />
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-800/40">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 text-[10px] font-extrabold uppercase tracking-wide">
+                      <span className="text-[#FF6A00]">1. Enter details</span>
+                      <span className={identityCheck.status === 'VERIFIED' ? 'text-emerald-600' : 'text-slate-400'}>2. Format check</span>
+                      <span className="text-slate-400">3. Upload document</span>
+                    </div>
+                    {identityCheck.status !== 'IDLE' && (
+                      <p className={`mt-1.5 text-[11px] font-semibold ${
+                        identityCheck.status === 'ERROR'
+                          ? 'text-red-600'
+                          : identityCheck.status === 'VERIFIED'
+                            ? 'text-emerald-700 dark:text-emerald-400'
+                            : 'text-blue-700 dark:text-blue-400'
+                      }`}>
+                        {identityCheck.message}
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleIdentityVerification}
+                    disabled={!identityNumber.trim() || identityCheck.status === 'CHECKING'}
+                    className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#0B132B] px-4 py-2 text-xs font-extrabold text-white transition-colors hover:bg-[#162347] disabled:cursor-not-allowed disabled:bg-slate-300"
+                  >
+                    {identityCheck.status === 'CHECKING' ? (
+                      <LoaderCircle className="h-4 w-4 animate-spin" />
+                    ) : identityCheck.status === 'VERIFIED' ? (
+                      <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                    ) : (
+                      <ShieldCheck className="h-4 w-4" />
+                    )}
+                    {identityCheck.status === 'CHECKING'
+                      ? 'Checking…'
+                      : identityCheck.status === 'VERIFIED'
+                        ? 'Format verified'
+                        : 'Verify number'}
+                  </button>
                 </div>
               </div>
             </div>
@@ -793,7 +1050,7 @@ export function AuthFlowView({
 
             <button
               type="button"
-              onClick={() => setCurrentStep(4)}
+              onClick={handleAdvanceToDocuments}
               className="py-3 px-6 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-xs transition-colors flex items-center gap-2"
             >
               <span>Save & Upload KYC Docs</span>
@@ -1144,18 +1401,131 @@ export function AuthFlowView({
 
             <button
               type="button"
-              onClick={handleAdvanceToSecurity}
+              onClick={handleAdvanceToFaceVerification}
               className="py-3 px-6 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
             >
-              <span>Security Setup</span>
+              <span>Continue to Face Verification</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
         </div>
       )}
 
-      {/* STEP 5: SECURITY SETUP (2FA & Trusted Device) & ACCOUNT ACTIVATION */}
+      {/* STEP 5: LIVE FACE CAPTURE & LOCAL QUALITY VERIFICATION */}
       {currentStep === 5 && (
+        <div className="space-y-6">
+          <div>
+            <h2 className="text-2xl sm:text-3xl font-black text-[#0F172A] dark:text-white tracking-tight">
+              Live Face Verification
+            </h2>
+            <p className="text-xs sm:text-sm text-[#64748B] dark:text-slate-400 mt-1">
+              Take a live selfie in good lighting. Once accepted, this image becomes your locked profile photo.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-blue-200 bg-blue-50/70 p-4 text-xs text-blue-950 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-200">
+            <div className="flex items-start gap-2.5">
+              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+              <div>
+                <p className="font-extrabold">Camera consent and profile-photo lock</p>
+                <p className="mt-1 text-[11px] leading-relaxed text-blue-800 dark:text-blue-300">
+                  The camera starts only after you select Start camera. Capture quality is checked locally and supported browsers also confirm that exactly one face is visible. Final identity matching is completed during compliance review.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="mx-auto max-w-sm">
+            <div className="relative aspect-square overflow-hidden rounded-3xl border-4 border-white bg-slate-950 shadow-xl ring-1 ring-slate-200 dark:border-slate-800 dark:ring-slate-700">
+              {facePhotoUrl ? (
+                <img src={facePhotoUrl} alt="Locked verified profile" className="h-full w-full object-cover" />
+              ) : (
+                <video
+                  ref={videoRef}
+                  muted
+                  playsInline
+                  className={`h-full w-full scale-x-[-1] object-cover ${cameraReady ? 'block' : 'hidden'}`}
+                />
+              )}
+
+              {!facePhotoUrl && !cameraReady && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center text-white">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/10">
+                    <ScanFace className="h-8 w-8 text-orange-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-extrabold">Center your face in the frame</p>
+                    <p className="mt-1 text-[11px] text-slate-400">Remove hats and use a well-lit background</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="pointer-events-none absolute inset-[12%] rounded-[42%] border-2 border-dashed border-white/70" />
+
+              {facePhotoUrl && (
+                <div className="absolute bottom-3 left-3 right-3 flex items-center justify-center gap-2 rounded-xl bg-emerald-600/95 px-3 py-2 text-xs font-extrabold text-white shadow-lg">
+                  <Lock className="h-4 w-4" />
+                  Locked profile photo
+                </div>
+              )}
+            </div>
+          </div>
+
+          {faceCheck.message && (
+            <div className={`flex items-start gap-2 rounded-xl border p-3 text-xs font-semibold ${
+              faceCheck.status === 'ERROR'
+                ? 'border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300'
+                : faceCheck.status === 'VERIFIED'
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300'
+                  : 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-300'
+            }`}>
+              {faceCheck.status === 'CHECKING' ? (
+                <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" />
+              ) : faceCheck.status === 'VERIFIED' ? (
+                <CheckCircle2 className="h-4 w-4 shrink-0" />
+              ) : (
+                <AlertCircle className="h-4 w-4 shrink-0" />
+              )}
+              <span>{faceCheck.message}</span>
+            </div>
+          )}
+
+          {!facePhotoUrl && (
+            <div className="flex justify-center">
+              {!cameraReady ? (
+                <button type="button" onClick={startFaceCamera} className="inline-flex items-center gap-2 rounded-xl bg-[#0B132B] px-6 py-3 text-sm font-extrabold text-white hover:bg-[#162347]">
+                  <Camera className="h-4 w-4" />
+                  Start camera
+                </button>
+              ) : (
+                <button type="button" onClick={captureAndVerifyFace} disabled={faceCheck.status === 'CHECKING'} className="inline-flex items-center gap-2 rounded-xl bg-[#FF6A00] px-6 py-3 text-sm font-extrabold text-white hover:bg-[#EA580C] disabled:bg-slate-300">
+                  {faceCheck.status === 'CHECKING' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+                  {faceCheck.status === 'CHECKING' ? 'Verifying capture…' : 'Capture and verify'}
+                </button>
+              )}
+            </div>
+          )}
+
+          <div className="flex items-center justify-between border-t border-slate-100 pt-6 dark:border-slate-800">
+            <button type="button" onClick={() => setCurrentStep(4)} className="flex items-center gap-1 rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-semibold hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800">
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Back
+            </button>
+            <button
+              type="button"
+              disabled={!facePhotoUrl || faceCheck.status !== 'VERIFIED'}
+              onClick={() => setCurrentStep(6)}
+              className="flex items-center gap-2 rounded-xl bg-[#FF6A00] px-6 py-3 text-xs font-extrabold text-white hover:bg-[#EA580C] disabled:cursor-not-allowed disabled:bg-slate-300 sm:text-sm"
+            >
+              Continue to Security
+              <ArrowRight className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* STEP 6: SECURITY SETUP (2FA & Trusted Device) & ACCOUNT ACTIVATION */}
+      {currentStep === 6 && (
         <div className="space-y-6">
           <div>
             <h2 className="text-2xl sm:text-3xl font-black text-[#0F172A] dark:text-white tracking-tight">
@@ -1266,7 +1636,7 @@ export function AuthFlowView({
           <div className="flex items-center justify-between pt-6 border-t border-slate-100 dark:border-slate-800">
             <button
               type="button"
-              onClick={() => setCurrentStep(4)}
+              onClick={() => setCurrentStep(5)}
               className="py-2.5 px-4 text-xs font-semibold border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 flex items-center gap-1"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
@@ -1289,6 +1659,7 @@ export function AuthFlowView({
                   contactPerson: authorizedRepName.trim() || undefined,
                   email: initialEmail || undefined,
                   phone: phone || initialPhone || undefined,
+                  profilePhotoUrl: facePhotoUrl || undefined,
                 }
                 onComplete(role, profilePayload)
               }}

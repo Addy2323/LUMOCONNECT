@@ -112,6 +112,7 @@ export async function POST(req: Request) {
         email: user.email,
         name: user.name,
         phone: user.phone,
+        image: user.image,
         role: resolvedRole,
         organizationId: organization?.id,
         organizationName: organization?.legalName || organization?.tradingName,

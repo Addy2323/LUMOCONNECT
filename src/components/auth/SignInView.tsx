@@ -19,6 +19,7 @@ export interface AuthenticatedUserPayload {
   email: string
   name: string
   phone?: string
+  image?: string | null
   role: 'PARTNER' | 'BUSINESS' | 'ADMIN' | 'CUSTOMER'
   organizationName?: string | null
   registrationNumber?: string | null

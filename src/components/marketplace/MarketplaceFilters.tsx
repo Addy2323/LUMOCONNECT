@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react'
 import { Search, SlidersHorizontal, X, ChevronDown, ArrowUpDown } from 'lucide-react'
+import { TANZANIA_OPPORTUNITY_CATEGORIES, TANZANIA_REGIONS } from '@/modules/deals/taxonomy'
 
 interface MarketplaceFiltersProps {
   query: string
@@ -21,14 +22,10 @@ interface MarketplaceFiltersProps {
 
 export const CATEGORIES = [
   { value: 'ALL', label: 'All Categories' },
-  { value: 'Renewable Energy', label: 'Renewable Energy' },
-  { value: 'Fintech & Payments', label: 'Fintech & Payments' },
-  { value: 'Travel & Hospitality', label: 'Travel & Hospitality' },
-  { value: 'Agriculture & FMCG', label: 'Agriculture & FMCG' },
-  { value: 'Technology & Enterprise', label: 'Technology & Enterprise' },
-  { value: 'Food & Beverage', label: 'Food & Beverage' },
-  { value: 'Education & EdTech', label: 'Education & EdTech' },
-  { value: 'Construction & Sourcing', label: 'Construction & Sourcing' },
+  ...TANZANIA_OPPORTUNITY_CATEGORIES.flatMap((group) => [
+    { value: group.value, label: `${group.icon} ${group.label}` },
+    ...group.subcategories.map((subcategory) => ({ value: subcategory, label: `  ${subcategory}` })),
+  ]),
 ]
 
 export const OPPORTUNITY_TYPES = [
@@ -45,14 +42,7 @@ export const OPPORTUNITY_TYPES = [
 
 export const REGIONS = [
   { value: 'ALL', label: 'All Regions' },
-  { value: 'Dar es Salaam', label: 'Dar es Salaam' },
-  { value: 'Arusha', label: 'Arusha' },
-  { value: 'Mwanza', label: 'Mwanza' },
-  { value: 'Dodoma', label: 'Dodoma' },
-  { value: 'Mbeya', label: 'Mbeya' },
-  { value: 'Morogoro', label: 'Morogoro' },
-  { value: 'Zanzibar', label: 'Zanzibar' },
-  { value: 'Kilimanjaro', label: 'Kilimanjaro' },
+  ...TANZANIA_REGIONS.filter((region) => region !== 'All Tanzania').map((region) => ({ value: region, label: region })),
 ]
 
 export function MarketplaceFilters({
@@ -311,6 +301,15 @@ export function MarketplaceFilters({
             </span>
           )}
 
+          {selectedRegion !== 'ALL' && (
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-white text-[11px]">
+              <MapPinLabel region={selectedRegion} />
+              <button onClick={() => onRegionChange('ALL')} className="hover:text-[#FF6A00]" aria-label="Clear region filter">
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          )}
+
           <button
             onClick={onClearFilters}
             className="text-[#FF6A00] hover:text-[#EA580C] font-semibold ml-auto text-[11px]"
@@ -321,4 +320,8 @@ export function MarketplaceFilters({
       )}
     </div>
   )
+}
+
+function MapPinLabel({ region }: { region: string }) {
+  return <span>📍 {region}</span>
 }

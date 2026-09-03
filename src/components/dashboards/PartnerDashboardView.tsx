@@ -2,24 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import {
-  Bell,
-  Search,
   Sparkles,
-  ShieldCheck,
-  Briefcase,
-  Users,
-  Target,
-  Wallet,
-  ShoppingBag,
-  GraduationCap,
-  Award,
-  CreditCard,
-  Building,
-  Shield,
-  HelpCircle,
-  Link,
-  Bookmark,
-  MessageSquareCode,
+  Menu,
 } from 'lucide-react'
 import {
   PartnerSidebarSection,
@@ -30,7 +14,7 @@ import {
   PartnerSubscriptionPlan,
 } from './partner/types'
 import { PartnerToastProvider } from './partner/PartnerToast'
-import { PartnerSidebar } from './partner/PartnerSidebar'
+import { PartnerMobileSidebar, PartnerSidebar } from './partner/PartnerSidebar'
 
 // Tab components
 import { OverviewTab } from './partner/tabs/OverviewTab'
@@ -40,16 +24,10 @@ import { MyDealsTab } from './partner/tabs/MyDealsTab'
 import { LeadsReferralsTab } from './partner/tabs/LeadsReferralsTab'
 import { DealRoomsTab } from './partner/tabs/DealRoomsTab'
 import { PerformanceTab } from './partner/tabs/PerformanceTab'
-import { TrackingLinksCodesTab } from './partner/tabs/TrackingLinksCodesTab'
 import { EarningsPayoutsTab } from './partner/tabs/EarningsPayoutsTab'
 import { NotificationsTab } from './partner/tabs/NotificationsTab'
-import { SalesToolkitTab } from './partner/tabs/SalesToolkitTab'
-import { TrainingCenterTab } from './partner/tabs/TrainingCenterTab'
-import { PartnerScoreTab } from './partner/tabs/PartnerScoreTab'
 import { ProfileVerificationTab } from './partner/tabs/ProfileVerificationTab'
 import { SubscriptionTab } from './partner/tabs/SubscriptionTab'
-import { PayoutMethodsTaxTab } from './partner/tabs/PayoutMethodsTaxTab'
-import { SettingsSecurityTab } from './partner/tabs/SettingsSecurityTab'
 import { HelpSupportTab } from './partner/tabs/HelpSupportTab'
 
 // Services
@@ -60,19 +38,24 @@ import type { OpportunityItem } from '@/modules/deals/types'
 // Initial Mock Data
 import {
   MOCK_JOINED_DEALS,
+  MOCK_PARTNER_KYC,
   MOCK_PARTNER_LEADS,
   MOCK_PARTNER_PERFORMANCE,
   MOCK_PARTNER_SUBSCRIPTION,
 } from './partner/mockData'
+import { calculatePartnerProfileCompletion } from './partner/profileCompletion'
 
 interface PartnerDashboardViewProps {
+  initialTab?: PartnerSidebarSection
   partnerName?: string
   email?: string
   phone?: string
+  profilePhotoUrl?: string
   onOpenStatement?: () => void
   onExploreDeals?: () => void
   onNavigateToSubscriptions?: () => void
   onSelectOpportunity?: (dealId: string) => void
+  onSignOut?: () => void
 }
 
 function mapOpportunityToPartnerSummary(
@@ -107,16 +90,28 @@ function mapOpportunityToPartnerSummary(
 }
 
 export function PartnerDashboardView({
+  initialTab = 'overview',
   partnerName = 'Alex M.',
   email,
   phone,
+  profilePhotoUrl,
   onOpenStatement,
   onExploreDeals,
   onNavigateToSubscriptions,
   onSelectOpportunity,
+  onSignOut,
 }: PartnerDashboardViewProps) {
-  const [activeTab, setActiveTab] = useState<PartnerSidebarSection>('overview')
+  const [activeTab, setActiveTab] = useState<PartnerSidebarSection>(initialTab)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+  const [profileCompletion, setProfileCompletion] = useState(() =>
+    calculatePartnerProfileCompletion({
+      ...MOCK_PARTNER_KYC,
+      fullName: partnerName,
+      email: email || '',
+      phoneMasked: phone || '',
+    })
+  )
 
   // Central state managed across Partner tabs
   const [opportunities, setOpportunities] = useState<PartnerOpportunitySummary[]>([])
@@ -138,21 +133,6 @@ export function PartnerDashboardView({
   // Submit Lead Modal Trigger
   const [showSubmitLeadModal, setShowSubmitLeadModal] = useState(false)
   const [selectedDealForLead, setSelectedDealForLead] = useState<JoinedDealItem | null>(null)
-
-  // Fast Mobile Scroller Pills
-  const mobilePills: { id: PartnerSidebarSection; label: string }[] = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'discover', label: 'Discover' },
-    { id: 'saved_opportunities', label: 'Saved' },
-    { id: 'my_deals', label: 'My Deals' },
-    { id: 'leads_referrals', label: 'Leads' },
-    { id: 'deal_rooms', label: 'Deal Rooms' },
-    { id: 'performance', label: 'Performance' },
-    { id: 'earnings_payouts', label: 'Earnings' },
-    { id: 'sales_toolkit', label: 'Sales Toolkit' },
-    { id: 'training_center', label: 'Academy' },
-    { id: 'subscription', label: 'Subscription' },
-  ]
 
   // Reload Opportunities & Saved Bookmarks
   const reloadOpportunities = useCallback(() => {
@@ -280,7 +260,7 @@ export function PartnerDashboardView({
 
   return (
     <PartnerToastProvider>
-      <div className="w-full bg-[#F8FAFC] dark:bg-[#0B1220] min-h-[calc(100vh-80px)] text-[#0F172A] dark:text-slate-100 flex flex-col lg:flex-row gap-6 items-start pb-20 md:pb-16 transition-colors">
+      <div className="dashboard-shell w-full bg-[#F8FAFC] dark:bg-[#0B1220] min-h-screen text-[#0F172A] dark:text-slate-100 flex flex-col lg:flex-row transition-colors">
         {/* ========================================================================= */}
         {/* DESKTOP 4-GROUP STRUCTURED PARTNER SIDEBAR                                */}
         {/* ========================================================================= */}
@@ -290,6 +270,7 @@ export function PartnerDashboardView({
           sidebarCollapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
           partnerName={partnerName}
+          profilePhotoUrl={profilePhotoUrl}
           myDealsCount={joinedDeals.length}
           savedCount={opportunities.filter((o) => o.isSaved).length}
           leadsCount={leads.length}
@@ -303,56 +284,59 @@ export function PartnerDashboardView({
           }}
         />
 
+        <PartnerMobileSidebar
+          open={mobileSidebarOpen}
+          onClose={() => setMobileSidebarOpen(false)}
+          activeTab={activeTab}
+          onSelectTab={setActiveTab}
+          partnerName={partnerName}
+          profilePhotoUrl={profilePhotoUrl}
+          myDealsCount={joinedDeals.length}
+          savedCount={opportunities.filter((o) => o.isSaved).length}
+          leadsCount={leads.length}
+          subscription={subscription}
+          onBrowseMarketplace={onExploreDeals}
+          onSignOut={onSignOut}
+          onManagePlan={() => {
+            if (onNavigateToSubscriptions) onNavigateToSubscriptions()
+            else setActiveTab('subscription')
+          }}
+        />
+
         {/* ========================================================================= */}
         {/* MAIN PARTNER DASHBOARD CONTENT AREA                                       */}
         {/* ========================================================================= */}
-        <main className="flex-1 w-full space-y-5 sm:space-y-6">
-          {/* MOBILE HORIZONTAL PILLS SCROLLER (VISIBLE ONLY ON MOBILE <lg) */}
-          <div className="lg:hidden flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar pt-1">
-            {mobilePills.map((pill) => {
-              const isActive = activeTab === pill.id
-              return (
-                <button
-                  key={pill.id}
-                  onClick={() => setActiveTab(pill.id)}
-                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all shadow-2xs shrink-0 cursor-pointer ${
-                    isActive
-                      ? 'bg-[#0B132B] text-white shadow-xs font-extrabold'
-                      : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800'
-                  }`}
-                >
-                  <span>{pill.label}</span>
-                </button>
-              )
-            })}
-          </div>
-
+        <main className="dashboard-main min-w-0 flex-1 w-full space-y-5 sm:space-y-6">
+          {/* MOBILE SIDEBAR TRIGGER (VISIBLE ONLY BELOW DESKTOP BREAKPOINT) */}
           {/* Top Header Bar */}
-          <div className="bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-3.5 sm:p-5 flex items-center justify-between shadow-2xs">
-            <div className="flex items-center gap-3">
-              <h1 className="text-base sm:text-xl font-black text-[#0F172A] dark:text-white truncate">
-                {activeTab === 'overview' && 'Partner Overview & Activity Pulse'}
+          <div className="dashboard-topbar bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 flex items-center justify-between gap-3">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setMobileSidebarOpen(true)}
+                className="lg:hidden flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-[#FF6A00] dark:border-slate-700 sm:h-10 sm:w-10"
+                aria-label="Open partner navigation"
+                aria-expanded={mobileSidebarOpen}
+              >
+                <Menu className="h-5 w-5" />
+              </button>
+              <h1 className="min-w-0 truncate text-sm font-black text-[#0F172A] dark:text-white sm:text-xl">
+                {activeTab === 'overview' && 'Mshirika wa Mauzo / Partner Overview'}
                 {activeTab === 'discover' && 'Discover Commercial Opportunities'}
                 {activeTab === 'saved_opportunities' && 'Saved Opportunities & Bookmarks'}
                 {activeTab === 'my_deals' && 'My Deals & Enrolled Campaigns'}
                 {activeTab === 'leads_referrals' && 'Customer Leads & Commercial Referrals'}
                 {activeTab === 'deal_rooms' && 'Deal Rooms & Negotiations'}
                 {activeTab === 'performance' && 'Performance & Outcome Analytics'}
-                {activeTab === 'tracking_links_codes' && 'Tracking Links, Promo Codes & QR'}
                 {activeTab === 'earnings_payouts' && 'Earnings, Commissions & Payouts'}
                 {activeTab === 'notifications' && 'Notifications & Operational Alerts'}
-                {activeTab === 'sales_toolkit' && 'Sales & Marketing Promotional Toolkit'}
-                {activeTab === 'training_center' && 'Partner Academy & Masterclasses'}
-                {activeTab === 'partner_score' && 'Partner Score & Verified Reputation'}
-                {activeTab === 'profile_verification' && 'Partner Profile & Verified KYC'}
+                {activeTab === 'profile_verification' && 'Mshirika wa Mauzo / Partner Profile & Verified KYC'}
                 {activeTab === 'subscription' && 'Partner Access Pass & Subscription'}
-                {activeTab === 'payout_methods_tax' && 'Payout Accounts & TRA Tax Certificates'}
-                {activeTab === 'settings_security' && 'Security, MFA & Notification Preferences'}
                 {activeTab === 'help_support' && 'Help Desk, Support & Dispute Center'}
               </h1>
             </div>
 
-            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            <div className="hidden shrink-0 items-center gap-3 sm:flex">
               {subscription.status === 'ACTIVE' ? (
                 <div
                   onClick={() => setActiveTab('subscription')}
@@ -375,13 +359,13 @@ export function PartnerDashboardView({
                   className="flex items-center gap-1.5 text-xs font-extrabold px-3 py-1.5 rounded-xl bg-[#FF6A00] hover:bg-[#EA580C] text-white cursor-pointer shadow-xs"
                 >
                   <Sparkles className="w-3.5 h-3.5" />
-                  <span>⚡ Get PRO Pass</span>
+                  <span>Get PRO Pass</span>
                 </button>
               )}
 
               <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-200 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="hidden sm:inline-block">Score {performance.partnerScore}</span>
+                <span>Profile {profileCompletion}%</span>
               </div>
             </div>
           </div>
@@ -396,6 +380,7 @@ export function PartnerDashboardView({
               performance={performance}
               opportunities={opportunities}
               joinedDeals={joinedDeals}
+              profileCompletion={profileCompletion}
               onNavigateTab={setActiveTab}
               onOpenOpportunityDetail={(opp) => {
                 if (subscription?.status !== 'ACTIVE') {
@@ -465,10 +450,12 @@ export function PartnerDashboardView({
 
           {/* GROUP 2: PERFORMANCE */}
           {activeTab === 'performance' && (
-            <PerformanceTab performance={performance} joinedDeals={joinedDeals} />
+            <PerformanceTab
+              performance={performance}
+              joinedDeals={joinedDeals}
+              profileCompletion={profileCompletion}
+            />
           )}
-
-          {activeTab === 'tracking_links_codes' && <TrackingLinksCodesTab />}
 
           {activeTab === 'earnings_payouts' && (
             <EarningsPayoutsTab onOpenStatement={onOpenStatement} />
@@ -476,21 +463,14 @@ export function PartnerDashboardView({
 
           {activeTab === 'notifications' && <NotificationsTab />}
 
-          {/* GROUP 3: GROW */}
-          {activeTab === 'sales_toolkit' && (
-            <SalesToolkitTab joinedDeals={joinedDeals} />
-          )}
-
-          {activeTab === 'training_center' && <TrainingCenterTab />}
-
-          {activeTab === 'partner_score' && <PartnerScoreTab />}
-
-          {/* GROUP 4: ACCOUNT */}
+          {/* GROUP 3: ACCOUNT */}
           {activeTab === 'profile_verification' && (
             <ProfileVerificationTab
               partnerName={partnerName}
               email={email}
               phone={phone}
+              profilePhotoUrl={profilePhotoUrl}
+              onCompletionChange={setProfileCompletion}
             />
           )}
 
@@ -501,10 +481,6 @@ export function PartnerDashboardView({
               onNavigateToSubscriptions={onNavigateToSubscriptions}
             />
           )}
-
-          {activeTab === 'payout_methods_tax' && <PayoutMethodsTaxTab />}
-
-          {activeTab === 'settings_security' && <SettingsSecurityTab />}
 
           {activeTab === 'help_support' && <HelpSupportTab />}
         </main>

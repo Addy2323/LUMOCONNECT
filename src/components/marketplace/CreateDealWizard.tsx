@@ -13,6 +13,7 @@ import {
   HelpCircle,
 } from 'lucide-react'
 import { createDealOpportunity } from '@/modules/deals/service'
+import { TANZANIA_OPPORTUNITY_CATEGORIES, TANZANIA_REGIONS } from '@/modules/deals/taxonomy'
 import type { OpportunityTypeSchema, RewardTypeSchema } from '@/modules/deals/types'
 import { z } from 'zod'
 
@@ -27,8 +28,9 @@ export function CreateDealWizard({ onSuccess, onCancel }: CreateDealWizardProps)
   // Form State
   const [title, setTitle] = useState('')
   const [opportunityType, setOpportunityType] = useState<z.infer<typeof OpportunityTypeSchema>>('CUSTOMER_ACQUISITION')
-  const [category, setCategory] = useState('Renewable Energy')
-  const [region, setRegion] = useState('All Tanzania')
+  const [category, setCategory] = useState('Products')
+  const [subcategory, setSubcategory] = useState('Electronics')
+  const [region, setRegion] = useState('Dar es Salaam')
   const [summary, setSummary] = useState('')
   const [description, setDescription] = useState('')
   const [rewardType, setRewardType] = useState<z.infer<typeof RewardTypeSchema>>('COST_PER_ACQUISITION')
@@ -47,6 +49,7 @@ export function CreateDealWizard({ onSuccess, onCancel }: CreateDealWizardProps)
         title,
         opportunityType,
         category,
+        subcategory,
         summary,
         description,
         rewardType,
@@ -139,32 +142,46 @@ export function CreateDealWizard({ onSuccess, onCancel }: CreateDealWizardProps)
               </label>
               <select
                 value={category}
-                onChange={(e) => setCategory(e.target.value)}
+                onChange={(e) => {
+                  setCategory(e.target.value)
+                  const group = TANZANIA_OPPORTUNITY_CATEGORIES.find((item) => item.value === e.target.value)
+                  setSubcategory(group?.subcategories[0] || '')
+                }}
                 className="w-full text-xs p-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-800"
               >
-                <option value="Renewable Energy">Renewable Energy</option>
-                <option value="Fintech & Payments">Fintech & Payments</option>
-                <option value="Travel & Hospitality">Travel & Hospitality</option>
-                <option value="Agriculture & FMCG">Agriculture & FMCG</option>
-                <option value="Technology & Enterprise">Technology & Enterprise</option>
-                <option value="Food & Beverage">Food & Beverage</option>
-                <option value="Education & EdTech">Education & EdTech</option>
-                <option value="Construction & Sourcing">Construction & Sourcing</option>
+                {TANZANIA_OPPORTUNITY_CATEGORIES.map((item) => (
+                  <option key={item.value} value={item.value}>{item.icon} {item.label}</option>
+                ))}
               </select>
             </div>
           </div>
 
           <div>
             <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+              Specific Category
+            </label>
+            <select
+              value={subcategory}
+              onChange={(e) => setSubcategory(e.target.value)}
+              className="w-full text-xs p-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-800"
+            >
+              {TANZANIA_OPPORTUNITY_CATEGORIES.find((item) => item.value === category)?.subcategories.map((item) => (
+                <option key={item} value={item}>{item}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
               Geographic Region Focus
             </label>
-            <input
-              type="text"
+            <select
               value={region}
               onChange={(e) => setRegion(e.target.value)}
-              placeholder="e.g. Dar es Salaam, Arusha, Mwanza or All Tanzania"
               className="w-full text-xs p-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-800"
-            />
+            >
+              {TANZANIA_REGIONS.map((item) => <option key={item} value={item}>{item}</option>)}
+            </select>
           </div>
         </div>
       )}
@@ -356,6 +373,7 @@ export function CreateDealWizard({ onSuccess, onCancel }: CreateDealWizardProps)
               <div>
                 <span className="text-slate-400 block text-[11px]">Category</span>
                 <strong className="text-slate-800 dark:text-slate-200">{category}</strong>
+                <span className="block text-[10px] text-slate-400">{subcategory}</span>
               </div>
               <div>
                 <span className="text-slate-400 block text-[11px]">Reward</span>

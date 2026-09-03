@@ -16,11 +16,13 @@ import { useBusinessToast } from '../BusinessToast'
 
 interface BusinessProfileTabProps {
   businessName?: string
+  profilePhotoUrl?: string
   registrationNumber?: string
 }
 
 export function BusinessProfileTab({
   businessName = 'My Business Ltd',
+  profilePhotoUrl,
   registrationNumber,
 }: BusinessProfileTabProps) {
   const { showToast } = useBusinessToast()
@@ -76,6 +78,21 @@ export function BusinessProfileTab({
           <span>Save Profile Changes</span>
         </button>
       </div>
+
+      {profilePhotoUrl && (
+        <div className="flex items-center gap-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-950/30">
+          <img src={profilePhotoUrl} alt="Verified account holder" className="h-16 w-16 rounded-2xl object-cover ring-2 ring-emerald-500" />
+          <div>
+            <p className="flex items-center gap-1.5 text-sm font-extrabold text-emerald-900 dark:text-emerald-200">
+              <Lock className="h-4 w-4" />
+              Verified account-holder photo
+            </p>
+            <p className="mt-1 text-[11px] text-emerald-700 dark:text-emerald-400">
+              Captured during onboarding and locked against changes in profile settings.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Reverification Rule Banner */}
       <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2.5">
@@ -143,8 +160,9 @@ export function BusinessProfileTab({
             <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">
               Verified Legal Credentials (TRA / BRELA)
             </h3>
-            <span className="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded">
-              ✓ Verified Active
+            <span className="inline-flex items-center gap-1 text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded">
+              <ShieldCheck className="h-3 w-3" aria-hidden="true" />
+              Verified Active
             </span>
           </div>
 

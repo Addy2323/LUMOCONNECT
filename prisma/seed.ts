@@ -19,12 +19,12 @@ import crypto from 'crypto'
 const prisma = new PrismaClient()
 
 async function main() {
-  console.log('🌱 Seeding LUMO database...\n')
+  console.log('Seeding LUMO database...\n')
 
   // ──────────────────────────────────────────────────
   // 1. ROLES
   // ──────────────────────────────────────────────────
-  console.log('📋 Creating roles...')
+  console.log('Creating roles...')
   const roles = await Promise.all([
     prisma.role.upsert({
       where: { code: 'CUSTOMER' },
@@ -141,12 +141,12 @@ async function main() {
       },
     }),
   ])
-  console.log(`  ✅ ${roles.length} roles created\n`)
+  console.log(`  ${roles.length} roles created\n`)
 
   // ──────────────────────────────────────────────────
   // 2. SUBSCRIPTION PLANS
   // ──────────────────────────────────────────────────
-  console.log('💳 Creating subscription plans...')
+  console.log('Creating subscription plans...')
   const plans = await Promise.all([
     prisma.subscriptionPlan.upsert({
       where: { code: 'FREE_TIER' },
@@ -222,12 +222,12 @@ async function main() {
       },
     }),
   ])
-  console.log(`  ✅ ${plans.length} subscription plans created\n`)
+  console.log(`  ${plans.length} subscription plans created\n`)
 
   // ──────────────────────────────────────────────────
   // 3. OPPORTUNITY CATEGORIES
   // ──────────────────────────────────────────────────
-  console.log('📂 Creating opportunity categories...')
+  console.log('Creating opportunity categories...')
   const categories = await Promise.all(
     [
       { name: 'Renewable Energy', slug: 'renewable-energy', sortOrder: 1 },
@@ -250,12 +250,12 @@ async function main() {
       })
     )
   )
-  console.log(`  ✅ ${categories.length} opportunity categories created\n`)
+  console.log(`  ${categories.length} opportunity categories created\n`)
 
   // ──────────────────────────────────────────────────
   // 4. CHART OF ACCOUNTS (LEDGER)
   // ──────────────────────────────────────────────────
-  console.log('📊 Creating ledger accounts (chart of accounts)...')
+  console.log('Creating ledger accounts (chart of accounts)...')
   const ledgerAccounts = await Promise.all(
     [
       { accountCode: 'ESCROW_MAIN', name: 'Platform Escrow — Main Safeguarding Account', ownerType: 'PLATFORM' },
@@ -274,12 +274,12 @@ async function main() {
       })
     )
   )
-  console.log(`  ✅ ${ledgerAccounts.length} ledger accounts created\n`)
+  console.log(`  ${ledgerAccounts.length} ledger accounts created\n`)
 
   // ──────────────────────────────────────────────────
   // 5. NOTIFICATION TEMPLATES
   // ──────────────────────────────────────────────────
-  console.log('🔔 Creating notification templates...')
+  console.log('Creating notification templates...')
   const templates = await Promise.all(
     [
       { code: 'WELCOME', channel: 'IN_APP' as const, titleTemplate: 'Welcome to LUMO', bodyTemplate: 'Your account has been created. Complete your profile to get started.' },
@@ -302,12 +302,12 @@ async function main() {
       })
     )
   )
-  console.log(`  ✅ ${templates.length} notification templates created\n`)
+  console.log(`  ${templates.length} notification templates created\n`)
 
   // ──────────────────────────────────────────────────
   // 6. RISK RULES
   // ──────────────────────────────────────────────────
-  console.log('🛡️ Creating risk rules...')
+  console.log('Creating risk rules...')
   const riskRules = await Promise.all(
     [
       {
@@ -354,14 +354,14 @@ async function main() {
       })
     )
   )
-  console.log(`  ✅ ${riskRules.length} risk rules created\n`)
+  console.log(`  ${riskRules.length} risk rules created\n`)
 
   // ──────────────────────────────────────────────────
   // 7. TEST USER, ORGANIZATION & PARTNER
   // ──────────────────────────────────────────────────
   // 7. ROOT SUPER ADMIN ACCOUNT (Clean Production Bootstrap)
   // ──────────────────────────────────────────────────
-  console.log('👤 Creating root Super Admin user...')
+  console.log('Creating root Super Admin user...')
 
   const adminUser = await prisma.user.upsert({
     where: { email: 'admin@lumo.co.tz' },
@@ -409,13 +409,13 @@ async function main() {
     },
   })
 
-  console.log('  ✅ Root Admin initialized: admin@lumo.co.tz (Password configured)')
-  console.log('\n🎉 LUMO clean production database seeded successfully!')
+  console.log('  Root Admin initialized: admin@lumo.co.tz (Password configured)')
+  console.log('\nLUMO clean production database seeded successfully!')
 }
 
 main()
   .catch((e) => {
-    console.error('❌ Seed failed:', e)
+    console.error('Seed failed:', e)
     process.exit(1)
   })
   .finally(async () => {
