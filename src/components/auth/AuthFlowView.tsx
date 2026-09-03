@@ -10,6 +10,8 @@ import {
   Clock,
   ArrowRight,
   ArrowLeft,
+  ArrowUp,
+  ArrowDown,
   Sparkles,
   Lock,
   Smartphone,
@@ -54,6 +56,68 @@ export interface OnboardingProfilePayload {
   email?: string
   phone?: string
   profilePhotoUrl?: string
+}
+
+type FaceGuidanceCode =
+  | 'IDLE'
+  | 'SCANNING'
+  | 'NO_FACE'
+  | 'MULTIPLE_FACES'
+  | 'MOVE_LEFT'
+  | 'MOVE_RIGHT'
+  | 'MOVE_UP'
+  | 'MOVE_DOWN'
+  | 'MOVE_CLOSER'
+  | 'MOVE_BACK'
+  | 'MORE_LIGHT'
+  | 'TOO_BRIGHT'
+  | 'READY'
+
+interface FaceGuidance {
+  code: FaceGuidanceCode
+  message: string
+}
+
+interface DetectedFace {
+  boundingBox?: { x: number; y: number; width: number; height: number }
+}
+
+type BrowserFaceDetector = new (options?: { fastMode?: boolean; maxDetectedFaces?: number }) => {
+  detect: (source: CanvasImageSource) => Promise<DetectedFace[]>
+}
+
+function getBrowserFaceDetector() {
+  return (window as Window & { FaceDetector?: BrowserFaceDetector }).FaceDetector
+}
+
+function measureVideoFrame(video: HTMLVideoElement) {
+  const canvas = document.createElement('canvas')
+  canvas.width = 160
+  canvas.height = 160
+  const context = canvas.getContext('2d', { willReadFrequently: true })
+  if (!context) return null
+
+  const sourceSize = Math.min(video.videoWidth, video.videoHeight)
+  const sourceX = (video.videoWidth - sourceSize) / 2
+  const sourceY = (video.videoHeight - sourceSize) / 2
+  context.drawImage(video, sourceX, sourceY, sourceSize, sourceSize, 0, 0, 160, 160)
+
+  const pixels = context.getImageData(0, 0, 160, 160).data
+  let brightnessTotal = 0
+  let brightnessSquaredTotal = 0
+  let samples = 0
+  for (let index = 0; index < pixels.length; index += 64) {
+    const brightness = (pixels[index] + pixels[index + 1] + pixels[index + 2]) / 3
+    brightnessTotal += brightness
+    brightnessSquaredTotal += brightness * brightness
+    samples += 1
+  }
+
+  const brightness = brightnessTotal / samples
+  return {
+    brightness,
+    variance: brightnessSquaredTotal / samples - brightness * brightness,
+  }
 }
 
 interface AuthFlowViewProps {
@@ -124,6 +188,11 @@ export function AuthFlowView({
     status: 'IDLE' | 'CHECKING' | 'VERIFIED' | 'ERROR'
     message: string
   }>({ status: 'IDLE', message: '' })
+  const [faceGuidance, setFaceGuidance] = useState<FaceGuidance>({
+    code: 'IDLE',
+    message: 'Start the camera, then place your face inside the oval.',
+  })
+  const [isCaptureReady, setIsCaptureReady] = useState(false)
 
   const validateIdentityNumber = (
     documentType: 'NIDA_ID' | 'PASSPORT' | 'TIN_CERTIFICATE',
@@ -199,10 +268,13 @@ export function AuthFlowView({
     cameraStreamRef.current?.getTracks().forEach((track) => track.stop())
     cameraStreamRef.current = null
     setCameraReady(false)
+    setIsCaptureReady(false)
   }
 
   const startFaceCamera = async () => {
     setFaceCheck({ status: 'IDLE', message: '' })
+    setFaceGuidance({ code: 'SCANNING', message: 'Looking for your face…' })
+    setIsCaptureReady(false)
     try {
       stopCamera()
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -227,13 +299,104 @@ export function AuthFlowView({
     }
   }
 
+  useEffect(() => {
+    if (currentStep !== 5 || !cameraReady || facePhotoUrl) return
+
+    let cancelled = false
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let detector: InstanceType<BrowserFaceDetector> | null = null
+    const FaceDetectorConstructor = getBrowserFaceDetector()
+    if (FaceDetectorConstructor) {
+      detector = new FaceDetectorConstructor({ fastMode: true, maxDetectedFaces: 2 })
+    }
+
+    const updateGuidance = (code: FaceGuidanceCode, message: string, ready = false) => {
+      if (cancelled) return
+      setFaceGuidance((current) => current.code === code && current.message === message ? current : { code, message })
+      setIsCaptureReady(ready)
+    }
+
+    const analyzePosition = async () => {
+      const video = videoRef.current
+      if (!video || video.readyState < 2 || video.videoWidth === 0 || video.videoHeight === 0) {
+        updateGuidance('SCANNING', 'Camera is starting… keep your face inside the oval.')
+        timer = setTimeout(analyzePosition, 450)
+        return
+      }
+
+      try {
+        const quality = measureVideoFrame(video)
+        if (!quality) {
+          updateGuidance('SCANNING', 'Checking camera image…')
+        } else if (quality.brightness < 45) {
+          updateGuidance('MORE_LIGHT', 'Too dark — face a light source.')
+        } else if (quality.brightness > 225) {
+          updateGuidance('TOO_BRIGHT', 'Too bright — move away from direct light.')
+        } else if (quality.variance < 120) {
+          updateGuidance('NO_FACE', 'Image is not clear — clean the lens and hold still.')
+        } else if (detector) {
+          const faces = await detector.detect(video)
+          if (faces.length === 0) {
+            updateGuidance('NO_FACE', 'No face detected — look directly at the camera.')
+          } else if (faces.length > 1) {
+            updateGuidance('MULTIPLE_FACES', 'Only one person should be visible.')
+          } else if (!faces[0].boundingBox) {
+            updateGuidance('SCANNING', 'Keep your face inside the oval.')
+          } else {
+            const box = faces[0].boundingBox
+            const displayedCenterX = 1 - (box.x + box.width / 2) / video.videoWidth
+            const centerY = (box.y + box.height / 2) / video.videoHeight
+            const faceWidth = box.width / video.videoWidth
+
+            if (faceWidth < 0.24) {
+              updateGuidance('MOVE_CLOSER', 'Move closer to the camera.')
+            } else if (faceWidth > 0.72) {
+              updateGuidance('MOVE_BACK', 'Move slightly away from the camera.')
+            } else if (displayedCenterX < 0.4) {
+              updateGuidance('MOVE_RIGHT', 'Move slightly to the right.')
+            } else if (displayedCenterX > 0.6) {
+              updateGuidance('MOVE_LEFT', 'Move slightly to the left.')
+            } else if (centerY < 0.38) {
+              updateGuidance('MOVE_DOWN', 'Move slightly downward.')
+            } else if (centerY > 0.62) {
+              updateGuidance('MOVE_UP', 'Move slightly upward.')
+            } else {
+              updateGuidance('READY', 'Face centered and clear — hold still and tap Capture.', true)
+            }
+          }
+        } else {
+          updateGuidance(
+            'READY',
+            'Lighting is clear — center your face inside the oval, hold still, and tap Capture.',
+            true
+          )
+        }
+      } catch {
+        updateGuidance('SCANNING', 'Keep your face centered inside the oval.')
+      }
+
+      if (!cancelled) timer = setTimeout(analyzePosition, 450)
+    }
+
+    void analyzePosition()
+    return () => {
+      cancelled = true
+      if (timer) clearTimeout(timer)
+    }
+  }, [cameraReady, currentStep, facePhotoUrl])
+
   const captureAndVerifyFace = async () => {
     const video = videoRef.current
     if (!video || !cameraReady || video.videoWidth === 0 || video.videoHeight === 0) {
       setFaceCheck({ status: 'ERROR', message: 'The camera is not ready yet. Please wait and try again.' })
       return
     }
+    if (!isCaptureReady) {
+      setFaceCheck({ status: 'ERROR', message: 'Center your face and wait for the green Capture message.' })
+      return
+    }
 
+    setIsCaptureReady(false)
     setFaceCheck({ status: 'CHECKING', message: 'Checking framing, lighting, and face visibility…' })
 
     const canvas = document.createElement('canvas')
@@ -278,11 +441,7 @@ export function AuthFlowView({
       return
     }
 
-    const FaceDetectorConstructor = (window as Window & {
-      FaceDetector?: new (options?: { fastMode?: boolean; maxDetectedFaces?: number }) => {
-        detect: (source: CanvasImageSource) => Promise<unknown[]>
-      }
-    }).FaceDetector
+    const FaceDetectorConstructor = getBrowserFaceDetector()
 
     if (FaceDetectorConstructor) {
       const detectedFaces = await new FaceDetectorConstructor({ fastMode: true, maxDetectedFaces: 2 }).detect(canvas)
@@ -1470,7 +1629,37 @@ export function AuthFlowView({
                 </div>
               )}
 
-              <div className="pointer-events-none absolute inset-[12%] rounded-[42%] border-2 border-dashed border-white/70" />
+              <div className={`pointer-events-none absolute inset-[12%] rounded-[42%] border-2 border-dashed transition-colors duration-200 ${
+                faceGuidance.code === 'READY'
+                  ? 'border-emerald-400 shadow-[0_0_0_999px_rgba(2,6,23,0.12)]'
+                  : cameraReady
+                    ? 'border-orange-300'
+                    : 'border-white/70'
+              }`} />
+
+              {cameraReady && !facePhotoUrl && (
+                <div
+                  aria-live="polite"
+                  className={`absolute left-3 right-3 top-3 flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-center text-xs font-extrabold text-white shadow-lg backdrop-blur-sm ${
+                    faceGuidance.code === 'READY' ? 'bg-emerald-600/95' : 'bg-slate-950/80'
+                  }`}
+                >
+                  {faceGuidance.code === 'MOVE_LEFT' ? (
+                    <ArrowLeft className="h-5 w-5 shrink-0" />
+                  ) : faceGuidance.code === 'MOVE_RIGHT' ? (
+                    <ArrowRight className="h-5 w-5 shrink-0" />
+                  ) : faceGuidance.code === 'MOVE_UP' ? (
+                    <ArrowUp className="h-5 w-5 shrink-0" />
+                  ) : faceGuidance.code === 'MOVE_DOWN' ? (
+                    <ArrowDown className="h-5 w-5 shrink-0" />
+                  ) : faceGuidance.code === 'READY' ? (
+                    <CheckCircle2 className="h-5 w-5 shrink-0" />
+                  ) : (
+                    <ScanFace className="h-5 w-5 shrink-0" />
+                  )}
+                  <span>{faceGuidance.message}</span>
+                </div>
+              )}
 
               {facePhotoUrl && (
                 <div className="absolute bottom-3 left-3 right-3 flex items-center justify-center gap-2 rounded-xl bg-emerald-600/95 px-3 py-2 text-xs font-extrabold text-white shadow-lg">
@@ -1480,6 +1669,30 @@ export function AuthFlowView({
               )}
             </div>
           </div>
+
+          {cameraReady && !facePhotoUrl && (
+            <div
+              role="status"
+              aria-live="polite"
+              className={`mx-auto flex max-w-sm items-start gap-2.5 rounded-2xl border p-3.5 text-xs font-bold ${
+                faceGuidance.code === 'READY'
+                  ? 'border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200'
+                  : 'border-orange-200 bg-orange-50 text-orange-800 dark:border-orange-900 dark:bg-orange-950/30 dark:text-orange-200'
+              }`}
+            >
+              {faceGuidance.code === 'READY' ? (
+                <CheckCircle2 className="h-5 w-5 shrink-0" />
+              ) : (
+                <ScanFace className="h-5 w-5 shrink-0 animate-pulse" />
+              )}
+              <div>
+                <p>{faceGuidance.message}</p>
+                {faceGuidance.code !== 'READY' && (
+                  <p className="mt-1 text-[10px] font-medium opacity-80">Follow the direction until the oval and message turn green.</p>
+                )}
+              </div>
+            </div>
+          )}
 
           {faceCheck.message && (
             <div className={`flex items-start gap-2 rounded-xl border p-3 text-xs font-semibold ${
@@ -1508,9 +1721,18 @@ export function AuthFlowView({
                   Start camera
                 </button>
               ) : (
-                <button type="button" onClick={captureAndVerifyFace} disabled={faceCheck.status === 'CHECKING'} className="inline-flex items-center gap-2 rounded-xl bg-[#FF6A00] px-6 py-3 text-sm font-extrabold text-white hover:bg-[#EA580C] disabled:bg-slate-300">
+                <button
+                  type="button"
+                  onClick={captureAndVerifyFace}
+                  disabled={!isCaptureReady || faceCheck.status === 'CHECKING'}
+                  className="inline-flex min-w-52 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-3 text-sm font-extrabold text-white shadow-md hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-slate-300 dark:disabled:bg-slate-700"
+                >
                   {faceCheck.status === 'CHECKING' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
-                  {faceCheck.status === 'CHECKING' ? 'Verifying capture…' : 'Capture and verify'}
+                  {faceCheck.status === 'CHECKING'
+                    ? 'Verifying capture…'
+                    : isCaptureReady
+                      ? 'Capture Now'
+                      : 'Center Face to Capture'}
                 </button>
               )}
             </div>
