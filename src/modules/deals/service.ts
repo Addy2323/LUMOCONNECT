@@ -7,6 +7,16 @@ import { matchesOpportunityCategory } from './taxonomy'
 
 let inMemoryOpportunities: OpportunityItem[] = [...INITIAL_OPPORTUNITIES]
 
+const RETIRED_BUNDLED_OPPORTUNITY_IDS = new Set([
+  'opp_solar_tz_01',
+  'opp_agrotech_tz_02',
+  'opp_fintech_pos_03',
+  'opp_kazitech_hr_04',
+  'opp_safari_tourism_05',
+  'opp_afyabora_health_06',
+  'opp_emobility_boda_07',
+])
+
 // Load from localStorage in browser environment
 function loadFromStorage() {
   if (typeof window !== 'undefined') {
@@ -15,11 +25,14 @@ function loadFromStorage() {
       if (stored) {
         const parsed = JSON.parse(stored)
         if (Array.isArray(parsed) && parsed.length > 0) {
-          const storedIds = new Set(parsed.map((p: any) => p.id))
+          const activeStored = parsed.filter(
+            (item: OpportunityItem) => !RETIRED_BUNDLED_OPPORTUNITY_IDS.has(item.id)
+          )
+          const storedIds = new Set(activeStored.map((p: OpportunityItem) => p.id))
           const missingInitial = INITIAL_OPPORTUNITIES.filter((init) => !storedIds.has(init.id))
           // Refresh presentation content for bundled opportunities while preserving
           // user-created deals and live participation/budget state.
-          const refreshedStored = parsed.map((storedItem: OpportunityItem) => {
+          const refreshedStored = activeStored.map((storedItem: OpportunityItem) => {
             const bundledItem = INITIAL_OPPORTUNITIES.find((item) => item.id === storedItem.id)
             if (!bundledItem) return storedItem
 

@@ -11,9 +11,59 @@ import {
   CheckCircle2,
   ArrowRight,
   ShieldCheck,
-  Building2,
-  Handshake,
+  AlertCircle,
 } from 'lucide-react'
+
+type SignUpField = 'fullName' | 'email' | 'phone' | 'password' | 'confirmPassword' | 'terms'
+type SignUpErrors = Partial<Record<SignUpField, string>>
+
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
+
+function normalizeTanzaniaPhone(value: string) {
+  const digits = value.replace(/\D/g, '')
+  if (/^0[67]\d{8}$/.test(digits)) return `+255${digits.slice(1)}`
+  if (/^255[67]\d{8}$/.test(digits)) return `+${digits}`
+  return null
+}
+
+function validateSignUp(values: {
+  fullName: string
+  email: string
+  phone: string
+  password: string
+  confirmPassword: string
+  agreeTerms: boolean
+}) {
+  const errors: SignUpErrors = {}
+  const nameParts = values.fullName.trim().split(/\s+/).filter(Boolean)
+
+  if (nameParts.length < 2 || values.fullName.trim().length < 5) {
+    errors.fullName = 'Enter your first and last legal name.'
+  } else if (/[^\p{L}'\u2019 -]/u.test(values.fullName.trim())) {
+    errors.fullName = 'Name can only contain letters, spaces, apostrophes, and hyphens.'
+  }
+  if (!emailPattern.test(values.email.trim())) {
+    errors.email = 'Enter a valid email address.'
+  }
+  if (!normalizeTanzaniaPhone(values.phone)) {
+    errors.phone = 'Enter a valid Tanzania mobile number, e.g. +255 712 345 678.'
+  }
+  if (values.password.length < 8) {
+    errors.password = 'Password must contain at least 8 characters.'
+  } else if (!/[a-z]/.test(values.password) || !/[A-Z]/.test(values.password) || !/\d/.test(values.password)) {
+    errors.password = 'Include an uppercase letter, lowercase letter, and number.'
+  }
+  if (!values.confirmPassword) {
+    errors.confirmPassword = 'Confirm your password.'
+  } else if (values.confirmPassword !== values.password) {
+    errors.confirmPassword = 'Passwords do not match.'
+  }
+  if (!values.agreeTerms) {
+    errors.terms = 'You must accept the terms and privacy policy.'
+  }
+
+  return errors
+}
 
 interface SignUpViewProps {
   role?: 'PARTNER' | 'BUSINESS'
@@ -35,15 +85,34 @@ export function SignUpView({
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [agreeTerms, setAgreeTerms] = useState(true)
+  const [agreeTerms, setAgreeTerms] = useState(false)
+  const [errors, setErrors] = useState<SignUpErrors>({})
+
+  const clearError = (field: SignUpField) => {
+    setErrors((current) => {
+      if (!current[field]) return current
+      const next = { ...current }
+      delete next[field]
+      return next
+    })
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    onSignUpSuccess(role, { name: fullName, email, phone, password })
+    const nextErrors = validateSignUp({ fullName, email, phone, password, confirmPassword, agreeTerms })
+    setErrors(nextErrors)
+    if (Object.keys(nextErrors).length > 0) return
+
+    onSignUpSuccess(role, {
+      name: fullName.trim().replace(/\s+/g, ' '),
+      email: email.trim().toLowerCase(),
+      phone: normalizeTanzaniaPhone(phone)!,
+      password,
+    })
   }
 
   return (
-    <div className="w-full max-w-4xl mx-auto my-2 sm:my-8 px-2 sm:px-4">
+    <div className="w-full max-w-4xl mx-auto my-2 sm:my-8 px-2.5 sm:px-4">
       {/* 2-Column Card on Desktop, Single Clean White Card on Mobile */}
       <div className="rounded-3xl shadow-2xl overflow-hidden border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 transition-all grid grid-cols-1 lg:grid-cols-12">
         {/* Left Column: Solid Vibrant Orange Panel (Desktop) */}
@@ -145,11 +214,11 @@ export function SignUpView({
         </div>
 
         {/* Right Column / Main White Card */}
-        <div className="lg:col-span-7 p-6 sm:p-10 flex flex-col justify-between bg-white dark:bg-slate-900">
+        <div className="lg:col-span-7 p-4 min-[380px]:p-5 sm:p-10 flex flex-col justify-between bg-white dark:bg-slate-900">
           <div>
             {/* Top Card Bar */}
-            <div className="flex items-center justify-between pb-3 mb-2">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2 pb-3 mb-2">
+              <div className="flex shrink-0 items-center gap-2">
                 <div className="w-7 h-7 rounded-xl bg-[#FF6A00] text-white font-black text-xs flex items-center justify-center shadow-xs">
                   L
                 </div>
@@ -158,7 +227,7 @@ export function SignUpView({
                 </span>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
                 {onChangePath && (
                   <button
                     type="button"
@@ -176,7 +245,7 @@ export function SignUpView({
 
             {/* Form Title & Subtitle */}
             <div className="mb-5">
-              <h2 className="text-xl sm:text-2xl font-black text-[#0F172A] dark:text-white tracking-tight">
+              <h2 className="text-lg min-[380px]:text-xl sm:text-2xl font-black text-[#0F172A] dark:text-white tracking-tight leading-tight">
                 {role === 'PARTNER' ? 'Create Mshirika wa Mauzo / Partner Account' : 'Create Business Account'}
               </h2>
               <p className="text-xs text-[#64748B] dark:text-slate-400 mt-1">
@@ -187,7 +256,7 @@ export function SignUpView({
             </div>
 
             {/* Form Inputs */}
-            <form onSubmit={handleSubmit} className="space-y-3">
+            <form onSubmit={handleSubmit} noValidate className="space-y-3">
               {/* Full Name */}
               <div>
                 <label className="block text-xs font-bold text-[#0F172A] dark:text-slate-300 mb-1">
@@ -197,13 +266,19 @@ export function SignUpView({
                   <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <input
                     type="text"
-                    required
+                    autoComplete="name"
                     value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
+                    onChange={(e) => {
+                      setFullName(e.target.value)
+                      clearError('fullName')
+                    }}
                     placeholder={role === 'PARTNER' ? 'Alex Mushi' : 'Grace Mlay'}
-                    className="w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm border border-slate-200 dark:border-slate-800 rounded-2xl bg-[#F0F5FA] dark:bg-slate-800/60 text-[#0F172A] dark:text-white focus:bg-white dark:focus:bg-slate-900 transition-colors focus:ring-2 focus:ring-[#FF6A00]/20 focus:border-[#FF6A00]"
+                    aria-invalid={Boolean(errors.fullName)}
+                    aria-describedby={errors.fullName ? 'full-name-error' : undefined}
+                    className={`w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm border rounded-2xl bg-[#F0F5FA] dark:bg-slate-800/60 text-[#0F172A] dark:text-white focus:bg-white dark:focus:bg-slate-900 transition-colors focus:ring-2 focus:ring-[#FF6A00]/20 focus:border-[#FF6A00] ${errors.fullName ? 'border-rose-400' : 'border-slate-200 dark:border-slate-800'}`}
                   />
                 </div>
+                {errors.fullName && <p id="full-name-error" className="mt-1 flex items-center gap-1 text-[11px] font-semibold text-rose-600"><AlertCircle className="h-3 w-3 shrink-0" />{errors.fullName}</p>}
               </div>
 
               {/* Email Address */}
@@ -215,13 +290,19 @@ export function SignUpView({
                   <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <input
                     type="email"
-                    required
+                    autoComplete="email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                      setEmail(e.target.value)
+                      clearError('email')
+                    }}
                     placeholder="you@example.co.tz"
-                    className="w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm border border-slate-200 dark:border-slate-800 rounded-2xl bg-[#F0F5FA] dark:bg-slate-800/60 text-[#0F172A] dark:text-white focus:bg-white dark:focus:bg-slate-900 transition-colors focus:ring-2 focus:ring-[#FF6A00]/20 focus:border-[#FF6A00]"
+                    aria-invalid={Boolean(errors.email)}
+                    aria-describedby={errors.email ? 'email-error' : undefined}
+                    className={`w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm border rounded-2xl bg-[#F0F5FA] dark:bg-slate-800/60 text-[#0F172A] dark:text-white focus:bg-white dark:focus:bg-slate-900 transition-colors focus:ring-2 focus:ring-[#FF6A00]/20 focus:border-[#FF6A00] ${errors.email ? 'border-rose-400' : 'border-slate-200 dark:border-slate-800'}`}
                   />
                 </div>
+                {errors.email && <p id="email-error" className="mt-1 flex items-center gap-1 text-[11px] font-semibold text-rose-600"><AlertCircle className="h-3 w-3 shrink-0" />{errors.email}</p>}
               </div>
 
               {/* Phone Number */}
@@ -233,13 +314,20 @@ export function SignUpView({
                   <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <input
                     type="tel"
-                    required
+                    autoComplete="tel"
+                    inputMode="tel"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={(e) => {
+                      setPhone(e.target.value)
+                      clearError('phone')
+                    }}
                     placeholder="+255 712 345 678"
-                    className="w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm border border-slate-200 dark:border-slate-800 rounded-2xl bg-[#F0F5FA] dark:bg-slate-800/60 text-[#0F172A] dark:text-white focus:bg-white dark:focus:bg-slate-900 transition-colors focus:ring-2 focus:ring-[#FF6A00]/20 focus:border-[#FF6A00] font-mono"
+                    aria-invalid={Boolean(errors.phone)}
+                    aria-describedby={errors.phone ? 'phone-error' : undefined}
+                    className={`w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm border rounded-2xl bg-[#F0F5FA] dark:bg-slate-800/60 text-[#0F172A] dark:text-white focus:bg-white dark:focus:bg-slate-900 transition-colors focus:ring-2 focus:ring-[#FF6A00]/20 focus:border-[#FF6A00] font-mono ${errors.phone ? 'border-rose-400' : 'border-slate-200 dark:border-slate-800'}`}
                   />
                 </div>
+                {errors.phone && <p id="phone-error" className="mt-1 flex items-center gap-1 text-[11px] font-semibold text-rose-600"><AlertCircle className="h-3 w-3 shrink-0" />{errors.phone}</p>}
               </div>
 
               {/* Password */}
@@ -251,11 +339,17 @@ export function SignUpView({
                   <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <input
                     type={showPassword ? 'text' : 'password'}
-                    required
+                    autoComplete="new-password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value)
+                      clearError('password')
+                      clearError('confirmPassword')
+                    }}
                     placeholder="At least 8 characters"
-                    className="w-full pl-10 pr-10 py-2.5 text-xs sm:text-sm border border-slate-200 dark:border-slate-800 rounded-2xl bg-[#F0F5FA] dark:bg-slate-800/60 text-[#0F172A] dark:text-white focus:bg-white dark:focus:bg-slate-900 transition-colors focus:ring-2 focus:ring-[#FF6A00]/20 focus:border-[#FF6A00]"
+                    aria-invalid={Boolean(errors.password)}
+                    aria-describedby="password-help"
+                    className={`w-full pl-10 pr-10 py-2.5 text-xs sm:text-sm border rounded-2xl bg-[#F0F5FA] dark:bg-slate-800/60 text-[#0F172A] dark:text-white focus:bg-white dark:focus:bg-slate-900 transition-colors focus:ring-2 focus:ring-[#FF6A00]/20 focus:border-[#FF6A00] ${errors.password ? 'border-rose-400' : 'border-slate-200 dark:border-slate-800'}`}
                   />
                   <button
                     type="button"
@@ -265,6 +359,9 @@ export function SignUpView({
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
+                <p id="password-help" className={`mt-1 text-[10px] ${errors.password ? 'font-semibold text-rose-600' : 'text-slate-500'}`}>
+                  {errors.password || 'Use 8+ characters with uppercase, lowercase, and a number.'}
+                </p>
               </div>
 
               {/* Confirm Password */}
@@ -276,11 +373,16 @@ export function SignUpView({
                   <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <input
                     type={showConfirmPassword ? 'text' : 'password'}
-                    required
+                    autoComplete="new-password"
                     value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    onChange={(e) => {
+                      setConfirmPassword(e.target.value)
+                      clearError('confirmPassword')
+                    }}
                     placeholder="Re-enter password"
-                    className="w-full pl-10 pr-10 py-2.5 text-xs sm:text-sm border border-slate-200 dark:border-slate-800 rounded-2xl bg-[#F0F5FA] dark:bg-slate-800/60 text-[#0F172A] dark:text-white focus:bg-white dark:focus:bg-slate-900 transition-colors focus:ring-2 focus:ring-[#FF6A00]/20 focus:border-[#FF6A00]"
+                    aria-invalid={Boolean(errors.confirmPassword)}
+                    aria-describedby={errors.confirmPassword ? 'confirm-password-error' : undefined}
+                    className={`w-full pl-10 pr-10 py-2.5 text-xs sm:text-sm border rounded-2xl bg-[#F0F5FA] dark:bg-slate-800/60 text-[#0F172A] dark:text-white focus:bg-white dark:focus:bg-slate-900 transition-colors focus:ring-2 focus:ring-[#FF6A00]/20 focus:border-[#FF6A00] ${errors.confirmPassword ? 'border-rose-400' : 'border-slate-200 dark:border-slate-800'}`}
                   />
                   <button
                     type="button"
@@ -290,17 +392,22 @@ export function SignUpView({
                     {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
+                {errors.confirmPassword && <p id="confirm-password-error" className="mt-1 flex items-center gap-1 text-[11px] font-semibold text-rose-600"><AlertCircle className="h-3 w-3 shrink-0" />{errors.confirmPassword}</p>}
               </div>
 
               {/* Terms Checkbox */}
               <div className="pt-0.5">
-                <label className="flex items-center gap-2 cursor-pointer text-xs text-[#64748B] dark:text-slate-400">
+                <label className="flex items-start gap-2 cursor-pointer text-xs text-[#64748B] dark:text-slate-400">
                   <input
                     type="checkbox"
-                    required
                     checked={agreeTerms}
-                    onChange={(e) => setAgreeTerms(e.target.checked)}
-                    className="w-4 h-4 rounded text-[#FF6A00] accent-[#FF6A00]"
+                    onChange={(e) => {
+                      setAgreeTerms(e.target.checked)
+                      clearError('terms')
+                    }}
+                    aria-invalid={Boolean(errors.terms)}
+                    aria-describedby={errors.terms ? 'terms-error' : undefined}
+                    className="mt-0.5 w-4 h-4 shrink-0 rounded text-[#FF6A00] accent-[#FF6A00]"
                   />
                   <span className="text-[11px]">
                     I agree to the Lumo{' '}
@@ -314,6 +421,7 @@ export function SignUpView({
                     .
                   </span>
                 </label>
+                {errors.terms && <p id="terms-error" className="mt-1 flex items-center gap-1 text-[11px] font-semibold text-rose-600"><AlertCircle className="h-3 w-3 shrink-0" />{errors.terms}</p>}
               </div>
 
               {/* Primary Action Button */}
@@ -341,7 +449,7 @@ export function SignUpView({
           </div>
 
           {/* Footer Security Notice */}
-          <div className="pt-4 mt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] text-[#64748B] dark:text-slate-400">
+          <div className="pt-4 mt-4 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#64748B] dark:text-slate-400">
             <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-semibold">
               <ShieldCheck className="w-4 h-4" />
               <span>Instant Access after OTP verification</span>

@@ -60,8 +60,7 @@ interface AuthFlowViewProps {
   initialRole?: UserRole
   initialEmail?: string
   initialPhone?: string
-  initialPassword?: string
-  onComplete: (role: UserRole, profileData?: OnboardingProfilePayload) => void
+  onComplete: (role: UserRole, profileData?: OnboardingProfilePayload) => void | Promise<void>
   onCancel: () => void
 }
 
@@ -69,7 +68,6 @@ export function AuthFlowView({
   initialRole = 'PARTNER',
   initialEmail = '',
   initialPhone = '',
-  initialPassword = '',
   onComplete,
   onCancel,
 }: AuthFlowViewProps) {
@@ -86,6 +84,8 @@ export function AuthFlowView({
   const [attemptsRemaining, setAttemptsRemaining] = useState(3)
   const inputRefs = useRef<(HTMLInputElement | null)[]>([])
   const [isPhoneVerified, setIsPhoneVerified] = useState(false)
+  const [isActivating, setIsActivating] = useState(false)
+  const [activationError, setActivationError] = useState<string | null>(null)
 
   // Step 3: Role Profile State (Partner)
   const [entityType, setEntityType] = useState<'INDIVIDUAL' | 'COMPANY'>('INDIVIDUAL')
@@ -347,35 +347,6 @@ export function AuthFlowView({
       beneficialOwners: authorizedRepName ? [authorizedRepName] : ['Primary Signatory'],
     })
 
-    // Asynchronously commit user, organization, verification case, and documents to PostgreSQL database
-    try {
-      fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: initialEmail || `enterprise_${Date.now()}@lumo.co.tz`,
-          name: role === 'BUSINESS' ? (bizTradingName || bizLegalName || 'Registered Enterprise') : (initialEmail.split('@')[0] || 'Registered Partner'),
-          phone: phone || initialPhone || undefined,
-          role,
-          bizDetails: role === 'BUSINESS' ? {
-            legalName: bizLegalName || undefined,
-            tradingName: bizTradingName || undefined,
-            brelaRegNumber: brelaRegNumber || undefined,
-            traTin: traTin || undefined,
-            bizCategory: bizCategory || undefined,
-            contactPerson: authorizedRepName || undefined,
-          } : undefined,
-          documents: Object.values(uploadedDocs).map((d) => ({
-            name: d.fileName,
-            type: d.title,
-            fileSize: d.fileSize,
-          })),
-        }),
-      }).catch((err) => console.warn('PostgreSQL Database Registration Sync:', err))
-    } catch (e) {
-      // Non-blocking catch
-    }
-
     setCurrentStep(5)
   }
 
@@ -456,12 +427,13 @@ export function AuthFlowView({
 
   // Handle OTP verification trigger
   const triggerVerification = (codeToVerify: string) => {
+    if (isVerifying || isPhoneVerified || attemptsRemaining <= 0) return
     setIsVerifying(true)
     setOtpError(null)
 
     setTimeout(() => {
       setIsVerifying(false)
-      const result = verifyPhoneOtp(initialPhone, codeToVerify)
+      const result = verifyPhoneOtp(phone, codeToVerify)
       if (result.success || codeToVerify === '749201') {
         setIsPhoneVerified(true)
         setTimeout(() => {
@@ -476,6 +448,10 @@ export function AuthFlowView({
 
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    if (attemptsRemaining <= 0) {
+      setOtpError('No attempts remain. Request a new verification code to continue.')
+      return
+    }
     const fullOtp = otpDigits.join('')
     if (fullOtp.length < 6) {
       setOtpError('Please enter all 6 digits.')
@@ -489,7 +465,8 @@ export function AuthFlowView({
     setResendCountdown(60)
     setCanResend(false)
     setOtpDigits(['', '', '', '', '', ''])
-    sendPhoneOtp(initialPhone)
+    setAttemptsRemaining(3)
+    sendPhoneOtp(phone)
     setOtpError(null)
     inputRefs.current[0]?.focus()
   }
@@ -516,12 +493,42 @@ export function AuthFlowView({
     }))
   }
 
+  const handleActivateAccount = async () => {
+    if (isActivating) return
+
+    const profilePayload: OnboardingProfilePayload = {
+      name:
+        role === 'BUSINESS'
+          ? bizTradingName.trim() || bizLegalName.trim() || 'My Business'
+          : initialEmail.split('@')[0] || 'Registered Partner',
+      legalName: bizLegalName.trim() || undefined,
+      tradingName: bizTradingName.trim() || undefined,
+      registrationNumber: brelaRegNumber.trim() || identityNumber.trim() || undefined,
+      tinNumber: traTin.trim() || undefined,
+      industry: bizCategory.trim() || (selectedSkills && selectedSkills[0]) || undefined,
+      contactPerson: authorizedRepName.trim() || undefined,
+      email: initialEmail || undefined,
+      phone: phone || initialPhone || undefined,
+      profilePhotoUrl: facePhotoUrl || undefined,
+    }
+
+    setActivationError(null)
+    setIsActivating(true)
+    try {
+      await onComplete(role, profilePayload)
+    } catch (error) {
+      setActivationError(error instanceof Error ? error.message : 'Account activation failed. Please try again.')
+    } finally {
+      setIsActivating(false)
+    }
+  }
+
   return (
-    <div className="max-w-2xl mx-auto my-4 sm:my-8 bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-6 sm:p-10 shadow-2xl transition-all">
+    <div className="w-full max-w-2xl mx-auto my-2 sm:my-8 overflow-hidden bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-4 min-[380px]:p-5 sm:p-10 shadow-2xl transition-all">
       {/* Multi-Step Wizard Progress Bar */}
       <div className="mb-8 pb-6 border-b border-slate-100 dark:border-slate-800">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-xs font-extrabold text-[#F97316] uppercase tracking-wider">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-3">
+          <span className="min-w-0 text-[11px] sm:text-xs font-extrabold text-[#F97316] uppercase tracking-wider leading-relaxed">
             Step {currentStep} of 6 ·{' '}
             {currentStep === 2 && 'Verify Phone Number'}
             {currentStep === 3 && 'Complete Role Profile'}
@@ -529,7 +536,7 @@ export function AuthFlowView({
             {currentStep === 5 && 'Live Face Verification'}
             {currentStep === 6 && 'Security Setup & Activation'}
           </span>
-          <span className="text-xs font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full">
+          <span className="self-start shrink-0 text-[11px] sm:text-xs font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full sm:self-auto">
             {role === 'PARTNER' ? 'Partner Track' : 'Business Track'}
           </span>
         </div>
@@ -551,7 +558,7 @@ export function AuthFlowView({
 
       {/* STEP 2: 6 ANIMATED DIGIT BOXES FOR PHONE OTP VERIFICATION ONLY */}
       {currentStep === 2 && (
-        <form onSubmit={handleManualSubmit} className="space-y-6">
+        <form onSubmit={handleManualSubmit} className="space-y-5 sm:space-y-6">
           <div className="text-center max-w-lg mx-auto">
             <div className="w-12 h-12 rounded-2xl bg-orange-50 dark:bg-orange-950/40 text-[#F97316] flex items-center justify-center mx-auto mb-3 shadow-2xs">
               <Smartphone className="w-6 h-6" />
@@ -562,16 +569,16 @@ export function AuthFlowView({
             </h2>
             <p className="text-xs sm:text-sm text-[#64748B] dark:text-slate-400 mt-1.5 leading-relaxed">
               We have sent a 6-digit verification code via <strong>Meseji SMS</strong> to{' '}
-              <span className="font-mono font-bold text-slate-900 dark:text-white">
-                {initialPhone}
+              <span className="font-mono font-bold text-slate-900 dark:text-white break-all">
+                {phone}
               </span>
               .
             </p>
           </div>
 
           {/* 6 Animated Digit Input Boxes */}
-          <div className="py-3">
-            <div className="flex items-center justify-center gap-2.5 sm:gap-3.5 max-w-md mx-auto">
+          <div className="py-2 sm:py-3">
+            <div className="grid w-full max-w-md grid-cols-6 gap-1.5 min-[380px]:gap-2 sm:gap-3.5 mx-auto">
               {otpDigits.map((digit, idx) => {
                 const isFilled = digit !== ''
                 return (
@@ -583,35 +590,38 @@ export function AuthFlowView({
                     type="text"
                     inputMode="numeric"
                     pattern="[0-9]*"
+                    autoComplete={idx === 0 ? 'one-time-code' : 'off'}
+                    aria-label={`Verification code digit ${idx + 1}`}
                     maxLength={1}
                     value={digit}
                     onChange={(e) => handleDigitChange(idx, e.target.value)}
                     onKeyDown={(e) => handleKeyDown(idx, e)}
-                    disabled={isPhoneVerified}
-                    className={`w-11 h-14 sm:w-14 sm:h-16 text-center font-mono font-black text-2xl sm:text-3xl rounded-2xl border transition-all duration-200 shadow-xs focus:outline-none ${
+                    disabled={isPhoneVerified || isVerifying || attemptsRemaining <= 0}
+                    className={`min-w-0 w-full h-12 min-[380px]:h-14 sm:h-16 text-center font-mono font-black text-xl sm:text-3xl rounded-xl sm:rounded-2xl border transition-all duration-200 shadow-xs focus:outline-none ${
                       isPhoneVerified
                         ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
                         : isFilled
                         ? 'border-[#FF6A00] bg-orange-50/50 dark:bg-orange-950/20 text-[#0F172A] dark:text-white scale-105 shadow-md'
                         : 'border-slate-200 dark:border-slate-700 bg-[#F0F5FA] dark:bg-slate-800/60 text-[#0F172A] dark:text-white hover:border-slate-300'
-                    } focus:border-[#FF6A00] focus:ring-4 focus:ring-[#FF6A00]/20 focus:scale-110`}
+                    } focus:border-[#FF6A00] focus:ring-2 sm:focus:ring-4 focus:ring-[#FF6A00]/20`}
                   />
                 )
               })}
             </div>
 
             {/* Quick Demo Helper & Expiry status */}
-            <div className="flex items-center justify-between text-[11px] text-[#64748B] dark:text-slate-400 max-w-md mx-auto mt-4 px-1">
-              <span>
+            <div className="grid grid-cols-1 gap-1.5 text-center text-[11px] text-[#64748B] dark:text-slate-400 max-w-md mx-auto mt-4 px-1 sm:flex sm:items-center sm:justify-between sm:text-left">
+              <span className="min-w-0">
                 Demo code:{' '}
                 <button
                   type="button"
+                  disabled={isVerifying || isPhoneVerified || attemptsRemaining <= 0}
                   onClick={() => {
                     const demoCode = ['7', '4', '9', '2', '0', '1']
                     setOtpDigits(demoCode)
                     triggerVerification('749201')
                   }}
-                  className="font-mono font-bold text-[#FF6A00] hover:underline"
+                  className="font-mono font-bold text-[#FF6A00] hover:underline disabled:cursor-not-allowed disabled:text-slate-400"
                 >
                   749201
                 </button>{' '}
@@ -640,7 +650,7 @@ export function AuthFlowView({
           )}
 
           {/* Resend Row */}
-          <div className="flex items-center justify-between text-xs pt-1 max-w-md mx-auto">
+          <div className="flex flex-col items-center gap-2 text-center text-xs pt-1 max-w-md mx-auto sm:flex-row sm:justify-between sm:text-left">
             <span className="text-[#64748B]">Didn&apos;t receive the SMS code?</span>
             {canResend ? (
               <button
@@ -658,19 +668,19 @@ export function AuthFlowView({
           </div>
 
           {/* Primary Action Button */}
-          <div className="flex items-center justify-between pt-6 border-t border-slate-100 dark:border-slate-800">
+          <div className="flex flex-col-reverse gap-3 pt-5 sm:pt-6 border-t border-slate-100 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
             <button
               type="button"
               onClick={onCancel}
-              className="py-2.5 px-4 text-xs font-semibold text-slate-500 hover:text-slate-700"
+              className="w-full py-2.5 px-4 text-xs font-semibold text-slate-500 hover:text-slate-700 sm:w-auto"
             >
               Cancel
             </button>
 
             <button
               type="submit"
-              disabled={isVerifying || isPhoneVerified}
-              className="py-3 px-8 bg-[#FF6A00] hover:bg-[#EA580C] disabled:bg-slate-300 text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-md transition-all flex items-center gap-2 active:scale-[0.99]"
+              disabled={isVerifying || isPhoneVerified || attemptsRemaining <= 0}
+              className="w-full justify-center py-3 px-5 sm:px-8 bg-[#FF6A00] hover:bg-[#EA580C] disabled:bg-slate-300 text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-md transition-all flex items-center gap-2 active:scale-[0.99] sm:w-auto"
             >
               {isVerifying ? (
                 <span>Verifying...</span>
@@ -1632,12 +1642,20 @@ export function AuthFlowView({
             </p>
           </div>
 
+          {activationError && (
+            <div role="alert" className="flex items-start gap-2 rounded-2xl border border-rose-200 bg-rose-50 p-3.5 text-xs font-semibold text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>{activationError}</span>
+            </div>
+          )}
+
           {/* Finish & Activate Action */}
-          <div className="flex items-center justify-between pt-6 border-t border-slate-100 dark:border-slate-800">
+          <div className="flex flex-col-reverse gap-3 pt-6 border-t border-slate-100 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
             <button
               type="button"
               onClick={() => setCurrentStep(5)}
-              className="py-2.5 px-4 text-xs font-semibold border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 flex items-center gap-1"
+              disabled={isActivating}
+              className="flex w-full items-center justify-center gap-1 rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-semibold hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 sm:w-auto"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               <span>Back</span>
@@ -1645,28 +1663,12 @@ export function AuthFlowView({
 
             <button
               type="button"
-              onClick={() => {
-                const profilePayload: OnboardingProfilePayload = {
-                  name:
-                    role === 'BUSINESS'
-                      ? bizTradingName.trim() || bizLegalName.trim() || 'My Business'
-                      : initialEmail.split('@')[0] || 'Registered Partner',
-                  legalName: bizLegalName.trim() || undefined,
-                  tradingName: bizTradingName.trim() || undefined,
-                  registrationNumber: brelaRegNumber.trim() || identityNumber.trim() || undefined,
-                  tinNumber: traTin.trim() || undefined,
-                  industry: bizCategory.trim() || (selectedSkills && selectedSkills[0]) || undefined,
-                  contactPerson: authorizedRepName.trim() || undefined,
-                  email: initialEmail || undefined,
-                  phone: phone || initialPhone || undefined,
-                  profilePhotoUrl: facePhotoUrl || undefined,
-                }
-                onComplete(role, profilePayload)
-              }}
-              className="py-3 px-8 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-md transition-colors flex items-center gap-2 cursor-pointer"
+              onClick={handleActivateAccount}
+              disabled={isActivating}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-xs font-extrabold text-white shadow-md transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-slate-400 sm:w-auto sm:px-8 sm:text-sm"
             >
-              <Sparkles className="w-4 h-4" />
-              <span>Activate Account & Enter {role === 'PARTNER' ? 'Partner Portal' : 'Business Hub'}</span>
+              {isActivating ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+              <span>{isActivating ? 'Activating Account...' : `Activate Account & Enter ${role === 'PARTNER' ? 'Partner Portal' : 'Business Hub'}`}</span>
             </button>
           </div>
         </div>

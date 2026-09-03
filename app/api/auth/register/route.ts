@@ -4,10 +4,22 @@ import crypto from 'crypto'
 import { db } from '@/lib/db'
 
 const registerSchema = z.object({
-  email: z.string().email(),
-  password: z.string().optional(),
-  name: z.string().min(1),
-  phone: z.string().optional(),
+  onboardingComplete: z.literal(true),
+  email: z.string().trim().email('Enter a valid email address.'),
+  password: z
+    .string()
+    .min(8, 'Password must contain at least 8 characters.')
+    .max(128, 'Password is too long.')
+    .regex(/[a-z]/, 'Password must include a lowercase letter.')
+    .regex(/[A-Z]/, 'Password must include an uppercase letter.')
+    .regex(/\d/, 'Password must include a number.'),
+  name: z
+    .string()
+    .trim()
+    .min(5, 'Enter your full legal name.')
+    .refine((value) => value.split(/\s+/).length >= 2, 'Enter your first and last legal name.')
+    .refine((value) => !/[^\p{L}'\u2019 -]/u.test(value), 'Name contains unsupported characters.'),
+  phone: z.string().regex(/^\+255[67]\d{8}$/, 'Enter a valid Tanzania mobile number.'),
   image: z.string().startsWith('data:image/').max(2_000_000).optional(),
   role: z.enum(['PARTNER', 'BUSINESS']),
   bizDetails: z
@@ -45,10 +57,8 @@ export async function POST(req: Request) {
 
     const { email, password, name, phone, image, role, bizDetails, documents } = parsed.data
     const normalizedEmail = email.trim().toLowerCase()
-    const effectivePassword = password && password.trim().length >= 6 ? password.trim() : '12345678'
-
     const salt = crypto.randomBytes(16).toString('hex')
-    const hashedPassword = crypto.scryptSync(effectivePassword, salt, 64).toString('hex') + ':' + salt
+    const hashedPassword = crypto.scryptSync(password, salt, 64).toString('hex') + ':' + salt
 
     // Check if user already exists
     const existing = await db.user.findUnique({
@@ -67,10 +77,10 @@ export async function POST(req: Request) {
           where: { id: existing.id },
           data: {
             name: name || existing.name,
-            phone: phone || existing.phone,
+            phone,
             // A verified onboarding portrait is immutable through normal profile updates.
             image: existing.image || image,
-            phoneVerified: Boolean(phone || existing.phoneVerified),
+            phoneVerified: true,
             emailVerified: true,
             accountStatus: 'ACTIVE',
           },
@@ -78,12 +88,10 @@ export async function POST(req: Request) {
 
         const credAccount = existing.accounts.find((a) => a.providerId === 'credential')
         if (credAccount) {
-          if (password && password.trim().length >= 6) {
-            await tx.account.update({
-              where: { id: credAccount.id },
-              data: { password: hashedPassword },
-            })
-          }
+          await tx.account.update({
+            where: { id: credAccount.id },
+            data: { password: hashedPassword },
+          })
         } else {
           await tx.account.create({
             data: {
@@ -117,9 +125,9 @@ export async function POST(req: Request) {
           email: normalizedEmail,
           emailVerified: true,
           name,
-          phone: phone || null,
+          phone,
           image: image || null,
-          phoneVerified: Boolean(phone),
+          phoneVerified: true,
           accountStatus: 'ACTIVE',
           twoFactorEnabled: true,
         },
@@ -197,7 +205,7 @@ export async function POST(req: Request) {
           entityId: user.id,
           afterData: {
             role,
-            phone: phone || null,
+            phone,
             email: normalizedEmail,
           },
         },

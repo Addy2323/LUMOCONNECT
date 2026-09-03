@@ -57,6 +57,10 @@ export function OpportunityCard({
               className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.025]"
               loading="lazy"
               decoding="async"
+              onError={(event) => {
+                event.currentTarget.onerror = null
+                event.currentTarget.src = '/placeholder.jpg'
+              }}
             />
           ) : (
             <div className="w-full h-full bg-linear-to-br from-slate-800 to-slate-950 flex items-center justify-center text-slate-500 font-bold text-xs">

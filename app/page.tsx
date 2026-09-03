@@ -82,7 +82,7 @@ export default function LumoApp() {
   })
   const [selectedRolePath, setSelectedRolePath] = useState<'PARTNER' | 'BUSINESS'>('PARTNER')
 
-  const [currentUserId, setCurrentUserId] = useState<string | undefined>('usr_given_main')
+  const [currentUserId, setCurrentUserId] = useState<string | undefined>(undefined)
   const [registeredPassword, setRegisteredPassword] = useState('')
   const [userDetails, setUserDetails] = useState<{
     name: string
@@ -91,14 +91,14 @@ export default function LumoApp() {
     password?: string
     profilePhotoUrl?: string
   }>({
-    name: 'Given M.',
-    email: 'given@lumo.co.tz',
-    phone: '+255 700 000 000',
+    name: '',
+    email: '',
+    phone: '',
   })
 
   // Workspace & Admin Mode Security State
-  const [availableWorkspaces, setAvailableWorkspaces] = useState<UserWorkspaceInfo[]>(INITIAL_WORKSPACES)
-  const [activeWorkspace, setActiveWorkspace] = useState<UserWorkspaceInfo>(INITIAL_WORKSPACES[1]) // Partner Workspace
+  const [availableWorkspaces, setAvailableWorkspaces] = useState<UserWorkspaceInfo[]>([INITIAL_WORKSPACES[0]])
+  const [activeWorkspace, setActiveWorkspace] = useState<UserWorkspaceInfo>(INITIAL_WORKSPACES[0])
   const [isAdminModeActive, setIsAdminModeActive] = useState(false)
   const [showAdminStepUpModal, setShowAdminStepUpModal] = useState(false)
 
@@ -214,6 +214,12 @@ export default function LumoApp() {
   }
 
   const navigateToView = (view: string) => {
+    const requiresCompletedOnboarding = ['partner', 'business', 'admin', 'dealroom', 'statement'].includes(view)
+    if (requiresCompletedOnboarding && !currentUserId) {
+      setActiveView(registeredPassword && userDetails.email ? 'auth_verify' : 'signin')
+      window.scrollTo({ top: 0, behavior: 'auto' })
+      return
+    }
     if (view === activeView) return
     setActiveView(view)
     window.scrollTo({ top: 0, behavior: 'auto' })
@@ -265,8 +271,12 @@ export default function LumoApp() {
 
   const handleSignOut = () => {
     setCurrentUserId(undefined)
-    setUserDetails((previous) => ({ ...previous, profilePhotoUrl: undefined }))
+    setUserDetails({ name: '', email: '', phone: '' })
+    setRegisteredPassword('')
+    setAvailableWorkspaces([INITIAL_WORKSPACES[0]])
+    setActiveWorkspace(INITIAL_WORKSPACES[0])
     setIsAdminModeActive(false)
+    if (typeof window !== 'undefined') sessionStorage.removeItem('lumo_reg_pwd')
     setActiveView('marketplace')
   }
 
@@ -354,6 +364,15 @@ export default function LumoApp() {
   }
 
   const handleSubscriptionSuccess = (planCode: string, returnTo?: string) => {
+    if (!currentUserId) {
+      setSubscriptionRedirectContext({
+        returnTo,
+        intent: subscriptionRedirectContext.intent,
+        reasonMessage: 'Complete registration and onboarding before activating a subscription.',
+      })
+      setActiveView(registeredPassword && userDetails.email ? 'auth_verify' : 'choose_path')
+      return
+    }
     if (returnTo) {
       const slug = returnTo.replace('/deals/', '')
       const opp = listOpportunities().find((o) => o.slug === slug || o.id === slug)
@@ -609,64 +628,16 @@ export default function LumoApp() {
                 onSignUpSuccess={(role, details) => {
                   setSelectedRolePath(role)
                   setUserDetails(details)
-                  const pwd = details.password || '12345678'
+                  const pwd = details.password || ''
                   setRegisteredPassword(pwd)
                   if (typeof window !== 'undefined') {
                     sessionStorage.setItem('lumo_reg_pwd', pwd)
                   }
-                  const newUserId = `usr_${Date.now()}`
-                  setCurrentUserId(newUserId)
+                  setCurrentUserId(undefined)
 
-                  // Eagerly register credentials in DB right on Step 1 submission
-                  fetch('/api/auth/register', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      email: details.email,
-                      password: pwd,
-                      name: details.name || details.email.split('@')[0],
-                      phone: details.phone,
-                      role,
-                    }),
-                  })
-                    .then(async (res) => {
-                      if (res.ok) {
-                        const data = await res.json()
-                        if (data.user?.id) {
-                          setCurrentUserId(data.user.id)
-                        }
-                      }
-                    })
-                    .catch((err) => console.warn('Step 1 registration network error:', err))
-
-                  if (role === 'BUSINESS') {
-                    const bizName = details.name ? `${details.name}'s Business` : 'My Business'
-                    const bizWs: UserWorkspaceInfo = {
-                      type: 'BUSINESS',
-                      id: `ws_${Date.now()}`,
-                      label: `${bizName} — Business`,
-                      organizationId: `org_${Date.now()}`,
-                      organizationName: bizName,
-                      role: 'BUSINESS_OWNER',
-                    }
-                    setAvailableWorkspaces((prev) => [
-                      ...prev.filter((w) => w.type !== 'BUSINESS'),
-                      bizWs,
-                    ])
-                    setActiveWorkspace(bizWs)
-                  } else {
-                    const partnerWs: UserWorkspaceInfo = {
-                      type: 'PARTNER',
-                      id: `ws_${Date.now()}`,
-                      label: `${details.name || 'Personal'} Workspace`,
-                      role: 'PARTNER',
-                    }
-                    setAvailableWorkspaces((prev) => [
-                      ...prev.filter((w) => w.type !== 'PARTNER'),
-                      partnerWs,
-                    ])
-                    setActiveWorkspace(partnerWs)
-                  }
+                  // A pending applicant remains a guest until every onboarding step succeeds.
+                  setAvailableWorkspaces([INITIAL_WORKSPACES[0]])
+                  setActiveWorkspace(INITIAL_WORKSPACES[0])
                   setActiveView('auth_verify')
                 }}
                 onNavigateSignIn={() => setActiveView('signin')}
@@ -680,12 +651,7 @@ export default function LumoApp() {
                 initialRole={selectedRolePath}
                 initialEmail={userDetails.email}
                 initialPhone={userDetails.phone}
-                initialPassword={
-                  registeredPassword ||
-                  userDetails.password ||
-                  (typeof window !== 'undefined' ? sessionStorage.getItem('lumo_reg_pwd') || '12345678' : '12345678')
-                }
-                onComplete={(finalRole, profileData) => {
+                onComplete={async (finalRole, profileData) => {
                   const chosenBizName =
                     profileData?.tradingName ||
                     profileData?.legalName ||
@@ -693,6 +659,51 @@ export default function LumoApp() {
                     (userDetails.name ? `${userDetails.name}'s Business` : 'My Business')
 
                   const userName = profileData?.contactPerson || userDetails.name || (profileData?.email ? profileData.email.split('@')[0] : 'User')
+
+                  const activePwd =
+                    registeredPassword ||
+                    userDetails.password ||
+                    (typeof window !== 'undefined' ? sessionStorage.getItem('lumo_reg_pwd') || '' : '')
+
+                  if (!activePwd) {
+                    throw new Error('Your signup session expired. Please return to signup and create your password again.')
+                  }
+
+                  const regPayload = {
+                    onboardingComplete: true as const,
+                    email: profileData?.email || userDetails.email,
+                    password: activePwd,
+                    name: userName,
+                    phone: profileData?.phone || userDetails.phone,
+                    image: profileData?.profilePhotoUrl,
+                    role: finalRole,
+                    bizDetails:
+                      finalRole === 'BUSINESS'
+                        ? {
+                            legalName: profileData?.legalName || chosenBizName,
+                            tradingName: profileData?.tradingName || chosenBizName,
+                            brelaRegNumber: profileData?.registrationNumber,
+                            traTin: profileData?.tinNumber,
+                            bizCategory: profileData?.industry,
+                            contactPerson: profileData?.contactPerson || userName,
+                          }
+                        : undefined,
+                  }
+
+                  const registrationResponse = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(regPayload),
+                  })
+                  const registrationData = await registrationResponse.json().catch(() => null)
+
+                  if (!registrationResponse.ok || !registrationData?.user?.id) {
+                    throw new Error(
+                      registrationData?.message ||
+                      registrationData?.error ||
+                      'We could not activate your account. Check your connection and try again.'
+                    )
+                  }
 
                   setUserDetails((prev) => ({
                     ...prev,
@@ -703,7 +714,11 @@ export default function LumoApp() {
                   }))
                   if (profileData?.profilePhotoUrl) {
                     const profileEmail = (profileData.email || userDetails.email).toLowerCase()
-                    localStorage.setItem(`lumo_locked_profile_photo:${profileEmail}`, profileData.profilePhotoUrl)
+                    try {
+                      localStorage.setItem(`lumo_locked_profile_photo:${profileEmail}`, profileData.profilePhotoUrl)
+                    } catch {
+                      // Account activation must not fail if the browser cannot cache the portrait locally.
+                    }
                   }
 
                   if (finalRole === 'BUSINESS') {
@@ -734,48 +749,9 @@ export default function LumoApp() {
                     setActiveWorkspace(partnerWorkspace)
                   }
 
-                  const activePwd =
-                    registeredPassword ||
-                    userDetails.password ||
-                    (typeof window !== 'undefined' ? sessionStorage.getItem('lumo_reg_pwd') || '12345678' : '12345678')
-
-                  // Update full profile in PostgreSQL Database via /api/auth/register
-                  const regPayload = {
-                    email: profileData?.email || userDetails.email,
-                    password: activePwd,
-                    name: userName,
-                    phone: profileData?.phone || userDetails.phone,
-                    image: profileData?.profilePhotoUrl,
-                    role: finalRole,
-                    bizDetails:
-                      finalRole === 'BUSINESS'
-                        ? {
-                            legalName: profileData?.legalName || chosenBizName,
-                            tradingName: profileData?.tradingName || chosenBizName,
-                            brelaRegNumber: profileData?.registrationNumber,
-                            traTin: profileData?.tinNumber,
-                            bizCategory: profileData?.industry,
-                            contactPerson: profileData?.contactPerson || userName,
-                          }
-                        : undefined,
-                  }
-
-                  fetch('/api/auth/register', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(regPayload),
-                  })
-                    .then(async (res) => {
-                      if (res.ok) {
-                        const data = await res.json()
-                        if (data.user?.id) {
-                          setCurrentUserId(data.user.id)
-                        }
-                      }
-                    })
-                    .catch((err) => {
-                      console.warn('Registration network error:', err)
-                    })
+                  setRegisteredPassword('')
+                  if (typeof window !== 'undefined') sessionStorage.removeItem('lumo_reg_pwd')
+                  setCurrentUserId(registrationData.user.id)
 
                   if (subscriptionRedirectContext.returnTo) {
                     setActiveView('subscriptions')
@@ -785,7 +761,15 @@ export default function LumoApp() {
                     setActiveView('business')
                   }
                 }}
-                onCancel={() => setActiveView('marketplace')}
+                onCancel={() => {
+                  setCurrentUserId(undefined)
+                  setRegisteredPassword('')
+                  setUserDetails({ name: '', email: '', phone: '' })
+                  setAvailableWorkspaces([INITIAL_WORKSPACES[0]])
+                  setActiveWorkspace(INITIAL_WORKSPACES[0])
+                  if (typeof window !== 'undefined') sessionStorage.removeItem('lumo_reg_pwd')
+                  setActiveView('marketplace')
+                }}
               />
             )}
 

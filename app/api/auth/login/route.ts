@@ -60,6 +60,13 @@ export async function POST(req: Request) {
       )
     }
 
+    if (user.accountStatus !== 'ACTIVE') {
+      return NextResponse.json(
+        { success: false, message: 'Complete all registration and onboarding steps before accessing your dashboard.' },
+        { status: 403 }
+      )
+    }
+
     const credentialAccount = user.accounts.find((a) => a.providerId === 'credential')
 
     if (!credentialAccount) {
