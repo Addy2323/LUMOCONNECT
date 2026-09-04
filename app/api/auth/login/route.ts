@@ -15,6 +15,18 @@ function verifyPassword(password: string, storedHash: string): boolean {
 }
 
 export async function POST(req: Request) {
+  if (!process.env.DATABASE_URL?.trim()) {
+    console.error('Login unavailable: DATABASE_URL is not configured for this deployment.')
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'DATABASE_NOT_CONFIGURED',
+        message: 'Sign in is temporarily unavailable. Please try again after the database is connected.',
+      },
+      { status: 503 }
+    )
+  }
+
   try {
     const body = await req.json()
     const { email, password } = body

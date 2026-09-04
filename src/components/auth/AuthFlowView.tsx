@@ -91,32 +91,120 @@ function getBrowserFaceDetector() {
 }
 
 function measureVideoFrame(video: HTMLVideoElement) {
+  const frameSize = 80
   const canvas = document.createElement('canvas')
-  canvas.width = 160
-  canvas.height = 160
+  canvas.width = frameSize
+  canvas.height = frameSize
   const context = canvas.getContext('2d', { willReadFrequently: true })
   if (!context) return null
 
   const sourceSize = Math.min(video.videoWidth, video.videoHeight)
   const sourceX = (video.videoWidth - sourceSize) / 2
   const sourceY = (video.videoHeight - sourceSize) / 2
-  context.drawImage(video, sourceX, sourceY, sourceSize, sourceSize, 0, 0, 160, 160)
+  context.drawImage(video, sourceX, sourceY, sourceSize, sourceSize, 0, 0, frameSize, frameSize)
 
-  const pixels = context.getImageData(0, 0, 160, 160).data
+  const pixels = context.getImageData(0, 0, frameSize, frameSize).data
+  const skinMask = new Uint8Array(frameSize * frameSize)
   let brightnessTotal = 0
   let brightnessSquaredTotal = 0
   let samples = 0
-  for (let index = 0; index < pixels.length; index += 64) {
-    const brightness = (pixels[index] + pixels[index + 1] + pixels[index + 2]) / 3
+
+  for (let pixelIndex = 0; pixelIndex < frameSize * frameSize; pixelIndex += 1) {
+    const index = pixelIndex * 4
+    const red = pixels[index]
+    const green = pixels[index + 1]
+    const blue = pixels[index + 2]
+    const brightness = (red + green + blue) / 3
     brightnessTotal += brightness
     brightnessSquaredTotal += brightness * brightness
     samples += 1
+
+    const colorRange = Math.max(red, green, blue) - Math.min(red, green, blue)
+    const chromaBlue = 128 - 0.168736 * red - 0.331264 * green + 0.5 * blue
+    const chromaRed = 128 + 0.5 * red - 0.418688 * green - 0.081312 * blue
+    const resemblesSkin =
+      red > 30 &&
+      green > 15 &&
+      blue > 8 &&
+      red >= green &&
+      red > blue &&
+      red - blue > 7 &&
+      colorRange > 10 &&
+      chromaBlue >= 72 &&
+      chromaBlue <= 138 &&
+      chromaRed >= 130 &&
+      chromaRed <= 180
+
+    if (resemblesSkin) skinMask[pixelIndex] = 1
   }
 
   const brightness = brightnessTotal / samples
+  const visited = new Uint8Array(frameSize * frameSize)
+  const queue = new Int32Array(frameSize * frameSize)
+  const candidates: Array<{
+    count: number
+    centerX: number
+    centerY: number
+    width: number
+    height: number
+  }> = []
+
+  for (let start = 0; start < skinMask.length; start += 1) {
+    if (!skinMask[start] || visited[start]) continue
+
+    let head = 0
+    let tail = 0
+    let count = 0
+    let sumX = 0
+    let sumY = 0
+    let minX = frameSize
+    let minY = frameSize
+    let maxX = 0
+    let maxY = 0
+    queue[tail++] = start
+    visited[start] = 1
+
+    while (head < tail) {
+      const current = queue[head++]
+      const x = current % frameSize
+      const y = Math.floor(current / frameSize)
+      count += 1
+      sumX += x
+      sumY += y
+      minX = Math.min(minX, x)
+      minY = Math.min(minY, y)
+      maxX = Math.max(maxX, x)
+      maxY = Math.max(maxY, y)
+
+      const neighbors = [current - 1, current + 1, current - frameSize, current + frameSize]
+      for (const neighbor of neighbors) {
+        if (neighbor < 0 || neighbor >= skinMask.length || visited[neighbor] || !skinMask[neighbor]) continue
+        const neighborX = neighbor % frameSize
+        if (Math.abs(neighborX - x) > 1) continue
+        visited[neighbor] = 1
+        queue[tail++] = neighbor
+      }
+    }
+
+    const width = (maxX - minX + 1) / frameSize
+    const height = (maxY - minY + 1) / frameSize
+    const aspectRatio = width / Math.max(height, 0.01)
+    if (count >= 35 && width >= 0.1 && height >= 0.1 && aspectRatio >= 0.35 && aspectRatio <= 1.8) {
+      candidates.push({
+        count,
+        centerX: sumX / count / frameSize,
+        centerY: sumY / count / frameSize,
+        width,
+        height,
+      })
+    }
+  }
+
+  candidates.sort((a, b) => b.count - a.count)
   return {
     brightness,
     variance: brightnessSquaredTotal / samples - brightness * brightness,
+    approximateFaces: candidates.filter((candidate) => candidate.count >= Math.max(35, candidates[0]?.count * 0.35)),
   }
 }
 
@@ -365,11 +453,32 @@ export function AuthFlowView({
             }
           }
         } else {
-          updateGuidance(
-            'READY',
-            'Lighting is clear — center your face inside the oval, hold still, and tap Capture.',
-            true
-          )
+          const faces = quality.approximateFaces
+          if (faces.length === 0) {
+            updateGuidance('NO_FACE', 'No face detected — place your full face inside the oval.')
+          } else if (faces.length > 1) {
+            updateGuidance('MULTIPLE_FACES', 'Only one person should be visible.')
+          } else {
+            const face = faces[0]
+            const displayedCenterX = 1 - face.centerX
+            const faceSize = Math.max(face.width, face.height)
+
+            if (faceSize < 0.24) {
+              updateGuidance('MOVE_CLOSER', 'Move closer — your face is too small in the frame.')
+            } else if (faceSize > 0.78) {
+              updateGuidance('MOVE_BACK', 'Move slightly away from the camera.')
+            } else if (displayedCenterX < 0.4) {
+              updateGuidance('MOVE_RIGHT', 'Move slightly to the right.')
+            } else if (displayedCenterX > 0.6) {
+              updateGuidance('MOVE_LEFT', 'Move slightly to the left.')
+            } else if (face.centerY < 0.36) {
+              updateGuidance('MOVE_DOWN', 'Move slightly downward.')
+            } else if (face.centerY > 0.64) {
+              updateGuidance('MOVE_UP', 'Move slightly upward.')
+            } else {
+              updateGuidance('READY', 'Face detected, centered, and clear — hold still and tap Capture.', true)
+            }
+          }
         }
       } catch {
         updateGuidance('SCANNING', 'Keep your face centered inside the oval.')

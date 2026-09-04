@@ -18,6 +18,15 @@ Add the Redis, S3, SMTP, Mongike, Meseji, and Sentry variables from `.env.exampl
 
 For serverless PostgreSQL, use a pooled connection string to avoid exhausting database connections. Prisma Postgres can be connected through Netlify's Prisma extension and supplies `DATABASE_URL` automatically.
 
+The local development URL in this project points to `localhost`; do not copy that value to Netlify because a deployed Function cannot reach PostgreSQL running on your computer. Create a hosted PostgreSQL database first, then add its pooled connection URL:
+
+1. Open **Netlify → Project configuration → Environment variables**.
+2. Add `DATABASE_URL` as a secret site variable for the **Production** deploy context.
+3. If scope controls are available, include **Functions** and **Builds**. Next.js route handlers require the Functions scope.
+4. Trigger a new production deploy. Environment-variable changes do not affect an already published deploy.
+
+Do not put the database password in `netlify.toml`; values declared there are not available to serverless Functions and committing a database credential would expose it in Git.
+
 ## 2. Prepare the production database
 
 Create or select the production PostgreSQL database, set `DATABASE_URL` locally to that database, and apply the checked-in schema before the first public deployment:

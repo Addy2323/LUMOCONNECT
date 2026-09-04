@@ -45,6 +45,17 @@ const registerSchema = z.object({
 })
 
 export async function POST(req: Request) {
+  if (!process.env.DATABASE_URL?.trim()) {
+    console.error('Registration unavailable: DATABASE_URL is not configured for this deployment.')
+    return NextResponse.json(
+      {
+        error: 'DATABASE_NOT_CONFIGURED',
+        message: 'Account activation is temporarily unavailable. Please try again after the database is connected.',
+      },
+      { status: 503 }
+    )
+  }
+
   try {
     const body = await req.json()
     const parsed = registerSchema.safeParse(body)
@@ -225,10 +236,13 @@ export async function POST(req: Request) {
         orgId: result.orgId,
       },
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Registration transaction error:', error)
     return NextResponse.json(
-      { error: 'REGISTRATION_FAILED', message: error?.message || 'Server error occurred during account registration' },
+      {
+        error: 'REGISTRATION_FAILED',
+        message: 'We could not activate your account right now. Please try again shortly.',
+      },
       { status: 500 }
     )
   }
