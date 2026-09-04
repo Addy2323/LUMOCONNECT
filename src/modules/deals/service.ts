@@ -431,6 +431,7 @@ export function createDealOpportunity(
   companyName = 'Verified Business Ltd',
   initialStatus: 'PENDING_REVIEW' | 'PUBLISHED' | 'DRAFT' = 'PUBLISHED'
 ): OpportunityItem {
+  const expiryDays = Math.min(365, Math.max(1, input.expiryDays ?? 30))
   const newSlug = input.title
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
@@ -461,7 +462,7 @@ export function createDealOpportunity(
         : `TZS ${input.baseRewardValue.toLocaleString()}`,
     rewardDetail:
       input.rewardType === 'PERCENTAGE_COMMISSION' ? 'on completed order total' : 'per verified completion',
-    principalPriceDisplay: input.principalPriceTZS
+    principalPriceDisplay: input.principalPriceTZS && input.principalPriceTZS > 0
       ? `TZS ${input.principalPriceTZS.toLocaleString()}`
       : 'Price on request',
     totalBudgetTZS: input.totalBudgetTZS ? toMinorUnits(input.totalBudgetTZS) : undefined,
@@ -475,7 +476,7 @@ export function createDealOpportunity(
     termsAndConditions: input.termsAndConditions,
     status: computedStatus,
     createdAt: new Date(),
-    expiryDate: new Date(Date.now() + (input.expiryDays ?? 30) * 24 * 60 * 60 * 1000),
+    expiryDate: new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000),
   }
 
   inMemoryOpportunities.unshift(newOpp)

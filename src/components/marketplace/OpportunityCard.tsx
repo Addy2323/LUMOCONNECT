@@ -40,6 +40,7 @@ export function OpportunityCard({
       : daysRemaining === 1
         ? '1 day remaining'
         : `${daysRemaining} days remaining`
+  const isExpired = Boolean(expiry && expiry.getTime() <= Date.now())
 
   const getCategoryPill = (category: string) => {
     switch (category) {
@@ -168,10 +169,11 @@ export function OpportunityCard({
           <button
             type="button"
             onClick={onApply}
-            className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#FF6A00] px-2.5 py-2.5 text-center text-xs font-extrabold text-white shadow-xs transition-colors hover:bg-[#EA580C] active:scale-[0.98]"
+            disabled={isExpired}
+            className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#FF6A00] px-2.5 py-2.5 text-center text-xs font-extrabold text-white shadow-xs transition-colors hover:bg-[#EA580C] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-slate-300 dark:disabled:bg-slate-700"
           >
-            {!isSubscribed && <Lock className="w-3 h-3 text-white/90" />}
-            <span>{isSubscribed ? 'Join Deal' : 'Subscribe to Join'}</span>
+            {!isSubscribed && !isExpired && <Lock className="w-3 h-3 text-white/90" />}
+            <span>{isExpired ? 'Deal Expired' : isSubscribed ? 'Join Deal' : 'Subscribe to Join'}</span>
           </button>
         </div>
       </div>

@@ -193,6 +193,14 @@ export function ProtectedDealDetailsModal({
         {/* Reward & Payout Box */}
         <div className="p-4 rounded-2xl bg-orange-50/60 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-900/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
+            <div className="mb-2">
+              <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                PRINCIPAL PRICE / DEAL VALUE
+              </div>
+              <div className="mt-0.5 font-mono text-base font-black text-slate-900 dark:text-white">
+                {deal.principalPriceDisplay || 'Price on request'}
+              </div>
+            </div>
             <div className="text-[10px] font-extrabold uppercase tracking-wider text-orange-900 dark:text-orange-300">
               CONFIDENTIAL REWARD TERMS
             </div>

@@ -35,9 +35,11 @@ export function CreateDealWizard({ onSuccess, onCancel }: CreateDealWizardProps)
   const [description, setDescription] = useState('')
   const [rewardType, setRewardType] = useState<z.infer<typeof RewardTypeSchema>>('COST_PER_ACQUISITION')
   const [baseRewardValue, setBaseRewardValue] = useState(45000)
+  const [principalPrice, setPrincipalPrice] = useState(100000)
   const [percentageBps, setPercentageBps] = useState(1000) // 10%
   const [totalBudget, setTotalBudget] = useState(5000000)
   const [maxPartners, setMaxPartners] = useState(50)
+  const [expiryDays, setExpiryDays] = useState(30)
   const [terms, setTerms] = useState('Reward is validated upon technician sign-off and customer down-payment confirmation. Attribution window is 30 days.')
   const [requiresApproval, setRequiresApproval] = useState(true)
   const [featuredImageUrl, setFeaturedImageUrl] = useState('https://images.unsplash.com/photo-1509391365360-2e959784a276?w=800&auto=format&fit=crop&q=60')
@@ -54,6 +56,7 @@ export function CreateDealWizard({ onSuccess, onCancel }: CreateDealWizardProps)
         description,
         rewardType,
         baseRewardValue,
+        principalPriceTZS: principalPrice,
         percentageBps: rewardType === 'PERCENTAGE_COMMISSION' ? percentageBps : undefined,
         totalBudgetTZS: totalBudget,
         maxPartners,
@@ -64,6 +67,7 @@ export function CreateDealWizard({ onSuccess, onCancel }: CreateDealWizardProps)
         promoVideoUrl: promoVideoUrl || undefined,
         currency: 'TZS',
         attributionWindowDays: 30,
+        expiryDays,
       },
       'org_active_business',
       'Kijani Solar Tech'
@@ -313,6 +317,20 @@ export function CreateDealWizard({ onSuccess, onCancel }: CreateDealWizardProps)
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Principal Price / Deal Value (TZS)
+              </label>
+              <input
+                type="number"
+                min={1}
+                value={principalPrice}
+                onChange={(e) => setPrincipalPrice(Number(e.target.value))}
+                placeholder="e.g. 85000000"
+                className="w-full text-xs p-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-800 font-mono"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                 Total Campaign Budget (TZS)
               </label>
               <input
@@ -324,6 +342,9 @@ export function CreateDealWizard({ onSuccess, onCancel }: CreateDealWizardProps)
               />
             </div>
 
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                 Partner Seat Cap
@@ -333,6 +354,21 @@ export function CreateDealWizard({ onSuccess, onCancel }: CreateDealWizardProps)
                 value={maxPartners}
                 onChange={(e) => setMaxPartners(Number(e.target.value))}
                 placeholder="e.g. 50"
+                className="w-full text-xs p-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-800 font-mono"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Deal Duration (Days)
+              </label>
+              <input
+                type="number"
+                min={1}
+                max={365}
+                value={expiryDays}
+                onChange={(e) => setExpiryDays(Number(e.target.value))}
+                placeholder="e.g. 30"
                 className="w-full text-xs p-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-800 font-mono"
               />
             </div>
@@ -365,7 +401,7 @@ export function CreateDealWizard({ onSuccess, onCancel }: CreateDealWizardProps)
               {summary || 'No summary provided'}
             </p>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-slate-200 dark:border-slate-700 text-xs">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-3 border-t border-slate-200 dark:border-slate-700 text-xs">
               <div>
                 <span className="text-slate-400 block text-[11px]">Type</span>
                 <strong className="text-slate-800 dark:text-slate-200">{opportunityType}</strong>
@@ -376,12 +412,20 @@ export function CreateDealWizard({ onSuccess, onCancel }: CreateDealWizardProps)
                 <span className="block text-[10px] text-slate-400">{subcategory}</span>
               </div>
               <div>
+                <span className="text-slate-400 block text-[11px]">Principal Price</span>
+                <strong className="text-slate-800 dark:text-slate-200">TZS {principalPrice.toLocaleString()}</strong>
+              </div>
+              <div>
                 <span className="text-slate-400 block text-[11px]">Reward</span>
                 <strong className="text-orange-600">TZS {baseRewardValue.toLocaleString()}</strong>
               </div>
               <div>
                 <span className="text-slate-400 block text-[11px]">Budget</span>
                 <strong className="text-slate-800 dark:text-slate-200">TZS {totalBudget.toLocaleString()}</strong>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[11px]">Expires</span>
+                <strong className="text-emerald-700 dark:text-emerald-400">In {expiryDays} days</strong>
               </div>
             </div>
           </div>
