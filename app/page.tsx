@@ -453,13 +453,10 @@ export default function LumoApp() {
           <div className="space-y-8">
             {/* 2-Column Hero Section */}
             <HeroSection
-              previewOpportunities={allOpportunities}
               currentUserRole={currentUserRole}
               onExplore={() => navigateToView('marketplace_catalog')}
               onPublishDeal={handleTriggerCreateDeal}
               onViewSubscriptions={() => setActiveView('subscriptions')}
-              onViewAllOpportunities={() => navigateToView('marketplace_catalog')}
-              onSelectPreviewOpportunity={(opp) => handleDealAction(opp, 'view')}
             />
 
             {/* Trust & Performance Strip */}

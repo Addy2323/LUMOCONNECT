@@ -342,3 +342,26 @@ html, body {
   background: #0b1220;
 }
 
+@keyframes lumo-earnings-flow {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-50%);
+  }
+}
+
+.lumo-earnings-vertical-flow {
+  animation: lumo-earnings-flow 18s linear infinite;
+}
+
+.lumo-earnings-vertical-flow:hover {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lumo-earnings-vertical-flow {
+    animation: none;
+  }
+}
+
