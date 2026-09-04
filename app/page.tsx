@@ -13,6 +13,7 @@ import { NavigationLoader } from '@/components/shared/NavigationLoader'
 import { HeroSection } from '@/components/marketplace/HeroSection'
 import { TrustStrip } from '@/components/marketplace/TrustStrip'
 import { OpportunityDiscoveryFeed } from '@/components/marketplace/OpportunityDiscoveryFeed'
+import { HomeOpportunityPreview } from '@/components/marketplace/HomeOpportunityPreview'
 import { MarketplaceCatalog } from '@/components/marketplace/MarketplaceCatalog'
 import { DealApplyModal } from '@/components/marketplace/DealApplyModal'
 import { CreateDealWizard } from '@/components/marketplace/CreateDealWizard'
@@ -454,16 +455,10 @@ export default function LumoApp() {
             <HeroSection
               previewOpportunities={allOpportunities}
               currentUserRole={currentUserRole}
-              onExplore={() => {
-                const filterElem = document.getElementById('marketplace-filters-section')
-                if (filterElem) filterElem.scrollIntoView({ behavior: 'smooth' })
-              }}
+              onExplore={() => navigateToView('marketplace_catalog')}
               onPublishDeal={handleTriggerCreateDeal}
               onViewSubscriptions={() => setActiveView('subscriptions')}
-              onViewAllOpportunities={() => {
-                const filterElem = document.getElementById('marketplace-filters-section')
-                if (filterElem) filterElem.scrollIntoView({ behavior: 'smooth' })
-              }}
+              onViewAllOpportunities={() => navigateToView('marketplace_catalog')}
               onSelectPreviewOpportunity={(opp) => handleDealAction(opp, 'view')}
             />
 
@@ -477,35 +472,18 @@ export default function LumoApp() {
                 setSearchQuery('')
                 setSelectedCategory(category)
               }}
-              onViewAll={() => {
-                const filterElem = document.getElementById('marketplace-filters-section')
-                if (filterElem) filterElem.scrollIntoView({ behavior: 'smooth' })
-              }}
+              onViewAll={() => navigateToView('marketplace_catalog')}
             />
 
-            <MarketplaceCatalog
-              opportunities={opportunities}
-              query={searchQuery}
-              onQueryChange={setSearchQuery}
-              selectedCategory={selectedCategory}
-              onCategoryChange={setSelectedCategory}
-              selectedType={selectedType}
-              onTypeChange={setSelectedType}
-              selectedRegion={selectedRegion}
-              onRegionChange={setSelectedRegion}
-              sortBy={sortBy}
-              onSortChange={setSortBy}
-              onClearFilters={handleClearFilters}
-              activeFilterCount={activeFilterCount}
-              minReward={minReward}
-              onMinRewardChange={setMinReward}
+            <HomeOpportunityPreview
+              opportunities={allOpportunities}
               currentUserRole={currentUserRole}
               currentUserOrgId={currentUserOrgId}
               hasActiveSubscription={hasActiveSubscription}
               savedDeals={savedDeals}
               onToggleSave={handleToggleSave}
               onDealAction={handleDealAction}
-              onPostOpportunity={handleTriggerCreateDeal}
+              onViewMore={() => navigateToView('marketplace_catalog')}
             />
           </div>
         )}
