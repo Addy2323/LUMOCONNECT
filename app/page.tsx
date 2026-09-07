@@ -10,6 +10,7 @@ import { SiteHeader } from '@/components/shared/SiteHeader'
 import { Footer } from '@/components/shared/Footer'
 import { MobileNav } from '@/components/shared/MobileNav'
 import { NavigationLoader } from '@/components/shared/NavigationLoader'
+import { StartupAnimation } from '@/components/shared/StartupAnimation'
 import { HeroSection } from '@/components/marketplace/HeroSection'
 import { TrustStrip } from '@/components/marketplace/TrustStrip'
 import { OpportunityDiscoveryFeed } from '@/components/marketplace/OpportunityDiscoveryFeed'
@@ -69,7 +70,32 @@ const INITIAL_WORKSPACES: UserWorkspaceInfo[] = [
   },
 ]
 
+const ROUTE_MAP: Record<string, string> = {
+  marketplace: '/',
+  marketplace_catalog: '/catalog',
+  subscriptions: '/subscriptions',
+  partner: '/partner',
+  business: '/business',
+  admin: '/admin',
+  signin: '/signin',
+  signup: '/signup',
+  choose_path: '/choose-path',
+  auth_verify: '/verify',
+  dealroom: '/dealroom',
+  statement: '/statement',
+  customer_checkout: '/checkout',
+}
+
+const PATH_TO_VIEW_MAP: Record<string, string> = Object.entries(ROUTE_MAP).reduce(
+  (acc, [view, path]) => {
+    acc[path] = view
+    return acc
+  },
+  {} as Record<string, string>
+)
+
 export default function LumoApp() {
+  const [showStartup, setShowStartup] = useState(true)
   const [activeView, setActiveView] = useState('marketplace')
   const [partnerDashboardTab, setPartnerDashboardTab] = useState<PartnerSidebarSection>('overview')
   const [businessDashboardTab, setBusinessDashboardTab] = useState<BusinessSidebarSection>('overview')
@@ -153,6 +179,29 @@ export default function LumoApp() {
     }
   }, [])
 
+  // Sync URL location path on initial load & popstate browser back/forward navigation
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const initialPath = window.location.pathname
+    const matchedView = PATH_TO_VIEW_MAP[initialPath]
+    if (matchedView) {
+      const requiresCompletedOnboarding = ['partner', 'business', 'admin', 'dealroom', 'statement'].includes(matchedView)
+      if (!requiresCompletedOnboarding || currentUserId) {
+        setActiveView(matchedView)
+      }
+    }
+
+    const handlePopState = () => {
+      const currentPath = window.location.pathname
+      const view = PATH_TO_VIEW_MAP[currentPath] || 'marketplace'
+      setActiveView(view)
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [currentUserId])
+
   useEffect(() => {
     const handleUpdate = () => setDealsRevision((r) => r + 1)
     const handleSavedUpdate = () => {
@@ -216,13 +265,20 @@ export default function LumoApp() {
 
   const navigateToView = (view: string) => {
     const requiresCompletedOnboarding = ['partner', 'business', 'admin', 'dealroom', 'statement'].includes(view)
-    if (requiresCompletedOnboarding && !currentUserId) {
-      setActiveView(registeredPassword && userDetails.email ? 'auth_verify' : 'signin')
-      window.scrollTo({ top: 0, behavior: 'auto' })
-      return
+    const targetView = requiresCompletedOnboarding && !currentUserId
+      ? (registeredPassword && userDetails.email ? 'auth_verify' : 'signin')
+      : view
+
+    if (targetView !== activeView) {
+      setActiveView(targetView)
     }
-    if (view === activeView) return
-    setActiveView(view)
+
+    if (typeof window !== 'undefined') {
+      const path = ROUTE_MAP[targetView] || '/'
+      if (window.location.pathname !== path) {
+        window.history.pushState({}, '', path)
+      }
+    }
     window.scrollTo({ top: 0, behavior: 'auto' })
   }
 
@@ -242,9 +298,6 @@ export default function LumoApp() {
     }
   }
 
-  /**
-   * Request Admin Mode with Step-Up MFA
-   */
   const handleRequestAdminMode = () => {
     setShowAdminStepUpModal(true)
   }
@@ -399,6 +452,10 @@ export default function LumoApp() {
     activeView === 'admin' ||
     activeView === 'dealroom' ||
     activeView === 'statement'
+
+  if (showStartup) {
+    return <StartupAnimation onComplete={() => setShowStartup(false)} />
+  }
 
   return (
     <div id="lumo-localized-app" className={`${isAuthView ? 'auth-page-root' : ''} min-h-screen flex flex-col bg-[#F8FAFC] dark:bg-[#0B1220] text-[#0F172A] dark:text-slate-100 transition-colors`}>

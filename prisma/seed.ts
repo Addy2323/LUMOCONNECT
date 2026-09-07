@@ -363,11 +363,20 @@ async function main() {
   // ──────────────────────────────────────────────────
   console.log('Creating root Super Admin user...')
 
+  const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase()
+  const adminPassword = process.env.ADMIN_PASSWORD
+
+  if (!adminEmail || !adminPassword || adminPassword.length < 16) {
+    throw new Error(
+      'ADMIN_EMAIL and ADMIN_PASSWORD (minimum 16 characters) must be configured before seeding.'
+    )
+  }
+
   const adminUser = await prisma.user.upsert({
-    where: { email: 'admin@lumo.co.tz' },
+    where: { email: adminEmail },
     update: {},
     create: {
-      email: 'admin@lumo.co.tz',
+      email: adminEmail,
       name: 'LUMO Platform Super Admin',
       accountStatus: 'ACTIVE',
       emailVerified: true,
@@ -387,15 +396,15 @@ async function main() {
     })
   }
 
-  // Set permanent credentials for Super Admin (Admin@Lumo2026!)
+  // Hash the deployment-specific bootstrap credential; never commit it to source control.
   const salt = crypto.randomBytes(16).toString('hex')
-  const hashedPassword = crypto.scryptSync('Admin@Lumo2026!', salt, 64).toString('hex') + ':' + salt
+  const hashedPassword = crypto.scryptSync(adminPassword, salt, 64).toString('hex') + ':' + salt
   
   await prisma.account.upsert({
     where: {
       providerId_accountId: {
         providerId: 'credential',
-        accountId: 'admin@lumo.co.tz',
+        accountId: adminEmail,
       },
     },
     update: {
@@ -404,12 +413,12 @@ async function main() {
     create: {
       userId: adminUser.id,
       providerId: 'credential',
-      accountId: 'admin@lumo.co.tz',
+      accountId: adminEmail,
       password: hashedPassword,
     },
   })
 
-  console.log('  Root Admin initialized: admin@lumo.co.tz (Password configured)')
+  console.log(`  Root Admin initialized: ${adminEmail} (Password configured)`)
   console.log('\nLUMO clean production database seeded successfully!')
 }
 

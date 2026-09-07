@@ -11,12 +11,7 @@ import {
   Target,
   Award,
   Wallet,
-  Megaphone,
   UserSearch,
-  PieChart,
-  FileSpreadsheet,
-  Webhook,
-  CreditCard,
   Building2,
   UserPlus,
   Shield,
@@ -104,17 +99,12 @@ function getNavGroups({
     {
       title: 'GROWTH',
       items: [
-        { id: 'campaigns', label: 'Campaigns', icon: Megaphone, opType: 'CRUD/Publish' },
         { id: 'partner_discovery', label: 'Partner Discovery', icon: UserSearch, opType: 'Search & Invite' },
-        { id: 'audience_insights', label: 'Audience Insights', icon: PieChart, opType: 'Read/Analytics' },
-        { id: 'reports_exports', label: 'Reports & Exports', icon: FileSpreadsheet, opType: 'Saved Reports CRUD' },
       ],
     },
     {
-      title: 'ACCOUNT & SYSTEM',
+      title: 'ACCOUNT & SETTINGS',
       items: [
-        { id: 'tracking_integrations', label: 'Tracking & Integrations', icon: Webhook, opType: 'APIs & Webhooks' },
-        { id: 'billing_subscription', label: 'Billing & Subscription', icon: CreditCard, opType: 'SaaS Invoices' },
         { id: 'business_profile', label: 'Business Profile', icon: Building2, opType: 'KYB Guarded' },
         { id: 'team_access', label: 'Team & Access', icon: UserPlus, opType: 'C/R/U/Revoke' },
         { id: 'settings_security', label: 'Settings & Security', icon: Shield, opType: 'Read/Update' },

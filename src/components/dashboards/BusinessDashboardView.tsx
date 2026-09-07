@@ -16,12 +16,7 @@ import { DealPerformanceTab } from './business/tabs/DealPerformanceTab'
 import { ConversionsResultsTab } from './business/tabs/ConversionsResultsTab'
 import { RewardsCommissionsTab } from './business/tabs/RewardsCommissionsTab'
 import { PaymentsFundingTab } from './business/tabs/PaymentsFundingTab'
-import { CampaignsTab } from './business/tabs/CampaignsTab'
 import { PartnerDiscoveryTab } from './business/tabs/PartnerDiscoveryTab'
-import { AudienceInsightsTab } from './business/tabs/AudienceInsightsTab'
-import { ReportsExportsTab } from './business/tabs/ReportsExportsTab'
-import { TrackingIntegrationsTab } from './business/tabs/TrackingIntegrationsTab'
-import { BillingSubscriptionTab } from './business/tabs/BillingSubscriptionTab'
 import { BusinessProfileTab } from './business/tabs/BusinessProfileTab'
 import { TeamAccessTab } from './business/tabs/TeamAccessTab'
 import { SettingsSecurityTab } from './business/tabs/SettingsSecurityTab'
@@ -221,12 +216,7 @@ export function BusinessDashboardView({
                 {activeTab === 'conversions_results' && 'Commercial Outcomes & Conversions'}
                 {activeTab === 'rewards_commissions' && 'Rewards, Commissions & Obligations'}
                 {activeTab === 'payments_funding' && 'Reward Funding Balance & Escrow'}
-                {activeTab === 'campaigns' && 'Campaign Groups & Strategic Initiatives'}
                 {activeTab === 'partner_discovery' && 'Verified Partner Talent Directory'}
-                {activeTab === 'audience_insights' && 'Audience Reach & Channel Insights'}
-                {activeTab === 'reports_exports' && 'Performance Reports & Statutory Exports'}
-                {activeTab === 'tracking_integrations' && 'Tracking Links, QR Codes & Webhooks'}
-                {activeTab === 'billing_subscription' && 'Business SaaS Membership & Billing'}
                 {activeTab === 'business_profile' && 'Business Profile & Verified Legal Credentials'}
                 {activeTab === 'team_access' && 'Team Members & Portal Access Roles'}
                 {activeTab === 'settings_security' && 'Security, MFA & Notification Preferences'}
@@ -297,16 +287,11 @@ export function BusinessDashboardView({
           )}
 
           {/* GROUP 3: GROWTH */}
-          {activeTab === 'campaigns' && <CampaignsTab />}
           {activeTab === 'partner_discovery' && (
             <PartnerDiscoveryTab opportunities={opportunities} />
           )}
-          {activeTab === 'audience_insights' && <AudienceInsightsTab />}
-          {activeTab === 'reports_exports' && <ReportsExportsTab />}
 
-          {/* GROUP 4: ACCOUNT & SYSTEM */}
-          {activeTab === 'tracking_integrations' && <TrackingIntegrationsTab />}
-          {activeTab === 'billing_subscription' && <BillingSubscriptionTab />}
+          {/* GROUP 4: ACCOUNT & SETTINGS */}
           {activeTab === 'business_profile' && (
             <BusinessProfileTab
               businessName={businessName}
