@@ -179,7 +179,7 @@ export function SignUpView({
                   <div className="flex items-start gap-3">
                     <CheckCircle2 className="w-5 h-5 text-white shrink-0 mt-0.5" />
                     <span className="font-semibold text-white/95 leading-snug">
-                      Escrow-protected fund settlements with full audit trails.
+                      Secured fund settlements with full audit trails — all funds are secured.
                     </span>
                   </div>
                 </>

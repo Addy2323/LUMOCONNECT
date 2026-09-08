@@ -188,7 +188,7 @@ export function OverviewTab({
         >
           <div className="flex items-start justify-between">
             <div className="space-y-1">
-              <span className="text-[11px] sm:text-xs font-bold text-slate-500">Committed Escrow Budget</span>
+              <span className="text-[11px] sm:text-xs font-bold text-slate-500">Secured Reward Budget</span>
               <div className="text-xl sm:text-2xl font-black text-[#0F172A] dark:text-white font-mono">
                 TZS {(fundingBalance.committedToActiveDealsTZS / 1000000).toFixed(1)}M
               </div>
@@ -198,110 +198,97 @@ export function OverviewTab({
             </div>
           </div>
           <div className="text-[11px] text-purple-600 font-bold flex items-center gap-1">
-            <span>Manage escrow funding →</span>
+            <span>Manage wallet & payouts →</span>
           </div>
         </div>
       </div>
 
-      {/* Main Grid: Chart + Safeguarded Reward Funding Balance Widget */}
+      {/* Main Grid: Chart + Secured Wallet Balance Widget */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         {/* Performance Chart (8 Cols) */}
         <div className="lg:col-span-8 bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-4 sm:p-6 shadow-xs space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h3 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white">
-                Commercial Outcome Velocity
+                Revenue & Commercial Conversions Velocity
               </h3>
-              <p className="text-xs text-slate-500">
-                Verified customer conversions, sales, and qualified inquiries delivered across active campaigns.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl self-start sm:self-auto text-xs font-bold">
-              {(['7D', '30D', '6M'] as const).map((r) => (
-                <button
-                  key={r}
-                  onClick={() => setTimeRange(r)}
-                  className={`px-3 py-1 rounded-lg transition-all ${
-                    timeRange === r
-                      ? 'bg-white dark:bg-slate-900 text-[#FF6A00] shadow-2xs'
-                      : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-                >
-                  {r}
-                </button>
-              ))}
+              <p className="text-xs text-slate-500">Weekly attributable deal pipeline and verified outcome volumes.</p>
             </div>
           </div>
 
-          <div className="h-64 sm:h-72 w-full pt-2">
+          <div className="h-64 sm:h-72 w-full pt-4">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <AreaChart data={chartData}>
                 <defs>
-                  <linearGradient id="outcomeGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#FF6A00" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#FF6A00" stopOpacity={0.0} />
+                  <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#FF6A00" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#FF6A00" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" opacity={0.5} />
-                <XAxis dataKey="date" stroke="#94A3B8" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis stroke="#94A3B8" fontSize={11} tickLine={false} axisLine={false} />
+                <XAxis dataKey="day" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis
+                  tick={{ fontSize: 11 }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={(val) => `TZS ${(val / 1000000).toFixed(0)}M`}
+                />
                 <Tooltip
+                  formatter={(val: any) => [`TZS ${Number(val).toLocaleString()}`, 'Pipeline Value']}
                   contentStyle={{
+                    borderRadius: '12px',
                     backgroundColor: '#0F172A',
-                    borderRadius: '16px',
                     color: '#fff',
-                    fontSize: '12px',
                     border: 'none',
+                    fontSize: '11px',
                   }}
-                  formatter={(value: any) => [`${value} Verified Outcomes`, 'Conversions']}
                 />
                 <Area
                   type="monotone"
-                  dataKey="value"
+                  dataKey="pipelineRevenueTZS"
                   stroke="#FF6A00"
-                  strokeWidth={3}
+                  strokeWidth={2.5}
                   fillOpacity={1}
-                  fill="url(#outcomeGradient)"
+                  fill="url(#colorRev)"
                 />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Safeguarded Reward Funding Balance Widget (4 Cols) */}
+        {/* Financial Widget (4 Cols) */}
         <div className="lg:col-span-4 bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-4 sm:p-5 shadow-xs space-y-4 flex flex-col justify-between">
           <div className="space-y-3">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
-              <span className="text-xs font-black uppercase tracking-wider text-slate-400">
-                Reward Funding Balance
+            <div className="flex items-center justify-between border-b pb-3 dark:border-slate-800">
+              <h3 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
+                <Wallet className="w-4 h-4 text-[#FF6A00]" />
+                <span>Secured Wallet Balance</span>
+              </h3>
+              <span className="text-[10px] bg-emerald-100 text-emerald-800 font-mono font-bold px-2 py-0.5 rounded-full">
+                Funds Are Secured
               </span>
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             </div>
 
-            <div>
-              <div className="text-2xl sm:text-3xl font-black text-[#0F172A] dark:text-white font-mono">
-                TZS {fundingBalance.availableBalanceTZS.toLocaleString()}
+            <div className="space-y-2 text-xs">
+              <div className="flex justify-between py-1 border-b dark:border-slate-800/60">
+                <span className="text-slate-500">Available Wallet Balance:</span>
+                <span className="font-mono font-black text-slate-900 dark:text-white">
+                  TZS {fundingBalance.availableBalanceTZS.toLocaleString()}
+                </span>
               </div>
-              <div className="text-xs text-slate-500 mt-0.5">
-                Available uncommitted funding balance
-              </div>
-            </div>
-
-            <div className="space-y-2 text-xs bg-slate-50 dark:bg-slate-800/60 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-700">
-              <div className="flex justify-between">
+              <div className="flex justify-between py-1 border-b dark:border-slate-800/60">
                 <span className="text-slate-500">Committed to Active Deals:</span>
-                <span className="font-mono font-bold text-slate-900 dark:text-white">
+                <span className="font-mono font-bold text-slate-700 dark:text-slate-300">
                   TZS {fundingBalance.committedToActiveDealsTZS.toLocaleString()}
                 </span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Pending Validation:</span>
+              <div className="flex justify-between py-1 border-b dark:border-slate-800/60">
+                <span className="text-slate-500">Pending Inspections:</span>
                 <span className="font-mono font-bold text-amber-600">
                   TZS {fundingBalance.pendingConfirmationTZS.toLocaleString()}
                 </span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between py-1">
                 <span className="text-slate-500">Total Rewards Paid Out:</span>
                 <span className="font-mono font-bold text-emerald-600">
                   TZS {fundingBalance.rewardsPaidTZS.toLocaleString()}
@@ -313,7 +300,7 @@ export function OverviewTab({
             <div className="p-2.5 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200/60 text-[10px] text-emerald-900 dark:text-emerald-300 leading-snug flex items-start gap-1.5">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
               <span>
-                <strong>Safeguarded Escrow:</strong> Reward funds are processed and safeguarded through LUMO’s licensed payment partner ({fundingBalance.safeguardingProvider}).
+                <strong>Funds Are Secured:</strong> Reward funds are processed and protected through LUMO’s licensed payment partner ({fundingBalance.safeguardingProvider}).
               </span>
             </div>
           </div>
@@ -322,7 +309,7 @@ export function OverviewTab({
             onClick={() => onNavigateTab('payments_funding')}
             className="w-full py-2.5 bg-[#0B132B] hover:bg-slate-800 text-white font-extrabold text-xs rounded-xl shadow-xs transition-colors text-center"
           >
-            Fund Balance & Review Escrow Ledger
+            Manage Wallet & Review Payouts
           </button>
         </div>
       </div>

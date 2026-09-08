@@ -21,6 +21,7 @@ export const RewardTypeSchema = z.enum([
   'TIERED_COMMISSION',
   'MILESTONE_BONUS',
   'HYBRID',
+  'CUSTOM_DEAL_TERMS',
 ])
 
 export const DealCreateSchema = z.object({
@@ -36,6 +37,9 @@ export const DealCreateSchema = z.object({
   currency: z.string().default('TZS'),
   percentageBps: z.number().min(10).max(10000).optional(), // 100 = 1%
   fixedRewardTZS: z.number().nonnegative().optional(),
+  customRewardDisplay: z.string().optional(),
+  customRewardDetail: z.string().optional(),
+  customFormulaDescription: z.string().optional(),
   attributionWindowDays: z.number().int().min(1).max(180).default(30),
   maxPartners: z.number().int().positive().optional(),
   totalBudgetTZS: z.number().positive().optional(),

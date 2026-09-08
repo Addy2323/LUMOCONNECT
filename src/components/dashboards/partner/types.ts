@@ -13,6 +13,7 @@ export type PartnerSidebarSection =
   // Account
   | 'profile_verification'
   | 'subscription'
+  | 'settings_security'
   | 'help_support'
 
 export type PartnerOpportunityType =

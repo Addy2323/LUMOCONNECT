@@ -36,9 +36,9 @@ export function PromotionalToolkitModal({
 
   const referralUrl = `https://lumo.co.tz/p/${trackingCode}`
 
-  const swahiliCaption = `Habari! Kama unahitaji ${dealTitle} kutoka kwa ${companyName}, tumia link hii maalum upate ofa ya kipekee na usalama wa ununuzi kupitia LUMO Escrow:\n\n${referralUrl}\n\nUhakika wa bidhaa na huduma bora Tanzania nzima!`
+  const swahiliCaption = `Habari! 🔥 Kama unahitaji ${dealTitle} kutoka kwa ${companyName}, tumia link hii maalum upate ofa ya kipekee na usalama wa ununuzi — fedha ziko salama (funds are secured):\n\n👉 ${referralUrl}\n\nUhakika wa bidhaa na huduma bora Tanzania nzima!`
 
-  const englishCaption = `Hello! Looking for ${dealTitle} by ${companyName}? Use this exclusive link to order securely with verified LUMO escrow buyer protection:\n\n${referralUrl}\n\nFast delivery & verified quality across Tanzania!`
+  const englishCaption = `Hello! 🔥 Looking for ${dealTitle} by ${companyName}? Use this exclusive link to order securely with verified LUMO protection — all funds are secured:\n\n👉 ${referralUrl}\n\nFast delivery & verified quality across Tanzania!`
 
   const activeCaption = selectedLanguage === 'SW' ? swahiliCaption : englishCaption
 

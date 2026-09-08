@@ -49,7 +49,7 @@ export function DealRoomsTab() {
       prev.map((r) => (r.id === selectedRoom.id ? { ...r, contractSigned: true, stage: 'TERMS_AGREED' } : r))
     )
     setSelectedRoom({ ...selectedRoom, contractSigned: true, stage: 'TERMS_AGREED' })
-    showToast('success', 'Digital Agreement Signed', 'Digital contract countersigned and locked in escrow.')
+    showToast('success', 'Digital Agreement Signed', 'Digital contract countersigned — all funds are secured.')
   }
 
   if (rooms.length === 0 || !selectedRoom) {
@@ -132,7 +132,7 @@ export function DealRoomsTab() {
               <div className="text-[11px] text-slate-500 truncate">{room.dealTitle}</div>
 
               <div className="text-xs font-mono font-black text-[#FF6A00] pt-1 border-t">
-                Escrow Bounty: TZS {room.agreedBountyTZS.toLocaleString()}
+                Secured Bounty: TZS {room.agreedBountyTZS.toLocaleString()}
               </div>
             </button>
           ))}
@@ -164,7 +164,7 @@ export function DealRoomsTab() {
               <span className="font-bold text-slate-500">Agreed Deliverables Summary:</span>
               <span className="font-mono text-emerald-600 font-bold flex items-center gap-1">
                 <Shield className="w-3.5 h-3.5" />
-                <span>Safeguarded Escrow Contract</span>
+                <span>Funds Are Secured</span>
               </span>
             </div>
             <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
@@ -185,7 +185,7 @@ export function DealRoomsTab() {
                 <p className="text-[11px] text-purple-700 dark:text-purple-300">
                   {selectedRoom.contractSigned
                     ? 'Legally binding MOU active under Tanzanian commercial law.'
-                    : 'Review terms and countersign to lock escrow bounty.'}
+                    : 'Review terms and countersign to lock secured bounty.'}
                 </p>
               </div>
             </div>

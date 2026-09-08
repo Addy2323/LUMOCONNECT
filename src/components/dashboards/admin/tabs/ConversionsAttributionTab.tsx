@@ -113,7 +113,7 @@ export function ConversionsAttributionTab() {
           <div className="text-2xl font-black text-red-600 mt-1">
             {conversions.filter((c) => c.status === 'DUPLICATE_FLAGGED').length.toLocaleString()}
           </div>
-          <div className="text-[10px] text-red-600 font-bold mt-1">Blocked from Escrow</div>
+          <div className="text-[10px] text-red-600 font-bold mt-1">Blocked from Settlement</div>
         </div>
 
         <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700">

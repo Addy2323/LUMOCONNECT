@@ -114,7 +114,7 @@ export function DealApprovalsTab() {
             </span>
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Strict Dual-Control: Validate business KYB, reward economics, media claims, escrow funding, and advertising compliance.
+            Strict Dual-Control: Validate business KYB, reward economics, media claims, secured funding (funds are secured), and advertising compliance.
           </p>
         </div>
 
@@ -173,7 +173,7 @@ export function DealApprovalsTab() {
                 </div>
 
                 <div className="text-[10px] text-slate-400">
-                  Escrow: TZS {d.budgetTZS.toLocaleString()} · {d.category}
+                  Secured Budget: TZS {d.budgetTZS.toLocaleString()} · {d.category}
                 </div>
               </button>
             ))}
@@ -184,30 +184,38 @@ export function DealApprovalsTab() {
             <div className="lg:col-span-7 p-4 sm:p-5 rounded-3xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 space-y-4">
               <div className="flex items-start justify-between pb-3 border-b border-slate-200 dark:border-slate-700">
                 <div>
-                  <h3 className="font-black text-sm sm:text-base text-slate-900 dark:text-white">
-                    {selectedDeal.title}
-                  </h3>
-                  <div className="text-xs text-slate-500 mt-0.5">
-                    Published by: <strong>{selectedDeal.businessName}</strong> · Category: <strong>{selectedDeal.category}</strong>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-black text-base text-slate-900 dark:text-white">
+                      {selectedDeal.title}
+                    </h3>
+                    <span className="text-[10px] font-mono bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded text-slate-700 dark:text-slate-300">
+                      {selectedDeal.id}
+                    </span>
                   </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Merchant: <strong>{selectedDeal.businessName}</strong> ({selectedDeal.merchantTIN})
+                  </p>
                 </div>
 
-                <span className="text-xs font-mono font-bold px-2 py-1 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
-                  v{selectedDeal.version}
-                </span>
+                <div className="text-right">
+                  <span className="text-[10px] font-bold px-2 py-0.5 bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 rounded uppercase">
+                    {selectedDeal.status}
+                  </span>
+                  <div className="text-[10px] text-slate-400 mt-1">Maker: {selectedDeal.makerOperator}</div>
+                </div>
               </div>
 
-              {/* Commercial Terms Summary Grid */}
+              {/* Economic Summary */}
               <div className="grid grid-cols-2 gap-3 text-xs">
                 <div className="p-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs">
-                  <div className="text-[10px] text-slate-400 font-bold uppercase">Partner Commission</div>
+                  <div className="text-[10px] text-slate-400 font-bold uppercase">Partner Unit Reward</div>
                   <div className="text-base font-black text-[#FF6A00] font-mono mt-0.5">
                     TZS {selectedDeal.rewardValueTZS.toLocaleString()}
                   </div>
                 </div>
 
                 <div className="p-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs">
-                  <div className="text-[10px] text-slate-400 font-bold uppercase">Escrow Budget Deposit</div>
+                  <div className="text-[10px] text-slate-400 font-bold uppercase">Secured Budget Deposit</div>
                   <div className="text-base font-black text-slate-900 dark:text-white font-mono mt-0.5">
                     TZS {selectedDeal.budgetTZS.toLocaleString()}
                   </div>
@@ -324,7 +332,7 @@ export function DealApprovalsTab() {
                   },
                   {
                     key: 'escrowFunded',
-                    label: 'Escrow funding confirmed in CRDB/M-Pesa settlement ledger',
+                    label: 'Secured funding confirmed in CRDB/M-Pesa settlement ledger (funds are secured)',
                   },
                   {
                     key: 'prohibitedContentClear',
@@ -404,7 +412,7 @@ export function DealApprovalsTab() {
                 required
                 value={checkerNotes}
                 onChange={(e) => setCheckerNotes(e.target.value)}
-                placeholder="e.g. Media assets verified, pricing compliant with Tanzania advertising standards, escrow deposit confirmed."
+                placeholder="e.g. Media assets verified, pricing compliant with Tanzania advertising standards, secured funding deposit confirmed (funds are secured)."
                 className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-2xl bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900"
                 rows={3}
               />

@@ -92,7 +92,7 @@ export function CustomerProductCheckoutView({
           <div className="flex items-center gap-3">
             <BrandMark size={28} />
             <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
-              <ShieldCheck className="w-3.5 h-3.5" /> Buyer Escrow Protected
+              <ShieldCheck className="w-3.5 h-3.5" /> Buyer Protected · Funds Are Secured
             </span>
           </div>
           {onBackToMarketplace && (
@@ -344,7 +344,7 @@ export function CustomerProductCheckoutView({
                     <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
                   </div>
                   <div>
-                    <div className="text-xs font-bold text-slate-900">Payment Received & Protected in Escrow</div>
+                    <div className="text-xs font-bold text-slate-900">Payment Received & Funds Are Secured</div>
                     <div className="text-[11px] text-slate-500">Merchant notified to prepare dispatch</div>
                   </div>
                 </div>
@@ -385,7 +385,7 @@ export function CustomerProductCheckoutView({
 
       {/* Customer Footer */}
       <footer className="border-t border-slate-200 bg-white py-4 px-4 text-center text-xs text-slate-500">
-        Protected by LUMO Trust & Escrow Guarantee • LotusRise Company Limited (Tanzania)
+        Protected by LUMO Trust Guarantee • Funds Are Secured • LotusRise Company Limited (Tanzania)
       </footer>
     </div>
   )

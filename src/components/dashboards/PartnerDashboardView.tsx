@@ -28,6 +28,7 @@ import { EarningsPayoutsTab } from './partner/tabs/EarningsPayoutsTab'
 import { NotificationsTab } from './partner/tabs/NotificationsTab'
 import { ProfileVerificationTab } from './partner/tabs/ProfileVerificationTab'
 import { SubscriptionTab } from './partner/tabs/SubscriptionTab'
+import { SettingsSecurityTab } from './partner/tabs/SettingsSecurityTab'
 import { HelpSupportTab } from './partner/tabs/HelpSupportTab'
 
 // Services
@@ -262,7 +263,7 @@ export function PartnerDashboardView({
     <PartnerToastProvider>
       <div className="dashboard-shell w-full bg-[#F8FAFC] dark:bg-[#0B1220] min-h-screen text-[#0F172A] dark:text-slate-100 flex flex-col lg:flex-row transition-colors">
         {/* ========================================================================= */}
-        {/* DESKTOP 4-GROUP STRUCTURED PARTNER SIDEBAR                                */}
+        {/* DESKTOP 3-GROUP STRUCTURED PARTNER SIDEBAR                                */}
         {/* ========================================================================= */}
         <PartnerSidebar
           activeTab={activeTab}
@@ -330,8 +331,9 @@ export function PartnerDashboardView({
                 {activeTab === 'performance' && 'Performance & Outcome Analytics'}
                 {activeTab === 'earnings_payouts' && 'Earnings, Commissions & Payouts'}
                 {activeTab === 'notifications' && 'Notifications & Operational Alerts'}
-                {activeTab === 'profile_verification' && 'Mshirika wa Mauzo / Partner Profile & Verified KYC'}
+                {activeTab === 'profile_verification' && 'Partner Profile & Verified KYC'}
                 {activeTab === 'subscription' && 'Partner Access Pass & Subscription'}
+                {activeTab === 'settings_security' && 'Security, MFA & Notification Preferences'}
                 {activeTab === 'help_support' && 'Help Desk, Support & Dispute Center'}
               </h1>
             </div>
@@ -481,6 +483,8 @@ export function PartnerDashboardView({
               onNavigateToSubscriptions={onNavigateToSubscriptions}
             />
           )}
+
+          {activeTab === 'settings_security' && <SettingsSecurityTab />}
 
           {activeTab === 'help_support' && <HelpSupportTab />}
         </main>

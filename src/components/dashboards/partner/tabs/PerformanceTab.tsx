@@ -117,7 +117,7 @@ export function PerformanceTab({ performance, joinedDeals, profileCompletion }: 
           <div className="text-xl font-black text-purple-600 font-mono mt-0.5">
             TZS {performance.approvedRewardsTZS.toLocaleString()}
           </div>
-          <span className="text-[9px] text-slate-400">Safeguarded in escrow</span>
+          <span className="text-[9px] text-emerald-600 font-bold">Funds are secured</span>
         </div>
 
         <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border">

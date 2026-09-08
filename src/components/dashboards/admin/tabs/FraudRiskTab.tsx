@@ -238,7 +238,7 @@ export function FraudRiskTab() {
               <textarea
                 rows={3}
                 required
-                placeholder="e.g. Automated bot signature verified by cloudflare challenge. Rewards frozen in escrow..."
+                placeholder="e.g. Automated bot signature verified by cloudflare challenge. Rewards frozen and funds are secured..."
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs"

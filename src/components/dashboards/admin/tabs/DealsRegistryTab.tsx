@@ -203,7 +203,7 @@ export function DealsRegistryTab() {
               <th className="p-3">Deal Details</th>
               <th className="p-3">Publisher</th>
               <th className="p-3">Reward Terms</th>
-              <th className="p-3">Escrow Budget</th>
+              <th className="p-3">Secured Budget</th>
               <th className="p-3">Active Partners</th>
               <th className="p-3">Version & Status</th>
               <th className="p-3 text-right">Actions</th>
@@ -348,7 +348,7 @@ export function DealsRegistryTab() {
               </div>
 
               <div className="p-3 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-200/80 dark:border-slate-700">
-                <div className="text-[10px] text-slate-400 font-bold uppercase">Escrow Budget</div>
+                <div className="text-[10px] text-slate-400 font-bold uppercase">Secured Budget</div>
                 <div className="text-sm font-black text-slate-900 dark:text-white font-mono mt-0.5">
                   TZS {selectedDeal.budgetTZS.toLocaleString()}
                 </div>
@@ -528,7 +528,7 @@ export function DealsRegistryTab() {
                 </div>
 
                 <div>
-                  <label className="font-bold block mb-1">Total Escrow Budget (TZS)</label>
+                  <label className="font-bold block mb-1">Total Secured Budget (TZS)</label>
                   <input
                     type="number"
                     value={newDealForm.budgetTZS}

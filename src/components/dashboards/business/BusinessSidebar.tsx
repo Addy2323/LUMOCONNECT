@@ -11,6 +11,7 @@ import {
   Target,
   Award,
   Wallet,
+  FileSpreadsheet,
   UserSearch,
   Building2,
   UserPlus,
@@ -100,6 +101,7 @@ function getNavGroups({
       title: 'GROWTH',
       items: [
         { id: 'partner_discovery', label: 'Partner Discovery', icon: UserSearch, opType: 'Search & Invite' },
+        { id: 'reports_exports', label: 'Reports & Exports', icon: FileSpreadsheet, opType: 'Saved Reports CRUD' },
       ],
     },
     {

@@ -5,24 +5,21 @@ import {
   Shield,
   Key,
   Smartphone,
-  CheckCircle2,
   Lock,
   Bell,
-  Sliders,
   LogOut,
 } from 'lucide-react'
-import { useBusinessToast } from '../BusinessToast'
+import { usePartnerToast } from '../PartnerToast'
 
 export function SettingsSecurityTab() {
-  const { showToast } = useBusinessToast()
+  const { showToast } = usePartnerToast()
 
   const [mfaEnabled, setMfaEnabled] = useState(true)
-  const [emailAlerts, setEmailAlerts] = useState(true)
   const [smsPayoutAlerts, setSmsPayoutAlerts] = useState(true)
-  const [twoPersonRuleApproval, setTwoPersonRuleApproval] = useState(true)
+  const [dealInvitesAlert, setDealInvitesAlert] = useState(true)
 
   const handleRevokeSessions = () => {
-    showToast('info', 'Sessions Terminated', 'All other active sessions have been revoked.')
+    showToast('info', 'Sessions Terminated', 'All other active partner sessions have been revoked.')
   }
 
   return (
@@ -37,7 +34,7 @@ export function SettingsSecurityTab() {
             </span>
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Configure multi-factor authentication, active devices, and secured balance threshold controls.
+            Configure multi-factor authentication, active devices, and conversion alert notifications.
           </p>
         </div>
       </div>
@@ -47,13 +44,13 @@ export function SettingsSecurityTab() {
         <div className="p-5 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 space-y-3">
           <h3 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
             <Lock className="w-4 h-4 text-[#FF6A00]" />
-            <span>Account Security & MFA</span>
+            <span>Account Security & Login Protection</span>
           </h3>
 
           <label className="flex items-center justify-between p-3 bg-white dark:bg-slate-900 rounded-2xl border cursor-pointer">
             <div>
               <span className="font-bold text-slate-900 dark:text-white block">Two-Factor Authentication (MFA)</span>
-              <span className="text-[10px] text-slate-400">Enforce TOTP authenticator code on login</span>
+              <span className="text-[10px] text-slate-400">Enforce OTP authenticator code on login</span>
             </div>
             <input
               type="checkbox"
@@ -62,19 +59,6 @@ export function SettingsSecurityTab() {
                 setMfaEnabled(e.target.checked)
                 showToast('info', 'MFA Updated', `Two-factor authentication is ${e.target.checked ? 'enforced' : 'disabled'}.`)
               }}
-              className="w-4 h-4 text-[#FF6A00] rounded"
-            />
-          </label>
-
-          <label className="flex items-center justify-between p-3 bg-white dark:bg-slate-900 rounded-2xl border cursor-pointer">
-            <div>
-              <span className="font-bold text-slate-900 dark:text-white block">Dual-Signature on Wallet Top-Ups</span>
-              <span className="text-[10px] text-slate-400">Require 2 authorized managers for amounts &gt; TZS 5,000,000</span>
-            </div>
-            <input
-              type="checkbox"
-              checked={twoPersonRuleApproval}
-              onChange={(e) => setTwoPersonRuleApproval(e.target.checked)}
               className="w-4 h-4 text-[#FF6A00] rounded"
             />
           </label>
@@ -94,31 +78,31 @@ export function SettingsSecurityTab() {
         <div className="p-5 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 space-y-3">
           <h3 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
             <Bell className="w-4 h-4 text-emerald-600" />
-            <span>Operational Notification Alerts</span>
+            <span>Alert Preferences</span>
           </h3>
 
           <label className="flex items-center justify-between p-3 bg-white dark:bg-slate-900 rounded-2xl border cursor-pointer">
             <div>
-              <span className="font-bold text-slate-900 dark:text-white block">Instant Conversion Alerts</span>
-              <span className="text-[10px] text-slate-400">Email notice whenever a Partner records a verified outcome</span>
+              <span className="font-bold text-slate-900 dark:text-white block">SMS Payout Confirmation</span>
+              <span className="text-[10px] text-slate-400">Receive SMS notice upon mobile money disbursement</span>
             </div>
             <input
               type="checkbox"
-              checked={emailAlerts}
-              onChange={(e) => setEmailAlerts(e.target.checked)}
+              checked={smsPayoutAlerts}
+              onChange={(e) => setSmsPayoutAlerts(e.target.checked)}
               className="w-4 h-4 text-[#FF6A00] rounded"
             />
           </label>
 
           <label className="flex items-center justify-between p-3 bg-white dark:bg-slate-900 rounded-2xl border cursor-pointer">
             <div>
-              <span className="font-bold text-slate-900 dark:text-white block">SMS Low Balance Warnings</span>
-              <span className="text-[10px] text-slate-400">SMS alert when committed reward balance dips below 20% (funds are secured)</span>
+              <span className="font-bold text-slate-900 dark:text-white block">Direct Deal Invitations</span>
+              <span className="text-[10px] text-slate-400">Notify when verified businesses invite you to apply</span>
             </div>
             <input
               type="checkbox"
-              checked={smsPayoutAlerts}
-              onChange={(e) => setSmsPayoutAlerts(e.target.checked)}
+              checked={dealInvitesAlert}
+              onChange={(e) => setDealInvitesAlert(e.target.checked)}
               className="w-4 h-4 text-[#FF6A00] rounded"
             />
           </label>

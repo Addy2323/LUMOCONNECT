@@ -36,12 +36,9 @@ export type OpportunityType =
 export type CommercialResultType =
   | 'COMPLETED_SALE'
   | 'QUALIFIED_LEAD'
-  | 'NEW_CUSTOMER'
   | 'BOOKING'
-  | 'SUBSCRIPTION'
   | 'APPROVED_CONTENT'
   | 'PRODUCT_DELIVERY'
-  | 'COMMERCIAL_INTRODUCTION'
   | 'SIGNED_DISTRIBUTOR_CONTRACT'
 
 export type RewardStructureType =
@@ -53,6 +50,7 @@ export type RewardStructureType =
   | 'MILESTONE_BONUS'
   | 'BOUNTY'
   | 'HYBRID_COMPENSATION'
+  | 'CUSTOM_DEAL_TERMS'
 
 export type TrackingMethod =
   | 'LUMO_TRACKING_LINK'
@@ -98,6 +96,9 @@ export interface BusinessOpportunityItem {
   rewardStructure: RewardStructureType
   rewardValueTZS: number
   rewardPercent?: number
+  customRewardDisplay?: string
+  customRewardDetail?: string
+  customFormulaDescription?: string
   budgetTZS: number
   spentTZS: number
   status: OpportunityLifecycleStatus

@@ -292,7 +292,7 @@ export function OverviewTab({ adminName, onOpenReviewQueue, onNavigateTab }: Ove
                 Marketplace Transaction Volume & Active Users
               </h3>
               <p className="text-xs text-slate-400 mt-0.5">
-                Real-time gross escrow funding and active user sessions across Tanzania
+                Real-time gross secured funding (funds are secured) and active user sessions across Tanzania
               </p>
             </div>
 
@@ -432,7 +432,7 @@ export function OverviewTab({ adminName, onOpenReviewQueue, onNavigateTab }: Ove
                     <div className="font-extrabold text-xs text-slate-900 dark:text-white">
                       Deals Awaiting Checker Review
                     </div>
-                    <div className="text-[10px] text-slate-400">Commercial & Escrow Terms</div>
+                    <div className="text-[10px] text-slate-400">Commercial & Secured Terms</div>
                   </div>
                 </div>
                 <span className="font-black text-xs text-slate-800 dark:text-slate-200 font-mono">{pendingDeals}</span>

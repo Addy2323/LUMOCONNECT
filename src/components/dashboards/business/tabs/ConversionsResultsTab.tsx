@@ -46,7 +46,7 @@ export function ConversionsResultsTab() {
         c.id === id ? { ...c, status: 'VERIFIED', verifiedAt: 'Today, Just now (Business Confirmed)' } : c
       )
     )
-    showToast('success', 'Conversion Verified', 'Outcome verified and approved for escrow reward settlement.')
+    showToast('success', 'Conversion Verified', 'Outcome verified and approved for reward settlement — funds are secured.')
   }
 
   const handleExecuteChallenge = () => {

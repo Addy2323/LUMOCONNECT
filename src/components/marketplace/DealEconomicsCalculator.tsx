@@ -55,7 +55,7 @@ export function DealEconomicsCalculator({
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Pre-Funded Escrow
+              Pre-Funded Secured
             </button>
             <button
               type="button"
@@ -110,13 +110,13 @@ export function DealEconomicsCalculator({
         </div>
       </div>
 
-      {/* Escrow requirement note */}
+      {/* Secured Funds requirement note */}
       {fundingModel === 'PREPAID_ESCROW' && (
         <div className="mt-4 p-3 rounded-lg bg-orange-50/70 border border-orange-200 text-xs text-orange-800 flex items-start gap-2">
           <ShieldCheck className="w-4 h-4 text-orange-600 shrink-0 mt-0.5" />
           <div>
-            <strong>Pre-Funded Escrow Required:</strong> To publish, deposit{' '}
-            <strong>{economics.displays.requiredEscrowPreFund}</strong> ({availableRewardCount} rewards) into escrow.
+            <strong>Funds Are Secured:</strong> To publish, deposit{' '}
+            <strong>{economics.displays.requiredEscrowPreFund}</strong> ({availableRewardCount} rewards) — all funds are secured.
             Unused funds are 100% refundable upon deal completion.
           </div>
         </div>

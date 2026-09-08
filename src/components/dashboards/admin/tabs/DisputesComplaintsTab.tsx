@@ -52,7 +52,7 @@ export function DisputesComplaintsTab() {
       )
     )
 
-    showToast('success', 'Dispute Resolved', `Dispute ${dsp.ticketNumber} resolved via decision "${action}". Escrow unfrozen.`)
+    showToast('success', 'Dispute Resolved', `Dispute ${dsp.ticketNumber} resolved via decision "${action}". Secured funds released.`)
     setResolutionModal(null)
     setResolutionNotes('')
   }
@@ -65,11 +65,11 @@ export function DisputesComplaintsTab() {
           <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <span>Disputes, Complaints & Mediation</span>
             <span className="text-[10px] bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 font-extrabold px-2 py-0.5 rounded-full">
-              Mediation & Escrow
+              Mediation & Security
             </span>
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Resolve disagreements between Businesses and Partners. Disputed rewards are frozen in escrow until formal case resolution.
+            Resolve disagreements between Businesses and Partners. Disputed rewards are held safely (funds are secured) until formal case resolution.
           </p>
         </div>
 
@@ -89,7 +89,7 @@ export function DisputesComplaintsTab() {
         <div className="py-16 text-center text-slate-400 text-xs bg-slate-50/50 dark:bg-slate-800/30 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800 my-4">
           <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-2 opacity-80" />
           <div className="font-bold text-sm text-slate-700 dark:text-slate-300">All Mediation Queues Clear</div>
-          <div className="mt-1">No active commercial dispute tickets or frozen escrow claims.</div>
+          <div className="mt-1">No active commercial dispute tickets or frozen secured claims.</div>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
@@ -231,7 +231,7 @@ export function DisputesComplaintsTab() {
                 onClick={handleExecuteResolution}
                 className="flex-1 py-2.5 bg-[#FF6A00] text-white font-extrabold rounded-xl text-xs cursor-pointer"
               >
-                Execute Decision & Unfreeze Escrow
+                Execute Decision & Release Secured Funds
               </button>
               <button
                 onClick={() => setResolutionModal(null)}

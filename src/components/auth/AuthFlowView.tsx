@@ -1969,7 +1969,7 @@ export function AuthFlowView({
             <p className="text-[11px] text-emerald-800 dark:text-emerald-300">
               {role === 'PARTNER'
                 ? 'Approved partners receive full marketplace access, tracking link generation, and M-Pesa payout wallet.'
-                : 'Approved businesses receive Deal Room publishing rights, partner application review, and escrow management.'}
+                : 'Approved businesses receive Deal Room publishing rights, partner application review, and wallet & payout management (funds are secured).'}
             </p>
           </div>
 

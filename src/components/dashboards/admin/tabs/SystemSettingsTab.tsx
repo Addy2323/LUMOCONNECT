@@ -15,17 +15,19 @@ import {
   X,
   AlertTriangle,
 } from 'lucide-react'
+import { usePlatformConfig } from '@/lib/platformConfig'
 import { useAdminToast } from '../AdminToast'
 
 export function SystemSettingsTab() {
   const { showToast } = useAdminToast()
+  const [platformConfig, setPlatformConfig] = usePlatformConfig()
 
   const [config, setConfig] = useState({
-    platformFeePercent: 3,
-    defaultWithholdingTaxPercent: 5,
-    minPayoutTZS: 50000,
-    maxDailyDisbursementTZS: 50000000,
-    dualControlDisbursementThresholdTZS: 1000000,
+    platformFeePercent: platformConfig.platformFeePercent || 3,
+    defaultWithholdingTaxPercent: platformConfig.withholdingTaxPercent || 5,
+    minPayoutTZS: platformConfig.minPayoutTZS || 50000,
+    maxDailyDisbursementTZS: platformConfig.maxDailyDisbursementTZS || 50000000,
+    dualControlDisbursementThresholdTZS: platformConfig.dualControlDisbursementThresholdTZS || 1000000,
     defaultCommissionHoldDays: 7,
     enableInstantMobileMoney: true,
     enablePublicRegistration: true,
@@ -52,11 +54,18 @@ export function SystemSettingsTab() {
   ]
 
   const handleSaveConfig = () => {
+    setPlatformConfig({
+      platformFeePercent: Number(config.platformFeePercent),
+      withholdingTaxPercent: Number(config.defaultWithholdingTaxPercent),
+      minPayoutTZS: Number(config.minPayoutTZS),
+      maxDailyDisbursementTZS: Number(config.maxDailyDisbursementTZS),
+      dualControlDisbursementThresholdTZS: Number(config.dualControlDisbursementThresholdTZS),
+    })
     setHasUnsavedChanges(false)
     showToast(
       'success',
       'System Settings Version 2026.3 Committed',
-      'Changes validated and written to immutable platform configuration ledger.'
+      `Platform fee (${config.platformFeePercent}%) & tax settings written live. Broadcast to all merchants & partners.`
     )
   }
 
@@ -80,22 +89,24 @@ export function SystemSettingsTab() {
             </span>
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Configure platform business rules, disbursement limits, escrow rules, feature flags, and rollback history.
+            Configure platform business rules, disbursement limits, security rules (funds are secured), feature flags, and rollback history.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <button
+            type="button"
             onClick={() => setShowRollbackModal(true)}
-            className="py-2 px-3.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-1.5 transition-colors"
+            className="py-2 px-3.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-1.5 transition-colors cursor-pointer"
           >
             <History className="w-3.5 h-3.5" />
             <span>Rollback Version</span>
           </button>
 
           <button
+            type="button"
             onClick={handleSaveConfig}
-            className="py-2.5 px-4 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition-all active:scale-[0.99]"
+            className="py-2.5 px-4 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition-all active:scale-[0.99] cursor-pointer"
           >
             <Save className="w-4 h-4" />
             <span>Save Version 2026.3</span>
@@ -103,6 +114,7 @@ export function SystemSettingsTab() {
         </div>
       </div>
 
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
         {/* Group 1: Commercial & Tax Settings */}
         <div className="p-5 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 space-y-4">
           <h3 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
@@ -122,7 +134,7 @@ export function SystemSettingsTab() {
                   setConfig({ ...config, platformFeePercent: Number(e.target.value) })
                   setHasUnsavedChanges(true)
                 }}
-                className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono font-bold"
+                className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono font-bold text-[#FF6A00]"
               />
             </div>
 
@@ -210,7 +222,7 @@ export function SystemSettingsTab() {
         <div className="p-5 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 space-y-3">
           <h3 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
             <ShieldCheck className="w-4 h-4 text-purple-600" />
-            <span>Dual-Control & Escrow Holds</span>
+            <span>Dual-Control & Security Holds</span>
           </h3>
 
           <div>
@@ -233,7 +245,7 @@ export function SystemSettingsTab() {
 
           <div>
             <label className="font-bold block mb-1 text-slate-700 dark:text-slate-300">
-              Commission Escrow Hold Period (Days)
+              Commission Security Hold Period (Days)
             </label>
             <input
               type="number"
@@ -260,20 +272,23 @@ export function SystemSettingsTab() {
 
           <div className="flex flex-wrap gap-2 pt-2">
             <button
+              type="button"
               onClick={() => showToast('success', 'Platform Data Exported', 'Full platform state exported to JSON.')}
-              className="py-2 px-4 border rounded-xl font-bold hover:bg-white dark:hover:bg-slate-900 text-slate-700 dark:text-slate-300"
+              className="py-2 px-4 border rounded-xl font-bold hover:bg-white dark:hover:bg-slate-900 text-slate-700 dark:text-slate-300 cursor-pointer"
             >
               Export All Data
             </button>
 
             <button
+              type="button"
               onClick={() => showToast('info', 'Demo Data Reset', 'Platform environment reset to factory demo state.')}
-              className="py-2 px-4 bg-red-50 text-red-600 border border-red-200 rounded-xl font-bold hover:bg-red-100"
+              className="py-2 px-4 bg-red-50 text-red-600 border border-red-200 rounded-xl font-bold hover:bg-red-100 cursor-pointer"
             >
               Reset to Demo Data
             </button>
           </div>
         </div>
+      </div>
 
       {/* ROLLBACK VERSION SELECTOR MODAL */}
       {showRollbackModal && (
@@ -293,8 +308,9 @@ export function SystemSettingsTab() {
               </div>
 
               <button
+                type="button"
                 onClick={() => setShowRollbackModal(false)}
-                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-xl"
+                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-xl cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -320,8 +336,9 @@ export function SystemSettingsTab() {
                   <div className="pt-2 flex items-center justify-between border-t border-slate-200/60 dark:border-slate-700/60">
                     <span className="text-[10px] text-slate-400">By: {ver.committedBy}</span>
                     <button
+                      type="button"
                       onClick={() => handleRestoreVersion(ver)}
-                      className="py-1 px-3 bg-[#0B132B] dark:bg-slate-100 text-white dark:text-slate-900 rounded-lg font-bold text-xs shadow-2xs hover:bg-slate-800"
+                      className="py-1 px-3 bg-[#0B132B] dark:bg-slate-100 text-white dark:text-slate-900 rounded-lg font-bold text-xs shadow-2xs hover:bg-slate-800 cursor-pointer"
                     >
                       Restore This Version
                     </button>
@@ -332,8 +349,9 @@ export function SystemSettingsTab() {
 
             <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end">
               <button
+                type="button"
                 onClick={() => setShowRollbackModal(false)}
-                className="py-2 px-4 border rounded-xl text-xs font-bold"
+                className="py-2 px-4 border rounded-xl text-xs font-bold cursor-pointer"
               >
                 Close
               </button>

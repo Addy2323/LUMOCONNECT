@@ -57,7 +57,7 @@ export function openDispute({
     },
     {
       sender: 'LUMO Support & Compliance Engine',
-      text: 'Dispute opened. Funds are placed on temporary escrow hold while both parties submit corroborating evidence.',
+      text: 'Dispute opened. Funds are placed on temporary security hold (funds are secured) while both parties submit corroborating evidence.',
       timestamp: now,
     },
   ]

@@ -13,6 +13,7 @@ import {
   Bell,
   ShieldCheck,
   CreditCard,
+  Shield,
   HelpCircle,
   ChevronLeft,
   ChevronRight,
@@ -97,6 +98,7 @@ function getNavGroups({
       items: [
         { id: 'profile_verification', label: 'Profile & Verification', icon: ShieldCheck, opType: 'Read/KYC Update' },
         { id: 'subscription', label: 'Subscription', icon: CreditCard, opType: 'Payment Workflow' },
+        { id: 'settings_security', label: 'Settings & Security', icon: Shield, opType: 'Read/Update' },
         { id: 'help_support', label: 'Help & Support', icon: HelpCircle, opType: 'C/R/U/Close' },
       ],
     },

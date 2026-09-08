@@ -20,7 +20,7 @@ import {
   Image as ImageIcon,
 } from 'lucide-react'
 import type { ProtectedDealDetails } from '@/modules/deals/service'
-import { joinOpportunityDeal } from '@/modules/deals/service'
+import { joinOpportunityDeal, getVideoEmbedInfo } from '@/modules/deals/service'
 
 interface ProtectedDealDetailsModalProps {
   deal: ProtectedDealDetails | null
@@ -148,31 +148,31 @@ export function ProtectedDealDetailsModal({
 
           {mediaMode === 'VIDEO' && deal.promoVideoUrl ? (
             <div className="relative rounded-2xl overflow-hidden bg-black aspect-video flex items-center justify-center border border-slate-800 shadow-md">
-              {deal.promoVideoUrl.includes('youtube.com') || deal.promoVideoUrl.includes('youtu.be') ? (
-                <iframe
-                  src={
-                    deal.promoVideoUrl.includes('watch?v=')
-                      ? deal.promoVideoUrl.replace('watch?v=', 'embed/')
-                      : deal.promoVideoUrl.includes('youtu.be/')
-                      ? deal.promoVideoUrl.replace('youtu.be/', 'www.youtube.com/embed/')
-                      : deal.promoVideoUrl
-                  }
-                  title={deal.title}
-                  className="w-full h-full border-0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
-              ) : (
-                <video
-                  controls
-                  autoPlay
-                  src={deal.promoVideoUrl}
-                  className="w-full h-full object-contain"
-                  poster={deal.featuredImageUrl}
-                >
-                  Your browser does not support HTML5 video streaming.
-                </video>
-              )}
+              {(() => {
+                const vInfo = getVideoEmbedInfo(deal.promoVideoUrl)
+                if (vInfo.isIframe) {
+                  return (
+                    <iframe
+                      src={vInfo.embedUrl}
+                      title={deal.title}
+                      className="w-full h-full border-0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                    />
+                  )
+                }
+                return (
+                  <video
+                    controls
+                    autoPlay
+                    src={vInfo.embedUrl}
+                    className="w-full h-full object-contain"
+                    poster={deal.featuredImageUrl}
+                  >
+                    Your browser does not support HTML5 video streaming.
+                  </video>
+                )
+              })()}
             </div>
           ) : deal.featuredImageUrl ? (
             <div className="h-44 sm:h-52 w-full rounded-2xl overflow-hidden shadow-xs border border-slate-200 dark:border-slate-800 relative group bg-slate-900">

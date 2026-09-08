@@ -86,7 +86,7 @@ export function RewardsCommissionsTab() {
             </span>
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Monitor calculated partner compensation. Approved rewards are locked and safeguarded in escrow.
+            Monitor calculated partner compensation. Approved rewards are locked and funds are secured.
           </p>
         </div>
       </div>
@@ -129,7 +129,7 @@ export function RewardsCommissionsTab() {
             {filtered.length === 0 ? (
               <tr>
                 <td colSpan={7} className="text-center py-10 text-slate-400 text-xs">
-                  No reward obligations recorded yet. Approved conversions will register escrow reward obligations here.
+                  No reward obligations recorded yet. Approved conversions will register secured reward obligations here.
                 </td>
               </tr>
             ) : (

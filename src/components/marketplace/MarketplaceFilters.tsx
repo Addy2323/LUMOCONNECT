@@ -26,6 +26,20 @@ export const CATEGORIES = [
     { value: group.value, label: `${group.icon} ${group.label}` },
     ...group.subcategories.map((subcategory) => ({ value: subcategory, label: `  ${subcategory}` })),
   ]),
+  { value: 'Market Finder & Trade Insights', label: 'Market Finder & Trade Insights' },
+  { value: 'Real Estate & Property', label: 'Real Estate & Property' },
+  { value: 'Automotive & Transportation', label: 'Automotive & Transportation' },
+  { value: 'Advertising, Media & Marketing', label: 'Advertising, Media & Marketing' },
+  { value: 'Sourcing & Supply Chain Services', label: 'Sourcing & Supply Chain Services' },
+  { value: 'Technology & Consumer Electronics', label: 'Technology & Consumer Electronics' },
+  { value: 'IT & Software Services', label: 'IT & Software Services' },
+  { value: 'Apparel & Fashion', label: 'Apparel & Fashion' },
+  { value: 'Gaming, Toys & Entertainment', label: 'Gaming, Toys & Entertainment' },
+  { value: 'Farming, Agriculture & Food', label: 'Farming, Agriculture & Food' },
+  { value: 'General & Professional Services', label: 'General & Professional Services' },
+  { value: 'Industrial Machinery & Tools', label: 'Industrial Machinery & Tools' },
+  { value: 'Home & Garden', label: 'Home & Garden' },
+  { value: 'Health & Personal Care', label: 'Health & Personal Care' },
 ]
 
 export const OPPORTUNITY_TYPES = [

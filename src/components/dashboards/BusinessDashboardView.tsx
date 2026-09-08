@@ -17,6 +17,7 @@ import { ConversionsResultsTab } from './business/tabs/ConversionsResultsTab'
 import { RewardsCommissionsTab } from './business/tabs/RewardsCommissionsTab'
 import { PaymentsFundingTab } from './business/tabs/PaymentsFundingTab'
 import { PartnerDiscoveryTab } from './business/tabs/PartnerDiscoveryTab'
+import { ReportsExportsTab } from './business/tabs/ReportsExportsTab'
 import { BusinessProfileTab } from './business/tabs/BusinessProfileTab'
 import { TeamAccessTab } from './business/tabs/TeamAccessTab'
 import { SettingsSecurityTab } from './business/tabs/SettingsSecurityTab'
@@ -215,8 +216,9 @@ export function BusinessDashboardView({
                 {activeTab === 'deal_performance' && 'Deal Performance & ROI Analytics'}
                 {activeTab === 'conversions_results' && 'Commercial Outcomes & Conversions'}
                 {activeTab === 'rewards_commissions' && 'Rewards, Commissions & Obligations'}
-                {activeTab === 'payments_funding' && 'Reward Funding Balance & Escrow'}
+                {activeTab === 'payments_funding' && 'Wallet & Payouts'}
                 {activeTab === 'partner_discovery' && 'Verified Partner Talent Directory'}
+                {activeTab === 'reports_exports' && 'Performance Reports & Statutory Exports'}
                 {activeTab === 'business_profile' && 'Business Profile & Verified Legal Credentials'}
                 {activeTab === 'team_access' && 'Team Members & Portal Access Roles'}
                 {activeTab === 'settings_security' && 'Security, MFA & Notification Preferences'}
@@ -290,8 +292,9 @@ export function BusinessDashboardView({
           {activeTab === 'partner_discovery' && (
             <PartnerDiscoveryTab opportunities={opportunities} />
           )}
+          {activeTab === 'reports_exports' && <ReportsExportsTab />}
 
-          {/* GROUP 4: ACCOUNT & SETTINGS */}
+          {/* GROUP 4: ACCOUNT & SYSTEM */}
           {activeTab === 'business_profile' && (
             <BusinessProfileTab
               businessName={businessName}

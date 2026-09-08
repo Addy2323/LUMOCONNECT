@@ -457,11 +457,13 @@ export function createDealOpportunity(
     currency: input.currency,
     rewardType: input.rewardType,
     rewardDisplay:
-      input.rewardType === 'PERCENTAGE_COMMISSION'
+      input.customRewardDisplay?.trim() ||
+      (input.rewardType === 'PERCENTAGE_COMMISSION'
         ? `${((input.percentageBps ?? 1000) / 100).toFixed(0)}% Commission`
-        : `TZS ${input.baseRewardValue.toLocaleString()}`,
+        : `TZS ${input.baseRewardValue.toLocaleString()}`),
     rewardDetail:
-      input.rewardType === 'PERCENTAGE_COMMISSION' ? 'on completed order total' : 'per verified completion',
+      input.customRewardDetail?.trim() ||
+      (input.rewardType === 'PERCENTAGE_COMMISSION' ? 'on completed order total' : 'per verified completion'),
     principalPriceDisplay: input.principalPriceTZS && input.principalPriceTZS > 0
       ? `TZS ${input.principalPriceTZS.toLocaleString()}`
       : 'Price on request',
@@ -564,4 +566,82 @@ export function seedTestOpportunity(opp: OpportunityItem): void {
     inMemoryOpportunities.push(opp)
   }
   syncToStorage()
+}
+
+export function getVideoEmbedInfo(url?: string): {
+  type: 'YOUTUBE' | 'INSTAGRAM' | 'TIKTOK' | 'VIMEO' | 'DIRECT' | 'NONE'
+  embedUrl: string
+  originalUrl: string
+  isIframe: boolean
+} {
+  if (!url || typeof url !== 'string' || !url.trim()) {
+    return { type: 'NONE', embedUrl: '', originalUrl: '', isIframe: false }
+  }
+  const cleanUrl = url.trim()
+
+  // Instagram: handles /reel/ID, /reels/ID, /p/ID, /tv/ID, /share/reel/ID, /share/p/ID, query params (?igsh=...)
+  if (/instagram\.com|instagr\.am/i.test(cleanUrl)) {
+    const match = cleanUrl.match(/(?:reel|reels|p|tv|share\/reel|share\/p)\/([a-zA-Z0-9_-]+)/i)
+    const id = match ? match[1] : null
+    let embedUrl = ''
+    if (id) {
+      embedUrl = `https://www.instagram.com/p/${id}/embed/captioned/`
+    } else {
+      const baseUrl = cleanUrl.split('?')[0].replace(/\/+$/, '')
+      embedUrl = `${baseUrl}/embed/captioned/`
+    }
+    return {
+      type: 'INSTAGRAM',
+      embedUrl,
+      originalUrl: cleanUrl,
+      isIframe: true,
+    }
+  }
+
+  // YouTube: watch?v=ID, youtu.be/ID, shorts/ID, embed/ID, m.youtube.com
+  if (/youtube\.com|youtu\.be/i.test(cleanUrl)) {
+    const ytMatch = cleanUrl.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i)
+    if (ytMatch && ytMatch[1]) {
+      return {
+        type: 'YOUTUBE',
+        embedUrl: `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&rel=0`,
+        originalUrl: cleanUrl,
+        isIframe: true,
+      }
+    }
+  }
+
+  // Vimeo: vimeo.com/123456
+  if (/vimeo\.com/i.test(cleanUrl)) {
+    const vimeoMatch = cleanUrl.match(/vimeo\.com\/(\d+)/i)
+    if (vimeoMatch && vimeoMatch[1]) {
+      return {
+        type: 'VIMEO',
+        embedUrl: `https://player.vimeo.com/video/${vimeoMatch[1]}?autoplay=1`,
+        originalUrl: cleanUrl,
+        isIframe: true,
+      }
+    }
+  }
+
+  // TikTok: tiktok.com/@user/video/123456
+  if (/tiktok\.com/i.test(cleanUrl)) {
+    const tiktokMatch = cleanUrl.match(/tiktok\.com\/@[^/]+\/video\/(\d+)/i)
+    if (tiktokMatch && tiktokMatch[1]) {
+      return {
+        type: 'TIKTOK',
+        embedUrl: `https://www.tiktok.com/embed/v2/${tiktokMatch[1]}`,
+        originalUrl: cleanUrl,
+        isIframe: true,
+      }
+    }
+  }
+
+  // Direct video file (mp4, webm, mov, ogg, or data URL / blob)
+  return {
+    type: 'DIRECT',
+    embedUrl: cleanUrl,
+    originalUrl: cleanUrl,
+    isIframe: false,
+  }
 }

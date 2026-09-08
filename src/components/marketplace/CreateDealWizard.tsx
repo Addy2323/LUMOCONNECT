@@ -156,6 +156,20 @@ export function CreateDealWizard({ onSuccess, onCancel }: CreateDealWizardProps)
                 {TANZANIA_OPPORTUNITY_CATEGORIES.map((item) => (
                   <option key={item.value} value={item.value}>{item.icon} {item.label}</option>
                 ))}
+                <option value="Market Finder & Trade Insights">Market Finder & Trade Insights</option>
+                <option value="Real Estate & Property">Real Estate & Property</option>
+                <option value="Automotive & Transportation">Automotive & Transportation</option>
+                <option value="Advertising, Media & Marketing">Advertising, Media & Marketing</option>
+                <option value="Sourcing & Supply Chain Services">Sourcing & Supply Chain Services</option>
+                <option value="Technology & Consumer Electronics">Technology & Consumer Electronics</option>
+                <option value="IT & Software Services">IT & Software Services</option>
+                <option value="Apparel & Fashion">Apparel & Fashion</option>
+                <option value="Gaming, Toys & Entertainment">Gaming, Toys & Entertainment</option>
+                <option value="Farming, Agriculture & Food">Farming, Agriculture & Food</option>
+                <option value="General & Professional Services">General & Professional Services</option>
+                <option value="Industrial Machinery & Tools">Industrial Machinery & Tools</option>
+                <option value="Home & Garden">Home & Garden</option>
+                <option value="Health & Personal Care">Health & Personal Care</option>
               </select>
             </div>
           </div>

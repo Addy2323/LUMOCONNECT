@@ -197,7 +197,7 @@ export function TeamAccessTab() {
                   className="w-full p-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800"
                 >
                   <option value="CAMPAIGN_MANAGER">Campaign Manager (Create deals & manage partners)</option>
-                  <option value="FINANCE_OFFICER">Finance Officer (Escrow funding & invoices)</option>
+                  <option value="FINANCE_OFFICER">Finance Officer (Wallet funding & invoices — funds are secured)</option>
                   <option value="SUPPORT_AGENT">Support Agent (Respond to partner messages)</option>
                 </select>
               </div>

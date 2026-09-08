@@ -46,7 +46,7 @@ export function HowItWorksModal({ isOpen, onClose, onGetStarted }: HowItWorksMod
     {
       num: '07',
       title: 'LUMO Operates as the Orchestration Engine',
-      desc: 'LUMO monetizes through platform service fees, enterprise subscriptions, and escrowed deal rooms without being an unlicensed fund custodian.',
+      desc: 'LUMO monetizes through platform service fees, enterprise subscriptions, and secured deal rooms without being an unlicensed fund custodian — all funds are secured.',
     },
   ]
 

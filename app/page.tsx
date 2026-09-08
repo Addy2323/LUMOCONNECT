@@ -99,14 +99,8 @@ export default function LumoApp() {
   const [activeView, setActiveView] = useState('marketplace')
   const [partnerDashboardTab, setPartnerDashboardTab] = useState<PartnerSidebarSection>('overview')
   const [businessDashboardTab, setBusinessDashboardTab] = useState<BusinessSidebarSection>('overview')
-  const [savedDeals, setSavedDeals] = useState<string[]>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        return JSON.parse(localStorage.getItem('lumo_saved_deals') || '[]')
-      } catch (e) {}
-    }
-    return []
-  })
+  const [mounted, setMounted] = useState(false)
+  const [savedDeals, setSavedDeals] = useState<string[]>([])
   const [selectedRolePath, setSelectedRolePath] = useState<'PARTNER' | 'BUSINESS'>('PARTNER')
 
   const [currentUserId, setCurrentUserId] = useState<string | undefined>(undefined)
@@ -168,7 +162,7 @@ export default function LumoApp() {
     return currentUserId ? getUserSubscription(currentUserId) : null
   }, [currentUserId, activeView])
 
-  const hasActiveSubscription = Boolean(userSub && userSub.isActive)
+  const hasActiveSubscription = mounted ? Boolean(userSub && userSub.isActive) : false
 
   const [dealsRevision, setDealsRevision] = useState(0)
 
@@ -203,6 +197,14 @@ export default function LumoApp() {
   }, [currentUserId])
 
   useEffect(() => {
+    setMounted(true)
+    try {
+      const saved = localStorage.getItem('lumo_saved_deals')
+      if (saved) {
+        setSavedDeals(JSON.parse(saved))
+      }
+    } catch (e) {}
+
     const handleUpdate = () => setDealsRevision((r) => r + 1)
     const handleSavedUpdate = () => {
       if (typeof window !== 'undefined') {
@@ -213,10 +215,12 @@ export default function LumoApp() {
     }
     window.addEventListener('lumo:deals-updated', handleUpdate)
     window.addEventListener('lumo:saved-deals-updated', handleSavedUpdate)
+    window.addEventListener('lumo:subscription-updated', handleUpdate)
     window.addEventListener('storage', handleUpdate)
     return () => {
       window.removeEventListener('lumo:deals-updated', handleUpdate)
       window.removeEventListener('lumo:saved-deals-updated', handleSavedUpdate)
+      window.removeEventListener('lumo:subscription-updated', handleUpdate)
       window.removeEventListener('storage', handleUpdate)
     }
   }, [])

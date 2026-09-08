@@ -397,6 +397,12 @@ export function OverviewTab({
                   >
                     + Submit Lead
                   </button>
+                  <button
+                    onClick={() => onNavigateTab('my_deals')}
+                    className="flex-1 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 text-slate-800 dark:text-slate-200 text-xs font-bold rounded-xl text-center transition-colors cursor-pointer"
+                  >
+                    Manage Deal
+                  </button>
                 </div>
               </div>
             ))}
