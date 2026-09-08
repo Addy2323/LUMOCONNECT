@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { scryptSync, timingSafeEqual, randomBytes } from 'crypto'
+import { DATABASE_SESSION_COOKIE, sessionTokenHash } from '@/lib/database-session'
 
 function verifyPassword(password: string, storedHash: string): boolean {
   try {
@@ -88,20 +89,7 @@ export async function POST(req: Request) {
       )
     }
 
-    let isValidPassword = false
-
-    if (!credentialAccount.password || credentialAccount.password === 'no_password_set') {
-      // Auto-heal legacy accounts that were created without password
-      const salt = randomBytes(16).toString('hex')
-      const newHash = scryptSync(password, salt, 64).toString('hex') + ':' + salt
-      await db.account.update({
-        where: { id: credentialAccount.id },
-        data: { password: newHash },
-      })
-      isValidPassword = true
-    } else {
-      isValidPassword = verifyPassword(password, credentialAccount.password)
-    }
+    const isValidPassword = Boolean(credentialAccount.password && verifyPassword(password, credentialAccount.password))
 
     if (!isValidPassword) {
       return NextResponse.json(
@@ -124,7 +112,13 @@ export async function POST(req: Request) {
 
     const organization = user.memberships[0]?.organization || null
 
-    return NextResponse.json({
+    const token = randomBytes(32).toString('hex')
+    await db.session.create({ data: {
+      userId: user.id,
+      token: sessionTokenHash(token),
+      expiresAt: new Date(Date.now() + 8 * 60 * 60 * 1000),
+    } })
+    const response = NextResponse.json({
       success: true,
       user: {
         id: user.id,
@@ -139,6 +133,11 @@ export async function POST(req: Request) {
         twoFactorEnabled: user.twoFactorEnabled,
       },
     })
+    response.cookies.set(DATABASE_SESSION_COOKIE, token, {
+      httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production',
+      path: '/', maxAge: 8 * 60 * 60,
+    })
+    return response
   } catch (error: any) {
     console.error('Login error:', error)
     return NextResponse.json(

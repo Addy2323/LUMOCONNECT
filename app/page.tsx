@@ -327,7 +327,14 @@ export default function LumoApp() {
     setActiveView('partner')
   }
 
-  const handleSignOut = () => {
+  const handleSignOut = async () => {
+    try {
+      const response = await fetch('/api/auth/logout', { method: 'POST' })
+      if (!response.ok) throw new Error('Sign out failed')
+    } catch {
+      window.alert('Unable to sign out. Please try again.')
+      return
+    }
     setCurrentUserId(undefined)
     setUserDetails({ name: '', email: '', phone: '' })
     setRegisteredPassword('')

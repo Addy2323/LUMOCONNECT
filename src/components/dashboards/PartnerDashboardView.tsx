@@ -1,5 +1,7 @@
 'use client'
 
+import { BackToHomeButton } from '@/components/shared/BackToHomeButton'
+
 import React, { useState, useEffect, useCallback } from 'react'
 import {
   Sparkles,
@@ -338,7 +340,9 @@ export function PartnerDashboardView({
               </h1>
             </div>
 
-            <div className="hidden shrink-0 items-center gap-3 sm:flex">
+            <BackToHomeButton onNavigate={onExploreDeals} />
+
+          <div className="hidden shrink-0 items-center gap-3 sm:flex">
               {subscription.status === 'ACTIVE' ? (
                 <div
                   onClick={() => setActiveTab('subscription')}

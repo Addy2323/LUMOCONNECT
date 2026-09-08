@@ -1,5 +1,7 @@
 'use client'
 
+import { BackToHomeButton } from '@/components/shared/BackToHomeButton'
+
 import React, { useState, useEffect, useCallback } from 'react'
 import { Menu } from 'lucide-react'
 import { BusinessSidebarSection, BusinessOpportunityItem, BusinessPartnerItem, RewardFundingBalance } from './business/types'
@@ -226,7 +228,9 @@ export function BusinessDashboardView({
               </h1>
             </div>
 
-            <div className="hidden shrink-0 items-center gap-3 sm:flex">
+            <BackToHomeButton onNavigate={onExploreDeals} />
+
+          <div className="hidden shrink-0 items-center gap-3 sm:flex">
               <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-200 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 <span className="hidden sm:inline-block">

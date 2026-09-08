@@ -53,8 +53,20 @@ export function UsersAccessTab() {
     name: '',
     email: '',
     phone: '',
-    role: 'STAFF' as 'PARTNER' | 'BUSINESS' | 'STAFF' | 'ADMIN',
+    role: 'PARTNER' as 'PARTNER' | 'BUSINESS' | 'ADMIN',
+    password: '',
+    confirmPassword: '',
   })
+
+  const [savingUser, setSavingUser] = useState(false)
+  const [inviteError, setInviteError] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const closeInvite = () => {
+    setShowInviteModal(false)
+    setInviteForm({ name: '', email: '', phone: '', role: 'PARTNER', password: '', confirmPassword: '' })
+    setInviteError('')
+    setShowPassword(false)
+  }
 
   const filteredUsers = users.filter((u) => {
     const matchesSearch =
@@ -88,26 +100,30 @@ export function UsersAccessTab() {
     setActionReason('')
   }
 
-  const handleCreateInvite = () => {
-    if (!inviteForm.name || !inviteForm.email) return
-    const newUser: UserAccount = {
-      id: `usr_${Date.now()}`,
-      name: inviteForm.name,
-      email: inviteForm.email,
-      phone: inviteForm.phone || '+255 700 000 000',
-      role: inviteForm.role,
-      status: 'ACTIVE',
-      mfaEnabled: false,
-      lastActive: 'Invited (Pending login)',
-      joinedDate: 'Today',
-      totalTransactions: 0,
-      balanceTZS: 0,
-      kycStatus: 'NOT_SUBMITTED',
+  const handleCreateInvite = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (savingUser) return
+    setInviteError('')
+    if (inviteForm.password !== inviteForm.confirmPassword) {
+      setInviteError('Passwords do not match.')
+      return
     }
-    setUsers([newUser, ...users])
-    setShowInviteModal(false)
-    setInviteForm({ name: '', email: '', phone: '', role: 'STAFF' })
-    showToast('success', 'Invitation Dispatched', `Administrative onboarding link sent to ${newUser.email}.`)
+    setSavingUser(true)
+    try {
+      const response = await fetch('/api/admin/users', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(inviteForm),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.message || 'Unable to create account.')
+      setUsers(previous => [data.user, ...previous])
+      closeInvite()
+      showToast('success', 'Account created', data.user.email + ' can now sign in with the password you set.')
+    } catch (error) {
+      setInviteError(error instanceof Error ? error.message : 'Unable to create account.')
+    } finally {
+      setSavingUser(false)
+    }
   }
 
   return (
@@ -131,7 +147,7 @@ export function UsersAccessTab() {
           className="py-2.5 px-4 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold text-xs rounded-xl shadow-xs transition-colors flex items-center gap-2 self-start sm:self-auto"
         >
           <UserPlus className="w-4 h-4" />
-          <span>Invite New User / Staff</span>
+          <span>Create User Account</span>
         </button>
       </div>
 
@@ -334,16 +350,17 @@ export function UsersAccessTab() {
       {/* INVITE MODAL */}
       {showInviteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+          <form onSubmit={handleCreateInvite} role="dialog" aria-modal="true" aria-label="Create user account" className="max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
             <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
               <UserPlus className="w-5 h-5 text-[#FF6A00]" />
-              <span>Invite New User or Admin Staff</span>
+              <span>Create User Account</span>
             </h3>
 
             <div className="space-y-3 text-xs">
               <div>
-                <label className="font-bold block mb-1">Full Name</label>
+                <label htmlFor="new-user-name" className="font-bold block mb-1">Full Name</label>
                 <input
+                  id="new-user-name" required disabled={savingUser} minLength={2} maxLength={120}
                   type="text"
                   placeholder="e.g. Asha Bakari"
                   value={inviteForm.name}
@@ -353,8 +370,9 @@ export function UsersAccessTab() {
               </div>
 
               <div>
-                <label className="font-bold block mb-1">Email Address</label>
+                <label htmlFor="new-user-email" className="font-bold block mb-1">Email Address</label>
                 <input
+                  id="new-user-email" required disabled={savingUser} autoComplete="off"
                   type="email"
                   placeholder="e.g. asha@lumo.co.tz"
                   value={inviteForm.email}
@@ -364,8 +382,9 @@ export function UsersAccessTab() {
               </div>
 
               <div>
-                <label className="font-bold block mb-1">Phone Number (Tanzania)</label>
+                <label htmlFor="new-user-phone" className="font-bold block mb-1">Phone Number (Tanzania)</label>
                 <input
+                  id="new-user-phone" required disabled={savingUser} inputMode="tel"
                   type="text"
                   placeholder="+255 7XX XXX XXX"
                   value={inviteForm.phone}
@@ -375,13 +394,14 @@ export function UsersAccessTab() {
               </div>
 
               <div>
-                <label className="font-bold block mb-1">Assigned Role</label>
+                <label htmlFor="new-user-role" className="font-bold block mb-1">Assigned Role</label>
                 <select
+                  id="new-user-role" disabled={savingUser}
                   value={inviteForm.role}
                   onChange={(e) => setInviteForm({ ...inviteForm, role: e.target.value as any })}
                   className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
                 >
-                  <option value="STAFF">Internal Staff (Operator)</option>
+
                   <option value="PARTNER">Partner / Affiliate</option>
                   <option value="BUSINESS">Business User</option>
                   <option value="ADMIN">Platform Administrator</option>
@@ -389,21 +409,37 @@ export function UsersAccessTab() {
               </div>
             </div>
 
+            <fieldset className="space-y-3 text-xs" disabled={savingUser}>
+              <legend className="font-bold mb-2">Login credentials</legend>
+              <p className="text-slate-500">Use the email above and this password to sign in.</p>
+              {(['password', 'confirmPassword'] as const).map(field => (
+                <div key={field}>
+                  <label htmlFor={field} className="font-bold block mb-1">{field === 'password' ? 'Password' : 'Confirm password'}</label>
+                  <input id={field} name={field} type={showPassword ? 'text' : 'password'} required minLength={12} maxLength={128}
+                    autoComplete="new-password" value={inviteForm[field]}
+                    onChange={event => setInviteForm({ ...inviteForm, [field]: event.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800" />
+                </div>
+              ))}
+              <p className="text-slate-500">At least 12 characters, with uppercase, lowercase and a number.</p>
+              <label className="flex items-center gap-2"><input type="checkbox" checked={showPassword} onChange={event => setShowPassword(event.target.checked)} />Show passwords</label>
+            </fieldset>
+            {inviteError && <p role="alert" className="text-xs text-red-600">{inviteError}</p>}
             <div className="flex gap-2 pt-2">
               <button
-                onClick={handleCreateInvite}
+                type="submit" disabled={savingUser}
                 className="flex-1 py-2.5 bg-[#FF6A00] text-white font-extrabold rounded-xl text-xs"
               >
-                Send Invitation Email
+                {savingUser ? 'Creating account...' : 'Create Account'}
               </button>
               <button
-                onClick={() => setShowInviteModal(false)}
+                type="button" disabled={savingUser} onClick={closeInvite}
                 className="py-2.5 px-4 border rounded-xl text-xs font-bold"
               >
                 Cancel
               </button>
             </div>
-          </div>
+          </form>
         </div>
       )}
 

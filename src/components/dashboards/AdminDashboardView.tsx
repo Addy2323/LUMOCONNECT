@@ -1,5 +1,7 @@
 'use client'
 
+import { BackToHomeButton } from '@/components/shared/BackToHomeButton'
+
 import React, { useState } from 'react'
 import {
   Search,
@@ -156,6 +158,8 @@ export function AdminDashboardView({
               {activeTab === 'settings' && 'Platform Settings & Versioned Config'}
             </h1>
           </div>
+
+          <BackToHomeButton onNavigate={onExploreDeals} />
 
           <div className="hidden shrink-0 items-center gap-4 sm:flex">
             <button
