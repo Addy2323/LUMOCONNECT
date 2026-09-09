@@ -70,6 +70,8 @@ export interface BusinessVerificationItem {
 }
 
 export interface AdminDealItem {
+  merchantTIN?: string
+  makerOperator?: string
   id: string
   slug: string
   title: string

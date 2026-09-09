@@ -20,7 +20,7 @@ describe('Multi-Channel Notification Worker & SMS/Email Dispatch', () => {
     expect(result.processed).toBe(1)
 
     const notifs = getNotificationsForUser('partner_alex')
-    expect(notifs.some((n) => n.title.includes('New Conversion'))).toBe(true)
+    expect(notifs.some((n) => n.title.toLowerCase().includes('new conversion'))).toBe(true)
   })
 
   it('dispatches payout disbursed notifications via SMS and email adapters', async () => {

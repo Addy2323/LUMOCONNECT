@@ -310,6 +310,7 @@ export function PartnerDashboardView({
         {/* MAIN PARTNER DASHBOARD CONTENT AREA                                       */}
         {/* ========================================================================= */}
         <main className="dashboard-main min-w-0 flex-1 w-full space-y-5 sm:space-y-6">
+          <a href="/hot-deals/account" className="block rounded-2xl border border-orange-200 bg-orange-50 p-4 text-sm font-semibold text-orange-800">Private Hot Deals · View priority access, activated deals & rewards →</a>
           {/* MOBILE SIDEBAR TRIGGER (VISIBLE ONLY BELOW DESKTOP BREAKPOINT) */}
           {/* Top Header Bar */}
           <div className="dashboard-topbar bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 flex items-center justify-between gap-3">
@@ -464,7 +465,7 @@ export function PartnerDashboardView({
           )}
 
           {activeTab === 'earnings_payouts' && (
-            <EarningsPayoutsTab onOpenStatement={onOpenStatement} />
+            <><EarningsPayoutsTab />{onOpenStatement && <button type="button" onClick={onOpenStatement} className="text-sm font-semibold text-orange-700">Open earnings statement</button>}</>
           )}
 
           {activeTab === 'notifications' && <NotificationsTab />}

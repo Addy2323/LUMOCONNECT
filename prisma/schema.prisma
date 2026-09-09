@@ -327,6 +327,10 @@ model User {
   notifications     Notification[]
   auditLogs         AuditLog[]             @relation("AuditActor")
   uploadedFiles     FileAsset[]            @relation("FileUploader")
+  hotDealPreferences HotDealPreference?
+  hotDealSaves        HotDealSave[]
+  hotDealVerifications HotDeal[] @relation("HotDealVerifier")
+  hotDealFraudReviews HotDealClaim[] @relation("HotDealFraudReviewer")
 
   @@index([email])
   @@index([phone])
@@ -549,6 +553,7 @@ model Opportunity {
   applications    OpportunityApplication[]
   participations  DealParticipation[]
   conversions     Conversion[]
+  hotDeal         HotDeal?
 
   @@index([organizationId])
   @@index([categoryId])
@@ -578,6 +583,7 @@ model OpportunityVersion {
   publishedForOpportunity Opportunity[]        @relation("PublishedVersion")
   rewardRules             RewardRule[]
   lockedParticipations    DealParticipation[]  @relation("LockedTerms")
+  agreementAcceptances ParticipationAgreementAcceptance[]
 
   @@unique([opportunityId, versionNumber])
   @@index([opportunityId])
@@ -651,6 +657,8 @@ model DealParticipation {
   conversions     Conversion[]
   dealRoom        DealRoom?
   disputes        Dispute[]
+  agreementAcceptances ParticipationAgreementAcceptance[]
+  hotDealClaims HotDealClaim[]
 
   @@unique([opportunityId, partnerUserId])
   @@index([opportunityId])
@@ -687,6 +695,7 @@ model TrackingAsset {
 }
 
 model Lead {
+  hotDealClaim HotDealClaim?
   id                String               @id @default(uuid()) @db.Uuid
   participationId   String               @db.Uuid
   externalReference String?
@@ -709,6 +718,7 @@ model Lead {
 }
 
 model Conversion {
+  hotDealClaim HotDealClaim?
   id                String           @id @default(uuid()) @db.Uuid
   participationId   String           @db.Uuid
   opportunityId     String           @db.Uuid
@@ -819,6 +829,7 @@ model SubscriptionPlan {
   updatedAt      DateTime @updatedAt
 
   subscriptions UserSubscription[]
+  entitlements SubscriptionEntitlement[]
 
   @@map("subscription_plans")
 }
@@ -862,6 +873,7 @@ model PaymentAttempt {
   user                 User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   fundingTransactions  FundingTransaction[]
   reconciliationItems  ReconciliationItem[] @relation("ReconPayment")
+  hotDealFunding HotDealFunding?
 
   @@index([userId])
   @@index([idempotencyKey])
@@ -1394,6 +1406,8 @@ model Notification {
 
 /// Object storage metadata registry. Actual files live in S3/MinIO.
 model FileAsset {
+  hotDealOwnershipEvidence HotDeal[]
+  hotDealMaterials HotDealMaterial[]
   id          String   @id @default(uuid()) @db.Uuid
   uploaderId  String   @db.Uuid
   fileKey     String   @unique // S3 object key
@@ -1468,4 +1482,177 @@ model WebhookDelivery {
   @@index([outboxEventId])
   @@index([endpointId])
   @@map("webhook_deliveries")
+}
+
+enum HotDealStatus {
+  DRAFT
+  UNDER_REVIEW
+  VERIFIED
+  SCHEDULED_PRIVATE_RELEASE
+  PRIVATE_HOT_DEAL
+  PARTNER_RELEASE
+  RESERVED
+  FULL
+  PAUSED
+  CANCELLED
+  CLOSED
+  VALIDATING
+  PAYABLE
+  PAID
+}
+
+enum DealCapacityType {
+  ONE_UNIT
+  MULTI_UNIT
+  UNLIMITED
+  LEAD_LIMIT
+}
+
+model SubscriptionEntitlement {
+  id String @id @default(uuid()) @db.Uuid
+  planId String @db.Uuid
+  code String
+  plan SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
+  @@unique([planId, code])
+  @@index([code])
+  @@map("subscription_entitlements")
+}
+
+/// Extends an existing Opportunity; commercial versions, rewards and payouts stay in their existing tables.
+model HotDeal {
+  id String @id @default(uuid()) @db.Uuid
+  opportunityId String @unique @db.Uuid
+  accessRule String @default("PRIVATE_MEMBER_EARLY_ACCESS")
+  teaserTitle String
+  teaserTitleSw String?
+  category String
+  location String
+  privateAccessEnabled Boolean @default(true)
+  privateAccessStartAt DateTime?
+  privateAccessEndsAt DateTime?
+  privateAccessDurationHours Int @default(24)
+  partnerReleaseAt DateTime?
+  generalPartnerAccessEnabled Boolean @default(true)
+  visibilityStatus String @default("PUBLIC_TEASER")
+  status HotDealStatus @default(DRAFT)
+  maximumPartnerSlots Int
+  availablePartnerSlots Int
+  inventoryTotal Int
+  inventoryAvailable Int
+  reservedUnits Int @default(0)
+  rewardBudget BigInt
+  rewardRemaining BigInt
+  rewardPerVerifiedOutcome BigInt
+  dealCapacityType DealCapacityType
+  disputeWindowHours Int @default(72)
+  ownerEvidenceFileId String @db.Uuid
+  verifiedBy String? @db.Uuid
+  verifiedAt DateTime?
+  version Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Restrict)
+  funding HotDealFunding?
+  claims HotDealClaim[]
+  events HotDealEvent[]
+  documents HotDealMaterial[]
+  saves HotDealSave[]
+  ownerEvidence FileAsset @relation(fields: [ownerEvidenceFileId], references: [id], onDelete: Restrict)
+  verifier User? @relation("HotDealVerifier", fields: [verifiedBy], references: [id], onDelete: Restrict)
+  @@index([status, partnerReleaseAt])
+  @@index([status, privateAccessStartAt])
+  @@map("hot_deals")
+}
+
+model HotDealFunding {
+  id String @id @default(uuid()) @db.Uuid
+  dealId String @unique @db.Uuid
+  paymentAttemptId String @unique @db.Uuid
+  amountMinor BigInt
+  confirmedAt DateTime @default(now())
+  deal HotDeal @relation(fields: [dealId], references: [id], onDelete: Restrict)
+  payment PaymentAttempt @relation(fields: [paymentAttemptId], references: [id], onDelete: Restrict)
+  @@map("hot_deal_funding")
+}
+
+model ParticipationAgreementAcceptance {
+  id String @id @default(uuid()) @db.Uuid
+  participationId String @db.Uuid
+  versionId String @db.Uuid
+  termsHash String
+  acceptedAt DateTime @default(now())
+  participation DealParticipation @relation(fields: [participationId], references: [id], onDelete: Restrict)
+  version OpportunityVersion @relation(fields: [versionId], references: [id], onDelete: Restrict)
+  @@unique([participationId, versionId])
+  @@map("participation_agreement_acceptances")
+}
+
+/// First registered customer identity wins. Attribution fields are append-only at the database layer.
+model HotDealClaim {
+  id String @id @default(uuid()) @db.Uuid
+  dealId String @db.Uuid
+  participationId String @db.Uuid
+  customerHash String
+  leadId String @unique @db.Uuid
+  conversionId String? @unique @db.Uuid
+  evidenceFileIds String[] @db.Uuid
+  fraudReviewedBy String? @db.Uuid
+  fraudReviewedAt DateTime?
+  disputeUntil DateTime?
+  disputed Boolean @default(false)
+  createdAt DateTime @default(now())
+  deal HotDeal @relation(fields: [dealId], references: [id], onDelete: Restrict)
+  participation DealParticipation @relation(fields: [participationId], references: [id], onDelete: Restrict)
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Restrict)
+  conversion Conversion? @relation(fields: [conversionId], references: [id], onDelete: Restrict)
+  fraudReviewer User? @relation("HotDealFraudReviewer", fields: [fraudReviewedBy], references: [id], onDelete: Restrict)
+  @@unique([dealId, customerHash])
+  @@index([dealId, disputeUntil])
+  @@map("hot_deal_claims")
+}
+
+model HotDealMaterial {
+  id String @id @default(uuid()) @db.Uuid
+  dealId String @db.Uuid
+  fileId String @db.Uuid
+  label String
+  privateMembersOnly Boolean @default(false)
+  deal HotDeal @relation(fields: [dealId], references: [id], onDelete: Restrict)
+  file FileAsset @relation(fields: [fileId], references: [id], onDelete: Restrict)
+  @@index([dealId])
+  @@map("hot_deal_materials")
+}
+
+model HotDealEvent {
+  id String @id @default(uuid()) @db.Uuid
+  dealId String @db.Uuid
+  key String @unique
+  audience String
+  title String
+  body String
+  createdAt DateTime @default(now())
+  processedAt DateTime?
+  cursorUserId String? @db.Uuid
+  deal HotDeal @relation(fields: [dealId], references: [id], onDelete: Restrict)
+  @@index([processedAt, createdAt])
+  @@map("hot_deal_events")
+}
+
+model HotDealPreference {
+  userId String @id @db.Uuid
+  inApp Boolean @default(true)
+  email Boolean @default(false)
+  sms Boolean @default(false)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@map("hot_deal_preferences")
+}
+
+model HotDealSave {
+  userId String @db.Uuid
+  dealId String @db.Uuid
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deal HotDeal @relation(fields: [dealId], references: [id], onDelete: Restrict)
+  @@id([userId, dealId])
+  @@map("hot_deal_saves")
 }

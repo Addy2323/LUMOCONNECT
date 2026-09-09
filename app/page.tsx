@@ -11,10 +11,7 @@ import { Footer } from '@/components/shared/Footer'
 import { MobileNav } from '@/components/shared/MobileNav'
 import { NavigationLoader } from '@/components/shared/NavigationLoader'
 import { StartupAnimation } from '@/components/shared/StartupAnimation'
-import { HeroSection } from '@/components/marketplace/HeroSection'
-import { TrustStrip } from '@/components/marketplace/TrustStrip'
-import { OpportunityDiscoveryFeed } from '@/components/marketplace/OpportunityDiscoveryFeed'
-import { HomeOpportunityPreview } from '@/components/marketplace/HomeOpportunityPreview'
+import { LandingPage } from '@/components/marketplace/LandingPage'
 import { MarketplaceCatalog } from '@/components/marketplace/MarketplaceCatalog'
 import { DealApplyModal } from '@/components/marketplace/DealApplyModal'
 import { CreateDealWizard } from '@/components/marketplace/CreateDealWizard'
@@ -513,44 +510,20 @@ export default function LumoApp() {
             ? 'w-full'
             : isAuthView
             ? 'w-full px-4 sm:px-6'
-            : 'lumo-container py-8 sm:py-10'
+            : activeView === 'marketplace' ? 'w-full' : 'lumo-container py-8 sm:py-10'
         }`}
       >
         {/* VIEW 1: MARKETPLACE DISCOVERY */}
         {activeView === 'marketplace' && (
-          <div className="space-y-8">
-            {/* 2-Column Hero Section */}
-            <HeroSection
-              currentUserRole={currentUserRole}
-              onExplore={() => navigateToView('marketplace_catalog')}
-              onPublishDeal={handleTriggerCreateDeal}
-              onViewSubscriptions={() => setActiveView('subscriptions')}
-            />
-
-            {/* Trust & Performance Strip */}
-            <TrustStrip />
-
-            <OpportunityDiscoveryFeed
-              region={selectedRegion}
-              onRegionChange={setSelectedRegion}
-              onSelectCategory={(category) => {
-                setSearchQuery('')
-                setSelectedCategory(category)
-              }}
-              onViewAll={() => navigateToView('marketplace_catalog')}
-            />
-
-            <HomeOpportunityPreview
-              opportunities={allOpportunities}
-              currentUserRole={currentUserRole}
-              currentUserOrgId={currentUserOrgId}
-              hasActiveSubscription={hasActiveSubscription}
-              savedDeals={savedDeals}
-              onToggleSave={handleToggleSave}
-              onDealAction={handleDealAction}
-              onViewMore={() => navigateToView('marketplace_catalog')}
-            />
-          </div>
+          <LandingPage
+            onExplore={() => navigateToView('marketplace_catalog')}
+            onJoin={() => navigateToView(currentUserId ? 'subscriptions' : 'choose_path')}
+            onCategory={(query) => {
+              handleClearFilters()
+              setSearchQuery(query)
+              navigateToView('marketplace_catalog')
+            }}
+          />
         )}
 
         {/* DEDICATED MARKETPLACE: COMPLETE DEAL CATALOGUE */}
@@ -971,7 +944,7 @@ export default function LumoApp() {
       {!isDashboardView && <MobileNav activeView={activeView} onNavigate={handleMobileNavigation} />}
 
       {/* Footer ONLY on non-auth views */}
-      {!isAuthView && !isDashboardView && <Footer onNavigate={setActiveView} />}
+      {!isAuthView && !isDashboardView && <Footer onNavigate={navigateToView} variant={activeView === 'marketplace' ? 'landing' : 'default'} />}
     </div>
   )
 }

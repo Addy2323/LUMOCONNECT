@@ -197,6 +197,7 @@ export function BusinessDashboardView({
         {/* MAIN DASHBOARD CONTENT AREA                                               */}
         {/* ========================================================================= */}
         <main className="dashboard-main min-w-0 flex-1 w-full space-y-5 sm:space-y-6">
+          <a href="/hot-deals/submit" className="block rounded-2xl border border-orange-200 bg-orange-50 p-4 text-sm font-semibold text-orange-800">Submit a Private Hot Deal · Ownership evidence, capacity & reward terms →</a>
           {/* Top Header Bar */}
           <div className="dashboard-topbar bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 flex items-center justify-between gap-3">
             <div className="flex min-w-0 flex-1 items-center gap-3">

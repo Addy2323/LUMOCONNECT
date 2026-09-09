@@ -17,5 +17,7 @@ __v0_jsx-dev-runtime.ts
 
 # Common ignores
 node_modules
+.pnpm-store/
+.lumo-private/
 .next/
 .DS_Store

@@ -21,6 +21,7 @@ import {
   Shield,
   Layers,
   LayoutDashboard,
+  Search,
 } from 'lucide-react'
 import { BrandMark } from './BrandMark'
 import type { UserWorkspaceInfo, WorkspaceType } from '@/lib/session'
@@ -85,7 +86,7 @@ export function SiteHeader({
   const navItems = [
     { id: 'marketplace', label: 'Discover', icon: Compass },
     { id: 'marketplace_catalog', label: 'Marketplace', icon: Store },
-    { id: 'subscriptions', label: 'Subscriptions', icon: Sparkles },
+    { id: 'subscriptions', label: 'Memberships', icon: Sparkles },
     ...(isAuthenticated && (activeWorkspace?.type === 'PARTNER' || activeWorkspace?.type === 'PERSONAL' || !activeWorkspace)
       ? [{ id: 'partner', label: 'Mshirika wa Mauzo / Partner', icon: Users }]
       : []),
@@ -112,7 +113,7 @@ export function SiteHeader({
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 dark:bg-[#0B1220]/95 backdrop-blur-md border-b border-[#E2E8F0] dark:border-slate-800 transition-colors">
-      <div className="lumo-container h-[56px] sm:h-[70px] flex items-center justify-between">
+      <div className={`${activeView === 'marketplace' ? 'mx-auto w-[92%] max-w-[1200px]' : 'lumo-container'} h-[56px] sm:h-[70px] flex items-center justify-between`}>
         {/* Left: Brand Logo */}
         <div className="flex items-center gap-2.5 sm:gap-3">
           <button
@@ -121,7 +122,7 @@ export function SiteHeader({
             aria-label="LUMO Homepage"
           >
             <BrandMark size={26} />
-            <div className="flex items-baseline gap-1.5 sm:gap-2">
+            <div className="flex flex-col gap-0 leading-tight">
               <span className="font-black text-lg sm:text-xl tracking-wider text-[#0F172A] dark:text-white group-hover:text-[#FF6A00] transition-colors">
                 LUMO
               </span>
@@ -147,7 +148,7 @@ export function SiteHeader({
                       : 'text-[#64748B] dark:text-slate-400 hover:text-[#0F172A] dark:hover:text-white'
                   }`}
                 >
-                  {item.id === 'subscriptions' && <Sparkles className="w-3.5 h-3.5 text-[#FF6A00]" />}
+                  {item.id === 'subscriptions' && activeView !== 'marketplace' && <Sparkles className="w-3.5 h-3.5 text-[#FF6A00]" />}
                   {item.id === 'admin' && <ShieldCheck className="w-3.5 h-3.5 text-purple-600" />}
                   <span>{item.label}</span>
                   {isActive && (
@@ -187,13 +188,23 @@ export function SiteHeader({
             </div>
           ) : (
             <>
-              {/* How it works info modal trigger */}
-              <button
-                onClick={onOpenHowItWorks}
-                className="hidden lg:flex items-center gap-1.5 text-xs text-[#64748B] dark:text-slate-400 hover:text-[#0F172A] dark:hover:text-white font-medium px-2 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-              >
-                <span>How it works</span>
-              </button>
+              {/* Search deals pill on marketplace or How it works on other views */}
+              {activeView === 'marketplace' ? (
+                <button
+                  onClick={() => onNavigate('marketplace_catalog')}
+                  className="hidden md:flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/50 text-xs text-slate-400 hover:border-slate-300 transition-colors cursor-pointer"
+                >
+                  <Search size={13} className="text-slate-400" />
+                  <span className="font-normal text-slate-500 dark:text-slate-400">Search deals...</span>
+                </button>
+              ) : (
+                <button
+                  onClick={onOpenHowItWorks}
+                  className="hidden lg:flex items-center gap-1.5 text-xs text-[#64748B] dark:text-slate-400 hover:text-[#0F172A] dark:hover:text-white font-medium px-2 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                >
+                  <span>How it works</span>
+                </button>
+              )}
 
               {/* Notification Bell */}
               {isAuthenticated && (
@@ -211,16 +222,16 @@ export function SiteHeader({
                 <>
                   <button
                     onClick={onOpenSignIn}
-                    className="py-1.5 sm:py-2 px-3 sm:px-3.5 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-[#0F172A] dark:text-white text-xs font-bold rounded-xl transition-colors shadow-2xs cursor-pointer"
+                    className="py-1.5 sm:py-2 px-3 sm:px-3.5 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-[#0F172A] dark:text-white text-xs font-semibold rounded-lg transition-colors cursor-pointer"
                   >
-                    Sign In
+                    Sign in
                   </button>
 
                   <button
                     onClick={onOpenGetStarted}
-                    className="py-1.5 sm:py-2 px-3.5 sm:px-4 bg-[#FF6A00] hover:bg-[#EA580C] text-white text-xs font-extrabold rounded-xl transition-all shadow-xs cursor-pointer"
+                    className="py-1.5 sm:py-2 px-3.5 sm:px-4 bg-[#FF6A00] hover:bg-[#EA580C] text-white text-xs font-bold rounded-lg transition-all shadow-xs cursor-pointer"
                   >
-                    Create Account
+                    Join Lumo
                   </button>
                 </>
               ) : (

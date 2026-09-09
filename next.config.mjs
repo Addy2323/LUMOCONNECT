@@ -8,7 +8,7 @@ if (process.env.NODE_ENV === 'production' && (process.env.ENABLE_ROLE_SIMULATOR 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
   images: {
     unoptimized: true,

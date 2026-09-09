@@ -36,6 +36,12 @@ import { DealRoomSession } from '../types'
 import { VERIFIED_PARTNERS_DIRECTORY, VerifiedPartnerDirectoryItem } from '../mockData'
 import { useBusinessToast } from '../BusinessToast'
 
+function getStageBadgeColor(stage: DealRoomSession['stage']) {
+  if (stage === 'COMPLETED' || stage === 'TERMS_AGREED') return 'bg-emerald-100 text-emerald-700'
+  if (stage === 'DISPUTED') return 'bg-red-100 text-red-700'
+  return 'bg-amber-100 text-amber-700'
+}
+
 const DEFAULT_BUSINESS_DEAL_ROOMS: DealRoomSession[] = [
   {
     id: 'dr_auto_1',
