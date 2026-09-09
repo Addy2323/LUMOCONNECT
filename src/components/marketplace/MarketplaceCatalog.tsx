@@ -176,13 +176,13 @@ export function MarketplaceCatalog({
               <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-slate-900 dark:text-white">Deals in all categories</p>
               <p className="mt-1 text-xs text-slate-500">Showing {opportunities.length} available opportunities</p>
             </div>
-            <div className="flex flex-1 items-center gap-2 sm:max-w-xl sm:justify-end">
+            <div className="flex flex-col sm:flex-row flex-1 items-stretch sm:items-center gap-2 sm:max-w-xl sm:justify-end">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <input value={query} onChange={(event) => onQueryChange(event.target.value)} placeholder="Search marketplace" className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-xs outline-none focus:border-orange-500 dark:border-slate-700 dark:bg-slate-900" />
+                <input value={query} onChange={(event) => onQueryChange(event.target.value)} placeholder="Search marketplace..." className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-xs outline-none focus:border-orange-500 dark:border-slate-700 dark:bg-slate-900" />
               </div>
               <div className="relative">
-                <select value={sortBy} onChange={(event) => onSortChange(event.target.value as MarketplaceSort)} aria-label="Sort marketplace deals" className="appearance-none rounded-xl border border-slate-200 bg-white py-2.5 pl-3 pr-8 text-xs font-bold outline-none focus:border-orange-500 dark:border-slate-700 dark:bg-slate-900">
+                <select value={sortBy} onChange={(event) => onSortChange(event.target.value as MarketplaceSort)} aria-label="Sort marketplace deals" className="w-full sm:w-auto appearance-none rounded-xl border border-slate-200 bg-white py-2.5 pl-3 pr-8 text-xs font-bold outline-none focus:border-orange-500 dark:border-slate-700 dark:bg-slate-900">
                   <option value="recommended">Recommended</option>
                   <option value="newest">Newest</option>
                   <option value="highest_reward">Highest reward</option>

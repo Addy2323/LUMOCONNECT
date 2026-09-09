@@ -234,9 +234,9 @@ export function SubscriptionsView({
           </div>
 
           {/* ========================================================================= */}
-          {/* DESKTOP / LAPTOP 3-COLUMN VIEW (hidden md:grid md:grid-cols-3)           */}
+          {/* DESKTOP / LAPTOP 3-COLUMN VIEW (hidden lg:grid lg:grid-cols-3)           */}
           {/* ========================================================================= */}
-          <div className="hidden md:grid md:grid-cols-3 gap-6 lg:gap-8 items-stretch mb-10">
+          <div className="hidden lg:grid lg:grid-cols-3 gap-6 lg:gap-8 items-stretch mb-10">
         {/* DESKTOP CARD 1: MONTHLY */}
         {monthlyPlan && (
           <div className="bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-6 lg:p-8 flex flex-col justify-between shadow-lg hover:shadow-xl transition-all">
@@ -394,9 +394,9 @@ export function SubscriptionsView({
       </div>
 
       {/* ========================================================================= */}
-      {/* MOBILE STACKED VIEW (md:hidden)                                           */}
+      {/* MOBILE & TABLET RESPONSIVE VIEW (lg:hidden)                               */}
       {/* ========================================================================= */}
-      <div className="md:hidden space-y-4 mb-6">
+      <div className="lg:hidden grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         {/* 1. MOBILE MONTHLY */}
         {monthlyPlan && (
           <div className="bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-5 shadow-xs relative">
@@ -549,7 +549,7 @@ export function SubscriptionsView({
       {/* ========================================================================= */}
       {selectedPlanCode && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl space-y-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl space-y-4 max-h-[calc(100dvh-2rem)] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-[#FF6A00]" />
@@ -697,7 +697,7 @@ export function SubscriptionsView({
       {/* ========================================================================= */}
       {showEnterpriseModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl space-y-4 max-h-[calc(100dvh-2rem)] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2">
                 <Building2 className="w-5 h-5 text-[#FF6A00]" />

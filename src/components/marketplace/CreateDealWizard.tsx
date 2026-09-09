@@ -76,7 +76,7 @@ export function CreateDealWizard({ onSuccess, onCancel }: CreateDealWizardProps)
   }
 
   return (
-    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
+    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-6 shadow-sm max-h-[calc(100dvh-2rem)] overflow-y-auto">
       {/* Step Indicator */}
       <div className="flex items-center justify-between pb-6 border-b border-slate-100 dark:border-slate-800 mb-6">
         <div>

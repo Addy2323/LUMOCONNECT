@@ -41,11 +41,28 @@
 
 html, body {
   min-height: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
   background-color: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Safe area insets for notched and edge-to-edge mobile devices */
+.safe-area-pb {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+
+.safe-area-pt {
+  padding-top: max(0.5rem, env(safe-area-inset-top));
+}
+
+/* Accessible touch target sizing for mobile usability */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
 }
 
 /* Centered Page Container */
@@ -296,34 +313,27 @@ html, body {
 
 @media (min-width: 1024px) {
   .auth-page-root {
-    height: 100dvh;
-    min-height: 0;
+    min-height: 100dvh;
     overflow-x: hidden;
     overflow-y: auto;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
   }
 
-  .auth-page-root::-webkit-scrollbar {
-    display: none;
-  }
-
-  /* Keep the complete authentication card visible on common laptop screens. */
+  /* Clean responsive auth container fitting standard screens */
   .auth-shell {
-    width: 125%;
-    min-height: 125dvh;
-    margin-left: -12.5%;
-    zoom: 0.8;
+    width: 100%;
+    min-height: 100dvh;
+    margin-left: 0;
   }
 
-  /* Match the reference's compact, browser-zoomed dashboard density. */
+  /* Compact, clean dashboard density without browser zoom distortion */
   .dashboard-shell {
-    zoom: 0.8;
-    min-height: 125dvh;
+    min-height: 100dvh;
   }
 
   .dashboard-sidebar {
-    height: 125dvh;
+    height: 100dvh;
+    position: sticky;
+    top: 0;
   }
 
   .dashboard-main {
@@ -335,7 +345,6 @@ html, body {
     margin-right: -32px;
     margin-left: -32px;
   }
-
 }
 
 .dark .dashboard-shell {

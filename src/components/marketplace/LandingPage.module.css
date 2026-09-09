@@ -750,42 +750,94 @@
 
 @media (max-width: 768px) {
   .hero {
-    padding: 30px 0 40px;
+    padding: 24px 0 36px;
   }
   .hero h1 {
-    font-size: 32px;
+    font-size: clamp(26px, 7vw, 34px);
+  }
+  .heroDescription {
+    font-size: 14px;
+  }
+  .actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    width: 100%;
+  }
+  .actions .primary,
+  .actions .secondary {
+    width: 100%;
+    justify-content: center;
   }
   .trust {
     flex-direction: column;
-    gap: 16px;
+    gap: 14px;
+    margin-top: 28px;
   }
   .heroVisual {
-    height: 300px;
+    height: 280px;
+    gap: 10px;
+  }
+  .heroPhotoCard,
+  .heroPhotoCardRight {
+    height: 240px;
   }
   .scriptCaption {
-    font-size: 18px;
+    font-size: 16px;
+    bottom: 12px;
+    left: 10px;
   }
   .paperNote {
-    font-size: 16px;
-    padding: 8px 10px;
+    font-size: 14px;
+    padding: 6px 8px;
+    right: 4px;
+    bottom: 24px;
   }
   .connectionNote {
-    left: 10%;
-    bottom: 0px;
-    padding: 10px 14px;
+    left: 0;
+    right: 0;
+    margin-inline: auto;
+    max-width: calc(100% - 24px);
+    bottom: 4px;
+    padding: 8px 12px;
+    gap: 10px;
+  }
+  .connectionNote strong {
+    font-size: 11px;
+    line-height: 1.2;
+  }
+  .connectionNote small {
+    font-size: 9px;
+  }
+  .privateDeals {
+    padding: 20px 14px;
+    margin-top: 24px;
+    margin-bottom: 28px;
+    border-radius: 16px;
+  }
+  .sectionHeading {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .sectionHeading h2 {
+    font-size: 22px;
   }
   .privateGrid {
     grid-template-columns: 1fr;
-    gap: 20px;
+    gap: 16px;
   }
   .categoryGrid {
     grid-template-columns: 1fr;
-    gap: 18px;
+    gap: 14px;
+  }
+  .howItWorks {
+    padding: 24px 14px;
   }
   .howItWorks ol {
     flex-direction: column;
     align-items: flex-start;
-    gap: 20px;
+    gap: 16px;
   }
   .chevronIcon {
     display: none;
@@ -793,6 +845,7 @@
   .bottomCta .container {
     flex-direction: column;
     align-items: flex-start;
+    gap: 16px;
   }
   .bottomCtaAction {
     align-items: flex-start;
@@ -803,5 +856,30 @@
   }
   .bottomCtaAction small {
     text-align: left;
+  }
+}
+
+@media (max-width: 480px) {
+  .heroVisual {
+    height: 240px;
+  }
+  .heroPhotoCard,
+  .heroPhotoCardRight {
+    height: 200px;
+    border-radius: 12px;
+  }
+  .heroPhotoCardInner {
+    border-radius: 12px;
+  }
+  .paperNote {
+    display: none;
+  }
+  .connectionIconBox {
+    width: 32px;
+    height: 32px;
+  }
+  .connectionIconBox svg {
+    width: 16px;
+    height: 16px;
   }
 }

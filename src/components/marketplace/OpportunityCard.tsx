@@ -160,20 +160,20 @@ export function OpportunityCard({
           <button
             type="button"
             onClick={onViewDetails}
-            className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-[#E2E8F0] bg-white px-2.5 py-2.5 text-center text-xs font-extrabold text-[#0F172A] shadow-2xs transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+            className="flex w-full items-center justify-center gap-1 rounded-xl border border-[#E2E8F0] bg-white px-2 py-2.5 text-center text-[11px] sm:text-xs font-extrabold text-[#0F172A] shadow-2xs transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 cursor-pointer"
           >
-            {!isSubscribed && <Lock className="w-3 h-3 text-[#FF6A00]" />}
-            <span>{isSubscribed ? 'View Details' : 'View Full Deal'}</span>
+            {!isSubscribed && <Lock className="w-3 h-3 text-[#FF6A00] shrink-0" />}
+            <span className="truncate">{isSubscribed ? 'View Details' : 'View Full Deal'}</span>
           </button>
 
           <button
             type="button"
             onClick={onApply}
             disabled={isExpired}
-            className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#FF6A00] px-2.5 py-2.5 text-center text-xs font-extrabold text-white shadow-xs transition-colors hover:bg-[#EA580C] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-slate-300 dark:disabled:bg-slate-700"
+            className="flex w-full items-center justify-center gap-1 rounded-xl bg-[#FF6A00] px-2 py-2.5 text-center text-[11px] sm:text-xs font-extrabold text-white shadow-xs transition-colors hover:bg-[#EA580C] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-slate-300 dark:disabled:bg-slate-700 cursor-pointer"
           >
-            {!isSubscribed && !isExpired && <Lock className="w-3 h-3 text-white/90" />}
-            <span>{isExpired ? 'Deal Expired' : isSubscribed ? 'Join Deal' : 'Subscribe to Join'}</span>
+            {!isSubscribed && !isExpired && <Lock className="w-3 h-3 text-white/90 shrink-0" />}
+            <span className="truncate">{isExpired ? 'Deal Expired' : isSubscribed ? 'Join Deal' : 'Subscribe to Join'}</span>
           </button>
         </div>
       </div>

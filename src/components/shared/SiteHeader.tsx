@@ -222,14 +222,14 @@ export function SiteHeader({
                 <>
                   <button
                     onClick={onOpenSignIn}
-                    className="py-1.5 sm:py-2 px-3 sm:px-3.5 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-[#0F172A] dark:text-white text-xs font-semibold rounded-lg transition-colors cursor-pointer"
+                    className="py-1.5 sm:py-2 px-2.5 sm:px-3.5 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-[#0F172A] dark:text-white text-[11px] sm:text-xs font-semibold rounded-lg transition-colors cursor-pointer whitespace-nowrap"
                   >
                     Sign in
                   </button>
 
                   <button
                     onClick={onOpenGetStarted}
-                    className="py-1.5 sm:py-2 px-3.5 sm:px-4 bg-[#FF6A00] hover:bg-[#EA580C] text-white text-xs font-bold rounded-lg transition-all shadow-xs cursor-pointer"
+                    className="py-1.5 sm:py-2 px-2.5 sm:px-4 bg-[#FF6A00] hover:bg-[#EA580C] text-white text-[11px] sm:text-xs font-bold rounded-lg transition-all shadow-xs cursor-pointer whitespace-nowrap"
                   >
                     Join Lumo
                   </button>

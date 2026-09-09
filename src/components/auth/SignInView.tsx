@@ -160,7 +160,7 @@ export function SignInView({
         </div>
 
         {/* Right Column: Form Container */}
-        <div className="lg:col-span-7 p-6 sm:p-10 flex flex-col justify-between">
+        <div className="lg:col-span-7 p-4 min-[380px]:p-5 sm:p-10 flex flex-col justify-between">
           <div>
             {/* Top Bar with Language/Status */}
             <div className="flex items-center justify-between mb-4">

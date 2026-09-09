@@ -41,14 +41,14 @@ export function MobileNav({ activeView, onNavigate }: MobileNavProps) {
           <button
             key={item.id}
             onClick={() => onNavigate(item.id)}
-            className={`touch-target flex flex-col items-center justify-center p-1 rounded-xl transition-all ${
+            className={`touch-target touch-manipulation cursor-pointer flex flex-col items-center justify-center p-1.5 rounded-xl transition-all ${
               isActive
                 ? 'text-[#F97316] font-bold scale-105'
                 : 'text-[#64748B] hover:text-[#0F172A] dark:text-slate-400 dark:hover:text-white'
             }`}
           >
-            <Icon className="w-5 h-5 mb-0.5" />
-            <span className="text-[10px] tracking-tight">{item.label}</span>
+            <Icon className="w-5 h-5 mb-0.5 shrink-0" />
+            <span className="text-[10px] tracking-tight leading-none">{item.label}</span>
           </button>
         )
       })}
