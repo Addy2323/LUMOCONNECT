@@ -22,8 +22,8 @@ export const DEFAULT_SUBSCRIPTION_PLANS: SubscriptionPlanItem[] = [
     isEnterprise: false,
     isBestValue: false,
     features: [
-      'Unlimited access to published deals for Partners',
-      'Unlimited deal-detail viewing & commercial terms',
+      'Unlimited access to standard published deals',
+      'Access to Hot Deals after 24h VIP window completes',
       'Join unlimited opportunities & campaigns',
       'Sales, creative, and promotional resources',
       'Performance and real-time referral tracking',
@@ -45,17 +45,65 @@ export const DEFAULT_SUBSCRIPTION_PLANS: SubscriptionPlanItem[] = [
     savingsDisplay: 'Save TZS 50,000 compared with monthly payments.',
     description: 'Six months of uninterrupted access for active partners and performance marketers.',
     isEnterprise: false,
-    isBestValue: true,
+    isBestValue: false,
     features: [
       'Everything in the Monthly Starter plan',
       'Unlimited deal enrollment for 6 months',
       'Advanced conversion attribution analytics',
       'Priority opportunity push notifications',
       'Priority compliance & fast-track payout support',
-      'Early access to exclusive high-margin deals',
+      'Access to Hot Deals once 24h VIP exclusivity expires',
       'Single discounted payment every six months',
     ],
     ctaLabel: 'Choose Semi-Annual Pro',
+  },
+  {
+    id: 'plan_annual',
+    code: 'ANNUAL',
+    name: 'Annual Elite (1 Month VIP Free)',
+    billingPeriod: 'ANNUALLY',
+    priceTZS: 180000,
+    priceDisplay: 'TZS 180,000',
+    periodDisplay: '/year',
+    equivalentMonthlyDisplay: 'Equivalent to only TZS 15,000 per month.',
+    savingsDisplay: 'Save TZS 120,000 + Get 1 Month Golden VIP FREE!',
+    description: 'Full year partner access with 1 month of Golden VIP early-access included completely free.',
+    isEnterprise: false,
+    isBestValue: true,
+    isGoldenVip: true,
+    freeVipMonthsBonus: 1,
+    features: [
+      '🔥 1 Month Golden VIP Private Membership FREE',
+      '👑 Instant 24-hour priority early access to latest Hot Deals',
+      'Unlimited deal enrollment for a full 12 months',
+      'Direct WhatsApp Middleman Escrow concierge',
+      'Priority compliance and fast-track payout authorization',
+      'Maximum commission rates & bonus milestone unlocks',
+      'Save TZS 120,000 annually compared to monthly billing',
+    ],
+    ctaLabel: 'Get Annual (1 Mo VIP Free)',
+  },
+  {
+    id: 'plan_golden_vip',
+    code: 'GOLDEN_VIP',
+    name: 'Golden VIP Membership',
+    billingPeriod: 'MONTHLY',
+    priceTZS: 50000,
+    priceDisplay: 'TZS 50,000',
+    periodDisplay: '/month',
+    description: 'Exclusive first-look membership for elite brokers, high-volume distributors and private partners.',
+    isEnterprise: false,
+    isBestValue: false,
+    isGoldenVip: true,
+    features: [
+      '👑 24-Hour exclusive early access to all new Hot Deals',
+      'View & claim high-margin opportunities before regular partners',
+      'Dedicated Lumo WhatsApp Middleman Escrow priority',
+      'Direct seller phone & WhatsApp contact transparency',
+      'VIP badge and zero-queue compliance verification',
+      'First claim privilege on limited-inventory deals',
+    ],
+    ctaLabel: 'Join Golden VIP',
   },
   {
     id: 'plan_enterprise',
@@ -69,7 +117,7 @@ export const DEFAULT_SUBSCRIPTION_PLANS: SubscriptionPlanItem[] = [
     isEnterprise: true,
     isBestValue: false,
     features: [
-      'Everything in the Semi-Annual Pro plan',
+      'Everything in Annual Elite & Golden VIP',
       'Unlimited corporate deal room access',
       'AI-powered opportunity & influencer matching',
       'AI-generated promotional copy and video scripts',
@@ -212,10 +260,15 @@ export function getUserSubscription(userId: string): UserSubscriptionItem | null
   const diffMs = new Date(sub.expiresAt).getTime() - now.getTime()
   const daysRemaining = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)))
 
+  const isGoldenVipPlan = sub.planCode === 'GOLDEN_VIP' || sub.planCode === 'ANNUAL' || sub.planCode === 'ENTERPRISE' || Boolean(sub.isGoldenVip)
+  const hasGoldenVipAccess = Boolean(isGoldenVipPlan && isActive)
+
   const updatedSub: UserSubscriptionItem = {
     ...sub,
     daysRemaining,
     isActive,
+    isGoldenVip: isGoldenVipPlan,
+    hasGoldenVipAccess,
     status: isTimeValid ? sub.status : 'EXPIRED',
   }
 
@@ -270,6 +323,7 @@ export function grantUserSubscription(
   const startsAt = new Date()
   const expiresAt = new Date()
   expiresAt.setDate(expiresAt.getDate() + days)
+  const isVip = planCode === 'GOLDEN_VIP' || planCode === 'ANNUAL' || planCode === 'ENTERPRISE'
 
   const sub: UserSubscriptionItem = {
     id: `sub_admin_${Date.now()}_${userId}`,
@@ -283,6 +337,8 @@ export function grantUserSubscription(
     isActive: true,
     autoRenew: true,
     amountPaidTZS: amountPaidTZS || plan?.priceTZS || 0,
+    isGoldenVip: isVip,
+    hasGoldenVipAccess: isVip,
   }
 
   inMemorySubscriptions.set(userId, sub)
@@ -337,7 +393,7 @@ export async function createSubscriptionCheckout(
   // Calculate durations on server
   const startsAt = new Date()
   const expiresAt = new Date(startsAt)
-  if (req.planCode === 'MONTHLY') {
+  if (req.planCode === 'MONTHLY' || req.planCode === 'GOLDEN_VIP') {
     expiresAt.setDate(expiresAt.getDate() + 30)
   } else if (req.planCode === 'SEMI_ANNUAL') {
     expiresAt.setDate(expiresAt.getDate() + 180)
@@ -348,6 +404,8 @@ export async function createSubscriptionCheckout(
   const daysRemaining = Math.ceil(
     (expiresAt.getTime() - startsAt.getTime()) / (1000 * 60 * 60 * 24)
   )
+
+  const isVip = req.planCode === 'GOLDEN_VIP' || req.planCode === 'ANNUAL'
 
   const newSub: UserSubscriptionItem = {
     id: subscriptionId,
@@ -362,6 +420,9 @@ export async function createSubscriptionCheckout(
     autoRenew: true,
     paymentAttemptId,
     amountPaidTZS: amountTZS,
+    isGoldenVip: isVip,
+    hasGoldenVipAccess: isVip,
+    freeVipMonthsBonus: req.planCode === 'ANNUAL' ? 1 : 0,
   }
 
   inMemorySubscriptions.set(req.userId, newSub)

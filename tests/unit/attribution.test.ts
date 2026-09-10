@@ -4,19 +4,20 @@ import type { TouchEvent } from '@/modules/tracking/service'
 
 describe('Attribution Engine', () => {
   it('correctly attributes conversion using last-click model within attribution window', () => {
+    const now = Date.now()
     const t1: TouchEvent = {
       trackingLinkId: 'trk_1',
       code: 'ALEX-PROMO-1',
       touchType: 'CLICK',
       visitorId: 'vis_101',
-      timestamp: new Date('2026-08-10T10:00:00Z'),
+      timestamp: new Date(now - 5 * 24 * 60 * 60 * 1000),
     }
     const t2: TouchEvent = {
       trackingLinkId: 'trk_2',
       code: 'NEEMA-PROMO-2',
       touchType: 'CLICK',
       visitorId: 'vis_101',
-      timestamp: new Date('2026-08-15T12:00:00Z'),
+      timestamp: new Date(now - 2 * 24 * 60 * 60 * 1000),
     }
 
     const decision = evaluateAttribution({
@@ -31,19 +32,20 @@ describe('Attribution Engine', () => {
   })
 
   it('prioritizes promo code precedence when specified', () => {
+    const now = Date.now()
     const t1: TouchEvent = {
       trackingLinkId: 'trk_1',
       code: 'ALEX-PROMO-1',
       touchType: 'CLICK',
       visitorId: 'vis_101',
-      timestamp: new Date('2026-08-10T10:00:00Z'),
+      timestamp: new Date(now - 5 * 24 * 60 * 60 * 1000),
     }
     const t2: TouchEvent = {
       trackingLinkId: 'trk_2',
       code: 'NEEMA-PROMO-2',
       touchType: 'CLICK',
       visitorId: 'vis_101',
-      timestamp: new Date('2026-08-15T12:00:00Z'),
+      timestamp: new Date(now - 2 * 24 * 60 * 60 * 1000),
     }
 
     const decision = evaluateAttribution({

@@ -45,6 +45,18 @@ function loadFromStorage() {
               featuredImageUrl: bundledItem.featuredImageUrl,
               galleryImageUrls: bundledItem.galleryImageUrls,
               expiryDate: bundledItem.expiryDate,
+              isGoldenVip: bundledItem.isGoldenVip ?? storedItem.isGoldenVip,
+              vipAccessStartAt: bundledItem.vipAccessStartAt ?? storedItem.vipAccessStartAt,
+              vipReleaseAt: bundledItem.vipReleaseAt ?? storedItem.vipReleaseAt,
+              wholesalePriceTZS: bundledItem.wholesalePriceTZS ?? storedItem.wholesalePriceTZS,
+              minOrderQuantity: bundledItem.minOrderQuantity ?? storedItem.minOrderQuantity,
+              productCondition: bundledItem.productCondition ?? storedItem.productCondition,
+              warrantyPeriod: bundledItem.warrantyPeriod ?? storedItem.warrantyPeriod,
+              inspectionWindowHours: bundledItem.inspectionWindowHours ?? storedItem.inspectionWindowHours,
+              qualityScore: bundledItem.qualityScore ?? storedItem.qualityScore,
+              sellerPhone: bundledItem.sellerPhone ?? storedItem.sellerPhone,
+              sellerWhatsApp: bundledItem.sellerWhatsApp ?? storedItem.sellerWhatsApp,
+              sellerLocation: bundledItem.sellerLocation ?? storedItem.sellerLocation,
             }
           })
           const combined = [...refreshedStored, ...missingInitial]
@@ -52,6 +64,8 @@ function loadFromStorage() {
             ...item,
             createdAt: new Date(item.createdAt),
             expiryDate: item.expiryDate ? new Date(item.expiryDate) : undefined,
+            vipAccessStartAt: item.vipAccessStartAt ? new Date(item.vipAccessStartAt) : undefined,
+            vipReleaseAt: item.vipReleaseAt ? new Date(item.vipReleaseAt) : undefined,
             totalBudgetTZS: item.totalBudgetTZS ? BigInt(item.totalBudgetTZS) : undefined,
             spentBudgetTZS: item.spentBudgetTZS ? BigInt(item.spentBudgetTZS) : BigInt(0),
           }))
@@ -92,6 +106,7 @@ export interface OpportunityFilterParams {
   type?: string
   region?: string
   minReward?: number
+  vipFilter?: 'ALL' | 'VIP_ONLY' | 'PARTNER_ONLY'
   sortBy?: 'recommended' | 'highest_reward' | 'newest' | 'ending_soon'
   includeAllStatuses?: boolean
 }
@@ -171,6 +186,12 @@ export function listOpportunities(filters?: OpportunityFilterParams): Opportunit
     items = items.filter((item) => {
       return rewardAmount(item) >= filters.minReward!
     })
+  }
+
+  if (filters?.vipFilter === 'VIP_ONLY') {
+    items = items.filter((item) => Boolean(item.isGoldenVip))
+  } else if (filters?.vipFilter === 'PARTNER_ONLY') {
+    items = items.filter((item) => !item.isGoldenVip)
   }
 
   if (filters?.sortBy === 'newest') {
@@ -479,6 +500,18 @@ export function createDealOpportunity(
     status: computedStatus,
     createdAt: new Date(),
     expiryDate: new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000),
+    isGoldenVip: Boolean(input.isGoldenVip),
+    vipAccessStartAt: input.isGoldenVip ? new Date() : undefined,
+    vipReleaseAt: input.isGoldenVip ? new Date(Date.now() + 24 * 60 * 60 * 1000) : undefined,
+    wholesalePriceTZS: input.wholesalePriceTZS,
+    minOrderQuantity: input.minOrderQuantity || 1,
+    productCondition: input.productCondition || 'BRAND_NEW',
+    warrantyPeriod: input.warrantyPeriod || '12 Months Warranty',
+    inspectionWindowHours: input.inspectionWindowHours || 48,
+    qualityScore: input.productCondition && input.warrantyPeriod ? 98 : 90,
+    sellerPhone: input.sellerPhone || '+255 754 889 900',
+    sellerWhatsApp: input.sellerWhatsApp || '+255754889900',
+    sellerLocation: input.region,
   }
 
   inMemoryOpportunities.unshift(newOpp)

@@ -104,18 +104,58 @@ const NEW_MARKETPLACE_PRODUCTS: MarketplaceSeed[] = [
     termsAndConditions: 'The supplier must pass company verification, sample inspection, sanctions screening, and commercial-reference checks.',
     activePartnerCount: 24, maxPartners: 35, totalBudgetTZS: BigInt(4500000000), createdAt: '2026-08-30T09:00:00Z', expiryDate: '2026-11-15T23:59:59Z',
   },
+  {
+    id: 'opp_vip_solar_hybrid_08', organizationId: 'org_kijani_solar', companyName: 'Kijani Energy Solutions', companyLogo: 'KJ', type: 'PRODUCT_SALES',
+    title: '👑 [Golden VIP Exclusive] 100x 5kW Hybrid Inverters & LiFePO4 Battery Consignment', slug: 'vip-5kw-hybrid-inverters-lifepo4-battery',
+    summary: 'High-margin commercial solar consignment with certified Tier-1 inverters. Reserved exclusively for Golden VIP members for 24 hours.',
+    description: 'Direct distribution agreement for 100 units of 5kW hybrid smart inverters with 5.12kWh lithium storage units. Factory sealed, TBS compliant, and backed by a 5-year manufacturer warranty. Connect buyers with Lumo escrow hold protection.',
+    category: 'Products', subcategory: 'Solar & Energy', region: 'Dar es Salaam', principalPriceDisplay: 'TZS 7,500,000 / unit', rewardDisplay: 'TZS 450,000 / Unit Sold',
+    rewardDetail: 'Immediate payout upon delivery verification and 48h escrow inspection sign-off.', potentialBonus: 'TZS 1,500,000 volume bounty for 5+ units placed within 48h',
+    featuredImageUrl: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?auto=format&fit=crop&w=1400&h=900&q=90',
+    termsAndConditions: 'Brand new in crate. Includes TBS certification, import declaration, and 48-hour buyer test run window with Lumo Escrow protection.',
+    activePartnerCount: 6, maxPartners: 15, totalBudgetTZS: BigInt(4500000000), createdAt: new Date(Date.now() - 4 * 3600 * 1000).toISOString(), expiryDate: '2026-10-31T23:59:59Z',
+  },
+  {
+    id: 'opp_vip_macbook_fleet_09', organizationId: 'org_apex_tech', companyName: 'Apex Electronics Wholesale', companyLogo: 'AP', type: 'PRODUCT_SALES',
+    title: '👑 [Golden VIP Exclusive] 40x MacBook Pro M3 Commercial Fleet Clearance', slug: 'vip-macbook-pro-m3-fleet-clearance',
+    summary: 'Corporate excess stock: 40 brand new Apple MacBook Pro M3 machines ready for bulk corporate sales. VIP 24h early access window.',
+    description: 'Sourced from a regional corporate fleet upgrade. Sealed in original retail packaging with 12-month Apple international warranty and TRA fiscalised EFD tax receipts. Premium commission per corporate unit placed.',
+    category: 'Products', subcategory: 'Electronics', region: 'Arusha', principalPriceDisplay: 'TZS 4,200,000 / unit', rewardDisplay: 'TZS 320,000 / Laptop Sold',
+    rewardDetail: 'Full commission credited once corporate inspection and escrow confirmation is completed.', potentialBonus: 'TZS 800,000 bonus for institutional contracts exceeding 10 units',
+    featuredImageUrl: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=1400&h=900&q=90',
+    termsAndConditions: 'Factory sealed, genuine Apple regional stock. 48-hour hardware inspection window supported by Lumo Escrow guarantee.',
+    activePartnerCount: 8, maxPartners: 20, totalBudgetTZS: BigInt(3000000000), createdAt: new Date(Date.now() - 6 * 3600 * 1000).toISOString(), expiryDate: '2026-10-20T23:59:59Z',
+  },
 ]
 
-export const INITIAL_OPPORTUNITIES: OpportunityItem[] = NEW_MARKETPLACE_PRODUCTS.map((item) => ({
-  ...item,
-  isVerified: true,
-  countryCode: 'TZ',
-  currency: 'TZS',
-  rewardType: 'FIXED_COMMISSION',
-  spentBudgetTZS: BigInt(0),
-  isFeatured: true,
-  galleryImageUrls: [item.featuredImageUrl],
-  status: 'PUBLISHED',
-  createdAt: new Date(item.createdAt),
-  expiryDate: new Date(item.expiryDate),
-}))
+export const INITIAL_OPPORTUNITIES: OpportunityItem[] = NEW_MARKETPLACE_PRODUCTS.map((item) => {
+  const isVip = item.id.includes('vip')
+  const createdDate = new Date(item.createdAt)
+  const vipReleaseDate = isVip ? new Date(createdDate.getTime() + 24 * 3600 * 1000) : undefined
+
+  return {
+    ...item,
+    isVerified: true,
+    countryCode: 'TZ',
+    currency: 'TZS',
+    rewardType: 'FIXED_COMMISSION',
+    spentBudgetTZS: BigInt(0),
+    isFeatured: true,
+    galleryImageUrls: [item.featuredImageUrl],
+    status: 'PUBLISHED',
+    createdAt: createdDate,
+    expiryDate: new Date(item.expiryDate),
+    isGoldenVip: isVip,
+    vipAccessStartAt: isVip ? createdDate : undefined,
+    vipReleaseAt: vipReleaseDate,
+    wholesalePriceTZS: isVip ? 6800000 : 9500000,
+    minOrderQuantity: isVip ? 1 : 5,
+    productCondition: isVip ? 'FACTORY_SEALED' : 'BRAND_NEW',
+    warrantyPeriod: isVip ? '12 Months Comprehensive Warranty' : 'Standard Manufacturer Terms',
+    inspectionWindowHours: 48,
+    qualityScore: isVip ? 99 : 95,
+    sellerPhone: '+255 754 889 900',
+    sellerWhatsApp: '+255754889900',
+    sellerLocation: item.region,
+  }
+})

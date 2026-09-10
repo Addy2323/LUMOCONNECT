@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import {
   CheckCircle2,
   ArrowRight,
@@ -11,6 +11,9 @@ import {
   Calculator,
   PlusCircle,
   HelpCircle,
+  BadgeCheck,
+  PackageCheck,
+  Award,
 } from 'lucide-react'
 import { createDealOpportunity } from '@/modules/deals/service'
 import { TANZANIA_OPPORTUNITY_CATEGORIES, TANZANIA_REGIONS } from '@/modules/deals/taxonomy'
@@ -45,6 +48,30 @@ export function CreateDealWizard({ onSuccess, onCancel }: CreateDealWizardProps)
   const [featuredImageUrl, setFeaturedImageUrl] = useState('https://images.unsplash.com/photo-1509391365360-2e959784a276?w=800&auto=format&fit=crop&q=60')
   const [promoVideoUrl, setPromoVideoUrl] = useState('')
 
+  // Product Quality & Golden VIP 24h Early Access State
+  const [isGoldenVip, setIsGoldenVip] = useState(false)
+  const [productCondition, setProductCondition] = useState<'BRAND_NEW' | 'FACTORY_SEALED' | 'CERTIFIED_REFURBISHED' | 'GRADE_A'>('BRAND_NEW')
+  const [warrantyPeriod, setWarrantyPeriod] = useState('12 Months Official Warranty')
+  const [inspectionWindowHours, setInspectionWindowHours] = useState(48)
+  const [minOrderQuantity, setMinOrderQuantity] = useState(1)
+  const [wholesalePrice, setWholesalePrice] = useState(85000)
+  const [sellerPhone, setSellerPhone] = useState('+255 754 889 900')
+  const [sellerWhatsApp, setSellerWhatsApp] = useState('+255754889900')
+  const [hasTaxInvoice, setHasTaxInvoice] = useState(true)
+  const [hasCertificate, setHasCertificate] = useState(true)
+
+  // Calculated Product Quality Score
+  const qualityScore = useMemo(() => {
+    let score = 70
+    if (productCondition === 'FACTORY_SEALED' || productCondition === 'BRAND_NEW') score += 10
+    else score += 5
+    if (warrantyPeriod) score += 5
+    if (inspectionWindowHours >= 48) score += 5
+    if (hasTaxInvoice) score += 5
+    if (hasCertificate) score += 5
+    return Math.min(100, score)
+  }, [productCondition, warrantyPeriod, inspectionWindowHours, hasTaxInvoice, hasCertificate])
+
   const handlePublish = () => {
     createDealOpportunity(
       {
@@ -68,6 +95,14 @@ export function CreateDealWizard({ onSuccess, onCancel }: CreateDealWizardProps)
         currency: 'TZS',
         attributionWindowDays: 30,
         expiryDays,
+        isGoldenVip,
+        wholesalePriceTZS: wholesalePrice > 0 ? wholesalePrice : undefined,
+        minOrderQuantity,
+        productCondition,
+        warrantyPeriod,
+        inspectionWindowHours,
+        sellerPhone,
+        sellerWhatsApp,
       },
       'org_active_business',
       'Kijani Solar Tech'
@@ -245,6 +280,118 @@ export function CreateDealWizard({ onSuccess, onCancel }: CreateDealWizardProps)
             />
           </div>
 
+          {/* Product Quality & Specification Engine */}
+          <div className="rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/50 dark:bg-blue-950/20 p-4 space-y-3.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <BadgeCheck className="w-4 h-4 text-blue-600" />
+                <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                  Product Quality & Commercial Verification
+                </span>
+              </div>
+              <span className="text-xs font-extrabold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-200">
+                Quality Score: {qualityScore}%
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Product Condition
+                </label>
+                <select
+                  value={productCondition}
+                  onChange={(e) => setProductCondition(e.target.value as any)}
+                  className="w-full text-xs p-2.5 border rounded-lg bg-white dark:bg-slate-900"
+                >
+                  <option value="BRAND_NEW">Brand New (Sealed Retail / Crate)</option>
+                  <option value="FACTORY_SEALED">Factory Sealed (Manufacturer Certified)</option>
+                  <option value="CERTIFIED_REFURBISHED">Certified Refurbished (Grade A+)</option>
+                  <option value="GRADE_A">Grade A Inspected Stock</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Warranty Coverage
+                </label>
+                <input
+                  type="text"
+                  value={warrantyPeriod}
+                  onChange={(e) => setWarrantyPeriod(e.target.value)}
+                  placeholder="e.g. 12 Months Official Warranty"
+                  className="w-full text-xs p-2.5 border rounded-lg bg-white dark:bg-slate-900"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Escrow Inspection Window
+                </label>
+                <select
+                  value={inspectionWindowHours}
+                  onChange={(e) => setInspectionWindowHours(Number(e.target.value))}
+                  className="w-full text-xs p-2.5 border rounded-lg bg-white dark:bg-slate-900"
+                >
+                  <option value={24}>24 Hours Inspection</option>
+                  <option value={48}>48 Hours Standard Escrow Hold</option>
+                  <option value={72}>72 Hours Extended Test Run</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Min Order Qty (MOQ)
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  value={minOrderQuantity}
+                  onChange={(e) => setMinOrderQuantity(Number(e.target.value))}
+                  className="w-full text-xs p-2.5 border rounded-lg bg-white dark:bg-slate-900 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Wholesale Price / Unit (TZS)
+                </label>
+                <input
+                  type="number"
+                  value={wholesalePrice}
+                  onChange={(e) => setWholesalePrice(Number(e.target.value))}
+                  placeholder="e.g. 85000"
+                  className="w-full text-xs p-2.5 border rounded-lg bg-white dark:bg-slate-900 font-mono"
+                />
+              </div>
+            </div>
+
+            {/* Quality Checklist */}
+            <div className="pt-2 border-t border-blue-200/60 dark:border-blue-900/40 space-y-2">
+              <label className="flex items-center gap-2 text-[11px] text-slate-700 dark:text-slate-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={hasTaxInvoice}
+                  onChange={(e) => setHasTaxInvoice(e.target.checked)}
+                  className="h-3.5 w-3.5 accent-blue-600 rounded"
+                />
+                <span>TRA Fiscalised EFD Tax Invoice issued upon physical delivery</span>
+              </label>
+
+              <label className="flex items-center gap-2 text-[11px] text-slate-700 dark:text-slate-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={hasCertificate}
+                  onChange={(e) => setHasCertificate(e.target.checked)}
+                  className="h-3.5 w-3.5 accent-blue-600 rounded"
+                />
+                <span>TBS / Official Quality Certificate or Authentic Proof of Ownership</span>
+              </label>
+            </div>
+          </div>
+
           {/* Media & Video Import */}
           <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 space-y-3">
             <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center justify-between">
@@ -388,6 +535,26 @@ export function CreateDealWizard({ onSuccess, onCancel }: CreateDealWizardProps)
             </div>
           </div>
 
+          {/* Golden VIP 24h Exclusivity Window Toggle */}
+          <div className="rounded-xl border border-amber-300 bg-amber-50/70 p-4 dark:border-amber-800 dark:bg-amber-950/30">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isGoldenVip}
+                onChange={(e) => setIsGoldenVip(e.target.checked)}
+                className="mt-1 h-4 w-4 accent-amber-600 rounded"
+              />
+              <div>
+                <span className="text-xs font-black text-slate-900 dark:text-white flex items-center gap-1.5">
+                  <span>👑</span> Launch with 24-Hour Golden VIP Priority Window
+                </span>
+                <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-0.5 leading-relaxed">
+                  Gives elite Golden VIP partners exclusive access for the first 24 hours to secure buyers and wholesale distribution, before automatically opening to all standard partners.
+                </p>
+              </div>
+            </label>
+          </div>
+
           {/* Calculator preview */}
           <div className="bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-900/60 p-4 rounded-xl">
             <div className="flex items-center gap-2 text-xs font-bold text-orange-800 dark:text-orange-300 mb-2">
@@ -407,7 +574,19 @@ export function CreateDealWizard({ onSuccess, onCancel }: CreateDealWizardProps)
       {step === 4 && (
         <div className="space-y-4">
           <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl p-4">
-            <div className="text-xs font-bold text-slate-500 uppercase mb-1">Deal Preview</div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-bold text-slate-500 uppercase">Deal Preview</span>
+              <div className="flex items-center gap-2">
+                {isGoldenVip && (
+                  <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-500 text-slate-950">
+                    👑 Golden VIP Priority (24h)
+                  </span>
+                )}
+                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                  {qualityScore}% Quality Score
+                </span>
+              </div>
+            </div>
             <h3 className="text-base font-bold text-slate-900 dark:text-white mb-1">
               {title || 'Untitled Commercial Deal'}
             </h3>
@@ -426,16 +605,16 @@ export function CreateDealWizard({ onSuccess, onCancel }: CreateDealWizardProps)
                 <span className="block text-[10px] text-slate-400">{subcategory}</span>
               </div>
               <div>
+                <span className="text-slate-400 block text-[11px]">Condition & Inspection</span>
+                <strong className="text-slate-800 dark:text-slate-200">{productCondition} ({inspectionWindowHours}h)</strong>
+              </div>
+              <div>
                 <span className="text-slate-400 block text-[11px]">Principal Price</span>
                 <strong className="text-slate-800 dark:text-slate-200">TZS {principalPrice.toLocaleString()}</strong>
               </div>
               <div>
                 <span className="text-slate-400 block text-[11px]">Reward</span>
                 <strong className="text-orange-600">TZS {baseRewardValue.toLocaleString()}</strong>
-              </div>
-              <div>
-                <span className="text-slate-400 block text-[11px]">Budget</span>
-                <strong className="text-slate-800 dark:text-slate-200">TZS {totalBudget.toLocaleString()}</strong>
               </div>
               <div>
                 <span className="text-slate-400 block text-[11px]">Expires</span>

@@ -1,3 +1,5 @@
+import type { SubscriptionPlanCode } from '@/modules/subscriptions/types'
+
 export type AdminSidebarSection =
   // Group 1: Platform
   | 'overview'
@@ -115,7 +117,7 @@ export interface SubscriptionTransaction {
   id: string
   userId: string
   userName: string
-  planCode: 'MONTHLY' | 'SEMI_ANNUAL' | 'ENTERPRISE_AI' | 'ENTERPRISE'
+  planCode: SubscriptionPlanCode
   planName: string
   amountTZS: number
   status: 'PENDING' | 'ACTIVE' | 'PAST_DUE' | 'SUSPENDED' | 'EXPIRED' | 'CANCELLED'

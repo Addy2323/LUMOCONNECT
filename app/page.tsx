@@ -17,6 +17,7 @@ import { DealApplyModal } from '@/components/marketplace/DealApplyModal'
 import { CreateDealWizard } from '@/components/marketplace/CreateDealWizard'
 import { BusinessPublishNoticeModal } from '@/components/marketplace/BusinessPublishNoticeModal'
 import { ProtectedDealDetailsModal } from '@/components/marketplace/ProtectedDealDetailsModal'
+import { WhatsAppMiddlemanModal } from '@/components/marketplace/WhatsAppMiddlemanModal'
 import { SubscriptionsView } from '@/components/subscriptions/SubscriptionsView'
 import { PartnerDashboardView } from '@/components/dashboards/PartnerDashboardView'
 import { BusinessDashboardView } from '@/components/dashboards/BusinessDashboardView'
@@ -142,6 +143,8 @@ export default function LumoApp() {
   // Modals
   const [selectedDealForApply, setSelectedDealForApply] = useState<OpportunityItem | null>(null)
   const [selectedProtectedDeal, setSelectedProtectedDeal] = useState<ProtectedDealDetails | null>(null)
+  const [selectedDealForWhatsApp, setSelectedDealForWhatsApp] = useState<OpportunityItem | null>(null)
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false)
   const [showCreateWizard, setShowCreateWizard] = useState(false)
   const [showBusinessNotice, setShowBusinessNotice] = useState(false)
   const [showHowItWorks, setShowHowItWorks] = useState(false)
@@ -160,6 +163,19 @@ export default function LumoApp() {
   }, [currentUserId, activeView])
 
   const hasActiveSubscription = mounted ? Boolean(userSub && userSub.isActive) : false
+  const isGoldenVipUser = mounted
+    ? Boolean(
+        userSub?.hasGoldenVipAccess ||
+        userSub?.planCode === 'GOLDEN_VIP' ||
+        activeWorkspace.type === 'ADMIN' ||
+        activeWorkspace.type === 'BUSINESS'
+      )
+    : false
+
+  const handleConnectWhatsApp = (deal: OpportunityItem) => {
+    setSelectedDealForWhatsApp(deal)
+    setShowWhatsAppModal(true)
+  }
 
   const [dealsRevision, setDealsRevision] = useState(0)
 
@@ -549,10 +565,13 @@ export default function LumoApp() {
             currentUserRole={currentUserRole}
             currentUserOrgId={currentUserOrgId}
             hasActiveSubscription={hasActiveSubscription}
+            isGoldenVipUser={isGoldenVipUser}
             savedDeals={savedDeals}
             onToggleSave={handleToggleSave}
             onDealAction={handleDealAction}
             onPostOpportunity={handleTriggerCreateDeal}
+            onConnectWhatsApp={handleConnectWhatsApp}
+            onUpgradeToVip={() => setActiveView('subscriptions')}
           />
         )}
 
@@ -921,6 +940,26 @@ export default function LumoApp() {
         currentUserId={currentUserId}
         userRole={currentUserRole}
         userOrgId={currentUserOrgId}
+        onConnectWhatsApp={() => {
+          if (selectedProtectedDeal) {
+            const opp = opportunities.find((o) => o.id === selectedProtectedDeal.id)
+            if (opp) {
+              handleConnectWhatsApp(opp)
+            }
+          }
+        }}
+      />
+
+      {/* WhatsApp Escrow Matchmaker Modal */}
+      <WhatsAppMiddlemanModal
+        deal={selectedDealForWhatsApp}
+        isOpen={showWhatsAppModal}
+        onClose={() => {
+          setShowWhatsAppModal(false)
+          setSelectedDealForWhatsApp(null)
+        }}
+        initialBuyerName={userDetails.name}
+        initialBuyerPhone={userDetails.phone}
       />
 
       {/* Admin Step-Up Authentication Modal (MFA TOTP / Password) */}

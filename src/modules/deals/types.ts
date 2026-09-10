@@ -50,6 +50,14 @@ export const DealCreateSchema = z.object({
   promoVideoUrl: z.string().optional(),
   galleryImageUrls: z.array(z.string()).optional(),
   expiryDays: z.number().int().min(1).max(365).optional(),
+  isGoldenVip: z.boolean().optional(),
+  wholesalePriceTZS: z.number().positive().optional(),
+  minOrderQuantity: z.number().int().positive().optional(),
+  productCondition: z.enum(['BRAND_NEW', 'FACTORY_SEALED', 'CERTIFIED_REFURBISHED', 'GRADE_A']).optional(),
+  warrantyPeriod: z.string().optional(),
+  inspectionWindowHours: z.number().int().min(24).max(168).optional(),
+  sellerPhone: z.string().optional(),
+  sellerWhatsApp: z.string().optional(),
 })
 
 export type DealCreateInput = z.infer<typeof DealCreateSchema>
@@ -87,4 +95,18 @@ export interface OpportunityItem {
   status: 'DRAFT' | 'PENDING_REVIEW' | 'PUBLISHED' | 'PAUSED' | 'COMPLETED'
   createdAt: Date
   expiryDate?: Date
+  // Golden VIP & 24h Early Access
+  isGoldenVip?: boolean
+  vipAccessStartAt?: Date
+  vipReleaseAt?: Date
+  // Product Quality & Specifications
+  wholesalePriceTZS?: number
+  minOrderQuantity?: number
+  productCondition?: 'BRAND_NEW' | 'FACTORY_SEALED' | 'CERTIFIED_REFURBISHED' | 'GRADE_A'
+  warrantyPeriod?: string
+  inspectionWindowHours?: number
+  qualityScore?: number
+  sellerPhone?: string
+  sellerWhatsApp?: string
+  sellerLocation?: string
 }

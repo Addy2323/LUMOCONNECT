@@ -1,5 +1,6 @@
 'use client'
 
+import React, { useState } from 'react'
 import type { OpportunityItem } from '@/modules/deals/types'
 import { MarketplaceSectionHeader } from './MarketplaceSectionHeader'
 import { MarketplaceFilters } from './MarketplaceFilters'
@@ -18,6 +19,8 @@ import {
   Sprout,
   Wrench,
   X,
+  Crown,
+  Flame,
 } from 'lucide-react'
 import { TANZANIA_OPPORTUNITY_CATEGORIES, TANZANIA_REGIONS } from '@/modules/deals/taxonomy'
 import { OPPORTUNITY_TYPES } from './MarketplaceFilters'
@@ -43,10 +46,13 @@ interface MarketplaceCatalogProps {
   currentUserRole: string
   currentUserOrgId?: string
   hasActiveSubscription: boolean
+  isGoldenVipUser?: boolean
   savedDeals: string[]
   onToggleSave: (dealId: string) => void
   onDealAction: (opportunity: OpportunityItem, intent: 'view' | 'join') => void
   onPostOpportunity: () => void
+  onConnectWhatsApp?: (opportunity: OpportunityItem) => void
+  onUpgradeToVip?: () => void
 }
 
 export function MarketplaceCatalog({
@@ -68,12 +74,25 @@ export function MarketplaceCatalog({
   currentUserRole,
   currentUserOrgId,
   hasActiveSubscription,
+  isGoldenVipUser = false,
   savedDeals,
   onToggleSave,
   onDealAction,
   onPostOpportunity,
+  onConnectWhatsApp,
+  onUpgradeToVip,
 }: MarketplaceCatalogProps) {
   const categoryIcons = [House, CarFront, Package, Sprout, BriefcaseBusiness, Wrench]
+  const [vipTab, setVipTab] = useState<'ALL' | 'VIP' | 'STANDARD'>('ALL')
+
+  const vipCount = opportunities.filter((item) => Boolean(item.isGoldenVip)).length
+  const standardCount = opportunities.filter((item) => !item.isGoldenVip).length
+
+  const displayedOpportunities = opportunities.filter((item) => {
+    if (vipTab === 'VIP') return Boolean(item.isGoldenVip)
+    if (vipTab === 'STANDARD') return !item.isGoldenVip
+    return true
+  })
 
   return (
     <section id="marketplace" aria-labelledby="marketplace-title" className="scroll-mt-24">
@@ -171,10 +190,82 @@ export function MarketplaceCatalog({
         </aside>
 
         <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50/70 p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950/30 sm:p-5">
+          {/* Golden VIP 24h Early Access Promo Banner */}
+          <div className="mb-4 rounded-2xl border border-amber-300 bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-amber-500/5 p-4 dark:border-amber-700/60 dark:bg-amber-950/20">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <span className="text-2xl mt-0.5">👑</span>
+                <div>
+                  <p className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                    <span>Golden VIP 24-Hour Exclusivity Window</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-500 text-slate-950 font-black">
+                      1 Month VIP Free with Annual
+                    </span>
+                  </p>
+                  <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
+                    VIP & Annual subscribers get first-look early access during the first 24 hours of hot deals. Regular partners see deals unlock after 24 hours.
+                  </p>
+                </div>
+              </div>
+              {onUpgradeToVip && (
+                <button
+                  type="button"
+                  onClick={onUpgradeToVip}
+                  className="shrink-0 px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-black text-xs shadow-sm hover:from-amber-400 hover:to-orange-400 transition-all cursor-pointer"
+                >
+                  Get Annual (1 Mo VIP Free) →
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Unified Marketplace Tabs: All, Golden VIP, Standard Deals */}
+          <div className="mb-4 flex flex-wrap items-center gap-2 border-b border-slate-200 pb-3 dark:border-slate-800">
+            <button
+              type="button"
+              onClick={() => setVipTab('ALL')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                vipTab === 'ALL'
+                  ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm'
+                  : 'bg-white text-slate-600 border border-slate-200 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 hover:bg-slate-100'
+              }`}
+            >
+              All Deals ({opportunities.length})
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setVipTab('VIP')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+                vipTab === 'VIP'
+                  ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-sm'
+                  : 'bg-white text-slate-600 border border-slate-200 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 hover:bg-slate-100'
+              }`}
+            >
+              <span>👑</span>
+              <span>Golden VIP Early Access ({vipCount})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setVipTab('STANDARD')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+                vipTab === 'STANDARD'
+                  ? 'bg-orange-600 text-white shadow-sm'
+                  : 'bg-white text-slate-600 border border-slate-200 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 hover:bg-slate-100'
+              }`}
+            >
+              <span>🤝</span>
+              <span>Standard Partner Deals ({standardCount})</span>
+            </button>
+          </div>
+
           <div className="mb-5 flex flex-col gap-3 border-b border-slate-200 pb-4 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-slate-900 dark:text-white">Deals in all categories</p>
-              <p className="mt-1 text-xs text-slate-500">Showing {opportunities.length} available opportunities</p>
+              <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-slate-900 dark:text-white">
+                {vipTab === 'VIP' ? 'Golden VIP Priority Opportunities' : vipTab === 'STANDARD' ? 'Standard Partner Deals' : 'All Marketplace Opportunities'}
+              </p>
+              <p className="mt-1 text-xs text-slate-500">Showing {displayedOpportunities.length} opportunities</p>
             </div>
             <div className="flex flex-col sm:flex-row flex-1 items-stretch sm:items-center gap-2 sm:max-w-xl sm:justify-end">
               <div className="relative flex-1">
@@ -193,14 +284,26 @@ export function MarketplaceCatalog({
             </div>
           </div>
 
-          {opportunities.length > 0 ? (
+          {displayedOpportunities.length > 0 ? (
             <div className="grid grid-cols-1 gap-5 pb-4 md:grid-cols-2 xl:grid-cols-3">
-              {opportunities.map((item) => {
+              {displayedOpportunities.map((item) => {
                 const isOwner = Boolean(currentUserOrgId && currentUserOrgId === item.organizationId)
                 const isAdmin = currentUserRole === 'ADMIN'
                 const isAuthorizedForThisDeal = hasActiveSubscription || isOwner || isAdmin
 
-                return <OpportunityCard key={item.id} item={item} isSubscribed={isAuthorizedForThisDeal} isSaved={savedDeals.includes(item.id)} onToggleSave={() => onToggleSave(item.id)} onApply={() => onDealAction(item, 'join')} onViewDetails={() => onDealAction(item, 'view')} />
+                return (
+                  <OpportunityCard
+                    key={item.id}
+                    item={item}
+                    isSubscribed={isAuthorizedForThisDeal}
+                    isGoldenVipUser={isGoldenVipUser}
+                    isSaved={savedDeals.includes(item.id)}
+                    onToggleSave={() => onToggleSave(item.id)}
+                    onApply={() => onDealAction(item, 'join')}
+                    onViewDetails={() => onDealAction(item, 'view')}
+                    onConnectWhatsApp={() => onConnectWhatsApp?.(item)}
+                  />
+                )
               })}
             </div>
           ) : (

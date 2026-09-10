@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-export type SubscriptionPlanCode = 'MONTHLY' | 'SEMI_ANNUAL' | 'ENTERPRISE'
+export type SubscriptionPlanCode = 'MONTHLY' | 'SEMI_ANNUAL' | 'ANNUAL' | 'GOLDEN_VIP' | 'ENTERPRISE'
 
 export type SubscriptionStatus =
   | 'PENDING'
@@ -23,6 +23,8 @@ export interface SubscriptionPlanItem {
   description: string
   isEnterprise: boolean
   isBestValue?: boolean
+  isGoldenVip?: boolean
+  freeVipMonthsBonus?: number
   features: string[]
   ctaLabel: string
 }
@@ -41,6 +43,10 @@ export interface UserSubscriptionItem {
   cancelledAt?: Date
   paymentAttemptId?: string
   amountPaidTZS?: number
+  isGoldenVip?: boolean
+  hasGoldenVipAccess?: boolean
+  freeVipMonthsBonus?: number
+  vipAccessExpiresAt?: Date
 }
 
 export const EnterpriseInquirySchema = z.object({
@@ -66,9 +72,11 @@ export interface EnterpriseInquiryItem extends EnterpriseInquiryInput {
 
 export interface SubscriptionCheckoutRequest {
   userId: string
-  planCode: 'MONTHLY' | 'SEMI_ANNUAL'
+  userRole?: string
+  planCode: 'MONTHLY' | 'SEMI_ANNUAL' | 'ANNUAL' | 'GOLDEN_VIP'
   paymentMethod: 'MPESA' | 'AIRTEL' | 'TIGO' | 'HALOPESA'
   phoneNumber: string
+  amountTZS?: number
   returnTo?: string
   intent?: 'view' | 'join'
 }
@@ -95,6 +103,7 @@ export interface DealAccessDecision {
   isOwner: boolean
   isAdmin: boolean
   hasActiveSubscription: boolean
+  hasGoldenVipAccess?: boolean
   subscriptionStatus?: SubscriptionStatus
   reason?: string
   requiresSubscription: boolean
