@@ -22,8 +22,10 @@ import {
   Layers,
   LayoutDashboard,
   Search,
+  Languages,
 } from 'lucide-react'
 import { BrandMark } from './BrandMark'
+import { useLanguage } from '@/lib/i18n'
 import type { UserWorkspaceInfo, WorkspaceType } from '@/lib/session'
 
 interface SiteHeaderProps {
@@ -68,6 +70,7 @@ export function SiteHeader({
   onRequestAdminMode,
   isAdminModeActive = false,
 }: SiteHeaderProps) {
+  const { locale, setLocale } = useLanguage()
   const [mounted, setMounted] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
@@ -392,6 +395,38 @@ export function SiteHeader({
                 </button>
               )
             })}
+          </div>
+
+          {/* Mobile Language Switcher */}
+          <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-500 flex items-center gap-1.5">
+              <Languages className="w-4 h-4 text-[#FF6A00]" />
+              <span>Lugha / Language</span>
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setLocale('sw')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-colors cursor-pointer ${
+                  locale === 'sw'
+                    ? 'bg-[#FF6A00] text-white shadow-xs'
+                    : 'text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800'
+                }`}
+              >
+                Kiswahili
+              </button>
+              <button
+                type="button"
+                onClick={() => setLocale('en')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-colors cursor-pointer ${
+                  locale === 'en'
+                    ? 'bg-[#FF6A00] text-white shadow-xs'
+                    : 'text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800'
+                }`}
+              >
+                English
+              </button>
+            </div>
           </div>
         </div>
       )}

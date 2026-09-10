@@ -511,8 +511,8 @@ export default function LumoApp() {
             : isAuthView
             ? 'w-full px-3 sm:px-6'
             : activeView === 'marketplace'
-            ? 'w-full pb-16 md:pb-0'
-            : 'lumo-container py-6 sm:py-10 pb-20 md:pb-10'
+            ? 'w-full pb-28 md:pb-0'
+            : 'lumo-container py-6 sm:py-10 pb-28 md:pb-10'
         }`}
       >
         {/* VIEW 1: MARKETPLACE DISCOVERY */}
