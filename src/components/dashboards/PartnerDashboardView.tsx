@@ -155,8 +155,8 @@ export function PartnerDashboardView({
 
   // Reload Subscription Status
   const reloadSubscription = useCallback(() => {
-    const userIdentifier = email || partnerName || 'alex_partner'
-    const userSub = getUserSubscription(userIdentifier) || getUserSubscription('alex_partner')
+    const userIdentifier = email || partnerName
+    const userSub = userIdentifier ? getUserSubscription(userIdentifier) : null
     if (userSub && userSub.isActive) {
       setSubscription({
         planName: userSub.planName,
@@ -225,7 +225,7 @@ export function PartnerDashboardView({
   const handleJoinOpportunity = (opp: PartnerOpportunitySummary) => {
     const isAlreadyJoined = joinedDeals.some((d) => d.opportunityId === opp.id)
     if (!isAlreadyJoined) {
-      const partnerCode = (partnerName || 'alex').toLowerCase().replace(/[^a-z0-9]/g, '_')
+      const partnerCode = (partnerName || 'partner').toLowerCase().replace(/[^a-z0-9]/g, '_')
       const newJoined: JoinedDealItem = {
         id: `joined_${Date.now()}`,
         opportunityId: opp.id,

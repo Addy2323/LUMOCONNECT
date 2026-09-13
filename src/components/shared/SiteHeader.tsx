@@ -61,8 +61,8 @@ export function SiteHeader({
   currentUserRole = 'GUEST',
   hasActiveSubscription = false,
   userProfile = {
-    name: 'Given M.',
-    email: 'given@lumo.co.tz',
+    name: '',
+    email: '',
   },
   activeWorkspace,
   availableWorkspaces = [],

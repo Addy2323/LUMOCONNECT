@@ -653,7 +653,7 @@ export function DealRoomsTab() {
                       onChange={(e) => setPartnerCategoryFilter(e.target.value)}
                       className="w-full p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium"
                     >
-                      <option value="ALL">📁 All Industry Categories</option>
+                      <option value="ALL">All Industry Categories</option>
                       {allUniqueCategories.map((cat) => (
                         <option key={cat} value={cat}>{cat}</option>
                       ))}
@@ -666,7 +666,7 @@ export function DealRoomsTab() {
                       onChange={(e) => setPartnerSkillFilter(e.target.value)}
                       className="w-full p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium"
                     >
-                      <option value="ALL">⚡ All Specific Skills</option>
+                      <option value="ALL">All Specific Skills</option>
                       {allUniqueSkills.map((sk) => (
                         <option key={sk} value={sk}>{sk}</option>
                       ))}

@@ -31,7 +31,7 @@ interface AdminProfileModalProps {
 export function AdminProfileModal({
   isOpen,
   onClose,
-  adminName = 'Given M.',
+  adminName = 'Administrator',
   adminRole = 'Super Administrator',
   onSwitchRole,
   onSignOut,
@@ -39,8 +39,8 @@ export function AdminProfileModal({
   const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'sessions' | 'activity' | 'roles'>('profile')
   const [profileData, setProfileData] = useState({
     name: adminName,
-    email: 'given@lumo.co.tz',
-    phone: '+255 784 000 111',
+    email: 'admin@lumo.co.tz',
+    phone: '',
     title: 'Head of Operations & Platform Architecture',
   })
   const [mfaEnabled, setMfaEnabled] = useState(true)

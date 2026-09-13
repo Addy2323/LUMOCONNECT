@@ -132,7 +132,7 @@ export function EarningsPayoutsTab() {
 
   // Modal Form State
   const [payoutChannel, setPayoutChannel] = useState<'VODACOM_MPESA' | 'TIGO_PESA' | 'AIRTEL_MONEY' | 'CRDB_BANK'>('VODACOM_MPESA')
-  const [payoutPhone, setPayoutPhone] = useState('+255 754 990 123')
+  const [payoutPhone, setPayoutPhone] = useState('')
   const [requestAmount, setRequestAmount] = useState<number>(517000)
 
   // Sync to storage

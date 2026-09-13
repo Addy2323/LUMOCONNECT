@@ -122,7 +122,7 @@ const sw: Record<string, string> = {
   'Gross Partner Reward': 'Malipo Ghafi ya Mshirika wa Mauzo',
   'LUMO Platform Fee (5%)': 'Ada ya Mfumo wa LUMO (5%)',
   'Partner Estimated Net Payout (per conversion)': 'Kiasi Halisi kwa Mshirika wa Mauzo (kwa mauzo yaliyokamilika)',
-  'Pre-Funded Escrow': 'Fedha Zimewekwa Mapema',
+  'Pre-Funded Protection Pool': 'Fedha Zimewekwa Mapema',
   'Deducted From Sale': 'Inakatwa Kwenye Mauzo',
   'CONFIDENTIAL REWARD TERMS': 'MASHARTI YA SIRI YA MALIPO',
   'Terms & Conditions': 'Vigezo na Masharti',
@@ -179,7 +179,7 @@ const sw: Record<string, string> = {
   'WhatsApp notifications': 'Taarifa za WhatsApp',
   'WhatsApp Status & Direct Client Messaging': 'WhatsApp Status na Ujumbe wa Moja kwa Moja',
   'Share on WhatsApp': 'Tuma kwa WhatsApp',
-  'SMS Escrow Balance Warnings': 'Tahadhari za SMS kuhusu Salio la Malipo',
+  'SMS Protection Balance Warnings': 'Tahadhari za SMS kuhusu Salio la Malipo',
   'Notifications': 'Taarifa',
 }
 

@@ -21,6 +21,8 @@ import {
   Smartphone,
   Calendar,
   Lock,
+  Globe,
+  UserCheck,
   Image as ImageIcon,
   Video,
   Play,
@@ -32,6 +34,27 @@ import {
   Search,
   MapPin,
   ExternalLink,
+  Package,
+  Share2,
+  Handshake,
+  Gem,
+  Factory,
+  Car,
+  Building2,
+  Ship,
+  Sprout,
+  BarChart3,
+  Gamepad2,
+  Shirt,
+  Settings,
+  Scale,
+  HeartPulse,
+  Home,
+  Camera,
+  Music,
+  Lightbulb,
+  ClipboardList,
+  Wrench,
 } from 'lucide-react'
 import {
   OpportunityType,
@@ -42,6 +65,7 @@ import {
 } from '../types'
 import { useBusinessToast } from '../BusinessToast'
 import { createDealOpportunity, getVideoEmbedInfo } from '@/modules/deals/service'
+import { DealMediaViewer } from '@/components/common/DealMediaViewer'
 import { TANZANIA_OPPORTUNITY_CATEGORIES } from '@/modules/deals/taxonomy'
 
 interface CreateOpportunityWizardModalProps {
@@ -50,33 +74,7 @@ interface CreateOpportunityWizardModalProps {
   onOpportunityCreated: (opp: BusinessOpportunityItem) => void
 }
 
-const PRESET_COVER_IMAGES = [
-  {
-    category: 'Renewable Energy',
-    label: 'Solar Microgrids & Household Kits',
-    url: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=800&auto=format&fit=crop&q=60',
-  },
-  {
-    category: 'AgriBusiness',
-    label: 'Irrigation & Farming Inputs',
-    url: 'https://images.unsplash.com/photo-1592417817098-8f3d6910985b?w=800&auto=format&fit=crop&q=60',
-  },
-  {
-    category: 'FinTech & Mobile Money',
-    label: 'Digital Payments & POS Terminals',
-    url: 'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?w=800&auto=format&fit=crop&q=60',
-  },
-  {
-    category: 'FMCG & Consumer Goods',
-    label: 'Household & Retail Distribution',
-    url: 'https://images.unsplash.com/photo-1583258292688-d0213dc5a3a8?w=800&auto=format&fit=crop&q=60',
-  },
-  {
-    category: 'B2B & Industrial',
-    label: 'Corporate Wholesale & Warehousing',
-    url: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=800&auto=format&fit=crop&q=60',
-  },
-]
+
 
 const TANZANIA_SEPARATE_REGIONS = [
   'All Regions (National - Tanzania)',
@@ -169,6 +167,64 @@ const INDUSTRY_CATEGORIES = [
   },
 ]
 
+export function OpportunityTypeIcon({ type, className = "w-4 h-4" }: { type: OpportunityType; className?: string }) {
+  switch (type) {
+    case 'COMMERCIAL_DEAL':
+      return <Package className={className} />
+    case 'ADVERTISING_CAMPAIGN':
+      return <Film className={className} />
+    case 'AFFILIATE_PROGRAMME':
+      return <Share2 className={className} />
+    case 'CUSTOMER_ACQUISITION':
+      return <Smartphone className={className} />
+    case 'LEAD_GENERATION':
+      return <Target className={className} />
+    case 'B2B_INTRODUCTION':
+      return <Handshake className={className} />
+    case 'PRODUCT_OPPORTUNITY':
+      return <Gem className={className} />
+    case 'REVERSE_OPPORTUNITY':
+      return <Factory className={className} />
+    default:
+      return <Briefcase className={className} />
+  }
+}
+
+export function CategoryIcon({ category, className = "w-4 h-4" }: { category: string; className?: string }) {
+  switch (category) {
+    case 'Automotive & Transportation':
+      return <Car className={className} />
+    case 'Real Estate & Property':
+      return <Building2 className={className} />
+    case 'Sourcing & Supply Chain Services':
+      return <Ship className={className} />
+    case 'Technology & Consumer Electronics':
+      return <Laptop className={className} />
+    case 'Farming, Agriculture & Food':
+      return <Sprout className={className} />
+    case 'Market Finder & Trade Insights':
+      return <BarChart3 className={className} />
+    case 'Advertising, Media & Marketing':
+      return <Film className={className} />
+    case 'IT & Software Services':
+      return <Target className={className} />
+    case 'Gaming, Toys & Entertainment':
+      return <Gamepad2 className={className} />
+    case 'Apparel & Fashion':
+      return <Shirt className={className} />
+    case 'Industrial Machinery & Tools':
+      return <Settings className={className} />
+    case 'General & Professional Services':
+      return <Scale className={className} />
+    case 'Health & Personal Care':
+      return <HeartPulse className={className} />
+    case 'Home & Garden':
+      return <Home className={className} />
+    default:
+      return <Layers className={className} />
+  }
+}
+
 interface CategoryRewardConfig {
   category: string
   archetype: string
@@ -205,7 +261,7 @@ export const CATEGORY_REWARD_CONFIG: Record<string, CategoryRewardConfig> = {
     practicalDealExample: 'A car dealership lists a Toyota Land Cruiser for TZS 180,000,000 with a dedicated "Find Buyer & Earn" button.',
     commercialTermsBreakdown: 'The partner shares the vehicle link or refers a direct buyer. A fixed finder reward of TZS 2,000,000 is credited once the dealer contract is completed and funds clear.',
     detailedDealFlow: 'A car dealership sets the selling price of an imported vehicle at TZS 180M. The platform dynamically displays two paths: buyers see a "Buy Now" button at TZS 180M, while partners see a "Find Buyer & Earn TZS 2M" button. When an agent shares the attributable link/QR code and a buyer completes payment and registration transfer, the system releases the TZS 2,000,000 bounty after deducting applicable tax withholding.',
-    icon: '🚗',
+    icon: 'Automotive & Transportation',
   },
   'Real Estate & Property': {
     category: 'Real Estate & Property',
@@ -223,7 +279,7 @@ export const CATEGORY_REWARD_CONFIG: Record<string, CategoryRewardConfig> = {
     practicalDealExample: 'A real estate developer lists a commercial building or prime residential plot in Kigamboni valued at TZS 120,000,000.',
     commercialTermsBreakdown: 'The partner facilitates buyer inspection and site visits. Upon legal execution of the title deed/sales contract and initial deposit clearance, LUMO automatically disburses the TZS 2,900,000 deal bounty.',
     detailedDealFlow: 'A real estate developer defines the property baseline at TZS 120M. The system uses this baseline to calculate variable commissions. An independent property agent schedules a client site visit, unlocking the TZS 500,000 base fee upon verified physical check-in. When the land purchase contract is officially executed and the deposit is cleared, the remaining 2% commission (TZS 2.4M) transitions from pending to approved in the partner’s LUMO dashboard.',
-    icon: '🏢',
+    icon: 'Real Estate & Property',
   },
   'Sourcing & Supply Chain Services': {
     category: 'Sourcing & Supply Chain Services',
@@ -241,7 +297,7 @@ export const CATEGORY_REWARD_CONFIG: Record<string, CategoryRewardConfig> = {
     practicalDealExample: 'A commercial firm posts a reverse requirement: "Source 50,000 Solar Panels with total budget USD 800,000."',
     commercialTermsBreakdown: 'The merchant allocates a fixed reward of USD 5,000 (TZS 13M). The partner submits the verified manufacturer credentials, certification documents, and contract agreement. Approved upon countersigned supply contract.',
     detailedDealFlow: 'A commercial firm posts a reverse requirement stating their total purchase budget of USD 800K for 50,000 solar units. A procurement consultant or trade partner connects the buyer with an accredited international manufacturer. Once the supplier’s trade licenses, pricing quote, and formal supply contract are verified through the LUMO Deal Room, the USD 5,000 sourcing bounty is approved for settlement.',
-    icon: '🚢',
+    icon: 'Sourcing & Supply Chain Services',
   },
   'Technology & Consumer Electronics': {
     category: 'Technology & Consumer Electronics',
@@ -259,7 +315,7 @@ export const CATEGORY_REWARD_CONFIG: Record<string, CategoryRewardConfig> = {
     practicalDealExample: 'An electronics distributor runs a seasonal push: "Sell 50 Laptops across Dar es Salaam at TZS 1.2M each."',
     commercialTermsBreakdown: 'Partners earn a standard 5% commission (TZS 60K) on every laptop sold, plus unlock tiered milestone bonuses: TZS 500,000 at 25 units sold, and an additional TZS 1,500,000 at 50 units sold.',
     detailedDealFlow: 'A tech merchant enters the per-unit retail price of TZS 1.2M and sets up a volume target of 50 laptops. Because the unit price is defined, LUMO automatically calculates that 50 units equal TZS 60M in Gross Merchandise Value (GMV). Affiliates and creators earn a direct TZS 60K on each purchase made via their tracking links, and when a partner reaches 25 verified unit sales, the engine automatically adds the TZS 500,000 milestone bonus to their approved balance.',
-    icon: '💻',
+    icon: 'Technology & Consumer Electronics',
   },
   'Farming, Agriculture & Food': {
     category: 'Farming, Agriculture & Food',
@@ -277,7 +333,7 @@ export const CATEGORY_REWARD_CONFIG: Record<string, CategoryRewardConfig> = {
     practicalDealExample: 'A food processor seeks bulk supply: "10 Metric Tons of organic maize valued at TZS 25,000,000."',
     commercialTermsBreakdown: 'Aggregators and rural agents receive a TZS 750,000 sourcing reward once quality inspection passes and the off-take agreement is finalized and verified through LUMO.',
     detailedDealFlow: 'A grain processing plant publishes a requirement for raw commodities with a minimum contract value of TZS 25M. An agricultural broker connects rural farmer cooperatives to fulfill the batch. When the delivery arrives, quality inspection passes, and the off-take invoice is cleared, LUMO calculates platform fees and issues the TZS 750,000 partner payout.',
-    icon: '🌾',
+    icon: 'Farming, Agriculture & Food',
   },
   'Market Finder & Trade Insights': {
     category: 'Market Finder & Trade Insights',
@@ -295,7 +351,7 @@ export const CATEGORY_REWARD_CONFIG: Record<string, CategoryRewardConfig> = {
     practicalDealExample: 'An export firm seeks wholesale cashew buyers across East Africa for a TZS 50M consignment.',
     commercialTermsBreakdown: 'A partner earns TZS 50,000 for each verified import/export trade match that submits formal purchase intent with verified procurement capacity.',
     detailedDealFlow: 'An export firm seeks bulk buyers across East Africa for Tanzanian raw cashews. A trade partner earns TZS 50,000 for each pre-screened international buyer submitting formal procurement intent. Payout is released upon direct capacity verification in LUMO.',
-    icon: '📊',
+    icon: 'Market Finder & Trade Insights',
   },
   'Advertising, Media & Marketing': {
     category: 'Advertising, Media & Marketing',
@@ -313,7 +369,7 @@ export const CATEGORY_REWARD_CONFIG: Record<string, CategoryRewardConfig> = {
     practicalDealExample: 'A retail brand launches an awareness campaign recruiting 20 creators to produce video content.',
     commercialTermsBreakdown: 'Guaranteed base fee of TZS 400,000 upon content approval + 5% commission on attributable sales + TZS 1M bonus at 50 sales.',
     detailedDealFlow: 'A retail brand recruits 20 creators to produce video campaigns. Creators earn a guaranteed base fee of TZS 400,000 upon content approval, plus a 5% commission on all attributable sales generated through their tracking link, with a TZS 1,000,000 performance bonus unlocked after 50 verified sales.',
-    icon: '🎬',
+    icon: 'Advertising, Media & Marketing',
   },
   'IT & Software Services': {
     category: 'IT & Software Services',
@@ -331,7 +387,7 @@ export const CATEGORY_REWARD_CONFIG: Record<string, CategoryRewardConfig> = {
     practicalDealExample: 'A B2B SaaS platform acquires local retail shops for inventory management software.',
     commercialTermsBreakdown: 'TZS 20,000 awarded for every business attending an onboarding demo + TZS 200,000 milestone bonus upon paid subscription conversion.',
     detailedDealFlow: 'A B2B SaaS platform acquires retail shops for cloud inventory software. TZS 20,000 is awarded for every business that attends an onboarding demo, with a bonus milestone of TZS 200,000 when that referred shop converts to a paid annual subscription.',
-    icon: '🎯',
+    icon: 'IT & Software Services',
   },
   'Gaming, Toys & Entertainment': {
     category: 'Gaming, Toys & Entertainment',
@@ -349,7 +405,7 @@ export const CATEGORY_REWARD_CONFIG: Record<string, CategoryRewardConfig> = {
     practicalDealExample: 'An esports tournament organizer seeks streamers to review hardware and drive event registrations.',
     commercialTermsBreakdown: 'Streamer receives flat TZS 250,000 fee for live stream and earns 10% on digital tickets and merch orders tracked via creator code.',
     detailedDealFlow: 'A gaming studio seeks streamers to review hardware and drive event registrations. The streamer receives a flat TZS 250,000 fee for a dedicated live stream and earns a recurring 10% cut on all digital tickets or merch orders tracked through their unique creator promo code.',
-    icon: '🎮',
+    icon: 'Gaming, Toys & Entertainment',
   },
   'Apparel & Fashion': {
     category: 'Apparel & Fashion',
@@ -367,7 +423,7 @@ export const CATEGORY_REWARD_CONFIG: Record<string, CategoryRewardConfig> = {
     practicalDealExample: 'A boutique clothing brand builds an ongoing brand ambassador network.',
     commercialTermsBreakdown: 'Partners curate digital storefronts and receive 7% commission on checkout totals with 30-day attribution, escalating to 10% on high volume.',
     detailedDealFlow: 'A boutique clothing brand builds an ambassador network. Partners curate digital storefronts and receive 7% commission on checkout totals with a 30-day attribution window, escalating to 10% once monthly gross sales surpass TZS 5,000,000.',
-    icon: '👗',
+    icon: 'Apparel & Fashion',
   },
   'Industrial Machinery & Tools': {
     category: 'Industrial Machinery & Tools',
@@ -385,7 +441,7 @@ export const CATEGORY_REWARD_CONFIG: Record<string, CategoryRewardConfig> = {
     practicalDealExample: 'A heavy equipment vendor promotes commercial generators, backhoes, and packaging machinery.',
     commercialTermsBreakdown: 'Sales partners refer commercial contractors; upon invoice settlement and delivery acceptance, the TZS 1,500,000 bounty is released.',
     detailedDealFlow: 'A heavy equipment vendor promotes commercial generators and backhoes. Sales partners refer commercial contractors; upon verification of invoice payment and signed delivery acceptance, the TZS 1,500,000 reward transitions from pending to payable.',
-    icon: '⚙️',
+    icon: 'Industrial Machinery & Tools',
   },
   'General & Professional Services': {
     category: 'General & Professional Services',
@@ -403,7 +459,7 @@ export const CATEGORY_REWARD_CONFIG: Record<string, CategoryRewardConfig> = {
     practicalDealExample: 'A legal or corporate consulting firm looks for corporate retainers.',
     commercialTermsBreakdown: 'Business consultant introduces a corporate client; when the client signs an annual retainer, a one-off TZS 300,000 fee is awarded.',
     detailedDealFlow: 'A corporate consulting firm looks for corporate retainers. A business consultant introduces a client; when the client signs an annual retainer, the partner is awarded a one-off TZS 300,000 introduction fee or an agreed recurring percentage.',
-    icon: '⚖️',
+    icon: 'General & Professional Services',
   },
   'Health & Personal Care': {
     category: 'Health & Personal Care',
@@ -421,7 +477,7 @@ export const CATEGORY_REWARD_CONFIG: Record<string, CategoryRewardConfig> = {
     practicalDealExample: 'A skincare and wellness brand promotes an organic cosmetics line across social channels.',
     commercialTermsBreakdown: 'Beauty creators earn TZS 150,000 per approved product review video and 8% commission on tracked conversions.',
     detailedDealFlow: 'A skincare and wellness brand promotes an organic cosmetics line. Beauty creators earn TZS 150,000 per approved product review video and a continuous 8% commission on tracked conversions, subject to return and cancellation verification.',
-    icon: '🌿',
+    icon: 'Health & Personal Care',
   },
   'Home & Garden': {
     category: 'Home & Garden',
@@ -439,7 +495,7 @@ export const CATEGORY_REWARD_CONFIG: Record<string, CategoryRewardConfig> = {
     practicalDealExample: 'A home decor and furniture retailer drives bulk interior package sales.',
     commercialTermsBreakdown: 'Interior designers and affiliates earn 6% on every verified order, with an automated TZS 300,000 cash bonus triggered at 25 orders.',
     detailedDealFlow: 'A furniture retailer drives bulk interior package sales. Interior designers and affiliates earn 6% on every verified order, with an automated TZS 300,000 cash bonus triggered when their attributed monthly sales hit 25 orders.',
-    icon: '🏡',
+    icon: 'Home & Garden',
   },
 }
 
@@ -453,7 +509,7 @@ export function CreateOpportunityWizardModal({
   const [currentStep, setCurrentStep] = useState<number>(1)
   const [previewDevice, setPreviewDevice] = useState<'DESKTOP' | 'MOBILE'>('DESKTOP')
   const [previewMediaMode, setPreviewMediaMode] = useState<'IMAGE' | 'VIDEO'>('IMAGE')
-  const [mediaUploadTab, setMediaUploadTab] = useState<'UPLOAD' | 'PRESET' | 'URL'>('PRESET')
+  const [mediaUploadTab, setMediaUploadTab] = useState<'UPLOAD' | 'URL'>('UPLOAD')
 
   // Region dropdown state
   const [isRegionDropdownOpen, setIsRegionDropdownOpen] = useState(false)
@@ -489,56 +545,56 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
     summaryPlaceholder: '1-2 sentences stating the media deliverable, base creation fee, and performance bonus structure.',
     badge: 'Creator / Influencer Push',
     description: 'Recruit content creators across TikTok, Instagram, YouTube Shorts, and WhatsApp to publish sponsored media.',
-    icon: '🎬',
+    icon: 'ADVERTISING_CAMPAIGN',
   },
   COMMERCIAL_DEAL: {
     titlePlaceholder: 'e.g., Sell 50 Commercial Laptop Units — Dar es Salaam Push',
     summaryPlaceholder: 'Direct sales incentive offering 5% base commission per unit plus tiered volume bonuses up to TZS 4M.',
     badge: 'Direct Inventory Sales',
     description: 'Allocate physical inventory units with dedicated unit margins and tiered volume bonuses.',
-    icon: '📦',
+    icon: 'COMMERCIAL_DEAL',
   },
   LEAD_GENERATION: {
     titlePlaceholder: 'e.g., SME Inventory & Accounting Software Demo Leads',
     summaryPlaceholder: 'Earn TZS 20,000 per verified, attended software demo and an upgraded bonus of TZS 200,000 on closed contracts.',
     badge: 'B2B & SME Client Acquisition',
     description: 'Pay partners for pre-qualified decision-maker meetings, verified software demos, and SME registrations.',
-    icon: '🎯',
+    icon: 'LEAD_GENERATION',
   },
   B2B_INTRODUCTION: {
     titlePlaceholder: 'e.g., Regional Solar Microgrid Distributor Wanted — Mwanza',
     summaryPlaceholder: 'TZS 3,000,000 bounty awarded upon verified signing and initial procurement order with a licensed distributor.',
     badge: 'Distributor / Corporate Bounty',
     description: 'Bounty awarded to trade consultants and brokers for facilitating signed corporate off-take or distribution agreements.',
-    icon: '🤝',
+    icon: 'B2B_INTRODUCTION',
   },
   PRODUCT_OPPORTUNITY: {
     titlePlaceholder: 'e.g., Toyota Land Cruiser V8 / Prime Beachfront Plot',
     summaryPlaceholder: 'High-ticket listing enabled for "Buy Now" or "Find Buyer & Earn TZS 2,000,000" closing bounty.',
     badge: 'High-Ticket "Find Buyer & Earn"',
     description: 'High-value asset listing featuring dual customer paths: "Buy Now" or "Find Buyer & Earn Closing Bounty".',
-    icon: '💎',
+    icon: 'PRODUCT_OPPORTUNITY',
   },
   REVERSE_OPPORTUNITY: {
     titlePlaceholder: 'e.g., Sourcing Requirement: 50,000 Solar Panels for Commercial Farm',
     summaryPlaceholder: 'Looking for trade agents to source certified tier-1 manufacturers. USD 5,000 bounty paid on verified contract execution.',
     badge: 'Procurement / "Find This For Us"',
     description: 'Post specific corporate sourcing tenders and import budgets with fixed finder bounties.',
-    icon: '🚢',
+    icon: 'REVERSE_OPPORTUNITY',
   },
   CUSTOMER_ACQUISITION: {
     titlePlaceholder: 'e.g., Retail Merchant Mobile App Registration & First Deposit',
     summaryPlaceholder: 'Earn TZS 15,000 per verified user registration with an additional TZS 500,000 milestone bonus every 100 users.',
     badge: 'CPA App / User Onboarding',
     description: 'Pay-per-verified user registration or mobile app activation with deposit or KYC thresholds.',
-    icon: '📱',
+    icon: 'CUSTOMER_ACQUISITION',
   },
   AFFILIATE_PROGRAMME: {
     titlePlaceholder: 'e.g., Official ABC Electronics Partner Programme',
     summaryPlaceholder: 'Ongoing affiliate program offering baseline 7% across our full catalog with monthly mobile money and bank settlements.',
     badge: 'Always-On Merchant Catalog',
     description: 'Continuous catalog referral program with multi-channel attribution and recurring monthly payouts.',
-    icon: '🔗',
+    icon: 'AFFILIATE_PROGRAMME',
   },
 }
 
@@ -550,57 +606,114 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
     // Step 1: Type
     type: 'COMMERCIAL_DEAL' as OpportunityType,
 
-    // Step 2: Basic Details & Media Assets
+    // Step 2 Universal Shared Fields (All Opportunity Types)
     title: '',
     publicSummary: '',
     subscriberDescription: '',
     category: initialCat,
+    subcategory: '',
     region: 'Dar es Salaam',
     selectedRegions: ['Dar es Salaam'] as string[],
-    subcategory: '',
-    startDate: '2026-09-01',
+    startDate: new Date().toISOString().split('T')[0],
     endDate: '2026-12-31',
-    partnersRequired: 50,
+    contactPersonName: 'Amina Salum',
+    contactPersonPhone: '+255 754 123 456',
+    contactPersonEmail: 'business@lumoconnect.com',
+    visibility: 'PUBLIC' as 'PUBLIC' | 'PRIVATE', // PUBLIC: Open access | PRIVATE: Approval required
     eligibility: 'Open to verified Sales Agents, Affiliates, and Community Leaders.',
 
-    // Step 2: Specialized Dynamic Model Fields
-    // 1. Advertising Campaign
+    // Step 2 Type-Specific Form Parameters
+    // 1. Commercial Deal
+    commercialProductName: '',
+    commercialSpecs: '',
+    commercialUnitPriceTZS: 1200000,
+    commercialQuantityAvailable: 50,
+    commercialDeliveryTerms: 'FOB Dar es Salaam Port / Nationwide Courier',
+    commercialWarrantyTerms: '12 Months Manufacturer Warranty',
+    warrantySpecDocName: 'Commercial_Spec_Sheet_v2026.pdf',
+
+    // 2. Advertising Campaign
+    campaignObjective: 'Brand Awareness & Direct Conversions',
+    targetAudience: 'Youth & Tech Enthusiasts (18-35 yrs)',
+    socialPlatforms: ['TikTok', 'Instagram'] as string[],
+    contentFormat: 'Short-Form Video (Reel/TikTok)',
+    postCountRequired: 2,
+    campaignStartDate: '2026-10-01',
+    campaignEndDate: '2026-11-30',
+    brandAssetsUrl: 'https://drive.google.com/brand-assets',
+    requiredKeyMessages: 'Mention 100% genuine warranty, same-day Dar delivery, and use promo code.',
+    prohibitedClaims: 'Do not claim unauthorized medical or financial guarantees.',
+    requiresContentApproval: true,
     targetDeliverableChannels: ['TikTok Video', 'Instagram Reel'] as string[],
     minCreatorFollowers: 10000,
     creatorTargetRegion: 'Tanzania / East Africa',
     creativeBriefText: '',
 
-    // 2. Commercial Deal
-    baselineUnitPriceTZS: 1200000,
-    inventoryAllocationUnits: 50,
-    warrantySpecDocName: 'Commercial_Spec_Sheet_v2026.pdf',
-
-    // 3. Lead Generation
-    leadQualificationCriteria: ['Verified Business Name', 'Active Phone / WhatsApp', 'Registered Taxpayer / SME'] as string[],
-    targetIndustryNiche: 'Retail & POS',
-
-    // 4. B2B Introduction
-    dealValuationBudgetTZS: 100000000,
-    partnerEligibilityRoles: ['Corporate Consultants', 'Trade Brokers', 'Business Networks'] as string[],
-
-    // 5. Product Opportunity (High-Ticket)
-    assetListingPriceTZS: 180000000,
-    inspectionLocation: 'Dar es Salaam, Masaki Showroom / Plot Coordinates',
-
-    // 6. Reverse Opportunity
-    totalSourcingBudget: 'USD 800,000',
-    deliveryTimelineDestination: 'Dar es Salaam Port — Within 60 Days',
-
-    // 7. Customer Acquisition
-    targetAcquisitionGoal: 1000,
-    verificationTriggerCondition: 'KYC Approved + Minimum Deposit TZS 10,000',
-
-    // 8. Affiliate Programme
+    // 3. Affiliate Programme
+    affiliatePromotedProducts: 'Full Store Catalog & Electronics Line',
+    affiliateProductPrices: 'TZS 50,000 - TZS 2,500,000',
+    affiliateApprovedChannels: ['Partner Storefronts', 'WhatsApp Links', 'Promo Codes'] as string[],
+    affiliatePromoMaterialsUrl: 'https://lumoconnect.com/assets/banner-pack',
+    affiliatePromoCodePrefix: 'LUMO-',
+    affiliateProgrammeDuration: 'Ongoing Annual Programme',
     affiliateAttributionWindow: '30 Days Cookie / First-Party Tracking',
     distributionChannels: ['Partner Storefronts', 'WhatsApp Links', 'Promo Codes'] as string[],
 
+    // 4. Customer Acquisition
+    targetCustomerProfile: 'Urban SMEs & Retail Shop Owners',
+    acquisitionEligibleLocations: ['Dar es Salaam', 'Arusha', 'Mwanza'] as string[],
+    acquisitionProductOffered: 'LUMO Merchant POS App',
+    acquisitionOnboardingSteps: '1. App Download -> 2. NIDA Verification -> 3. First Deposit TZS 10k',
+    acquisitionExclusions: 'Existing registered LUMO merchants or duplicate NIDA numbers.',
+    acquisitionPermittedChannels: ['Direct Field Sales', 'WhatsApp Referral', 'Social Media'],
+    targetAcquisitionGoal: 1000,
+    verificationTriggerCondition: 'KYC Approved + Minimum Deposit TZS 10,000',
+
+    // 5. Lead Generation
+    leadTargetCustomerProfile: 'Registered SME Decision Makers (CEOs, Owners)',
+    leadQualifyingQuestions: 'Do you operate a physical store? What is your monthly sales volume?',
+    leadRequiredFields: ['Full Name', 'Phone / WhatsApp', 'Business Name', 'Location'] as string[],
+    leadGeographicCoverage: 'Nationwide (Tanzania)',
+    leadConsentRequirements: 'Lead must explicitly consent to phone callback.',
+    leadExcludedCriteria: 'Incomplete contact details or inactive phone numbers.',
+    leadQualificationCriteria: ['Verified Business Name', 'Active Phone / WhatsApp', 'Registered Taxpayer / SME'] as string[],
+    targetIndustryNiche: 'Retail & POS',
+
+    // 6. B2B Introduction
+    b2bTargetIndustries: ['Renewable Energy', 'Agriculture', 'Construction'] as string[],
+    b2bCompanySize: '10-50 Employees / Annual Revenue > TZS 100M',
+    b2bTargetLocations: 'Dar es Salaam & Regional Capitals',
+    b2bDecisionMakerRoles: ['Managing Director', 'Procurement Head', 'Chief Operating Officer'] as string[],
+    b2bProposedPartnership: 'Distributor Contract / Bulk Off-Take Agreement',
+    b2bExcludedRelationships: 'Current active clients or open RFQs.',
+    dealValuationBudgetTZS: 100000000,
+    partnerEligibilityRoles: ['Corporate Consultants', 'Trade Brokers', 'Business Networks'] as string[],
+
+    // 7. Product Opportunity
+    productSampleName: 'Organic Skincare Trial Kit (50ml)',
+    productSampleQuantity: 100,
+    productParticipantEligibility: 'Verified Beauty & Wellness Creators in Tanzania',
+    productDeliveryArrangements: 'Free Courier Delivery to Partner Address',
+    productTestingInstructions: 'Test for 7 days and post unboxing & review video',
+    productFeedbackQuestions: 'Rate packaging quality, scent, texture, and customer reaction',
+    productSubmissionDeadline: '2026-11-15',
+    assetListingPriceTZS: 180000000,
+    inspectionLocation: 'Dar es Salaam, Masaki Showroom / Plot Coordinates',
+
+    // 8. Reverse Opportunity
+    reverseItemSought: '50,000 Tier-1 Solar Panels (550W Monocrystalline)',
+    reverseSpecifications: 'IEC certified, minimum 21% efficiency, 25-year warranty',
+    reverseAcceptableCondition: 'Brand New (Factory Sealed)',
+    reverseQuantitySought: 50000,
+    reverseBudgetRange: 'USD 500,000 - USD 800,000',
+    reversePreferredLocation: 'Dar es Salaam Port',
+    reverseSourcingDeadline: '2026-11-30',
+    reverseSupportingReferences: 'https://lumoconnect.com/rfq/solar-50k-spec.pdf',
+    totalSourcingBudget: 'USD 800,000',
+    deliveryTimelineDestination: 'Dar es Salaam Port — Within 60 Days',
+
     // Media & Video
-    coverImageUrl: PRESET_COVER_IMAGES[0].url,
+    coverImageUrl: '',
     promoVideoUrl: '',
     galleryImageUrls: [] as string[],
     marketingAssets: [
@@ -609,6 +722,10 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
 
     // Step 3: Commercial Result
     commercialResult: 'COMPLETED_SALE' as CommercialResultType,
+    successConditionDefinition: 'Verified payment cleared & goods delivered to customer',
+    verificationEvidenceType: 'Tax Invoice / Electronic Delivery Note',
+    cancellationRefundRules: 'Standard 7-day refund window; reward reversed on canceled orders.',
+    verificationDeadlineDays: 14,
 
     // Step 4: Reward Structure & Customization
     rewardStructure: initialConf.modelId,
@@ -616,27 +733,29 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
     baselineCurrency: initialConf.baselineCurrency,
     rewardValueTZS: initialConf.defaultRewardValueTZS,
     rewardPercent: initialConf.defaultRewardPercent,
+    maxCapQuantity: 50,
+    totalBudgetCapTZS: 25000000,
     customRewardDisplay: '',
     customRewardDetail: initialConf.triggerPreset,
     customFormulaDescription: initialConf.detailedDealFlow,
 
-    // Step 5: Tracking Method
+    // Step 5: Tracking Method & Execution Settings
     trackingMethod: 'QR_CODE' as TrackingMethod,
 
-    // Step 6: Funding & Payment
+    // Funding & Payment
     estimatedBudgetTZS: 25000000,
     maxCommittedAmountTZS: 25000000,
     payoutSchedule: 'WEEKLY_FRIDAY',
     refundReversalConditions: '7-day customer cooling off period applies before payout settlement.',
 
-    // Step 7: Terms & Evidence
+    // Terms & Evidence
     partnerDeliverables: 'Verified installation with customer National ID (NIDA) copy and first STK installment payment.',
     evidenceRequired: 'Installation contract reference and technician activation code.',
     attributionWindowDays: 30,
     cancellationTerms: 'Standard LUMO Deal Room commercial terms apply.',
     disputeProcedure: 'Platform mediation through LUMO disputes resolution board within 14 days.',
 
-    // Step 8: Declarations
+    // Declarations
     confirmAccurate: false,
     confirmFundingReady: false,
     confirmNoSilentChanges: false,
@@ -956,27 +1075,37 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
                   { id: 'PRODUCT_OPPORTUNITY', title: 'Product Opportunity', desc: 'Physical product sample distribution and feedback.' },
                   { id: 'REVERSE_OPPORTUNITY', title: 'Reverse Opportunity', desc: 'Bounty posted to source a specific requested asset.' },
                 ].map((t) => {
-                  const meta = OPPORTUNITY_MODEL_DEFAULTS[t.id as OpportunityType]
+                  const isSelected = formData.type === t.id
                   return (
                     <button
                       key={t.id}
+                      type="button"
                       onClick={() =>
                         setFormData((prev) => ({
                           ...prev,
                           type: t.id as OpportunityType,
                         }))
                       }
-                      className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
-                        formData.type === t.id
-                          ? 'border-[#FF6A00] ring-2 ring-orange-500/20 bg-orange-50/30 dark:bg-slate-800'
-                          : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                      className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex items-start gap-3 ${
+                        isSelected
+                          ? 'border-[#FF6A00] ring-2 ring-orange-500/20 bg-orange-50/40 dark:bg-slate-800'
+                          : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 bg-white dark:bg-slate-900/80'
                       }`}
                     >
-                      <div className="flex items-center gap-2">
-                        <span className="text-base">{meta?.icon || '💼'}</span>
-                        <div className="font-extrabold text-xs text-slate-900 dark:text-white">{t.title}</div>
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                        isSelected
+                          ? 'bg-[#FF6A00] text-white shadow-xs'
+                          : 'bg-orange-100/80 text-[#FF6A00] dark:bg-slate-800 dark:text-orange-400'
+                      }`}>
+                        <OpportunityTypeIcon type={t.id as OpportunityType} className="w-5 h-5" />
                       </div>
-                      <div className="text-[11px] text-slate-500 mt-1">{t.desc}</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-extrabold text-xs text-slate-900 dark:text-white flex items-center justify-between">
+                          <span>{t.title}</span>
+                          {isSelected && <CheckCircle2 className="w-4 h-4 text-[#FF6A00]" />}
+                        </div>
+                        <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">{t.desc}</div>
+                      </div>
                     </button>
                   )
                 })}
@@ -1003,8 +1132,10 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
                 {/* DYNAMIC MODEL-SPECIFIC REQUIREMENTS (ADAPTIVE STEP 2) */}
                 <div className="p-4 sm:p-5 rounded-3xl bg-linear-to-br from-orange-50/70 via-white to-purple-50/40 dark:from-slate-800/90 dark:via-slate-900 dark:to-slate-800/90 border border-orange-200/80 dark:border-slate-700 shadow-xs space-y-3.5">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-orange-100 dark:border-slate-800">
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">{activeModelMeta.icon}</span>
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-orange-500 text-white flex items-center justify-center shrink-0">
+                        <OpportunityTypeIcon type={formData.type} className="w-4 h-4" />
+                      </div>
                       <div>
                         <span className="text-xs font-black text-slate-900 dark:text-white block">
                           {activeModelMeta.badge} Specific Requirements
@@ -1110,8 +1241,8 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
                           <div className="relative">
                             <input
                               type="number"
-                              value={formData.baselineUnitPriceTZS}
-                              onChange={(e) => setFormData({ ...formData, baselineUnitPriceTZS: Number(e.target.value) })}
+                              value={formData.commercialUnitPriceTZS}
+                              onChange={(e) => setFormData({ ...formData, commercialUnitPriceTZS: Number(e.target.value) })}
                               placeholder="1200000"
                               className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-mono font-black text-[#FF6A00] text-xs"
                             />
@@ -1126,8 +1257,8 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
                           <div className="relative">
                             <input
                               type="number"
-                              value={formData.inventoryAllocationUnits}
-                              onChange={(e) => setFormData({ ...formData, inventoryAllocationUnits: Number(e.target.value) })}
+                              value={formData.commercialQuantityAvailable}
+                              onChange={(e) => setFormData({ ...formData, commercialQuantityAvailable: Number(e.target.value) })}
                               placeholder="50"
                               className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-mono font-bold text-xs"
                             />
@@ -1142,7 +1273,7 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
                           <span>Total Projected Deal Pipeline (GMV):</span>
                         </span>
                         <span className="font-mono font-black text-sm text-emerald-700 dark:text-emerald-300">
-                          TZS {(formData.baselineUnitPriceTZS * formData.inventoryAllocationUnits).toLocaleString()}
+                          TZS {(formData.commercialUnitPriceTZS * formData.commercialQuantityAvailable).toLocaleString()}
                         </span>
                       </div>
 
@@ -1472,13 +1603,6 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
                   <div className="flex gap-1 bg-white dark:bg-slate-900 p-1 rounded-xl border text-[11px] font-bold">
                     <button
                       type="button"
-                      onClick={() => setMediaUploadTab('PRESET')}
-                      className={`px-2.5 py-1 rounded-lg ${mediaUploadTab === 'PRESET' ? 'bg-[#FF6A00] text-white' : 'text-slate-500'}`}
-                    >
-                      Presets
-                    </button>
-                    <button
-                      type="button"
                       onClick={() => setMediaUploadTab('UPLOAD')}
                       className={`px-2.5 py-1 rounded-lg ${mediaUploadTab === 'UPLOAD' ? 'bg-[#FF6A00] text-white' : 'text-slate-500'}`}
                     >
@@ -1493,35 +1617,6 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
                     </button>
                   </div>
                 </div>
-
-                {/* Cover Image Controls */}
-                {mediaUploadTab === 'PRESET' && (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
-                    {PRESET_COVER_IMAGES.map((img) => (
-                      <div
-                        key={img.label}
-                        onClick={() => setFormData({ ...formData, coverImageUrl: img.url })}
-                        className={`relative rounded-2xl overflow-hidden border cursor-pointer group transition-all h-24 ${
-                          formData.coverImageUrl === img.url ? 'ring-2 ring-[#FF6A00] border-transparent' : 'border-slate-200'
-                        }`}
-                      >
-                        <img
-                          src={img.url}
-                          alt={img.label}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex items-end p-2">
-                          <span className="text-[10px] text-white font-bold leading-tight">{img.label}</span>
-                        </div>
-                        {formData.coverImageUrl === img.url && (
-                          <div className="absolute top-1.5 right-1.5 bg-[#FF6A00] text-white rounded-full p-0.5">
-                            <CheckCircle2 className="w-3 h-3" />
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
 
                 {mediaUploadTab === 'UPLOAD' && (
                   <div className="p-4 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl text-center space-y-2 bg-white dark:bg-slate-900">
@@ -1616,8 +1711,8 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
                   {formData.promoVideoUrl && (
                     <div className="flex items-center justify-between p-2.5 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-900/60 text-xs">
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-base shrink-0">
-                          {videoInfo.type === 'INSTAGRAM' ? '📸' : videoInfo.type === 'YOUTUBE' ? '▶️' : videoInfo.type === 'TIKTOK' ? '🎵' : videoInfo.type === 'VIMEO' ? '🎥' : '🎬'}
+                        <span className="shrink-0 p-1 bg-purple-100 dark:bg-purple-900/60 rounded-lg">
+                          {videoInfo.type === 'INSTAGRAM' ? <Camera className="w-4 h-4 text-pink-600 dark:text-pink-400" /> : videoInfo.type === 'YOUTUBE' ? <Play className="w-4 h-4 text-red-600 dark:text-red-400" /> : videoInfo.type === 'TIKTOK' ? <Music className="w-4 h-4 text-cyan-600 dark:text-cyan-400" /> : videoInfo.type === 'VIMEO' ? <Film className="w-4 h-4 text-blue-600 dark:text-blue-400" /> : <Video className="w-4 h-4 text-purple-600 dark:text-purple-400" />}
                         </span>
                         <div className="min-w-0">
                           <span className="font-bold text-purple-900 dark:text-purple-200 block">
@@ -1683,345 +1778,564 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
                 </div>
               </div>
 
-              <div>
-                <label className="font-bold block mb-1">Public Summary (Visible on LUMO Marketplace)</label>
-                <textarea
-                  rows={2}
-                  placeholder={activeModelMeta.summaryPlaceholder}
-                  value={formData.publicSummary}
-                  onChange={(e) => setFormData({ ...formData, publicSummary: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="font-bold block text-slate-900 dark:text-white mb-1">
-                  Industry Category
-                </label>
-                <select
-                  value={formData.category}
-                  onChange={(e) => {
-                    const nextCat = e.target.value
-                    const nextConf = CATEGORY_REWARD_CONFIG[nextCat]
-                    if (nextConf) {
-                      setFormData({
-                        ...formData,
-                        category: nextCat,
-                        subcategory: '',
-                        rewardStructure: nextConf.modelId,
-                        baselinePriceTZS: nextConf.defaultBaselinePriceTZS,
-                        baselineCurrency: nextConf.baselineCurrency,
-                        rewardValueTZS: nextConf.defaultRewardValueTZS,
-                        rewardPercent: nextConf.defaultRewardPercent,
-                        customRewardDisplay: '',
-                        customRewardDetail: nextConf.triggerPreset,
-                        customFormulaDescription: nextConf.detailedDealFlow,
-                      })
-                    } else {
-                      const group = TANZANIA_OPPORTUNITY_CATEGORIES.find((item) => item.value === nextCat)
-                      setFormData({ ...formData, category: nextCat, subcategory: group?.subcategories[0] || '' })
-                    }
-                  }}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-900 dark:text-white cursor-pointer"
-                >
-                  {TANZANIA_OPPORTUNITY_CATEGORIES.map((item) => (
-                    <option key={item.value} value={item.value}>{item.icon} {item.label}</option>
-                  ))}
-                  {INDUSTRY_CATEGORIES.map((cat) => (
-                    <option key={cat.name} value={cat.name}>
-                      {cat.name}
-                    </option>
-                  ))}
-                </select>
-                {(() => {
-                  const currentCat = INDUSTRY_CATEGORIES.find((c) => c.name === formData.category)
-                  if (!currentCat) return null
-                  return (
-                    <p className="text-[11px] text-slate-500 mt-1 leading-snug">
-                      <strong className="text-slate-700 dark:text-slate-300">Covers:</strong> {currentCat.desc}
-                    </p>
-                  )
-                })()}
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Universal Shared Fields: Summary, Overview, Contact Person & Visibility */}
+              <div className="space-y-3.5 pt-3 border-t border-slate-200 dark:border-slate-700">
                 <div>
-                  <label className="font-bold block mb-1">Specific Category</label>
-                  <select
-                    value={formData.subcategory}
-                    disabled={!TANZANIA_OPPORTUNITY_CATEGORIES.some((item) => item.value === formData.category)}
-                    onChange={(e) => setFormData({ ...formData, subcategory: e.target.value })}
-                    className="w-full p-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800"
-                  >
-                    <option value="">Select a specific category</option>
-                    {TANZANIA_OPPORTUNITY_CATEGORIES.find((item) => item.value === formData.category)?.subcategories.map((item) => (
-                      <option key={item} value={item}>{item}</option>
-                    ))}
-                  </select>
+                  <label className="font-bold block mb-1 text-slate-900 dark:text-white">Public Summary (Visible on LUMO Marketplace) <span className="text-red-500">*</span></label>
+                  <textarea
+                    rows={2}
+                    placeholder={activeModelMeta.summaryPlaceholder}
+                    value={formData.publicSummary}
+                    onChange={(e) => setFormData({ ...formData, publicSummary: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs"
+                  />
                 </div>
 
-              </div>
-
-              {/* Target Geographic Regions - Separate Regions Multi-Select Dropdown */}
-              <div className="relative" ref={regionDropdownRef}>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="font-bold block text-slate-900 dark:text-white">
-                    Target Geographic Regions
-                  </label>
-                  <span className="text-[11px] text-slate-500">
-                    {formData.selectedRegions.includes('All Regions (National - Tanzania)')
-                      ? 'National (All Regions)'
-                      : formData.selectedRegions.length > 0
-                      ? `${formData.selectedRegions.length} region${formData.selectedRegions.length > 1 ? 's' : ''} ticked`
-                      : 'None selected'}
-                  </span>
+                <div>
+                  <label className="font-bold block mb-1 text-slate-900 dark:text-white">Full Subscriber Description & Requirements</label>
+                  <textarea
+                    rows={3}
+                    placeholder="Provide detailed instructions, terms, and expectations for enrolled partners..."
+                    value={formData.subscriberDescription}
+                    onChange={(e) => setFormData({ ...formData, subscriberDescription: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs leading-relaxed"
+                  />
                 </div>
 
-                {/* Dropdown Trigger Box */}
-                <div
-                  onClick={() => setIsRegionDropdownOpen(!isRegionDropdownOpen)}
-                  className={`w-full p-2.5 rounded-xl border bg-white dark:bg-slate-800 transition-all cursor-pointer flex items-center justify-between gap-2 min-h-[42px] ${
-                    isRegionDropdownOpen
-                      ? 'border-[#FF6A00] ring-2 ring-orange-500/20'
-                      : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
-                  }`}
-                >
-                  <div className="flex items-center gap-1.5 flex-1 flex-wrap min-w-0">
-                    <MapPin className="w-4 h-4 text-[#FF6A00] shrink-0" />
-                    {formData.selectedRegions.includes('All Regions (National - Tanzania)') ? (
-                      <span className="bg-orange-100 dark:bg-orange-950/60 text-[#FF6A00] font-bold text-xs px-2.5 py-0.5 rounded-lg border border-orange-200 dark:border-orange-900/60 flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3" />
-                        National (All Regions - Tanzania)
+                {/* CATEGORY & SUBCATEGORY SPECIFICATION SECTION */}
+                <div className="p-4 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-3.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Layers className="w-4 h-4 text-[#FF6A00]" />
+                      <div>
+                        <h4 className="font-extrabold text-xs text-slate-900 dark:text-white">
+                          Marketplace Category & Subcategory <span className="text-red-500">*</span>
+                        </h4>
+                        <p className="text-[11px] text-slate-500">
+                          Select the primary category and subcategory to display your offer cleanly under merchant filters.
+                        </p>
+                      </div>
+                    </div>
+                    {formData.category && (
+                      <span className="text-[11px] bg-orange-100 dark:bg-orange-950/80 text-[#FF6A00] font-black px-2.5 py-1 rounded-full uppercase tracking-wider self-start sm:self-auto">
+                        {formData.category === 'Business' ? 'Biashara' : formData.category} {formData.subcategory ? `· ${formData.subcategory}` : ''}
                       </span>
-                    ) : formData.selectedRegions.length > 0 ? (
-                      <>
-                        {formData.selectedRegions.slice(0, 3).map((reg) => (
-                          <span
-                            key={reg}
-                            className="bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-semibold px-2 py-0.5 rounded-md flex items-center gap-1"
-                          >
-                            <span>{reg}</span>
-                            <span
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                const withoutThis = formData.selectedRegions.filter((r) => r !== reg)
-                                setFormData({
-                                  ...formData,
-                                  selectedRegions: withoutThis,
-                                  region: withoutThis.join(', ') || 'All Tanzania',
-                                })
-                              }}
-                              className="hover:text-red-500 cursor-pointer ml-0.5 font-bold text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600 rounded px-0.5"
-                            >
-                              ×
+                    )}
+                  </div>
+
+                  {/* Category Selection Cards Grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {TANZANIA_OPPORTUNITY_CATEGORIES.map((catGroup) => {
+                      const isSelected = formData.category === catGroup.value || (catGroup.value === 'Business' && formData.category === 'Biashara')
+                      const IconComp = catGroup.value === 'Property' ? Building2 : catGroup.value === 'Vehicles' ? Car : catGroup.value === 'Products' ? Package : catGroup.value === 'Agriculture & Commodities' ? Sprout : catGroup.value === 'Business' ? Briefcase : Wrench
+                      return (
+                        <button
+                          key={catGroup.value}
+                          type="button"
+                          onClick={() => {
+                            const nextCat = catGroup.value
+                            const nextConf = CATEGORY_REWARD_CONFIG[nextCat]
+                            if (nextConf) {
+                              setFormData({
+                                ...formData,
+                                category: nextCat,
+                                subcategory: catGroup.subcategories[0] || '',
+                                rewardStructure: nextConf.modelId,
+                                baselinePriceTZS: nextConf.defaultBaselinePriceTZS,
+                                baselineCurrency: nextConf.baselineCurrency,
+                                rewardValueTZS: nextConf.defaultRewardValueTZS,
+                                rewardPercent: nextConf.defaultRewardPercent,
+                                customRewardDisplay: '',
+                                customRewardDetail: nextConf.triggerPreset,
+                                customFormulaDescription: nextConf.detailedDealFlow,
+                              })
+                            } else {
+                              setFormData({ ...formData, category: nextCat, subcategory: catGroup.subcategories[0] || '' })
+                            }
+                          }}
+                          className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
+                            isSelected
+                              ? 'bg-[#FF6A00] text-white border-[#FF6A00] shadow-sm'
+                              : 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:border-orange-300'
+                          }`}
+                        >
+                          <div className={`p-2 rounded-xl shrink-0 ${isSelected ? 'bg-white/20 text-white' : 'bg-orange-50 dark:bg-slate-800 text-[#FF6A00]'}`}>
+                            <IconComp className="w-4 h-4" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <span className="font-extrabold text-xs block truncate">
+                              {catGroup.value === 'Business' ? 'Biashara (Business)' : catGroup.label}
                             </span>
-                          </span>
-                        ))}
-                        {formData.selectedRegions.length > 3 && (
-                          <span className="text-[11px] font-extrabold text-[#FF6A00] bg-orange-50 dark:bg-orange-950/40 px-2 py-0.5 rounded-md">
-                            +{formData.selectedRegions.length - 3} more
-                          </span>
-                        )}
-                      </>
-                    ) : (
-                      <span className="text-slate-400 text-xs font-normal">
-                        Click to select and tick target regions...
-                      </span>
-                    )}
+                            <span className={`text-[10px] block truncate ${isSelected ? 'text-white/80' : 'text-slate-400'}`}>
+                              {catGroup.subcategories.length} Subcategories
+                            </span>
+                          </div>
+                          {isSelected && <CheckCircle2 className="w-4 h-4 shrink-0 text-white" />}
+                        </button>
+                      )
+                    })}
                   </div>
 
-                  <div className="flex items-center gap-1.5 shrink-0 text-slate-400">
-                    {formData.selectedRegions.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setFormData({ ...formData, selectedRegions: [], region: '' })
-                        }}
-                        className="p-1 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md"
-                        title="Clear all"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                    <ChevronDown
-                      className={`w-4 h-4 transition-transform duration-200 ${
-                        isRegionDropdownOpen ? 'rotate-180 text-[#FF6A00]' : ''
-                      }`}
+                  {/* Subcategory Pills Selection */}
+                  {(() => {
+                    const selectedGroup = TANZANIA_OPPORTUNITY_CATEGORIES.find(
+                      (g) => g.value === formData.category || (g.value === 'Business' && formData.category === 'Biashara')
+                    )
+                    if (!selectedGroup) return null
+
+                    return (
+                      <div className="pt-2 border-t border-slate-200 dark:border-slate-700 space-y-1.5">
+                        <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block">
+                          Select Specific Subcategory for <strong className="text-[#FF6A00]">{selectedGroup.value === 'Business' ? 'Biashara' : selectedGroup.label}</strong>:
+                        </label>
+                        <div className="flex flex-wrap gap-1.5">
+                          {selectedGroup.subcategories.map((sub) => {
+                            const isSubActive = formData.subcategory === sub
+                            return (
+                              <button
+                                key={sub}
+                                type="button"
+                                onClick={() => setFormData({ ...formData, subcategory: sub })}
+                                className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
+                                  isSubActive
+                                    ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs'
+                                    : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-slate-400'
+                                }`}
+                              >
+                                {sub}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )
+                  })()}
+                </div>
+
+                <div>
+                  <label className="font-bold block text-slate-900 dark:text-white mb-1">Opportunity Closing Date <span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <input
+                      type="date"
+                      value={formData.endDate}
+                      onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                      className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-bold text-xs text-slate-900 dark:text-white"
                     />
+                    <Calendar className="w-4 h-4 text-slate-400 absolute right-3 top-3 pointer-events-none" />
                   </div>
                 </div>
 
-                {/* Dropdown Popover Menu */}
-                {isRegionDropdownOpen && (
-                  <div className="absolute z-40 top-full left-0 right-0 mt-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl p-3 space-y-2 animate-in fade-in zoom-in-95 duration-150">
-                    {/* Search Field */}
-                    <div className="relative">
-                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                {/* Contact Person Details */}
+                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2.5">
+                  <div className="flex items-center gap-2 text-xs font-black text-slate-900 dark:text-white">
+                    <UserCheck className="w-4 h-4 text-[#FF6A00]" />
+                    <span>Contact Person & Business Representative</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                    <div>
+                      <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">Contact Name</label>
                       <input
                         type="text"
-                        value={regionSearchQuery}
-                        onChange={(e) => setRegionSearchQuery(e.target.value)}
-                        placeholder="Search separate regions (e.g. Dar es Salaam, Arusha, Mwanza, Dodoma)..."
-                        className="w-full pl-8 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white"
-                        autoFocus
-                        onClick={(e) => e.stopPropagation()}
+                        value={formData.contactPersonName}
+                        onChange={(e) => setFormData({ ...formData, contactPersonName: e.target.value })}
+                        placeholder="Amina Salum"
+                        className="w-full p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium"
                       />
                     </div>
+                    <div>
+                      <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">Direct Phone / WhatsApp</label>
+                      <input
+                        type="text"
+                        value={formData.contactPersonPhone}
+                        onChange={(e) => setFormData({ ...formData, contactPersonPhone: e.target.value })}
+                        placeholder="+255 754 123 456"
+                        className="w-full p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium"
+                      />
+                    </div>
+                    <div>
+                      <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">Official Email</label>
+                      <input
+                        type="email"
+                        value={formData.contactPersonEmail}
+                        onChange={(e) => setFormData({ ...formData, contactPersonEmail: e.target.value })}
+                        placeholder="business@company.co.tz"
+                        className="w-full p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium"
+                      />
+                    </div>
+                  </div>
+                </div>
 
-                    {/* Quick Select All / Clear Row */}
-                    <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800 text-[11px]">
-                      <span className="text-slate-400">
-                        {TANZANIA_SEPARATE_REGIONS.filter((r) =>
-                          r.toLowerCase().includes(regionSearchQuery.toLowerCase())
-                        ).length} regions available
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setFormData({
-                              ...formData,
-                              selectedRegions: [...TANZANIA_SEPARATE_REGIONS],
-                              region: 'National (All Regions)',
-                            })
-                          }}
-                          className="font-bold text-[#FF6A00] hover:underline cursor-pointer"
-                        >
-                          Select All
-                        </button>
-                        <span className="text-slate-300 dark:text-slate-700">|</span>
+                {/* Marketplace Access & Visibility Settings */}
+                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2">
+                  <label className="font-bold block text-xs text-slate-900 dark:text-white">Marketplace Visibility & Partner Access Control</label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, visibility: 'PUBLIC' })}
+                      className={`p-2.5 rounded-xl border text-left flex items-start gap-2.5 transition-all cursor-pointer ${
+                        formData.visibility === 'PUBLIC'
+                          ? 'bg-[#FF6A00] text-white border-[#FF6A00] shadow-xs'
+                          : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                      }`}
+                    >
+                      <Globe className="w-4 h-4 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="font-bold text-xs">Public Marketplace (Open Access)</div>
+                        <div className={`text-[10px] mt-0.5 ${formData.visibility === 'PUBLIC' ? 'text-white/80' : 'text-slate-500'}`}>
+                          All verified LUMO Partners can view and instantly enroll.
+                        </div>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, visibility: 'PRIVATE' })}
+                      className={`p-2.5 rounded-xl border text-left flex items-start gap-2.5 transition-all cursor-pointer ${
+                        formData.visibility === 'PRIVATE'
+                          ? 'bg-[#FF6A00] text-white border-[#FF6A00] shadow-xs'
+                          : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                      }`}
+                    >
+                      <Lock className="w-4 h-4 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="font-bold text-xs">Private / Approval Required</div>
+                        <div className={`text-[10px] mt-0.5 ${formData.visibility === 'PRIVATE' ? 'text-white/80' : 'text-slate-500'}`}>
+                          Partners must request access; business manually approves each partner.
+                        </div>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Target Geographic Regions Dropdown */}
+                <div className="relative" ref={regionDropdownRef}>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="font-bold block text-slate-900 dark:text-white">
+                      Target Geographic Regions / Service Area <span className="text-red-500">*</span>
+                    </label>
+                    <span className="text-[11px] text-slate-500">
+                      {formData.selectedRegions.includes('All Regions (National - Tanzania)')
+                        ? 'National (All Regions)'
+                        : formData.selectedRegions.length > 0
+                        ? `${formData.selectedRegions.length} region${formData.selectedRegions.length > 1 ? 's' : ''} ticked`
+                        : 'None selected'}
+                    </span>
+                  </div>
+
+                  <div
+                    onClick={() => setIsRegionDropdownOpen(!isRegionDropdownOpen)}
+                    className={`w-full p-2.5 rounded-xl border bg-white dark:bg-slate-800 transition-all cursor-pointer flex items-center justify-between gap-2 min-h-[42px] ${
+                      isRegionDropdownOpen
+                        ? 'border-[#FF6A00] ring-2 ring-orange-500/20'
+                        : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 flex-1 flex-wrap min-w-0">
+                      <MapPin className="w-4 h-4 text-[#FF6A00] shrink-0" />
+                      {formData.selectedRegions.includes('All Regions (National - Tanzania)') ? (
+                        <span className="bg-orange-100 dark:bg-orange-950/60 text-[#FF6A00] font-bold text-xs px-2.5 py-0.5 rounded-lg border border-orange-200 dark:border-orange-900/60 flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" />
+                          National (All Regions - Tanzania)
+                        </span>
+                      ) : formData.selectedRegions.length > 0 ? (
+                        <>
+                          {formData.selectedRegions.slice(0, 3).map((reg) => (
+                            <span
+                              key={reg}
+                              className="bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-semibold px-2 py-0.5 rounded-md flex items-center gap-1"
+                            >
+                              <span>{reg}</span>
+                              <span
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  const withoutThis = formData.selectedRegions.filter((r) => r !== reg)
+                                  setFormData({
+                                    ...formData,
+                                    selectedRegions: withoutThis,
+                                    region: withoutThis.join(', ') || 'All Tanzania',
+                                  })
+                                }}
+                                className="hover:text-red-500 cursor-pointer ml-0.5 font-bold text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600 rounded px-0.5"
+                              >
+                                ×
+                              </span>
+                            </span>
+                          ))}
+                          {formData.selectedRegions.length > 3 && (
+                            <span className="text-[11px] font-extrabold text-[#FF6A00] bg-orange-50 dark:bg-orange-950/40 px-2 py-0.5 rounded-md">
+                              +{formData.selectedRegions.length - 3} more
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-slate-400 text-xs font-normal">
+                          Click to select and tick target regions...
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0 text-slate-400">
+                      {formData.selectedRegions.length > 0 && (
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation()
                             setFormData({ ...formData, selectedRegions: [], region: '' })
                           }}
-                          className="font-bold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 cursor-pointer"
+                          className="p-1 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md"
+                          title="Clear all"
                         >
-                          Clear
+                          <X className="w-3.5 h-3.5" />
                         </button>
-                      </div>
-                    </div>
-
-                    {/* Scrollable Checkbox List of Separate Regions */}
-                    <div className="max-h-56 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
-                      {TANZANIA_SEPARATE_REGIONS.filter((r) =>
-                        r.toLowerCase().includes(regionSearchQuery.toLowerCase())
-                      ).map((regionName) => {
-                        const isTicked =
-                          formData.selectedRegions.includes(regionName) ||
-                          (regionName !== 'All Regions (National - Tanzania)' &&
-                            formData.selectedRegions.includes('All Regions (National - Tanzania)'))
-
-                        return (
-                          <div
-                            key={regionName}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              let updated: string[] = []
-                              if (regionName === 'All Regions (National - Tanzania)') {
-                                if (formData.selectedRegions.includes('All Regions (National - Tanzania)')) {
-                                  updated = []
-                                } else {
-                                  updated = [...TANZANIA_SEPARATE_REGIONS]
-                                }
-                              } else {
-                                if (formData.selectedRegions.includes(regionName)) {
-                                  updated = formData.selectedRegions.filter(
-                                    (r) => r !== regionName && r !== 'All Regions (National - Tanzania)'
-                                  )
-                                } else {
-                                  const withoutNational = formData.selectedRegions.filter(
-                                    (r) => r !== 'All Regions (National - Tanzania)'
-                                  )
-                                  updated = [...withoutNational, regionName]
-                                  if (updated.length === TANZANIA_SEPARATE_REGIONS.length - 1) {
-                                    updated = [...TANZANIA_SEPARATE_REGIONS]
-                                  }
-                                }
-                              }
-
-                              const computedStr = updated.includes('All Regions (National - Tanzania)')
-                                ? 'National (All Regions)'
-                                : updated.length > 0
-                                ? updated.join(', ')
-                                : 'All Tanzania'
-
-                              setFormData({
-                                ...formData,
-                                selectedRegions: updated,
-                                region: computedStr,
-                              })
-                            }}
-                            className={`p-2 rounded-xl text-xs flex items-center justify-between cursor-pointer transition-colors ${
-                              isTicked
-                                ? 'bg-orange-50/60 dark:bg-orange-950/30 text-slate-900 dark:text-white font-bold'
-                                : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
-                            }`}
-                          >
-                            <div className="flex items-center gap-2.5">
-                              <div
-                                className={`w-4 h-4 rounded-md flex items-center justify-center border transition-colors ${
-                                  isTicked
-                                    ? 'bg-[#FF6A00] border-[#FF6A00] text-white'
-                                    : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800'
-                                }`}
-                              >
-                                {isTicked && <CheckCircle2 className="w-3.5 h-3.5" />}
-                              </div>
-                              <span>{regionName}</span>
-                            </div>
-
-                            {regionName === 'All Regions (National - Tanzania)' && (
-                              <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-500 font-normal px-2 py-0.5 rounded-md">
-                                Nationwide
-                              </span>
-                            )}
-                          </div>
-                        )
-                      })}
+                      )}
+                      <ChevronDown
+                        className={`w-4 h-4 transition-transform duration-200 ${
+                          isRegionDropdownOpen ? 'rotate-180 text-[#FF6A00]' : ''
+                        }`}
+                      />
                     </div>
                   </div>
-                )}
+
+                  {isRegionDropdownOpen && (
+                    <div className="absolute z-40 top-full left-0 right-0 mt-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl p-3 space-y-2 animate-in fade-in zoom-in-95 duration-150">
+                      <div className="relative">
+                        <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          value={regionSearchQuery}
+                          onChange={(e) => setRegionSearchQuery(e.target.value)}
+                          placeholder="Search separate regions (e.g. Dar es Salaam, Arusha, Mwanza, Dodoma)..."
+                          className="w-full pl-8 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white"
+                          autoFocus
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800 text-[11px]">
+                        <span className="text-slate-400">
+                          {TANZANIA_SEPARATE_REGIONS.filter((r) =>
+                            r.toLowerCase().includes(regionSearchQuery.toLowerCase())
+                          ).length} regions available
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setFormData({
+                                ...formData,
+                                selectedRegions: [...TANZANIA_SEPARATE_REGIONS],
+                                region: 'National (All Regions)',
+                              })
+                            }}
+                            className="font-bold text-[#FF6A00] hover:underline cursor-pointer"
+                          >
+                            Select All
+                          </button>
+                          <span className="text-slate-300 dark:text-slate-700">|</span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setFormData({ ...formData, selectedRegions: [], region: '' })
+                            }}
+                            className="font-bold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 cursor-pointer"
+                          >
+                            Clear
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="max-h-56 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+                        {TANZANIA_SEPARATE_REGIONS.filter((r) =>
+                          r.toLowerCase().includes(regionSearchQuery.toLowerCase())
+                        ).map((regionName) => {
+                          const isTicked =
+                            formData.selectedRegions.includes(regionName) ||
+                            (regionName !== 'All Regions (National - Tanzania)' &&
+                              formData.selectedRegions.includes('All Regions (National - Tanzania)'))
+
+                          return (
+                            <div
+                              key={regionName}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                let updated: string[] = []
+                                if (regionName === 'All Regions (National - Tanzania)') {
+                                  if (formData.selectedRegions.includes('All Regions (National - Tanzania)')) {
+                                    updated = []
+                                  } else {
+                                    updated = [...TANZANIA_SEPARATE_REGIONS]
+                                  }
+                                } else {
+                                  if (formData.selectedRegions.includes(regionName)) {
+                                    updated = formData.selectedRegions.filter(
+                                      (r) => r !== regionName && r !== 'All Regions (National - Tanzania)'
+                                    )
+                                  } else {
+                                    const withoutNational = formData.selectedRegions.filter(
+                                      (r) => r !== 'All Regions (National - Tanzania)'
+                                    )
+                                    updated = [...withoutNational, regionName]
+                                    if (updated.length === TANZANIA_SEPARATE_REGIONS.length - 1) {
+                                      updated = [...TANZANIA_SEPARATE_REGIONS]
+                                    }
+                                  }
+                                }
+
+                                const computedStr = updated.includes('All Regions (National - Tanzania)')
+                                  ? 'National (All Regions)'
+                                  : updated.length > 0
+                                  ? updated.join(', ')
+                                  : 'All Tanzania'
+
+                                setFormData({
+                                  ...formData,
+                                  selectedRegions: updated,
+                                  region: computedStr,
+                                })
+                              }}
+                              className={`p-2 rounded-xl text-xs flex items-center justify-between cursor-pointer transition-colors ${
+                                isTicked
+                                  ? 'bg-orange-50/60 dark:bg-orange-950/30 text-slate-900 dark:text-white font-bold'
+                                  : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2.5">
+                                <div
+                                  className={`w-4 h-4 rounded-md flex items-center justify-center border transition-colors ${
+                                    isTicked
+                                      ? 'bg-[#FF6A00] border-[#FF6A00] text-white'
+                                      : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800'
+                                  }`}
+                                >
+                                  {isTicked && <CheckCircle2 className="w-3.5 h-3.5" />}
+                                </div>
+                                <span>{regionName}</span>
+                              </div>
+
+                              {regionName === 'All Regions (National - Tanzania)' && (
+                                <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-500 font-normal px-2 py-0.5 rounded-md">
+                                  Nationwide
+                                </span>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )
         })()}
 
-          {/* STEP 3: COMMERCIAL RESULT */}
+          {/* STEP 3: COMMERCIAL RESULT & VERIFICATION EVIDENCE */}
           {currentStep === 3 && (
-            <div className="space-y-3">
-              <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">
-                Define the Qualifying Commercial Result
-              </h3>
-              <p className="text-slate-500 text-xs">
-                What verifiable action triggers a partner reward?
-              </p>
+            <div className="space-y-4">
+              <div>
+                <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">
+                  Define the Qualifying Commercial Result & Verification Evidence
+                </h3>
+                <p className="text-slate-500 text-xs mt-0.5">
+                  Select the verifiable business trigger that entitles a partner to payout, and specify mandatory proof requirements.
+                </p>
+              </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {[
-                  { id: 'COMPLETED_SALE', title: 'Completed Sale', desc: 'Customer pays for product or service.' },
-                  { id: 'QUALIFIED_LEAD', title: 'Qualified Lead', desc: 'Customer contact verified and phone screened.' },
-                  { id: 'BOOKING', title: 'Service Booking', desc: 'Appointment or booking deposit paid.' },
-                  { id: 'APPROVED_CONTENT', title: 'Approved Content', desc: 'Sponsored video or review approved by brand.' },
-                  { id: 'PRODUCT_DELIVERY', title: 'Product Delivery', desc: 'Shipment delivered to end customer.' },
-                  { id: 'SIGNED_DISTRIBUTOR_CONTRACT', title: 'Signed Contract', desc: 'Countersigned B2B dealer agreement.' },
+                  { id: 'COMPLETED_SALE', title: 'Completed Sale', desc: 'Customer pays for product or service in full.' },
+                  { id: 'QUALIFIED_LEAD', title: 'Qualified Lead', desc: 'Customer contact details verified & decision-maker screened.' },
+                  { id: 'BOOKING', title: 'Service Booking', desc: 'Appointment scheduled or initial booking deposit paid.' },
+                  { id: 'APPROVED_CONTENT', title: 'Approved Content', desc: 'Sponsored post or video published & approved by brand.' },
+                  { id: 'PRODUCT_DELIVERY', title: 'Product Delivery', desc: 'Physical goods delivered to end customer with signed note.' },
+                  { id: 'SIGNED_DISTRIBUTOR_CONTRACT', title: 'Signed B2B Contract', desc: 'Countersigned dealer, distribution, or procurement agreement.' },
                 ].map((res) => (
                   <button
                     key={res.id}
+                    type="button"
                     onClick={() => setFormData({ ...formData, commercialResult: res.id as CommercialResultType })}
-                    className={`p-3.5 rounded-2xl border text-left transition-all ${
+                    className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
                       formData.commercialResult === res.id
-                        ? 'border-[#FF6A00] ring-2 ring-orange-500/20 bg-orange-50/30 dark:bg-slate-800'
-                        : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                        ? 'border-[#FF6A00] ring-2 ring-orange-500/20 bg-orange-50/40 dark:bg-slate-800'
+                        : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 bg-white dark:bg-slate-900'
                     }`}
                   >
-                    <div className="font-extrabold text-xs text-slate-900 dark:text-white">{res.title}</div>
-                    <div className="text-[11px] text-slate-500 mt-1">{res.desc}</div>
+                    <div className="font-extrabold text-xs text-slate-900 dark:text-white flex items-center justify-between">
+                      <span>{res.title}</span>
+                      {formData.commercialResult === res.id && <CheckCircle2 className="w-4 h-4 text-[#FF6A00]" />}
+                    </div>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">{res.desc}</div>
                   </button>
                 ))}
+              </div>
+
+              {/* Mandatory Verification & Evidence Rules */}
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 space-y-3">
+                <div className="flex items-center gap-2 text-xs font-black text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-700 pb-2">
+                  <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                  <span>Mandatory Verification Evidence & Reward Rules</span>
+                </div>
+
+                <div className="space-y-3 text-xs">
+                  <div>
+                    <label className="font-bold block text-slate-800 dark:text-slate-200 mb-1">
+                      Success Condition Definition <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.successConditionDefinition}
+                      onChange={(e) => setFormData({ ...formData, successConditionDefinition: e.target.value })}
+                      placeholder="e.g. Verified payment cleared & goods delivered to customer"
+                      className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-bold"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="font-bold block text-slate-800 dark:text-slate-200 mb-1">
+                        Mandatory Proof / Evidence Required <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.verificationEvidenceType}
+                        onChange={(e) => setFormData({ ...formData, verificationEvidenceType: e.target.value })}
+                        placeholder="Tax Invoice / Electronic Delivery Note / Post Link"
+                        className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-bold text-xs"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="font-bold block text-slate-800 dark:text-slate-200 mb-1">
+                        Verification Window (Days to Review Submissions)
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          value={formData.verificationDeadlineDays}
+                          onChange={(e) => setFormData({ ...formData, verificationDeadlineDays: Number(e.target.value) })}
+                          placeholder="14"
+                          className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono font-bold text-xs"
+                        />
+                        <span className="absolute right-3 top-2.5 text-[10px] text-slate-400 font-bold">Days</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="font-bold block text-slate-800 dark:text-slate-200 mb-1">
+                      Cancellation & Customer Refund Terms
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={formData.cancellationRefundRules}
+                      onChange={(e) => setFormData({ ...formData, cancellationRefundRules: e.target.value })}
+                      placeholder="Detail conditions under which rewards are canceled or reversed (e.g. customer 7-day refund window)..."
+                      className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs leading-relaxed"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -2083,11 +2397,13 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
                 </div>
 
                 <div className="pt-2 border-t border-orange-200/60 dark:border-orange-900/40 text-[11px] space-y-1.5">
-                  <div className="text-slate-700 dark:text-slate-300">
-                    <strong className="text-[#FF6A00]">💡 Practical Deal Example:</strong> {currentCategoryConfig.practicalDealExample}
+                  <div className="text-slate-700 dark:text-slate-300 flex items-start gap-1.5">
+                    <Lightbulb className="w-3.5 h-3.5 text-[#FF6A00] shrink-0 mt-0.5" />
+                    <span><strong className="text-[#FF6A00]">Practical Deal Example:</strong> {currentCategoryConfig.practicalDealExample}</span>
                   </div>
-                  <div className="text-slate-600 dark:text-slate-400">
-                    <strong className="text-slate-700 dark:text-slate-300">📋 Detailed Deal Flow:</strong> {currentCategoryConfig.detailedDealFlow}
+                  <div className="text-slate-600 dark:text-slate-400 flex items-start gap-1.5">
+                    <ClipboardList className="w-3.5 h-3.5 text-slate-500 shrink-0 mt-0.5" />
+                    <span><strong className="text-slate-700 dark:text-slate-300">Detailed Deal Flow:</strong> {currentCategoryConfig.detailedDealFlow}</span>
                   </div>
                 </div>
               </div>
@@ -2161,7 +2477,6 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
                     {
                       key: 'B2B_SOURCING' as const,
                       archetype: 'B2B / Sourcing',
-                      icon: '🏢',
                       config:
                         currentCategoryConfig.archetype.startsWith('B2B') || currentCategoryConfig.archetype.startsWith('Custom Sourcing')
                           ? {
@@ -2182,7 +2497,6 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
                     {
                       key: 'CREATOR_AD' as const,
                       archetype: 'Creator Ad Deal',
-                      icon: '🎬',
                       config:
                         currentCategoryConfig.archetype.startsWith('Creator') || currentCategoryConfig.archetype.startsWith('Percentage')
                           ? {
@@ -2203,7 +2517,6 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
                     {
                       key: 'LEAD_GEN' as const,
                       archetype: 'Lead Generation',
-                      icon: '🎯',
                       config:
                         currentCategoryConfig.archetype.startsWith('Lead')
                           ? {
@@ -2224,7 +2537,6 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
                     {
                       key: 'HIGH_TICKET' as const,
                       archetype: 'High-Ticket Sales',
-                      icon: '💎',
                       config:
                         currentCategoryConfig.archetype.startsWith('High-Ticket')
                           ? {
@@ -2264,7 +2576,9 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex items-center gap-2">
-                            <span className="text-base">{arch.icon}</span>
+                            <span className="p-1.5 rounded-lg bg-orange-100 dark:bg-orange-950/60 text-[#FF6A00] shrink-0">
+                              {arch.key === 'B2B_SOURCING' ? <Building2 className="w-4 h-4" /> : arch.key === 'CREATOR_AD' ? <Film className="w-4 h-4" /> : arch.key === 'LEAD_GEN' ? <Target className="w-4 h-4" /> : <Gem className="w-4 h-4" />}
+                            </span>
                             <div>
                               <div className="font-extrabold text-xs text-slate-900 dark:text-white flex items-center gap-1.5">
                                 <span>{arch.archetype}</span>
@@ -2549,13 +2863,14 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
                     <button
                       type="button"
                       onClick={() => setPreviewMediaMode('IMAGE')}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                         previewMediaMode === 'IMAGE'
                           ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
                           : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
                       }`}
                     >
-                      🖼️ Cover Photo
+                      <ImageIcon className="w-3.5 h-3.5" />
+                      <span>Cover Photo</span>
                     </button>
                     <button
                       type="button"
@@ -2567,7 +2882,7 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
                       }`}
                     >
                       <Play className="w-3 h-3 fill-current" />
-                      <span>🎬 Play {videoInfo.type === 'INSTAGRAM' ? 'Instagram Reel' : videoInfo.type === 'YOUTUBE' ? 'YouTube' : 'Video'}</span>
+                      <span>Play {videoInfo.type === 'INSTAGRAM' ? 'Instagram Reel' : videoInfo.type === 'YOUTUBE' ? 'YouTube' : 'Video'}</span>
                     </button>
                   </div>
                 </div>
@@ -2582,27 +2897,12 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
                 {/* Active Video Player or Image Banner */}
                 {previewMediaMode === 'VIDEO' && formData.promoVideoUrl ? (
                   <div className="relative min-h-[340px] sm:min-h-[420px] w-full bg-slate-950 flex flex-col items-center justify-center border-b border-slate-800">
-                    {videoInfo.isIframe ? (
-                      <div className="w-full h-full flex flex-col items-center justify-center p-2 relative">
-                        <iframe
-                          src={videoInfo.embedUrl}
-                          title={formData.title || 'Opportunity Video Pitch'}
-                          className="w-full min-h-[320px] sm:min-h-[380px] rounded-2xl border-0 bg-white"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                          allowFullScreen
-                        />
-                      </div>
-                    ) : (
-                      <video
-                        controls
-                        autoPlay
-                        src={videoInfo.embedUrl}
-                        className="w-full h-72 sm:h-80 object-contain"
-                        poster={formData.coverImageUrl}
-                      >
-                        Your browser does not support HTML5 video streaming.
-                      </video>
-                    )}
+                    <DealMediaViewer
+                      mediaUrl={formData.promoVideoUrl}
+                      posterUrl={formData.coverImageUrl}
+                      altTitle={formData.title || 'Opportunity Video Pitch'}
+                      className="w-full min-h-[320px] sm:min-h-[380px] rounded-2xl border-0 object-contain"
+                    />
 
                     {/* Top Floating Control Bar */}
                     <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none z-10">
@@ -2722,7 +3022,7 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
                     {formData.type === 'COMMERCIAL_DEAL' && (
                       <div className="flex justify-between border-t border-slate-200 dark:border-slate-800 pt-1">
                         <span className="text-slate-400">Inventory Allocation:</span>
-                        <span className="font-bold">{formData.inventoryAllocationUnits} units @ TZS {formData.baselineUnitPriceTZS.toLocaleString()}</span>
+                        <span className="font-bold">{formData.commercialQuantityAvailable} units @ TZS {formData.commercialUnitPriceTZS.toLocaleString()}</span>
                       </div>
                     )}
                     {formData.type === 'LEAD_GENERATION' && (

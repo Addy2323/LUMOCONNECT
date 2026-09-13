@@ -23,7 +23,8 @@ import {
   FileText,
   ShieldCheck,
 } from 'lucide-react'
-import { listAdminDeals, createDealOpportunity, updateDealStatus } from '@/modules/deals/service'
+import { listAdminDeals, createDealOpportunity, updateDealStatus, getVideoEmbedInfo } from '@/modules/deals/service'
+import { DealMediaViewer } from '@/components/common/DealMediaViewer'
 import { AdminDealItem } from '../types'
 import { useAdminToast } from '../AdminToast'
 
@@ -37,7 +38,30 @@ export function DealsRegistryTab() {
   const [selectedDeal, setSelectedDeal] = useState<AdminDealItem | null>(null)
 
   const reloadDeals = () => {
-    setDeals(listAdminDeals() as AdminDealItem[])
+    fetch('/api/admin/deals')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.deals && data.deals.length > 0) {
+          setDeals(
+            data.deals.map((d: any) => ({
+              id: d.id,
+              title: d.title,
+              businessName: d.businessName,
+              category: d.category,
+              type: d.type,
+              rewardValueTZS: Number(d.rewardDisplay?.replace(/[^0-9]/g, '') || 50000),
+              budgetTZS: d.budgetTZS || 20000000,
+              spentTZS: Math.round((d.budgetTZS || 20000000) * 0.15),
+              activePartners: d.activePartnersCount || 0,
+              version: 1,
+              status: d.status,
+            }))
+          )
+        } else {
+          setDeals(listAdminDeals() as AdminDealItem[])
+        }
+      })
+      .catch(() => setDeals(listAdminDeals() as AdminDealItem[]))
   }
 
   useEffect(() => {
@@ -46,6 +70,7 @@ export function DealsRegistryTab() {
     window.addEventListener('lumo:deals-updated', handleUpdate)
     return () => window.removeEventListener('lumo:deals-updated', handleUpdate)
   }, [])
+
   const [newDealForm, setNewDealForm] = useState({
     title: '',
     businessName: 'Kijani Solar Tech Ltd',
@@ -64,10 +89,19 @@ export function DealsRegistryTab() {
     return matchesSearch && matchesStatus && matchesCategory
   })
 
-  const handleTogglePause = (id: string) => {
+  const handleTogglePause = async (id: string) => {
     const target = deals.find((d) => d.id === id)
     if (!target) return
     const nextStatus = target.status === 'PUBLISHED' ? 'PAUSED' : 'PUBLISHED'
+    
+    try {
+      await fetch('/api/admin/deals', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dealId: id, status: nextStatus }),
+      })
+    } catch (e) {}
+
     updateDealStatus(id, nextStatus as any)
     reloadDeals()
     showToast(
@@ -387,11 +421,11 @@ export function DealsRegistryTab() {
 
                   {selectedDeal.promoVideoUrl ? (
                     <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-black aspect-video relative">
-                      <video
-                        src={selectedDeal.promoVideoUrl}
-                        controls
+                      <DealMediaViewer
+                        mediaUrl={selectedDeal.promoVideoUrl}
+                        posterUrl={selectedDeal.featuredImageUrl}
+                        altTitle={selectedDeal.title}
                         className="w-full h-full object-contain"
-                        poster={selectedDeal.featuredImageUrl}
                       />
                     </div>
                   ) : (

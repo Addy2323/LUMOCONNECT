@@ -24,7 +24,7 @@ export function PasswordRecoveryModal({
   onSuccess,
 }: PasswordRecoveryModalProps) {
   const [step, setStep] = useState<1 | 2 | 3>(1)
-  const [identifier, setIdentifier] = useState('alex.mushi@lumo.co.tz')
+  const [identifier, setIdentifier] = useState('')
   const [otpCode, setOtpCode] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')

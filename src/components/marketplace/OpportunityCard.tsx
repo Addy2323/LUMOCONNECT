@@ -8,8 +8,12 @@ import {
   Check,
   Lock,
   Clock3,
+  Crown,
+  MessageSquare,
 } from 'lucide-react'
 import type { OpportunityItem } from '@/modules/deals/types'
+import { DealMediaViewer } from '@/components/common/DealMediaViewer'
+import { formatCategoryBadgeLabel } from '@/modules/deals/taxonomy'
 
 interface OpportunityCardProps {
   item: OpportunityItem
@@ -85,7 +89,14 @@ export function OpportunityCard({
     }`}>
       <div>
         <div className="relative mb-3.5 h-56 w-full overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800 sm:h-60">
-          {item.featuredImageUrl ? (
+          {item.promoVideoUrl ? (
+            <DealMediaViewer
+              mediaUrl={item.promoVideoUrl}
+              posterUrl={item.featuredImageUrl}
+              altTitle={item.title}
+              className="w-full h-full object-cover"
+            />
+          ) : item.featuredImageUrl ? (
             <img
               src={item.featuredImageUrl}
               alt={item.title}
@@ -98,8 +109,9 @@ export function OpportunityCard({
               }}
             />
           ) : (
-            <div className="w-full h-full bg-gradient-to-br from-slate-800 to-slate-950 flex items-center justify-center text-slate-500 font-bold text-xs">
-              LUMO Deal
+            <div className="w-full h-full bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 flex flex-col items-center justify-center text-slate-400 font-bold text-xs gap-1.5 p-4 text-center">
+              <span className="text-2xl font-black text-[#FF6A00] tracking-wider">LUMO</span>
+              <span className="text-[11px] font-semibold text-slate-300">{item.subcategory || item.category} Opportunity</span>
             </div>
           )}
 
@@ -111,7 +123,7 @@ export function OpportunityCard({
                   ? 'bg-amber-500 text-slate-950 border border-amber-300'
                   : 'bg-emerald-600/90 text-white'
               }`}>
-                <span>👑</span>
+                <Crown className="h-3 w-3 text-amber-500 shrink-0" />
                 <span>
                   {isWithin24hVipWindow
                     ? `VIP 24h Priority: ${hoursRemainingVip}h ${minsRemainingVip}m`
@@ -128,7 +140,7 @@ export function OpportunityCard({
                   item.category
                 )}`}
               >
-                {item.subcategory || item.category}
+                {formatCategoryBadgeLabel(item.category, item.subcategory)}
               </span>
             </div>
           )}
@@ -151,7 +163,7 @@ export function OpportunityCard({
           {item.qualityScore && (
             <div className="absolute bottom-2.5 right-2.5 z-10">
               <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-slate-900/80 text-emerald-400 backdrop-blur-md border border-slate-700/50 flex items-center gap-1">
-                <span>✓</span> {item.qualityScore}% Quality
+                <Check className="h-3 w-3 text-emerald-400 shrink-0" /> {item.qualityScore}% Quality
               </span>
             </div>
           )}
@@ -168,7 +180,7 @@ export function OpportunityCard({
         {/* VIP Exclusivity Notice for non-VIPs during 24h window */}
         {isVipLockedForUser && (
           <div className="mb-3 rounded-xl border border-amber-300 bg-amber-50/80 p-2 text-center text-[11px] font-bold text-amber-900 dark:border-amber-800/80 dark:bg-amber-950/40 dark:text-amber-300">
-            <span>🔒 Golden VIP Early Access window active. Opens to all partners in {hoursRemainingVip}h {minsRemainingVip}m.</span>
+            <span className="inline-flex items-center justify-center gap-1.5"><Lock className="h-3.5 w-3.5 text-amber-600 shrink-0" /> Golden VIP Early Access window active. Opens to all partners in {hoursRemainingVip}h {minsRemainingVip}m.</span>
           </div>
         )}
 
@@ -211,14 +223,14 @@ export function OpportunityCard({
       </div>
 
       <div className="border-t border-slate-100 pt-3 dark:border-slate-800 space-y-2">
-        {/* WhatsApp Escrow Direct Action */}
+        {/* WhatsApp Direct Action */}
         <button
           type="button"
           onClick={onConnectWhatsApp}
           className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#25D366]/15 hover:bg-[#25D366]/25 text-[#15803d] dark:text-[#25D366] border border-[#25D366]/30 py-2 px-3 text-center text-xs font-black transition-colors cursor-pointer"
         >
-          <span>💬</span>
-          <span>Connect via WhatsApp (Lumo Escrow)</span>
+          <MessageSquare className="h-3.5 w-3.5 text-[#25D366] shrink-0" />
+          <span>Connect via WhatsApp (Lumo Guarantee)</span>
         </button>
 
         <div className="grid grid-cols-2 gap-2">
@@ -228,17 +240,19 @@ export function OpportunityCard({
             className="flex w-full items-center justify-center gap-1 rounded-xl border border-[#E2E8F0] bg-white px-2 py-2.5 text-center text-[11px] sm:text-xs font-extrabold text-[#0F172A] shadow-2xs transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 cursor-pointer"
           >
             {isVipLockedForUser ? (
-              <>
+              <span key="vip-preview" className="inline-flex items-center justify-center gap-1 truncate">
                 <Lock className="w-3 h-3 text-amber-500 shrink-0" />
                 <span className="truncate">VIP Preview</span>
-              </>
+              </span>
             ) : !isSubscribed ? (
-              <>
+              <span key="full-deal" className="inline-flex items-center justify-center gap-1 truncate">
                 <Lock className="w-3 h-3 text-[#FF6A00] shrink-0" />
                 <span className="truncate">View Full Deal</span>
-              </>
+              </span>
             ) : (
-              <span className="truncate">View Details</span>
+              <span key="view-details" className="inline-flex items-center justify-center gap-1 truncate">
+                <span className="truncate">View Details</span>
+              </span>
             )}
           </button>
 
@@ -253,19 +267,23 @@ export function OpportunityCard({
             }`}
           >
             {isExpired ? (
-              <span className="truncate">Deal Expired</span>
+              <span key="expired" className="inline-flex items-center justify-center gap-1 truncate">
+                <span className="truncate">Deal Expired</span>
+              </span>
             ) : isVipLockedForUser ? (
-              <>
-                <span>👑</span>
+              <span key="unlock-vip" className="inline-flex items-center justify-center gap-1 truncate">
+                <Crown className="h-3.5 w-3.5 text-white/90 shrink-0" />
                 <span className="truncate">Unlock with VIP</span>
-              </>
+              </span>
             ) : isSubscribed ? (
-              <span className="truncate">Join Deal</span>
+              <span key="join-deal" className="inline-flex items-center justify-center gap-1 truncate">
+                <span className="truncate">Join Deal</span>
+              </span>
             ) : (
-              <>
+              <span key="sub-join" className="inline-flex items-center justify-center gap-1 truncate">
                 <Lock className="w-3 h-3 text-white/90 shrink-0" />
                 <span className="truncate">Subscribe to Join</span>
-              </>
+              </span>
             )}
           </button>
         </div>

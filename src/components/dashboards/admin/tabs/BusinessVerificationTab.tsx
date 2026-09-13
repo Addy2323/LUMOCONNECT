@@ -77,7 +77,11 @@ export function BusinessVerificationTab() {
       a.download = doc.name || 'verification_document.png'
       document.body.appendChild(a)
       a.click()
-      document.body.removeChild(a)
+      if (a.parentNode) {
+        try {
+          a.parentNode.removeChild(a)
+        } catch {}
+      }
       showToast('success', 'Document Downloaded', `Downloaded ${doc.name} successfully.`)
     } else {
       // Generate synthetic document for download if binary is text
@@ -90,7 +94,11 @@ export function BusinessVerificationTab() {
       a.download = `${doc.name || 'document'}.txt`
       document.body.appendChild(a)
       a.click()
-      document.body.removeChild(a)
+      if (a.parentNode) {
+        try {
+          a.parentNode.removeChild(a)
+        } catch {}
+      }
       URL.revokeObjectURL(url)
       showToast('success', 'Document Downloaded', `Downloaded ${doc.name}.`)
     }

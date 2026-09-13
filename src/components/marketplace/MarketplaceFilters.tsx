@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { Search, SlidersHorizontal, X, ChevronDown, ArrowUpDown } from 'lucide-react'
+import { Search, SlidersHorizontal, X, ChevronDown, ArrowUpDown, MapPin } from 'lucide-react'
 import { TANZANIA_OPPORTUNITY_CATEGORIES, TANZANIA_REGIONS } from '@/modules/deals/taxonomy'
 
 interface MarketplaceFiltersProps {
@@ -23,7 +23,7 @@ interface MarketplaceFiltersProps {
 export const CATEGORIES = [
   { value: 'ALL', label: 'All Categories' },
   ...TANZANIA_OPPORTUNITY_CATEGORIES.flatMap((group) => [
-    { value: group.value, label: `${group.icon} ${group.label}` },
+    { value: group.value, label: group.label },
     ...group.subcategories.map((subcategory) => ({ value: subcategory, label: `  ${subcategory}` })),
   ]),
   { value: 'Market Finder & Trade Insights', label: 'Market Finder & Trade Insights' },
@@ -337,5 +337,5 @@ export function MarketplaceFilters({
 }
 
 function MapPinLabel({ region }: { region: string }) {
-  return <span>📍 {region}</span>
+  return <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3 text-orange-500 shrink-0" /> {region}</span>
 }

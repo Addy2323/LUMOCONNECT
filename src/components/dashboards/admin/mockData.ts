@@ -41,7 +41,70 @@ export const MOCK_CONVERSIONS: ConversionRecord[] = []
 export const MOCK_SUBSCRIPTION_LEDGER: SubscriptionTransaction[] = []
 export const MOCK_SUBSCRIPTION_TXS = MOCK_SUBSCRIPTION_LEDGER
 
-export const MOCK_PAYMENTS: PaymentLedgerItem[] = []
+export const MOCK_PAYMENTS: PaymentLedgerItem[] = [
+  {
+    id: 'pay_vip_ann_01',
+    reference: 'LUMO-PAY-882190',
+    payerName: 'David Moshi (Moshi Trading)',
+    payerType: 'PARTNER',
+    channel: 'VODACOM_MPESA',
+    purpose: 'SUBSCRIPTION',
+    subscriptionType: 'GOLDEN_VIP_PRIVATE',
+    subscriptionTier: 'ANNUAL',
+    grossAmountTZS: 480000,
+    processingFeeTZS: 7200,
+    netAmountTZS: 472800,
+    status: 'SUCCESSFUL',
+    createdAt: new Date(Date.now() - 3600000 * 2).toISOString().slice(0, 19).replace('T', ' '),
+    verifiedAt: 'Gateway Callback Verified (Vodacom M-Pesa)',
+  },
+  {
+    id: 'pay_vip_mth_02',
+    reference: 'LUMO-PAY-771204',
+    payerName: 'Amina Kassim',
+    payerType: 'PARTNER',
+    channel: 'TIGO_PESA',
+    purpose: 'SUBSCRIPTION',
+    subscriptionType: 'GOLDEN_VIP_PRIVATE',
+    subscriptionTier: 'GOLDEN_VIP',
+    grossAmountTZS: 50000,
+    processingFeeTZS: 750,
+    netAmountTZS: 49250,
+    status: 'SUCCESSFUL',
+    createdAt: new Date(Date.now() - 3600000 * 6).toISOString().slice(0, 19).replace('T', ' '),
+    verifiedAt: 'Gateway Callback Verified (Tigo Pesa)',
+  },
+  {
+    id: 'pay_std_mth_03',
+    reference: 'LUMO-PAY-660192',
+    payerName: 'Baraka Joseph',
+    payerType: 'PARTNER',
+    channel: 'AIRTEL_MONEY',
+    purpose: 'SUBSCRIPTION',
+    subscriptionType: 'NORMAL',
+    subscriptionTier: 'STANDARD',
+    grossAmountTZS: 25000,
+    processingFeeTZS: 375,
+    netAmountTZS: 24625,
+    status: 'SUCCESSFUL',
+    createdAt: new Date(Date.now() - 3600000 * 14).toISOString().slice(0, 19).replace('T', ' '),
+    verifiedAt: 'Gateway Callback Verified (Airtel Money)',
+  },
+  {
+    id: 'pay_escrow_dep_04',
+    reference: 'LUMO-PAY-551098',
+    payerName: 'Kilimanjaro Solar & Power Ltd',
+    payerType: 'BUSINESS',
+    channel: 'CRDB_BANK',
+    purpose: 'DEAL_ESCROW_FUNDING',
+    grossAmountTZS: 4500000,
+    processingFeeTZS: 0,
+    netAmountTZS: 4500000,
+    status: 'SUCCESSFUL',
+    createdAt: new Date(Date.now() - 3600000 * 24).toISOString().slice(0, 19).replace('T', ' '),
+    verifiedAt: 'CRDB Corporate API Settlement Verified',
+  },
+]
 export const MOCK_PAYMENT_LEDGER = MOCK_PAYMENTS
 
 export const MOCK_REWARD_BATCHES: RewardPayoutBatch[] = []

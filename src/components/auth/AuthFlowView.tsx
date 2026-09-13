@@ -600,8 +600,8 @@ export function AuthFlowView({
       tinNumber: traTin || 'PENDING-TIN',
       industry: bizCategory || (selectedSkills && selectedSkills[0]) || 'General Commerce',
       contactPerson: authorizedRepName || 'Applicant Signatory',
-      email: initialEmail || 'business@lumo.co.tz',
-      phone: phone || initialPhone || '+255 700 000 000',
+      email: initialEmail || '',
+      phone: phone || initialPhone || '',
       status: 'SUBMITTED',
       documents: Object.values(uploadedDocs).map((doc) => ({
         id: doc.id,

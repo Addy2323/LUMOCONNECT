@@ -21,6 +21,12 @@ import {
   X,
   Crown,
   Flame,
+  Handshake,
+  Lock,
+  ShieldCheck,
+  Zap,
+  PhoneCall,
+  Sparkles,
 } from 'lucide-react'
 import { TANZANIA_OPPORTUNITY_CATEGORIES, TANZANIA_REGIONS } from '@/modules/deals/taxonomy'
 import { OPPORTUNITY_TYPES } from './MarketplaceFilters'
@@ -88,7 +94,15 @@ export function MarketplaceCatalog({
   const vipCount = opportunities.filter((item) => Boolean(item.isGoldenVip)).length
   const standardCount = opportunities.filter((item) => !item.isGoldenVip).length
 
+  const canSeeVipProducts = Boolean(isGoldenVipUser || currentUserRole === 'ADMIN')
+
   const displayedOpportunities = opportunities.filter((item) => {
+    // If deal is a Golden VIP Exclusive deal and user has not paid / subscribed:
+    // HIDE the product card completely from the grid!
+    if (item.isGoldenVip && !canSeeVipProducts) {
+      return false
+    }
+
     if (vipTab === 'VIP') return Boolean(item.isGoldenVip)
     if (vipTab === 'STANDARD') return !item.isGoldenVip
     return true
@@ -194,7 +208,7 @@ export function MarketplaceCatalog({
           <div className="mb-4 rounded-2xl border border-amber-300 bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-amber-500/5 p-4 dark:border-amber-700/60 dark:bg-amber-950/20">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div className="flex items-start gap-3">
-                <span className="text-2xl mt-0.5">👑</span>
+                <Crown className="h-6 w-6 text-amber-500 shrink-0 mt-0.5" />
                 <div>
                   <p className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
                     <span>Golden VIP 24-Hour Exclusivity Window</span>
@@ -242,7 +256,7 @@ export function MarketplaceCatalog({
                   : 'bg-white text-slate-600 border border-slate-200 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 hover:bg-slate-100'
               }`}
             >
-              <span>👑</span>
+              <Crown className="h-3.5 w-3.5 text-amber-500 shrink-0" />
               <span>Golden VIP Early Access ({vipCount})</span>
             </button>
 
@@ -255,7 +269,7 @@ export function MarketplaceCatalog({
                   : 'bg-white text-slate-600 border border-slate-200 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 hover:bg-slate-100'
               }`}
             >
-              <span>🤝</span>
+              <Handshake className="h-3.5 w-3.5 shrink-0" />
               <span>Standard Partner Deals ({standardCount})</span>
             </button>
           </div>
@@ -284,6 +298,79 @@ export function MarketplaceCatalog({
             </div>
           </div>
 
+          {/* Golden VIP Private Access Paywall Card for Unsubscribed Users */}
+          {vipTab === 'VIP' && !isGoldenVipUser && currentUserRole !== 'ADMIN' ? (
+            <div className="mb-6 overflow-hidden rounded-3xl border border-amber-300 bg-gradient-to-b from-amber-500/10 via-amber-500/5 to-slate-900/5 p-6 shadow-xl dark:border-amber-700/60 dark:from-amber-950/40 dark:to-slate-950/50">
+              <div className="flex flex-col items-center text-center space-y-4 max-w-2xl mx-auto py-4">
+                <div className="w-14 h-14 rounded-3xl bg-gradient-to-tr from-amber-500 to-orange-500 text-slate-950 flex items-center justify-center shadow-lg shadow-amber-500/20">
+                  <Crown className="w-7 h-7" />
+                </div>
+
+                <div className="space-y-2">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-amber-500 text-slate-950 uppercase tracking-widest">
+                    <Sparkles className="w-3.5 h-3.5" /> Golden VIP Private Access Section
+                  </span>
+                  <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
+                    Unlock Private Commercial Deals & 24h Early Access
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300">
+                    This private section contains high-margin commercial opportunities reserved exclusively for active <strong>Golden VIP</strong> and <strong>Annual</strong> subscribers. Subscribe now to access products and start earning.
+                  </p>
+                </div>
+
+                {/* 4 Feature Value Pillars */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full text-left pt-2">
+                  <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-900/50 space-y-1">
+                    <div className="flex items-center gap-2 font-black text-xs text-amber-600 dark:text-amber-400">
+                      <Crown className="w-4 h-4" />
+                      <span>24-Hour Exclusivity Window</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500">Claim top high-margin opportunities 24 hours before standard marketplace release.</p>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-900/50 space-y-1">
+                    <div className="flex items-center gap-2 font-black text-xs text-amber-600 dark:text-amber-400">
+                      <PhoneCall className="w-4 h-4" />
+                      <span>Direct Merchant Contact</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500">Direct phone & WhatsApp matchmaker tickets to verified seller desk contacts.</p>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-900/50 space-y-1">
+                    <div className="flex items-center gap-2 font-black text-xs text-amber-600 dark:text-amber-400">
+                      <Zap className="w-4 h-4" />
+                      <span>Fast-Track Commission Payouts</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500">Zero-queue compliance review with instant M-Pesa / Tigo Pesa payout disbursement.</p>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-900/50 space-y-1">
+                    <div className="flex items-center gap-2 font-black text-xs text-amber-600 dark:text-amber-400">
+                      <ShieldCheck className="w-4 h-4" />
+                      <span>Priority Lumo Protection</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500">Priority 48-hour delivery inspection coverage and guaranteed dispute resolution.</p>
+                  </div>
+                </div>
+
+                {/* Upgrade Call to Action Button */}
+                {onUpgradeToVip && (
+                  <div className="pt-3 w-full sm:w-auto">
+                    <button
+                      type="button"
+                      onClick={onUpgradeToVip}
+                      className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 text-slate-950 font-black text-sm shadow-lg shadow-amber-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2"
+                    >
+                      <Crown className="w-4 h-4 fill-slate-950" />
+                      <span>Unlock Golden VIP Access — Upgrade Plan Now</span>
+                    </button>
+                    <p className="text-[11px] text-slate-400 mt-2">Includes 1 Month VIP Free with Annual Plan • Cancel Anytime</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : null}
+
           {displayedOpportunities.length > 0 ? (
             <div className="grid grid-cols-1 gap-5 pb-4 md:grid-cols-2 xl:grid-cols-3">
               {displayedOpportunities.map((item) => {
@@ -306,7 +393,7 @@ export function MarketplaceCatalog({
                 )
               })}
             </div>
-          ) : (
+          ) : vipTab === 'VIP' && !canSeeVipProducts ? null : (
             <MarketplaceEmptyState onReset={onClearFilters} />
           )}
         </div>

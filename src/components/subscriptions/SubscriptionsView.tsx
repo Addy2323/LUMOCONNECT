@@ -33,7 +33,7 @@ interface SubscriptionsViewProps {
 }
 
 export function SubscriptionsView({
-  currentUserId = 'alex_partner',
+  currentUserId,
   returnTo,
   intent,
   reasonMessage = "Subscribe now to unlock this deal. You'll return automatically after payment.",
@@ -57,7 +57,7 @@ export function SubscriptionsView({
   // Checkout Modal State
   const [selectedPlanCode, setSelectedPlanCode] = useState<'MONTHLY' | 'SEMI_ANNUAL' | null>(null)
   const [paymentMethod, setPaymentMethod] = useState<'MPESA' | 'AIRTEL' | 'TIGO' | 'HALOPESA'>('MPESA')
-  const [phoneNumber, setPhoneNumber] = useState('+255 712 345 678')
+  const [phoneNumber, setPhoneNumber] = useState('')
   const [isProcessingPayment, setIsProcessingPayment] = useState(false)
   const [simStep, setSimStep] = useState<number>(0)
   const [simLog, setSimLog] = useState<string[]>([])
@@ -113,7 +113,7 @@ export function SubscriptionsView({
 
     try {
       const result = await createSubscriptionCheckout({
-        userId: currentUserId,
+        userId: currentUserId || 'guest_subscriber',
         planCode: selectedPlanCode,
         paymentMethod,
         phoneNumber,
@@ -152,7 +152,7 @@ export function SubscriptionsView({
   const semiAnnualPlan = plans.find((p) => p.code === 'SEMI_ANNUAL') || plans[1]
   const enterprisePlan = plans.find((p) => p.code === 'ENTERPRISE') || plans[2]
 
-  const activeUserSub = getUserSubscription(currentUserId || 'alex_partner')
+  const activeUserSub = currentUserId ? getUserSubscription(currentUserId) : null
   const isUserProActive = Boolean(activeUserSub && activeUserSub.isActive && activeUserSub.status === 'ACTIVE')
   const [showUpgradePlans, setShowUpgradePlans] = useState(!isUserProActive)
 

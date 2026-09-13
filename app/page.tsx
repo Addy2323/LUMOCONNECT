@@ -578,7 +578,7 @@ export default function LumoApp() {
         {/* VIEW 2: SUBSCRIPTION PLANS (/subscriptions) */}
         {activeView === 'subscriptions' && (
           <SubscriptionsView
-            currentUserId={currentUserId || 'alex_partner'}
+            currentUserId={currentUserId}
             returnTo={subscriptionRedirectContext.returnTo}
             intent={subscriptionRedirectContext.intent}
             reasonMessage={subscriptionRedirectContext.reasonMessage}

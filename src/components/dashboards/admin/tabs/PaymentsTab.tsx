@@ -15,6 +15,7 @@ import {
   Building,
   X,
   FileSpreadsheet,
+  Crown,
 } from 'lucide-react'
 import { MOCK_PAYMENTS } from '../mockData'
 import { PaymentLedgerItem } from '../types'
@@ -28,11 +29,29 @@ export function PaymentsTab() {
   const [channelFilter, setChannelFilter] = useState('ALL')
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [purposeFilter, setPurposeFilter] = useState('ALL')
+  const [subTypeFilter, setSubTypeFilter] = useState<'ALL' | 'NORMAL' | 'GOLDEN_VIP_PRIVATE'>('ALL')
 
   const [refundModal, setRefundModal] = useState<PaymentLedgerItem | null>(null)
   const [refundReason, setRefundReason] = useState('DUPLICATE_PAYMENT')
   const [customReasonNote, setCustomReasonNote] = useState('')
   const [showExportModal, setShowExportModal] = useState(false)
+
+  // Executive subscription metrics calculation
+  const totalSubRevenue = payments
+    .filter((p) => p.purpose === 'SUBSCRIPTION' && p.status === 'SUCCESSFUL')
+    .reduce((acc, p) => acc + p.grossAmountTZS, 0)
+
+  const vipSubRevenue = payments
+    .filter((p) => p.purpose === 'SUBSCRIPTION' && p.subscriptionType === 'GOLDEN_VIP_PRIVATE' && p.status === 'SUCCESSFUL')
+    .reduce((acc, p) => acc + p.grossAmountTZS, 0)
+
+  const normalSubRevenue = payments
+    .filter((p) => p.purpose === 'SUBSCRIPTION' && p.subscriptionType === 'NORMAL' && p.status === 'SUCCESSFUL')
+    .reduce((acc, p) => acc + p.grossAmountTZS, 0)
+
+  const totalSecuredDealFunds = payments
+    .filter((p) => p.purpose === 'DEAL_ESCROW_FUNDING' && p.status === 'SUCCESSFUL')
+    .reduce((acc, p) => acc + p.grossAmountTZS, 0)
 
   const filtered = payments.filter((p) => {
     const matchesSearch =
@@ -41,7 +60,10 @@ export function PaymentsTab() {
     const matchesChannel = channelFilter === 'ALL' || p.channel === channelFilter
     const matchesStatus = statusFilter === 'ALL' || p.status === statusFilter
     const matchesPurpose = purposeFilter === 'ALL' || p.purpose === purposeFilter
-    return matchesSearch && matchesChannel && matchesStatus && matchesPurpose
+    const matchesSubType =
+      subTypeFilter === 'ALL' ||
+      (p.purpose === 'SUBSCRIPTION' && p.subscriptionType === subTypeFilter)
+    return matchesSearch && matchesChannel && matchesStatus && matchesPurpose && matchesSubType
   })
 
   const handleRetryVerification = (ref: string) => {
@@ -99,12 +121,82 @@ export function PaymentsTab() {
         </button>
       </div>
 
-      {/* Immutability Callout */}
-      <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900 text-xs text-emerald-900 dark:text-emerald-200 flex items-start gap-2.5">
-        <Lock className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-        <div>
-          <strong>Financial Immutability Guarantee:</strong> Successful payments are permanent ledger entries and cannot be altered or deleted. Adjustments must follow strict reversal/refund accounting trails.
+      {/* Executive Subscription & Settlement Metrics */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-800 space-y-1">
+          <div className="flex items-center justify-between text-xs font-bold text-amber-900 dark:text-amber-300">
+            <span>Golden VIP Private Subscriptions</span>
+            <Crown className="w-4 h-4 text-amber-500" />
+          </div>
+          <div className="text-xl font-black text-slate-900 dark:text-white font-mono">
+            TZS {vipSubRevenue.toLocaleString()}
+          </div>
+          <p className="text-[10px] text-amber-800 dark:text-amber-400">High-margin VIP & Annual memberships</p>
         </div>
+
+        <div className="p-4 rounded-2xl bg-blue-50/70 border border-blue-200 dark:bg-blue-950/30 dark:border-blue-800 space-y-1">
+          <div className="flex items-center justify-between text-xs font-bold text-blue-900 dark:text-blue-300">
+            <span>Standard Partner Subscriptions</span>
+            <Wallet className="w-4 h-4 text-blue-500" />
+          </div>
+          <div className="text-xl font-black text-slate-900 dark:text-white font-mono">
+            TZS {normalSubRevenue.toLocaleString()}
+          </div>
+          <p className="text-[10px] text-blue-800 dark:text-blue-400">Regular partner recurring subscriptions</p>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800 space-y-1">
+          <div className="flex items-center justify-between text-xs font-bold text-emerald-900 dark:text-emerald-300">
+            <span>Secured Deal Funding Pool</span>
+            <Shield className="w-4 h-4 text-emerald-600" />
+          </div>
+          <div className="text-xl font-black text-slate-900 dark:text-white font-mono">
+            TZS {totalSecuredDealFunds.toLocaleString()}
+          </div>
+          <p className="text-[10px] text-emerald-800 dark:text-emerald-400">Pre-funded merchant deal deposits</p>
+        </div>
+      </div>
+
+      {/* Subscription Tier Quick Filter Pills */}
+      <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-100 dark:border-slate-800">
+        <span className="text-xs font-bold text-slate-500 mr-1">Subscription Category:</span>
+        <button
+          type="button"
+          onClick={() => setSubTypeFilter('ALL')}
+          className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all ${
+            subTypeFilter === 'ALL'
+              ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs'
+              : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300'
+          }`}
+        >
+          All Ledger Items ({payments.length})
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setSubTypeFilter('GOLDEN_VIP_PRIVATE')}
+          className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 ${
+            subTypeFilter === 'GOLDEN_VIP_PRIVATE'
+              ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-xs'
+              : 'bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-300'
+          }`}
+        >
+          <Crown className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+          <span>Private Golden VIP Subscriptions ({payments.filter(p => p.subscriptionType === 'GOLDEN_VIP_PRIVATE').length})</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setSubTypeFilter('NORMAL')}
+          className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 ${
+            subTypeFilter === 'NORMAL'
+              ? 'bg-blue-600 text-white shadow-xs'
+              : 'bg-blue-50 text-blue-800 border border-blue-200 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-300'
+          }`}
+        >
+          <Building className="w-3.5 h-3.5 shrink-0" />
+          <span>Normal Subscriptions ({payments.filter(p => p.subscriptionType === 'NORMAL').length})</span>
+        </button>
       </div>
 
       {/* Filter Bar */}
@@ -193,9 +285,22 @@ export function PaymentsTab() {
                 </td>
 
                 <td className="p-3">
-                  <div className="font-bold text-slate-900 dark:text-white">{pay.payerName}</div>
+                  <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                    <span>{pay.payerName}</span>
+                    {pay.subscriptionType === 'GOLDEN_VIP_PRIVATE' && (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-black bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950">
+                        <Crown className="w-3 h-3 text-slate-950 shrink-0" />
+                        <span>Golden VIP Private</span>
+                      </span>
+                    )}
+                    {pay.subscriptionType === 'NORMAL' && (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300">
+                        Standard Sub
+                      </span>
+                    )}
+                  </div>
                   <div className="text-[10px] text-slate-400 font-medium">
-                    {pay.payerType} · {pay.purpose.replace('_', ' ')}
+                    {pay.payerType} · {pay.purpose.replace('_', ' ')} {pay.subscriptionTier ? `(${pay.subscriptionTier})` : ''}
                   </div>
                 </td>
 

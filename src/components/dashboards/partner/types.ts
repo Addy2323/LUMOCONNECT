@@ -34,6 +34,7 @@ export interface PartnerOpportunitySummary {
   businessLogo?: string
   isBusinessVerified: boolean
   category: string
+  subcategory?: string
   region: string
   type: PartnerOpportunityType
   rewardDisplay: string

@@ -9,37 +9,37 @@ export const TANZANIA_OPPORTUNITY_CATEGORIES: OpportunityCategoryGroup[] = [
   {
     value: 'Property',
     label: 'Property',
-    icon: '🏠',
+    icon: 'House',
     subcategories: ['House', 'Apartment', 'Land', 'Commercial property', 'Hotel / lodge', 'Office', 'Warehouse', 'Plot'],
   },
   {
     value: 'Vehicles',
     label: 'Vehicles',
-    icon: '🚗',
+    icon: 'CarFront',
     subcategories: ['Cars', 'Motorcycles', 'Bajaji', 'Trucks', 'Spare parts', 'Machinery'],
   },
   {
     value: 'Products',
     label: 'Products',
-    icon: '📦',
+    icon: 'Package',
     subcategories: ['Electronics', 'Phones', 'Computers', 'Furniture', 'Clothes', 'Building materials', 'Agricultural products', 'Wholesale products'],
   },
   {
     value: 'Agriculture & Commodities',
     label: 'Agriculture & Commodities',
-    icon: '🌾',
+    icon: 'Sprout',
     subcategories: ['Cashew', 'Coffee', 'Rice', 'Maize', 'Sesame', 'Avocado', 'Livestock', 'Fish', 'Agricultural equipment'],
   },
   {
     value: 'Business',
     label: 'Business',
-    icon: '💼',
+    icon: 'BriefcaseBusiness',
     subcategories: ['Businesses for sale', 'Suppliers', 'Distributors', 'Franchise opportunities', 'Partnerships', 'Wholesale buyers', 'Wholesale suppliers'],
   },
   {
     value: 'Services',
     label: 'Services',
-    icon: '👷',
+    icon: 'Wrench',
     subcategories: ['Construction', 'Transport', 'Photography', 'IT', 'Marketing', 'Legal', 'Accounting', 'Recruitment', 'Repair'],
   },
 ]
@@ -94,13 +94,14 @@ const LEGACY_CATEGORY_GROUPS: Record<string, string> = {
 }
 
 export function matchesOpportunityCategory(itemCategory: string, selectedCategory: string, subcategory?: string) {
-  if (!selectedCategory || selectedCategory === 'ALL') return true
-
   const selected = selectedCategory.toLowerCase()
   if (itemCategory.toLowerCase() === selected || subcategory?.toLowerCase() === selected) return true
 
+  if (selected === 'biashara' && (itemCategory.toLowerCase() === 'business' || subcategory?.toLowerCase() === 'business' || itemCategory.toLowerCase() === 'biashara')) return true
+  if (selected === 'business' && (itemCategory.toLowerCase() === 'biashara' || subcategory?.toLowerCase() === 'biashara' || itemCategory.toLowerCase() === 'business')) return true
+
   const selectedGroup = TANZANIA_OPPORTUNITY_CATEGORIES.find(
-    (group) => group.value.toLowerCase() === selected
+    (group) => group.value.toLowerCase() === selected || group.label.toLowerCase().includes(selected)
   )
   if (!selectedGroup) return false
 
@@ -113,4 +114,12 @@ export function getCategoryGroup(category: string, subcategory?: string) {
     (group) => group.value === category || group.subcategories.includes(category) || (subcategory && group.subcategories.includes(subcategory))
   )
   return direct?.value || LEGACY_CATEGORY_GROUPS[category.toLowerCase()] || category
+}
+
+export function formatCategoryBadgeLabel(category: string, subcategory?: string): string {
+  const displayCat = category === 'Business' ? 'Biashara' : category
+  if (subcategory && subcategory.trim() !== '') {
+    return `${displayCat} · ${subcategory}`
+  }
+  return displayCat
 }

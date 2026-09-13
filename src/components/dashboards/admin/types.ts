@@ -135,6 +135,8 @@ export interface PaymentLedgerItem {
   payerType: 'PARTNER' | 'BUSINESS'
   channel: 'VODACOM_MPESA' | 'TIGO_PESA' | 'AIRTEL_MONEY' | 'HALOPESA' | 'CRDB_BANK' | 'NMB_BANK'
   purpose: 'SUBSCRIPTION' | 'DEAL_ESCROW_FUNDING' | 'FEATURED_LISTING'
+  subscriptionType?: 'NORMAL' | 'GOLDEN_VIP_PRIVATE'
+  subscriptionTier?: 'STARTER' | 'STANDARD' | 'GOLDEN_VIP' | 'ANNUAL' | 'ENTERPRISE'
   grossAmountTZS: number
   processingFeeTZS: number
   netAmountTZS: number

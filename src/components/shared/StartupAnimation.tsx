@@ -8,7 +8,17 @@ interface StartupAnimationProps {
 
 export function StartupAnimation({ onComplete }: StartupAnimationProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
+  const isCompletingRef = useRef(false)
   const [fadingOut, setFadingOut] = useState(false)
+
+  const handleComplete = () => {
+    if (isCompletingRef.current) return
+    isCompletingRef.current = true
+    setFadingOut(true)
+    setTimeout(() => {
+      onComplete()
+    }, 600)
+  }
 
   useEffect(() => {
     // Fallback: if video doesn't start or takes too long, skip after 8s
@@ -18,15 +28,6 @@ export function StartupAnimation({ onComplete }: StartupAnimationProps) {
 
     return () => clearTimeout(fallbackTimer)
   }, [])
-
-  const handleComplete = () => {
-    if (fadingOut) return
-    setFadingOut(true)
-    // Let the fade-out animation finish before notifying parent
-    setTimeout(() => {
-      onComplete()
-    }, 600)
-  }
 
   return (
     <div

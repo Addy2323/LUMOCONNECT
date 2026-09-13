@@ -23,7 +23,8 @@ import {
   X,
   FileText,
 } from 'lucide-react'
-import { listAdminDeals, updateDealStatus } from '@/modules/deals/service'
+import { listAdminDeals, updateDealStatus, getVideoEmbedInfo } from '@/modules/deals/service'
+import { DealMediaViewer } from '@/components/common/DealMediaViewer'
 import { AdminDealItem } from '../types'
 import { useAdminToast } from '../AdminToast'
 
@@ -249,11 +250,11 @@ export function DealApprovalsTab() {
 
                     {selectedDeal.promoVideoUrl ? (
                       <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-black aspect-video relative group">
-                        <video
-                          src={selectedDeal.promoVideoUrl}
-                          controls
+                        <DealMediaViewer
+                          mediaUrl={selectedDeal.promoVideoUrl}
+                          posterUrl={selectedDeal.featuredImageUrl}
+                          altTitle={selectedDeal.title}
                           className="w-full h-full object-contain"
-                          poster={selectedDeal.featuredImageUrl}
                         />
                       </div>
                     ) : (

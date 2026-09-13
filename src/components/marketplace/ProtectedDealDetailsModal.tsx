@@ -23,6 +23,7 @@ import {
   Clock,
 } from 'lucide-react'
 import type { ProtectedDealDetails } from '@/modules/deals/service'
+import { DealMediaViewer } from '@/components/common/DealMediaViewer'
 import { joinOpportunityDeal, getVideoEmbedInfo } from '@/modules/deals/service'
 
 interface ProtectedDealDetailsModalProps {
@@ -40,7 +41,7 @@ export function ProtectedDealDetailsModal({
   deal,
   isOpen,
   onClose,
-  currentUserId = 'alex_partner',
+  currentUserId,
   userRole = 'PARTNER',
   userOrgId,
   onDealJoined,
@@ -69,7 +70,8 @@ export function ProtectedDealDetailsModal({
   }
 
   const handleCopyLink = () => {
-    const code = joinedCode || `LUMO-${deal.companyLogo || 'TZ'}-${currentUserId.slice(-4).toUpperCase()}`
+    const userSuffix = currentUserId ? currentUserId.slice(-4).toUpperCase() : 'MEMBER'
+    const code = joinedCode || `LUMO-${deal.companyLogo || 'TZ'}-${userSuffix}`
     navigator.clipboard.writeText(`https://lumo.co.tz/d/${deal.slug}?ref=${code}`)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
@@ -153,31 +155,12 @@ export function ProtectedDealDetailsModal({
 
           {mediaMode === 'VIDEO' && deal.promoVideoUrl ? (
             <div className="relative rounded-2xl overflow-hidden bg-black aspect-video flex items-center justify-center border border-slate-800 shadow-md">
-              {(() => {
-                const vInfo = getVideoEmbedInfo(deal.promoVideoUrl)
-                if (vInfo.isIframe) {
-                  return (
-                    <iframe
-                      src={vInfo.embedUrl}
-                      title={deal.title}
-                      className="w-full h-full border-0"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                      allowFullScreen
-                    />
-                  )
-                }
-                return (
-                  <video
-                    controls
-                    autoPlay
-                    src={vInfo.embedUrl}
-                    className="w-full h-full object-contain"
-                    poster={deal.featuredImageUrl}
-                  >
-                    Your browser does not support HTML5 video streaming.
-                  </video>
-                )
-              })()}
+              <DealMediaViewer
+                mediaUrl={deal.promoVideoUrl}
+                posterUrl={deal.featuredImageUrl}
+                altTitle={deal.title}
+                className="w-full h-full object-contain"
+              />
             </div>
           ) : deal.featuredImageUrl ? (
             <div className="h-44 sm:h-52 w-full rounded-2xl overflow-hidden shadow-xs border border-slate-200 dark:border-slate-800 relative group bg-slate-900">
@@ -322,7 +305,7 @@ export function ProtectedDealDetailsModal({
             </div>
 
             <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-700/80">
-              <p className="text-[10px] font-semibold text-slate-400 uppercase">Escrow Window</p>
+              <p className="text-[10px] font-semibold text-slate-400 uppercase">Protection Window</p>
               <p className="font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
                 {deal.inspectionWindowHours || 48}h Quality Hold
               </p>
@@ -345,7 +328,7 @@ export function ProtectedDealDetailsModal({
                 className="w-full py-3 px-4 bg-[#25D366] hover:bg-[#1EBE5D] text-slate-950 font-black text-xs rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
               >
                 <MessageSquare className="w-4 h-4 fill-slate-950" />
-                <span>Connect with Merchant via WhatsApp (Lumo Escrow Hold)</span>
+                <span>Connect with Merchant via WhatsApp (Lumo Protected Hold)</span>
               </button>
             </div>
           )}
@@ -370,7 +353,7 @@ export function ProtectedDealDetailsModal({
             <div className="space-y-3">
               <div className="flex items-center justify-between p-2.5 bg-slate-800 rounded-xl border border-slate-700">
                 <span className="font-mono text-xs text-orange-400 truncate">
-                  https://lumo.co.tz/d/{deal.slug}?ref={joinedCode || `LUMO-${deal.companyLogo || 'TZ'}-${currentUserId.slice(-4).toUpperCase()}`}
+                  https://lumo.co.tz/d/{deal.slug}?ref={joinedCode || `LUMO-${deal.companyLogo || 'TZ'}-${currentUserId ? currentUserId.slice(-4).toUpperCase() : 'MEMBER'}`}
                 </span>
                 <button
                   type="button"

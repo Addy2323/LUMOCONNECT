@@ -24,6 +24,9 @@ import {
   PartnerSidebarSection,
 } from '../types'
 import { usePartnerToast } from '../PartnerToast'
+import { getVideoEmbedInfo } from '@/modules/deals/service'
+import { DealMediaViewer } from '@/components/common/DealMediaViewer'
+import { formatCategoryBadgeLabel } from '@/modules/deals/taxonomy'
 
 interface DiscoverOpportunitiesTabProps {
   opportunities: PartnerOpportunitySummary[]
@@ -364,7 +367,30 @@ export function DiscoverOpportunitiesTab({
             >
               <div>
                 {/* Media Banner */}
-                {opp.coverImageUrl ? (
+                {opp.promoVideoUrl ? (
+                  <div className="relative h-44 w-full bg-slate-900 overflow-hidden">
+                    <DealMediaViewer
+                      mediaUrl={opp.promoVideoUrl}
+                      posterUrl={opp.coverImageUrl}
+                      altTitle={opp.title}
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute top-2.5 left-2.5 z-10">
+                      <span className="text-[10px] bg-[#FF6A00] text-white font-black uppercase px-2.5 py-0.5 rounded-full shadow-sm">
+                        {formatCategoryBadgeLabel(opp.category, opp.subcategory)}
+                      </span>
+                    </div>
+                    <button
+                      onClick={(e) => toggleSave(opp.id, e)}
+                      className="absolute top-2.5 right-2.5 z-10 p-1.5 rounded-full bg-black/50 backdrop-blur-xs text-white hover:bg-black/80 transition-colors cursor-pointer"
+                      title={opp.isSaved ? 'Remove Bookmark' : 'Save Opportunity'}
+                    >
+                      <Bookmark
+                        className={`w-3.5 h-3.5 ${opp.isSaved ? 'fill-[#FF6A00] text-[#FF6A00]' : 'text-white'}`}
+                      />
+                    </button>
+                  </div>
+                ) : opp.coverImageUrl ? (
                   <div className="relative h-40 w-full bg-slate-900 overflow-hidden">
                     <img
                       src={opp.coverImageUrl}
@@ -375,7 +401,7 @@ export function DiscoverOpportunitiesTab({
 
                     <div className="absolute top-2.5 left-2.5">
                       <span className="text-[10px] bg-[#FF6A00] text-white font-black uppercase px-2.5 py-0.5 rounded-full shadow-sm">
-                        {opp.category}
+                        {formatCategoryBadgeLabel(opp.category, opp.subcategory)}
                       </span>
                     </div>
 
@@ -389,13 +415,6 @@ export function DiscoverOpportunitiesTab({
                       />
                     </button>
 
-                    {opp.promoVideoUrl && (
-                      <div className="absolute bottom-2.5 right-2.5 bg-black/60 backdrop-blur-xs text-white text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-                        <Film className="w-3 h-3 text-[#FF6A00]" />
-                        <span>Video Pitch</span>
-                      </div>
-                    )}
-
                     <div className="absolute bottom-2.5 left-2.5 text-white">
                       <span className="text-xs font-mono font-black bg-black/50 px-2 py-0.5 rounded-md backdrop-blur-xs">
                         {opp.rewardDisplay}
@@ -403,10 +422,10 @@ export function DiscoverOpportunitiesTab({
                     </div>
                   </div>
                 ) : (
-                  <div className="relative h-28 w-full bg-gradient-to-br from-slate-800 to-slate-900 p-3.5 flex flex-col justify-between">
+                  <div className="relative h-28 w-full bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 p-3.5 flex flex-col justify-between">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] bg-[#FF6A00] text-white font-black uppercase px-2.5 py-0.5 rounded-full shadow-sm">
-                        {opp.category}
+                        {formatCategoryBadgeLabel(opp.category, opp.subcategory)}
                       </span>
                       <button
                         onClick={(e) => toggleSave(opp.id, e)}
@@ -528,31 +547,34 @@ export function DiscoverOpportunitiesTab({
 
               {mediaViewMode === 'VIDEO' && selectedOpp.promoVideoUrl ? (
                 <div className="relative rounded-2xl overflow-hidden bg-black aspect-video flex items-center justify-center border border-slate-800 shadow-md">
-                  {selectedOpp.promoVideoUrl.includes('youtube.com') || selectedOpp.promoVideoUrl.includes('youtu.be') ? (
-                    <iframe
-                      src={
-                        selectedOpp.promoVideoUrl.includes('watch?v=')
-                          ? selectedOpp.promoVideoUrl.replace('watch?v=', 'embed/')
-                          : selectedOpp.promoVideoUrl.includes('youtu.be/')
-                          ? selectedOpp.promoVideoUrl.replace('youtu.be/', 'www.youtube.com/embed/')
-                          : selectedOpp.promoVideoUrl
-                      }
-                      title={selectedOpp.title}
-                      className="w-full h-full border-0"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                    />
-                  ) : (
-                    <video
-                      controls
-                      autoPlay={isPlayingVideo}
-                      src={selectedOpp.promoVideoUrl}
-                      className="w-full h-full object-contain"
-                      poster={selectedOpp.coverImageUrl}
-                    >
-                      Your browser does not support HTML5 video streaming.
-                    </video>
-                  )}
+                  {(() => {
+                    const vInfo = getVideoEmbedInfo(selectedOpp.promoVideoUrl)
+                    if (vInfo.isIframe) {
+                      return (
+                        <iframe
+                          src={vInfo.embedUrl}
+                          title={selectedOpp.title}
+                          className="w-full h-full border-0"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                          allowFullScreen
+                        />
+                      )
+                    }
+                    return (
+                      <video
+                        controls
+                        autoPlay
+                        muted
+                        loop
+                        playsInline
+                        src={vInfo.embedUrl}
+                        className="w-full h-full object-contain"
+                        poster={selectedOpp.coverImageUrl}
+                      >
+                        Your browser does not support HTML5 video streaming.
+                      </video>
+                    )
+                  })()}
                 </div>
               ) : selectedOpp.coverImageUrl ? (
                 <div className="relative h-48 sm:h-56 rounded-2xl overflow-hidden bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs group">

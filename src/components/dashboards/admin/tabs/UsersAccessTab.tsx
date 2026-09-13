@@ -78,24 +78,45 @@ export function UsersAccessTab() {
     return matchesSearch && matchesRole && matchesStatus
   })
 
-  const handleExecuteAction = () => {
+  const handleExecuteAction = async () => {
     if (!showActionModal) return
     const { type, user } = showActionModal
 
-    setUsers((prev) =>
-      prev.map((u) => {
-        if (u.id === user.id) {
-          if (type === 'SUSPEND') return { ...u, status: 'SUSPENDED' }
-          if (type === 'REACTIVATE') return { ...u, status: 'ACTIVE' }
-          if (type === 'LOCK') return { ...u, status: 'LOCKED' }
-          if (type === 'ARCHIVE') return { ...u, status: 'ARCHIVED' }
-          if (type === 'RESET_MFA') return { ...u, mfaEnabled: false }
-        }
-        return u
-      })
-    )
+    let newStatus: UserAccount['status'] | undefined
+    if (type === 'SUSPEND') newStatus = 'SUSPENDED'
+    if (type === 'REACTIVATE') newStatus = 'ACTIVE'
+    if (type === 'LOCK') newStatus = 'LOCKED'
+    if (type === 'ARCHIVE') newStatus = 'ARCHIVED'
 
-    showToast('info', `User Action: ${type}`, `Action executed for ${user.name}. Reason: "${actionReason || 'Administrative update'}".`)
+    if (newStatus) {
+      try {
+        const res = await fetch('/api/admin/users', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: user.id, status: newStatus }),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.message || 'Action failed')
+
+        setUsers((prev) =>
+          prev.map((u) => (u.id === user.id ? { ...u, status: newStatus as any } : u))
+        )
+        showToast('success', `User Action: ${type}`, `Successfully updated status for ${user.name}.`)
+      } catch (err: any) {
+        showToast('error', `Action Failed`, err.message || 'Could not update user status.')
+      }
+    } else {
+      setUsers((prev) =>
+        prev.map((u) => {
+          if (u.id === user.id) {
+            if (type === 'RESET_MFA') return { ...u, mfaEnabled: false }
+          }
+          return u
+        })
+      )
+      showToast('info', `User Action: ${type}`, `Action executed for ${user.name}.`)
+    }
+
     setShowActionModal(null)
     setActionReason('')
   }

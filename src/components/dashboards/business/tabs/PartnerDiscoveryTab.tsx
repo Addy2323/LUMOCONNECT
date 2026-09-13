@@ -108,7 +108,7 @@ export function PartnerDiscoveryTab({ opportunities }: PartnerDiscoveryTabProps)
             onChange={(e) => setCategoryFilter(e.target.value)}
             className="w-full py-2 px-3 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-medium"
           >
-            <option value="ALL">📁 All Industry Categories</option>
+            <option value="ALL">All Industry Categories</option>
             {allCategories.map((c) => (
               <option key={c} value={c}>{c}</option>
             ))}

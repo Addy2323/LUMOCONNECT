@@ -384,7 +384,7 @@ export function OverviewTab({
         </div>
       </div>
 
-      {/* WhatsApp Escrow Inquiries & 48-Hour Inspection Holds */}
+      {/* WhatsApp Protected Inquiries & 48-Hour Inspection Holds */}
       <div className="bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-4 sm:p-6 shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
@@ -393,7 +393,7 @@ export function OverviewTab({
                 <MessageCircle className="w-4 h-4" />
               </span>
               <h3 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white">
-                WhatsApp Escrow Deals & 48h Inspection Holds ({escrowInquiries.length})
+                WhatsApp Protected Deals & 48h Inspection Holds ({escrowInquiries.length})
               </h3>
               <span className="text-[10px] bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 font-extrabold px-2 py-0.5 rounded-full flex items-center gap-1">
                 <ShieldCheck className="w-3 h-3" />
@@ -401,12 +401,12 @@ export function OverviewTab({
               </span>
             </div>
             <p className="text-xs text-slate-500 mt-1">
-              Direct partner inquiries bridged through Lumo's WhatsApp escrow desk with mandatory 48-hour post-delivery inspection guarantees.
+              Direct partner inquiries bridged through Lumo's WhatsApp protection desk with mandatory 48-hour post-delivery inspection guarantees.
             </p>
           </div>
 
           <div className="text-xs font-bold text-slate-500 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 shrink-0">
-            Escrow Desk: <span className="text-emerald-600 font-extrabold">+255 700 000 000</span>
+            Protection Desk: <span className="text-emerald-600 font-extrabold">+255 700 000 000</span>
           </div>
         </div>
 
@@ -417,8 +417,8 @@ export function OverviewTab({
                 <th className="p-3">Ticket & Buyer</th>
                 <th className="p-3">Target Deal</th>
                 <th className="p-3">Quantity & Valuation</th>
-                <th className="p-3">Escrow Status & Hold</th>
-                <th className="p-3 text-right">Escrow Action</th>
+                <th className="p-3">Protection Status & Hold</th>
+                <th className="p-3 text-right">Protection Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
@@ -429,7 +429,7 @@ export function OverviewTab({
                     bg: 'bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300 border-blue-200',
                   },
                   FUNDS_HELD_IN_ESCROW: {
-                    label: 'Escrow Funded',
+                    label: 'Protection Active',
                     bg: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 border-emerald-200',
                   },
                   WAITING_ESCROW_PAYMENT: {
@@ -475,7 +475,7 @@ export function OverviewTab({
                         {inquiry.quantity.toLocaleString()} Units
                       </div>
                       <div className="text-[10px] text-slate-400">
-                        {inquiry.notes ? inquiry.notes.slice(0, 45) + '...' : 'Direct wholesale escrow'}
+                        {inquiry.notes ? inquiry.notes.slice(0, 45) + '...' : 'Direct wholesale deal'}
                       </div>
                     </td>
 
@@ -492,7 +492,7 @@ export function OverviewTab({
 
                     <td className="p-3 text-right">
                       <a
-                        href={`https://wa.me/255700000000?text=${encodeURIComponent(`Hello Lumo Escrow Desk. Regarding Ticket ${inquiry.ticketCode} for ${inquiry.dealTitle}:`)}`}
+                        href={`https://wa.me/255700000000?text=${encodeURIComponent(`Hello Lumo Protection Desk. Regarding Ticket ${inquiry.ticketCode} for ${inquiry.dealTitle}:`)}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1.5 py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-extrabold transition-colors shadow-xs"

@@ -14,6 +14,7 @@ import {
   BadgeCheck,
   PackageCheck,
   Award,
+  Crown,
 } from 'lucide-react'
 import { createDealOpportunity } from '@/modules/deals/service'
 import { TANZANIA_OPPORTUNITY_CATEGORIES, TANZANIA_REGIONS } from '@/modules/deals/taxonomy'
@@ -55,8 +56,8 @@ export function CreateDealWizard({ onSuccess, onCancel }: CreateDealWizardProps)
   const [inspectionWindowHours, setInspectionWindowHours] = useState(48)
   const [minOrderQuantity, setMinOrderQuantity] = useState(1)
   const [wholesalePrice, setWholesalePrice] = useState(85000)
-  const [sellerPhone, setSellerPhone] = useState('+255 754 889 900')
-  const [sellerWhatsApp, setSellerWhatsApp] = useState('+255754889900')
+  const [sellerPhone, setSellerPhone] = useState('')
+  const [sellerWhatsApp, setSellerWhatsApp] = useState('')
   const [hasTaxInvoice, setHasTaxInvoice] = useState(true)
   const [hasCertificate, setHasCertificate] = useState(true)
 
@@ -189,7 +190,7 @@ export function CreateDealWizard({ onSuccess, onCancel }: CreateDealWizardProps)
                 className="w-full text-xs p-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-800"
               >
                 {TANZANIA_OPPORTUNITY_CATEGORIES.map((item) => (
-                  <option key={item.value} value={item.value}>{item.icon} {item.label}</option>
+                  <option key={item.value} value={item.value}>{item.label}</option>
                 ))}
                 <option value="Market Finder & Trade Insights">Market Finder & Trade Insights</option>
                 <option value="Real Estate & Property">Real Estate & Property</option>
@@ -328,7 +329,7 @@ export function CreateDealWizard({ onSuccess, onCancel }: CreateDealWizardProps)
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Escrow Inspection Window
+                  Quality Protection Window
                 </label>
                 <select
                   value={inspectionWindowHours}
@@ -336,7 +337,7 @@ export function CreateDealWizard({ onSuccess, onCancel }: CreateDealWizardProps)
                   className="w-full text-xs p-2.5 border rounded-lg bg-white dark:bg-slate-900"
                 >
                   <option value={24}>24 Hours Inspection</option>
-                  <option value={48}>48 Hours Standard Escrow Hold</option>
+                  <option value={48}>48 Hours Standard Protection Hold</option>
                   <option value={72}>72 Hours Extended Test Run</option>
                 </select>
               </div>
@@ -546,7 +547,7 @@ export function CreateDealWizard({ onSuccess, onCancel }: CreateDealWizardProps)
               />
               <div>
                 <span className="text-xs font-black text-slate-900 dark:text-white flex items-center gap-1.5">
-                  <span>👑</span> Launch with 24-Hour Golden VIP Priority Window
+                  <Crown className="h-3.5 w-3.5 text-amber-600 shrink-0" /> Launch with 24-Hour Golden VIP Priority Window
                 </span>
                 <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-0.5 leading-relaxed">
                   Gives elite Golden VIP partners exclusive access for the first 24 hours to secure buyers and wholesale distribution, before automatically opening to all standard partners.
@@ -578,8 +579,8 @@ export function CreateDealWizard({ onSuccess, onCancel }: CreateDealWizardProps)
               <span className="text-xs font-bold text-slate-500 uppercase">Deal Preview</span>
               <div className="flex items-center gap-2">
                 {isGoldenVip && (
-                  <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-500 text-slate-950">
-                    👑 Golden VIP Priority (24h)
+                  <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 flex items-center gap-1">
+                    <Crown className="h-3 w-3 text-slate-950 shrink-0" /> Golden VIP Priority (24h)
                   </span>
                 )}
                 <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">

@@ -635,9 +635,10 @@ export function getVideoEmbedInfo(url?: string): {
   if (/youtube\.com|youtu\.be/i.test(cleanUrl)) {
     const ytMatch = cleanUrl.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i)
     if (ytMatch && ytMatch[1]) {
+      const id = ytMatch[1]
       return {
         type: 'YOUTUBE',
-        embedUrl: `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&rel=0`,
+        embedUrl: `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&muted=1&loop=1&playlist=${id}&rel=0`,
         originalUrl: cleanUrl,
         isIframe: true,
       }
@@ -650,7 +651,7 @@ export function getVideoEmbedInfo(url?: string): {
     if (vimeoMatch && vimeoMatch[1]) {
       return {
         type: 'VIMEO',
-        embedUrl: `https://player.vimeo.com/video/${vimeoMatch[1]}?autoplay=1`,
+        embedUrl: `https://player.vimeo.com/video/${vimeoMatch[1]}?autoplay=1&muted=1&loop=1`,
         originalUrl: cleanUrl,
         isIframe: true,
       }

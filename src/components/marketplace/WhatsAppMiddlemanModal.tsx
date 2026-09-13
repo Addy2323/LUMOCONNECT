@@ -14,6 +14,7 @@ import {
   PackageCheck,
   Clock3,
   BadgeCheck,
+  Crown,
 } from 'lucide-react'
 import type { OpportunityItem } from '@/modules/deals/types'
 
@@ -135,14 +136,14 @@ ${buyerNotes ? `Notes: ${buyerNotes}` : ''}`
         {/* Header */}
         <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 text-xs font-black uppercase tracking-wider mb-2">
           <ShieldCheck className="w-4 h-4" />
-          <span>LUMO Escrow Middleman Matchmaker</span>
+          <span>LUMO Protection Matchmaker</span>
         </div>
 
         <h3 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white leading-snug mb-1">
           WhatsApp Direct Deal Connection
         </h3>
         <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
-          Lumo acts as the trusted escrow middleman. We connect buyer and merchant directly while protecting funds during the 48-hour inspection window.
+          Lumo acts as the trusted partner matchmaker. We connect buyer and merchant directly while protecting funds during the 48-hour inspection window.
         </p>
 
         {/* Deal Quick Summary Strip */}
@@ -166,10 +167,10 @@ ${buyerNotes ? `Notes: ${buyerNotes}` : ''}`
               <MapPin className="w-3 h-3 text-orange-500" /> {deal.region}
             </span>
             <span className="flex items-center gap-1 font-semibold">
-              <Clock3 className="w-3 h-3 text-emerald-600" /> 48h Escrow Inspection Hold
+              <Clock3 className="w-3 h-3 text-emerald-600" /> 48h Inspection Protection
             </span>
             {deal.isGoldenVip && (
-              <span className="font-extrabold text-amber-600">👑 Golden VIP Verified</span>
+              <span className="font-extrabold text-amber-600 flex items-center gap-1"><Crown className="w-3 h-3 text-amber-500 shrink-0" /> Golden VIP Verified</span>
             )}
           </div>
         </div>
@@ -248,7 +249,7 @@ ${buyerNotes ? `Notes: ${buyerNotes}` : ''}`
               />
             </div>
 
-            {/* Escrow Guarantee Pill */}
+            {/* Protection Guarantee Pill */}
             <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 dark:border-emerald-900 dark:bg-emerald-950/40">
               <label className="flex items-start gap-2.5 cursor-pointer">
                 <input
@@ -259,7 +260,7 @@ ${buyerNotes ? `Notes: ${buyerNotes}` : ''}`
                   className="mt-0.5 h-4 w-4 accent-emerald-600 rounded"
                 />
                 <span className="text-[11px] text-emerald-900 dark:text-emerald-300 font-medium">
-                  <strong>Lumo Escrow Protection:</strong> Funds are held safely during a 48-hour delivery inspection window. Payment is only released to the merchant once genuine product quality is confirmed.
+                  <strong>Lumo Buyer Protection:</strong> Funds are held safely during a 48-hour delivery inspection window. Payment is only released to the merchant once genuine product quality is confirmed.
                 </span>
               </label>
             </div>
@@ -270,18 +271,18 @@ ${buyerNotes ? `Notes: ${buyerNotes}` : ''}`
               className="w-full py-3 bg-[#25D366] hover:bg-[#1EBE5D] text-slate-950 font-black text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99] disabled:opacity-50"
             >
               <MessageSquare className="w-4 h-4 fill-slate-950" />
-              <span>Generate WhatsApp Escrow Ticket & Connect</span>
+              <span>Generate WhatsApp Protection Ticket & Connect</span>
             </button>
           </form>
         ) : (
-          /* Step 2: Escrow Ticket Generated & Direct WhatsApp Launch */
+          /* Step 2: Connection Ticket Generated & Direct WhatsApp Launch */
           <div className="space-y-4 animate-in fade-in zoom-in-95 duration-200">
             <div className="rounded-2xl border-2 border-emerald-500 bg-emerald-50/50 p-4 text-center dark:border-emerald-700 dark:bg-emerald-950/30">
               <div className="w-10 h-10 bg-emerald-500 text-white rounded-full flex items-center justify-center mx-auto mb-2 shadow-sm">
                 <CheckCircle2 className="w-5 h-5" />
               </div>
               <p className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">
-                Escrow Matchmaker Ticket Ready
+                Protected Ticket Ready
               </p>
               <p className="font-mono text-base sm:text-lg font-black text-slate-900 dark:text-white mt-0.5">
                 {generatedTicket.ticketCode}
@@ -291,7 +292,7 @@ ${buyerNotes ? `Notes: ${buyerNotes}` : ''}`
               </p>
             </div>
 
-            {/* Escrow Terms summary */}
+            {/* Protection Terms summary */}
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 space-y-2 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-300">
               <div className="flex justify-between items-center">
                 <span className="font-semibold text-slate-500">Merchant Contact:</span>
@@ -302,7 +303,7 @@ ${buyerNotes ? `Notes: ${buyerNotes}` : ''}`
                 <span className="font-bold text-slate-900 dark:text-white">{generatedTicket.quantity} unit(s)</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="font-semibold text-slate-500">Escrow Hold Period:</span>
+                <span className="font-semibold text-slate-500">Inspection Hold Period:</span>
                 <span className="font-extrabold text-emerald-600 dark:text-emerald-400">48h Quality Inspection</span>
               </div>
             </div>

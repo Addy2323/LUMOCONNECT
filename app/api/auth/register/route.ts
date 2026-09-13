@@ -44,18 +44,9 @@ const registerSchema = z.object({
     .optional(),
 })
 
-export async function POST(req: Request) {
-  if (!process.env.DATABASE_URL?.trim()) {
-    console.error('Registration unavailable: DATABASE_URL is not configured for this deployment.')
-    return NextResponse.json(
-      {
-        error: 'DATABASE_NOT_CONFIGURED',
-        message: 'Account activation is temporarily unavailable. Please try again after the database is connected.',
-      },
-      { status: 503 }
-    )
-  }
+import { registerInMemoryUser } from '@/lib/userRegistry'
 
+export async function POST(req: Request) {
   try {
     const body = await req.json()
     const parsed = registerSchema.safeParse(body)
@@ -68,6 +59,31 @@ export async function POST(req: Request) {
 
     const { email, password, name, phone, image, role, bizDetails, documents } = parsed.data
     const normalizedEmail = email.trim().toLowerCase()
+
+    if (!process.env.DATABASE_URL?.trim()) {
+      console.warn('DATABASE_URL is not set. Processing registration via in-memory user registry.')
+      const user = registerInMemoryUser({
+        email: normalizedEmail,
+        password,
+        name,
+        phone,
+        role,
+        image,
+        bizDetails,
+      })
+
+      return NextResponse.json({
+        success: true,
+        message: 'Account created successfully in local workspace.',
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          orgId: user.organizationId,
+        },
+      })
+    }
     const salt = crypto.randomBytes(16).toString('hex')
     const hashedPassword = crypto.scryptSync(password, salt, 64).toString('hex') + ':' + salt
 

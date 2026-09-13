@@ -15,19 +15,9 @@ function verifyPassword(password: string, storedHash: string): boolean {
   }
 }
 
-export async function POST(req: Request) {
-  if (!process.env.DATABASE_URL?.trim()) {
-    console.error('Login unavailable: DATABASE_URL is not configured for this deployment.')
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'DATABASE_NOT_CONFIGURED',
-        message: 'Sign in is temporarily unavailable. Please try again after the database is connected.',
-      },
-      { status: 503 }
-    )
-  }
+import { authenticateInMemoryUser } from '@/lib/userRegistry'
 
+export async function POST(req: Request) {
   try {
     const body = await req.json()
     const { email, password } = body
@@ -40,6 +30,45 @@ export async function POST(req: Request) {
     }
 
     const normalizedEmail = email.trim().toLowerCase()
+
+    if (!process.env.DATABASE_URL?.trim()) {
+      console.warn('DATABASE_URL is not set. Processing login via in-memory user registry.')
+      const result = authenticateInMemoryUser(normalizedEmail, password)
+
+      if (!result.success || !result.user) {
+        return NextResponse.json(
+          { success: false, message: result.message || 'Invalid email or password.' },
+          { status: 401 }
+        )
+      }
+
+      const token = randomBytes(32).toString('hex')
+      const response = NextResponse.json({
+        success: true,
+        user: {
+          id: result.user.id,
+          email: result.user.email,
+          name: result.user.name,
+          phone: result.user.phone,
+          image: result.user.image,
+          role: result.user.role,
+          organizationId: result.user.organizationId,
+          organizationName: result.user.organizationName,
+          accountStatus: result.user.accountStatus,
+          twoFactorEnabled: result.user.twoFactorEnabled,
+        },
+      })
+
+      response.cookies.set(DATABASE_SESSION_COOKIE, token, {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+        path: '/',
+        maxAge: 8 * 60 * 60,
+      })
+
+      return response
+    }
 
     const user = await db.user.findUnique({
       where: { email: normalizedEmail },

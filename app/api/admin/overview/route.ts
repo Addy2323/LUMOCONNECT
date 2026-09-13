@@ -1,24 +1,57 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url)
+    const region = searchParams.get('region') || 'ALL'
+    const opportunityType = searchParams.get('type') || 'ALL'
+    const period = searchParams.get('period') || '30D'
+    const exportFormat = searchParams.get('export')
+
+    // 1. Total counts from Database
     const [
       totalUsers,
       totalOrgs,
       verifiedOrgs,
       liveOpportunities,
       pendingVerifications,
+      pendingDeals,
+      pendingPayouts,
+      openDisputes,
+      flaggedFraud,
+      paymentAggregate,
+      rewardAggregate,
       usersList,
       vCases,
       rawAuditLogs,
     ] = await Promise.all([
-      db.user.count(),
-      db.organization.count(),
-      db.organization.count({ where: { verificationStatus: 'APPROVED' } }),
-      db.opportunity.count({ where: { status: 'PUBLISHED' } }),
+      db.user.count({ where: { deletedAt: null } }),
+      db.organization.count({ where: { deletedAt: null } }),
+      db.organization.count({ where: { verificationStatus: 'VERIFIED', deletedAt: null } }),
+      db.opportunity.count({
+        where: {
+          status: 'PUBLISHED',
+          deletedAt: null,
+          ...(region !== 'ALL' ? { region } : {}),
+          ...(opportunityType !== 'ALL' ? { opportunityType: opportunityType as any } : {}),
+        },
+      }),
       db.verificationCase.count({ where: { status: 'PENDING' } }),
+      db.opportunity.count({ where: { status: 'UNDER_REVIEW', deletedAt: null } }),
+      db.payoutBatch.count({ where: { status: 'PENDING_APPROVAL' } }),
+      db.dispute.count({ where: { status: { in: ['OPENED', 'UNDER_REVIEW', 'EVIDENCE_SUBMITTED'] } } }),
+      db.riskAlert.count({ where: { status: { in: ['OPEN', 'INVESTIGATING'] } } }),
+      db.paymentAttempt.aggregate({
+        where: { status: 'SUCCESSFUL' },
+        _sum: { amountMinor: true },
+      }),
+      db.reward.aggregate({
+        where: { status: 'PAID' },
+        _sum: { amountMinor: true },
+      }),
       db.user.findMany({
+        where: { deletedAt: null },
         orderBy: { createdAt: 'desc' },
         take: 50,
         select: {
@@ -79,6 +112,37 @@ export async function GET() {
       }),
     ])
 
+    // Calculate Platform Revenue in TZS
+    const grossPaymentMinor = paymentAggregate._sum.amountMinor ? Number(paymentAggregate._sum.amountMinor) : 0
+    const platformRevenueTZS = Math.round(grossPaymentMinor / 100)
+    const paidRewardsMinor = rewardAggregate._sum.amountMinor ? Number(rewardAggregate._sum.amountMinor) : 0
+    const netVolumeTZS = Math.round((grossPaymentMinor + paidRewardsMinor) / 100)
+
+    // Handle CSV Export
+    if (exportFormat === 'csv') {
+      const csvHeader = 'Metric,Value\n'
+      const csvBody = [
+        `Total Users,${totalUsers}`,
+        `Total Organizations,${totalOrgs}`,
+        `Verified Businesses,${verifiedOrgs}`,
+        `Live Opportunities,${liveOpportunities}`,
+        `Platform Revenue TZS,${platformRevenueTZS}`,
+        `Pending Verifications,${pendingVerifications}`,
+        `Pending Deal Approvals,${pendingDeals}`,
+        `Pending Payout Batches,${pendingPayouts}`,
+        `Open Disputes,${openDisputes}`,
+        `Flagged Fraud Alerts,${flaggedFraud}`,
+      ].join('\n')
+
+      return new NextResponse(csvHeader + csvBody, {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/csv',
+          'Content-Disposition': `attachment; filename="lumo-platform-report-${new Date().toISOString().slice(0, 10)}.csv"`,
+        },
+      })
+    }
+
     const formattedUsers = usersList.map((u) => {
       const hasOrg = u.memberships && u.memberships.length > 0
       const roleCode = u.roleAssignments[0]?.role?.code || (hasOrg ? 'BUSINESS_OWNER' : 'CUSTOMER')
@@ -134,7 +198,7 @@ export async function GET() {
       phone: vc.user?.phone || '—',
       category: 'Renewable Energy & Trade',
       industry: 'Renewable Energy & Commercial Trade',
-      status: vc.status as 'PENDING' | 'APPROVED' | 'REJECTED',
+      status: (vc.status === 'IN_REVIEW' ? 'PENDING' : vc.status) as 'PENDING' | 'APPROVED' | 'REJECTED',
       submittedAt: vc.createdAt.toISOString().slice(0, 10),
       documents: vc.documents.map((d) => ({
         id: d.id,
@@ -143,7 +207,7 @@ export async function GET() {
         fileName: d.fileAsset.fileName,
         fileSize: '1.2 MB',
         fileUrl: '#',
-        status: 'PENDING' as const,
+        status: (d.status === 'IN_REVIEW' ? 'PENDING' : d.status) as 'PENDING' | 'APPROVED' | 'REJECTED',
         uploadedAt: d.createdAt.toISOString().slice(0, 10),
       })),
     }))
@@ -173,13 +237,21 @@ export async function GET() {
       metrics: {
         totalUsers,
         totalOrgs,
-        verifiedBusinesses: totalOrgs,
+        verifiedBusinesses: verifiedOrgs,
         liveOpportunities,
-        platformRevenueTZS: 0,
+        platformRevenueTZS,
+        netVolumeTZS,
         pendingVerifications,
-        pendingDeals: 0,
-        pendingPayouts: 0,
-        flaggedFraud: 0,
+        pendingDeals,
+        pendingPayouts,
+        openDisputes,
+        flaggedFraud,
+      },
+      systemHealth: {
+        databaseConnected: true,
+        uptimeSeconds: Math.floor(process.uptime()),
+        lastSync: new Date().toISOString(),
+        version: '1.0.0-PROD',
       },
       users: formattedUsers,
       verifications: formattedVerifications,

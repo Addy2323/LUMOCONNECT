@@ -66,7 +66,11 @@ export function KycComplianceTab() {
       a.download = doc.name || 'verification_document.png'
       document.body.appendChild(a)
       a.click()
-      document.body.removeChild(a)
+      if (a.parentNode) {
+        try {
+          a.parentNode.removeChild(a)
+        } catch {}
+      }
       showToast('success', 'Document Downloaded', `Downloaded ${doc.name} successfully.`)
     } else {
       const blob = new Blob([`LUMO VERIFICATION RECORD\nDocument: ${doc.name}\nType: ${doc.type}\nStatus: ${doc.status}\nUploaded: ${doc.uploadedAt}`], {
@@ -78,7 +82,11 @@ export function KycComplianceTab() {
       a.download = `${doc.name || 'document'}.txt`
       document.body.appendChild(a)
       a.click()
-      document.body.removeChild(a)
+      if (a.parentNode) {
+        try {
+          a.parentNode.removeChild(a)
+        } catch {}
+      }
       URL.revokeObjectURL(url)
       showToast('success', 'Document Downloaded', `Downloaded ${doc.name}.`)
     }

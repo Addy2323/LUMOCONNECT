@@ -25,17 +25,17 @@ export function OnboardingView({ onComplete, onCancel }: OnboardingViewProps) {
   const [step, setStep] = useState(1)
 
   // Partner Form State
-  const [partnerName, setPartnerName] = useState('Alex Mushi')
-  const [partnerPhone, setPartnerPhone] = useState('+255 712 345 678')
+  const [partnerName, setPartnerName] = useState('')
+  const [partnerPhone, setPartnerPhone] = useState('')
   const [partnerRegion, setPartnerRegion] = useState('Dar es Salaam')
   const [partnerType, setPartnerType] = useState('AFFILIATE_CREATOR')
-  const [partnerChannels, setPartnerChannels] = useState('@alexmushi (Instagram & WhatsApp)')
+  const [partnerChannels, setPartnerChannels] = useState('')
   const [payoutMethod, setPayoutMethod] = useState('MPESA')
 
   // Business Form State
-  const [bizLegalName, setBizLegalName] = useState('Kijani Solar Tech Ltd')
-  const [bizTradingName, setBizTradingName] = useState('Kijani Solar')
-  const [bizTin, setBizTin] = useState('114-882-901')
+  const [bizLegalName, setBizLegalName] = useState('')
+  const [bizTradingName, setBizTradingName] = useState('')
+  const [bizTin, setBizTin] = useState('')
   const [bizCategory, setBizCategory] = useState('Renewable Energy')
   const [bizCity, setBizCity] = useState('Dar es Salaam')
 

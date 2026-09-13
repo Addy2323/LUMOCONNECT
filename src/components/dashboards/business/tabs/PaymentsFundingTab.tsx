@@ -138,7 +138,7 @@ export function PaymentsFundingTab({
   // Top Up Form State
   const [topUpAmount, setTopUpAmount] = useState(5000000)
   const [topUpMethod, setTopUpMethod] = useState<'VODACOM_MPESA' | 'TIGO_PESA' | 'AIRTEL_MONEY' | 'CRDB_BANK'>('VODACOM_MPESA')
-  const [payerPhone, setPayerPhone] = useState('+255 754 000 111')
+  const [payerPhone, setPayerPhone] = useState('')
 
   // Sync to localStorage
   useEffect(() => {
