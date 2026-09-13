@@ -5,11 +5,11 @@ import {
   X,
   KeyRound,
   Mail,
-  Phone,
   ShieldCheck,
-  ArrowRight,
   CheckCircle2,
   Lock,
+  AlertCircle,
+  Loader2,
 } from 'lucide-react'
 
 interface PasswordRecoveryModalProps {
@@ -26,25 +26,112 @@ export function PasswordRecoveryModal({
   const [step, setStep] = useState<1 | 2 | 3>(1)
   const [identifier, setIdentifier] = useState('')
   const [otpCode, setOtpCode] = useState('')
+  const [resetToken, setResetToken] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [infoMessage, setInfoMessage] = useState<string | null>(null)
 
   if (!isOpen) return null
 
-  const handleSendOtp = (e: React.FormEvent) => {
+  const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault()
-    setStep(2)
+    setErrorMessage(null)
+    setLoading(true)
+
+    try {
+      const res = await fetch('/api/auth/otp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          identifier: identifier.trim(),
+          purpose: 'PASSWORD_RESET',
+          language: 'SW',
+        }),
+      })
+
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setErrorMessage(data.error || 'Failed to dispatch password recovery code.')
+      } else {
+        setInfoMessage(data.message || 'Verification code has been dispatched.')
+        setStep(2)
+      }
+    } catch {
+      setErrorMessage('Network error communicating with server. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleVerifyOtp = (e: React.FormEvent) => {
+  const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault()
-    setStep(3)
+    setErrorMessage(null)
+    setLoading(true)
+
+    try {
+      const res = await fetch('/api/auth/otp/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          identifier: identifier.trim(),
+          code: otpCode.trim(),
+          purpose: 'PASSWORD_RESET',
+        }),
+      })
+
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data.success) {
+        setErrorMessage(data.error || 'Invalid or expired verification code.')
+      } else {
+        setResetToken(data.resetToken || '')
+        setStep(3)
+      }
+    } catch {
+      setErrorMessage('Network error validating code. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleResetPassword = (e: React.FormEvent) => {
+  const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault()
-    onSuccess()
-    onClose()
+    setErrorMessage(null)
+
+    if (newPassword.length < 8) {
+      setErrorMessage('Password must be at least 8 characters long.')
+      return
+    }
+
+    if (newPassword !== confirmPassword) {
+      setErrorMessage('Passwords do not match.')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const res = await fetch('/api/auth/password/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          resetToken,
+          newPassword,
+        }),
+      })
+
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data.success) {
+        setErrorMessage(data.error || 'Failed to reset password. The reset session may have expired.')
+      } else {
+        onSuccess()
+        onClose()
+      }
+    } catch {
+      setErrorMessage('Network error updating password. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -66,19 +153,26 @@ export function PasswordRecoveryModal({
               Account Recovery
             </h3>
             <p className="text-xs text-[#64748B] dark:text-slate-400">
-              {step === 1 && 'Enter your verified email or phone'}
+              {step === 1 && 'Enter your registered phone or email'}
               {step === 2 && 'Enter security OTP code'}
               {step === 3 && 'Create new secure password'}
             </p>
           </div>
         </div>
 
+        {errorMessage && (
+          <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{errorMessage}</span>
+          </div>
+        )}
+
         {/* Step 1: Enter Identifier */}
         {step === 1 && (
           <form onSubmit={handleSendOtp} className="space-y-4">
             <div>
               <label className="block text-xs font-bold text-[#0F172A] dark:text-slate-300 mb-1.5">
-                Email or Mobile Number
+                Email or Mobile Phone Number
               </label>
               <div className="relative">
                 <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -87,7 +181,7 @@ export function PasswordRecoveryModal({
                   required
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
-                  placeholder="e.g. you@example.com or +255 712 345 678"
+                  placeholder="e.g. 07XXXXXXXX or name@example.com"
                   className="w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm border border-[#E2E8F0] dark:border-slate-800 rounded-xl bg-slate-50/50 text-[#0F172A] dark:text-white"
                 />
               </div>
@@ -96,15 +190,16 @@ export function PasswordRecoveryModal({
             <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/60 text-[11px] text-[#64748B] flex items-start gap-2">
               <ShieldCheck className="w-4 h-4 text-[#F97316] shrink-0 mt-0.5" />
               <span>
-                We will dispatch a 6-digit security code via Meseji SMS and Email to verify your identity.
+                A 6-digit verification code will be dispatched via Meseji SMS to your phone to confirm ownership.
               </span>
             </div>
 
             <button
               type="submit"
-              className="w-full py-3 bg-[#F97316] hover:bg-[#EA580C] text-white font-extrabold text-xs rounded-xl shadow-xs transition-colors"
+              disabled={loading}
+              className="w-full py-3 bg-[#F97316] hover:bg-[#EA580C] text-white font-extrabold text-xs rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
             >
-              Send Recovery Code
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Send Recovery Code via Meseji'}
             </button>
           </form>
         )}
@@ -112,6 +207,12 @@ export function PasswordRecoveryModal({
         {/* Step 2: Enter OTP */}
         {step === 2 && (
           <form onSubmit={handleVerifyOtp} className="space-y-4">
+            {infoMessage && (
+              <p className="text-xs text-slate-500 bg-slate-50 dark:bg-slate-800 p-2.5 rounded-xl">
+                {infoMessage}
+              </p>
+            )}
+
             <div>
               <label className="block text-xs font-bold text-[#0F172A] dark:text-slate-300 mb-1.5">
                 6-Digit Security Code
@@ -122,19 +223,20 @@ export function PasswordRecoveryModal({
                 maxLength={6}
                 value={otpCode}
                 onChange={(e) => setOtpCode(e.target.value)}
-                placeholder="749201"
+                placeholder="······"
                 className="w-full text-center tracking-[0.5em] font-mono font-bold text-lg p-3 border border-[#E2E8F0] dark:border-slate-800 rounded-xl bg-slate-50/50 text-[#0F172A] dark:text-white"
               />
               <span className="block text-[11px] text-slate-400 mt-1.5 text-center">
-                Demo code: <strong>749201</strong> (Expires in 10 minutes)
+                Code expires in 10 minutes · Check your phone SMS
               </span>
             </div>
 
             <button
               type="submit"
-              className="w-full py-3 bg-[#F97316] hover:bg-[#EA580C] text-white font-extrabold text-xs rounded-xl shadow-xs transition-colors"
+              disabled={loading || otpCode.length < 6}
+              className="w-full py-3 bg-[#F97316] hover:bg-[#EA580C] text-white font-extrabold text-xs rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
             >
-              Verify Code
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Verify Code'}
             </button>
           </form>
         )}
@@ -144,7 +246,7 @@ export function PasswordRecoveryModal({
           <form onSubmit={handleResetPassword} className="space-y-4">
             <div>
               <label className="block text-xs font-bold text-[#0F172A] dark:text-slate-300 mb-1.5">
-                New Password
+                New Password (minimum 8 characters)
               </label>
               <div className="relative">
                 <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -159,19 +261,41 @@ export function PasswordRecoveryModal({
               </div>
             </div>
 
+            <div>
+              <label className="block text-xs font-bold text-[#0F172A] dark:text-slate-300 mb-1.5">
+                Confirm New Password
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  type="password"
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm new password"
+                  className="w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm border border-[#E2E8F0] dark:border-slate-800 rounded-xl bg-slate-50/50 text-[#0F172A] dark:text-white"
+                />
+              </div>
+            </div>
+
             <div className="p-3 bg-amber-50 dark:bg-amber-950/40 rounded-xl border border-amber-200 text-[11px] text-amber-800 flex items-start gap-2">
               <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
               <span>
-                Resetting your password will automatically revoke all existing active sessions on other devices for your security.
+                Resetting your password will automatically invalidate all existing active sessions on other devices for your security.
               </span>
             </div>
 
             <button
               type="submit"
-              className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2"
+              disabled={loading}
+              className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
             >
-              <CheckCircle2 className="w-4 h-4" />
-              <span>Update Password & Revoke Sessions</span>
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : (
+                <>
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Update Password & Complete Recovery</span>
+                </>
+              )}
             </button>
           </form>
         )}

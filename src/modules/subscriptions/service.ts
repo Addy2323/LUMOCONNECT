@@ -7,6 +7,7 @@ import type {
   SubscriptionCheckoutResult,
   SubscriptionPlanCode,
 } from './types'
+import { SnippePaymentAdapter } from '@/lib/providers/snippe'
 import { MongikePaymentAdapter } from '@/lib/providers/mongike'
 
 export const DEFAULT_SUBSCRIPTION_PLANS: SubscriptionPlanItem[] = [
@@ -378,16 +379,16 @@ export async function createSubscriptionCheckout(
       ? 'HALOPESA'
       : 'MPESA'
 
-  const mongike = new MongikePaymentAdapter()
-  const initResult = await mongike.initiatePayment({
+  const snippe = new SnippePaymentAdapter()
+  const initResult = await snippe.initiatePayment({
     orderId: paymentAttemptId,
-    idempotencyKey: `idemp_${paymentAttemptId}`,
+    idempotencyKey: `idemp_${paymentAttemptId}`.slice(0, 30),
     amountMinorUnits: BigInt(amountTZS * 100),
     currency: 'TZS',
     paymentMethod: mappedPaymentMethod as any,
     customerPhone: req.phoneNumber,
     customerEmail: `${req.userId}@lumo.co.tz`,
-    callbackUrl: 'https://lumo.co.tz/api/webhooks/mongike',
+    callbackUrl: 'https://lumo.co.tz/api/webhooks/snippe',
   })
 
   // Calculate durations on server

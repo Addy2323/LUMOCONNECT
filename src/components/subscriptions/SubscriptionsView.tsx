@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
   Sparkles,
   Zap,
@@ -13,14 +13,17 @@ import {
   X,
   Send,
   Smartphone,
+  AlertCircle,
+  RefreshCw,
 } from 'lucide-react'
 import {
   createSubscriptionCheckout,
+  grantUserSubscription,
   submitEnterpriseInquiry,
   listSubscriptionPlans,
   getUserSubscription,
 } from '@/modules/subscriptions/service'
-import type { EnterpriseInquiryInput, SubscriptionPlanItem } from '@/modules/subscriptions/types'
+import type { EnterpriseInquiryInput, SubscriptionPlanItem, SubscriptionPlanCode } from '@/modules/subscriptions/types'
 
 interface SubscriptionsViewProps {
   currentUserId?: string
@@ -30,6 +33,7 @@ interface SubscriptionsViewProps {
   subscriptionStatus?: string
   onSubscriptionSuccess: (planCode: string, returnTo?: string) => void
   onNavigateHome: () => void
+  onRequireAuth?: (intendedPlanCode?: string) => void
 }
 
 export function SubscriptionsView({
@@ -39,6 +43,7 @@ export function SubscriptionsView({
   reasonMessage = "Subscribe now to unlock this deal. You'll return automatically after payment.",
   onSubscriptionSuccess,
   onNavigateHome,
+  onRequireAuth,
 }: SubscriptionsViewProps) {
   // Live Plans from configuration
   const [plans, setPlans] = useState<SubscriptionPlanItem[]>(listSubscriptionPlans())
@@ -55,12 +60,15 @@ export function SubscriptionsView({
   }, [])
 
   // Checkout Modal State
-  const [selectedPlanCode, setSelectedPlanCode] = useState<'MONTHLY' | 'SEMI_ANNUAL' | null>(null)
+  const [selectedPlanCode, setSelectedPlanCode] = useState<SubscriptionPlanCode | null>(null)
   const [paymentMethod, setPaymentMethod] = useState<'MPESA' | 'AIRTEL' | 'TIGO' | 'HALOPESA'>('MPESA')
   const [phoneNumber, setPhoneNumber] = useState('')
   const [isProcessingPayment, setIsProcessingPayment] = useState(false)
-  const [simStep, setSimStep] = useState<number>(0)
-  const [simLog, setSimLog] = useState<string[]>([])
+  const [paymentStatus, setPaymentStatus] = useState<'IDLE' | 'INITIATING' | 'WAITING_USSD' | 'ERROR'>('IDLE')
+  const [paymentReference, setPaymentReference] = useState<string | null>(null)
+  const [paymentInstructions, setPaymentInstructions] = useState<string | null>(null)
+  const [paymentError, setPaymentError] = useState<string | null>(null)
+  const [pollSecondsElapsed, setPollSecondsElapsed] = useState<number>(0)
   const [paymentSuccessData, setPaymentSuccessData] = useState<{ planName: string; expiresAt?: Date } | null>(null)
 
   // Enterprise Inquiry Modal State
@@ -78,68 +86,207 @@ export function SubscriptionsView({
   })
   const [enterpriseSubmitted, setEnterpriseSubmitted] = useState(false)
 
-  const handleSimulatePayment = async () => {
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
+
+  const stopPolling = () => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current)
+      pollingIntervalRef.current = null
+    }
+  }
+
+  useEffect(() => {
+    return () => {
+      stopPolling()
+    }
+  }, [])
+
+  const handleCloseModal = () => {
+    stopPolling()
+    setSelectedPlanCode(null)
+    setPaymentStatus('IDLE')
+    setIsProcessingPayment(false)
+    setPaymentError(null)
+    setPaymentReference(null)
+    setPaymentInstructions(null)
+    setPollSecondsElapsed(0)
+  }
+
+  const completeSuccessfulSubscription = (targetPlan: SubscriptionPlanItem) => {
+    const days = targetPlan.code === 'SEMI_ANNUAL' ? 180 : targetPlan.code === 'ANNUAL' ? 365 : 30
+    const updated = grantUserSubscription(
+      currentUserId || 'guest_subscriber',
+      targetPlan.code,
+      days,
+      targetPlan.priceTZS
+    )
+
+    setPaymentSuccessData({
+      planName: targetPlan.name,
+      expiresAt: updated.expiresAt,
+    })
+    setPaymentStatus('IDLE')
+    setIsProcessingPayment(false)
+
+    setTimeout(() => {
+      handleCloseModal()
+      onSubscriptionSuccess(targetPlan.code, returnTo)
+    }, 2000)
+  }
+
+  const startPollingPaymentStatus = (reference: string, targetPlan: SubscriptionPlanItem) => {
+    stopPolling()
+    let elapsed = 0
+    const maxSeconds = 90
+
+    pollingIntervalRef.current = setInterval(async () => {
+      elapsed += 3
+      setPollSecondsElapsed(elapsed)
+
+      if (elapsed > maxSeconds) {
+        stopPolling()
+        setIsProcessingPayment(false)
+        setPaymentStatus('ERROR')
+        setPaymentError('USSD prompt timed out. If you entered your PIN, click "Check Status Now" below.')
+        return
+      }
+
+      try {
+        const res = await fetch(`/api/payments/${encodeURIComponent(reference)}/status`)
+        if (!res.ok) return
+        const data = await res.json()
+        if (!data.success || !data.data) return
+
+        const status = data.data.status
+
+        if (status === 'SUCCESSFUL') {
+          stopPolling()
+          completeSuccessfulSubscription(targetPlan)
+        } else if (status === 'FAILED') {
+          stopPolling()
+          setIsProcessingPayment(false)
+          setPaymentStatus('ERROR')
+          setPaymentError('Payment was declined or cancelled on your mobile device.')
+        }
+      } catch (e) {
+        console.warn('Status polling error', e)
+      }
+    }, 3000)
+  }
+
+  const handlePlanSelect = (planCode: SubscriptionPlanCode) => {
+    if (!currentUserId) {
+      if (onRequireAuth) {
+        onRequireAuth(planCode)
+      } else if (typeof window !== 'undefined') {
+        window.location.href = '/choose-path'
+      }
+      return
+    }
+    setSelectedPlanCode(planCode)
+  }
+
+  const handleLivePayment = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
     if (!selectedPlanCode) return
+
+    if (!currentUserId) {
+      handleCloseModal()
+      if (onRequireAuth) {
+        onRequireAuth(selectedPlanCode)
+      } else if (typeof window !== 'undefined') {
+        window.location.href = '/choose-path'
+      }
+      return
+    }
+
+    setPaymentError(null)
+
+    const cleanedPhone = phoneNumber.trim().replace(/\s+/g, '')
+    if (!cleanedPhone || cleanedPhone.length < 9) {
+      setPaymentError('Please enter a valid Tanzanian mobile phone number (e.g. 07XXXXXXXX or 2557XXXXXXXX)')
+      return
+    }
+
+    const currentPlan = plans.find((p) => p.code === selectedPlanCode) || monthlyPlan
+    const amountTZS = currentPlan.priceTZS
+
     setIsProcessingPayment(true)
-    setSimStep(1)
-    setSimLog([`Connecting to Mongike Gateway switch for ${paymentMethod}...`])
-
-    // Step 1: 1.5s
-    await new Promise((r) => setTimeout(r, 1500))
-    setSimStep(2)
-    setSimLog((prev) => [
-      ...prev,
-      `USSD Push sent to ${phoneNumber} (${paymentMethod}). Prompting PIN input...`,
-    ])
-
-    // Step 2: 1.5s
-    await new Promise((r) => setTimeout(r, 1500))
-    setSimStep(3)
-    setSimLog((prev) => [
-      ...prev,
-      `Mobile PIN Verified. TZS ${selectedPlanCode === 'MONTHLY' ? '25,000' : '120,000'} deducted from mobile wallet.`,
-    ])
-
-    // Step 3: 1.5s
-    await new Promise((r) => setTimeout(r, 1500))
-    setSimStep(4)
-    setSimLog((prev) => [
-      ...prev,
-      'TRA Withholding & e-Tax verified. Subscription Activated!',
-    ])
-
-    // Step 4: 1.5s (Total = 6.0 seconds)
-    await new Promise((r) => setTimeout(r, 1500))
+    setPaymentStatus('INITIATING')
+    setPollSecondsElapsed(0)
 
     try {
-      const result = await createSubscriptionCheckout({
-        userId: currentUserId || 'guest_subscriber',
-        planCode: selectedPlanCode,
-        paymentMethod,
-        phoneNumber,
-        returnTo,
-        intent,
+      const res = await fetch('/api/payments/initiate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amountTZS,
+          phoneNumber: cleanedPhone,
+          paymentMethod:
+            paymentMethod === 'AIRTEL'
+              ? 'AIRTEL_MONEY'
+              : paymentMethod === 'TIGO'
+              ? 'TIGO_PESA'
+              : paymentMethod === 'HALOPESA'
+              ? 'HALOPESA'
+              : 'MPESA',
+          orderId: `SUB-${Date.now()}-${(currentUserId || 'guest').slice(0, 8)}`,
+          customerName: 'LUMO Subscriber',
+          customerEmail: currentUserId ? `${currentUserId}@lumo.co.tz` : undefined,
+          metadata: {
+            planCode: selectedPlanCode,
+            userId: currentUserId || 'guest_subscriber',
+            planName: currentPlan.name,
+            source: 'SUBSCRIPTION_CHECKOUT',
+          },
+        }),
       })
 
-      if (result.success) {
-        setPaymentSuccessData({
-          planName: result.planName,
-          expiresAt: result.expiresAt,
-        })
-        setTimeout(() => {
-          setSelectedPlanCode(null)
-          setSimStep(0)
-          onSubscriptionSuccess(selectedPlanCode, returnTo)
-        }, 1500)
+      const json = await res.json()
+
+      if (!res.ok || !json.success) {
+        const errorMsg = json.error || 'Failed to initiate payment with Snippe. Please check your phone number and balance.'
+        setPaymentError(errorMsg)
+        setPaymentStatus('ERROR')
+        setIsProcessingPayment(false)
+        return
       }
-    } finally {
+
+      const reference = json.data?.reference
+      const instructions = json.data?.instructions || `A USSD push has been sent to ${cleanedPhone}. Please enter your PIN.`
+
+      setPaymentReference(reference)
+      setPaymentInstructions(instructions)
+      setPaymentStatus('WAITING_USSD')
+
+      // Start live polling status check
+      startPollingPaymentStatus(reference, currentPlan)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Network error communicating with payment gateway'
+      setPaymentError(msg)
+      setPaymentStatus('ERROR')
       setIsProcessingPayment(false)
     }
   }
 
-  const handleExecutePayment = async (e: React.FormEvent) => {
-    e.preventDefault()
-    handleSimulatePayment()
+  const checkPaymentStatusManually = async () => {
+    if (!paymentReference) return
+    const currentPlan = plans.find((p) => p.code === selectedPlanCode) || monthlyPlan
+    try {
+      const res = await fetch(`/api/payments/${encodeURIComponent(paymentReference)}/status`)
+      const data = await res.json()
+      if (data.success && data.data?.status === 'SUCCESSFUL') {
+        stopPolling()
+        completeSuccessfulSubscription(currentPlan)
+      } else if (data.data?.status === 'FAILED') {
+        stopPolling()
+        setIsProcessingPayment(false)
+        setPaymentStatus('ERROR')
+        setPaymentError('Payment was declined or cancelled on your handset.')
+      }
+    } catch (e) {
+      console.warn('Manual status check failed', e)
+    }
   }
 
   const handleEnterpriseSubmit = (e: React.FormEvent) => {
@@ -207,11 +354,24 @@ export function SubscriptionsView({
         </div>
       ) : (
         /* Non-Subscriber Warning Banner */
-        <div className="p-3.5 sm:p-4 rounded-2xl bg-[#FEF6EE] dark:bg-amber-950/40 border border-[#FEE4D2] dark:border-amber-800/60 flex items-center gap-3 shadow-2xs">
-          <Lock className="w-4 h-4 text-[#FF6A00] shrink-0" />
-          <p className="text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-200 leading-snug">
-            {reasonMessage || "Subscribe now to unlock this deal. You'll return automatically after payment."}
-          </p>
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-[#FEF6EE] dark:bg-amber-950/40 border border-[#FEE4D2] dark:border-amber-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+          <div className="flex items-center gap-3">
+            <Lock className="w-4 h-4 text-[#FF6A00] shrink-0" />
+            <p className="text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-200 leading-snug">
+              {!currentUserId
+                ? 'Create an account or sign in to subscribe and unlock all deals.'
+                : (reasonMessage || "Subscribe now to unlock this deal. You'll return automatically after payment.")}
+            </p>
+          </div>
+          {!currentUserId && (
+            <button
+              type="button"
+              onClick={() => (onRequireAuth ? onRequireAuth() : (typeof window !== 'undefined' && (window.location.href = '/choose-path')))}
+              className="py-1.5 px-3.5 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-bold text-xs rounded-xl shadow-xs transition-all whitespace-nowrap cursor-pointer shrink-0"
+            >
+              Create Account
+            </button>
+          )}
         </div>
       )}
 
@@ -272,10 +432,10 @@ export function SubscriptionsView({
 
             <button
               type="button"
-              onClick={() => setSelectedPlanCode('MONTHLY')}
+              onClick={() => handlePlanSelect('MONTHLY')}
               className="w-full py-3.5 px-4 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold text-xs lg:text-sm rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 active:scale-[0.99] cursor-pointer"
             >
-              <span>{monthlyPlan.ctaLabel || 'Subscribe Monthly'}</span>
+              <span>{currentUserId ? (monthlyPlan.ctaLabel || 'Subscribe Monthly') : 'Create Account & Subscribe'}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
@@ -337,10 +497,10 @@ export function SubscriptionsView({
 
             <button
               type="button"
-              onClick={() => setSelectedPlanCode('SEMI_ANNUAL')}
+              onClick={() => handlePlanSelect('SEMI_ANNUAL')}
               className="w-full py-3.5 px-4 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold text-xs lg:text-sm rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 active:scale-[0.99] cursor-pointer"
             >
-              <span>{semiAnnualPlan.ctaLabel || 'Choose Semi-Annual'}</span>
+              <span>{currentUserId ? (semiAnnualPlan.ctaLabel || 'Choose Semi-Annual') : 'Create Account & Subscribe'}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
@@ -432,10 +592,10 @@ export function SubscriptionsView({
 
             <button
               type="button"
-              onClick={() => setSelectedPlanCode('MONTHLY')}
+              onClick={() => handlePlanSelect('MONTHLY')}
               className="w-full py-3.5 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold text-xs rounded-xl shadow-xs transition-all text-center active:scale-[0.99] cursor-pointer"
             >
-              {monthlyPlan.ctaLabel || 'Subscribe Monthly'}
+              {currentUserId ? (monthlyPlan.ctaLabel || 'Subscribe Monthly') : 'Create Account & Subscribe'}
             </button>
           </div>
         )}
@@ -490,10 +650,10 @@ export function SubscriptionsView({
 
             <button
               type="button"
-              onClick={() => setSelectedPlanCode('SEMI_ANNUAL')}
+              onClick={() => handlePlanSelect('SEMI_ANNUAL')}
               className="w-full py-3.5 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold text-xs rounded-xl shadow-xs transition-all text-center active:scale-[0.99] cursor-pointer"
             >
-              {semiAnnualPlan.ctaLabel || 'Choose Semi-Annual'}
+              {currentUserId ? (semiAnnualPlan.ctaLabel || 'Choose Semi-Annual') : 'Create Account & Subscribe'}
             </button>
           </div>
         )}
@@ -547,150 +707,248 @@ export function SubscriptionsView({
       {/* ========================================================================= */}
       {/* CHECKOUT MODAL: INSTANT MOBILE MONEY POPUP (M-PESA / AIRTEL / TIGO)       */}
       {/* ========================================================================= */}
-      {selectedPlanCode && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl space-y-4 max-h-[calc(100dvh-2rem)] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-[#FF6A00]" />
-                <h3 className="text-base font-black text-slate-900 dark:text-white">
-                  Confirm Subscription
-                </h3>
-              </div>
-              <button
-                onClick={() => setSelectedPlanCode(null)}
-                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-lg cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      {selectedPlanCode && (() => {
+        const activePlan = plans.find((p) => p.code === selectedPlanCode) || monthlyPlan
+        const providerTitle =
+          paymentMethod === 'MPESA'
+            ? 'Vodacom M-Pesa'
+            : paymentMethod === 'AIRTEL'
+            ? 'Airtel Money'
+            : paymentMethod === 'TIGO'
+            ? 'Tigo Pesa'
+            : 'HaloPesa'
 
-            {paymentSuccessData ? (
-              <div className="py-8 text-center space-y-3">
-                <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto" />
-                <h4 className="text-lg font-black text-slate-900 dark:text-white">
-                  Payment Successful!
-                </h4>
-                <p className="text-xs text-slate-500">
-                  You are now subscribed to <strong>{paymentSuccessData.planName}</strong>.
-                </p>
-                <div className="text-[11px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 p-2.5 rounded-xl border border-emerald-200">
-                  Redirecting you back to your commercial opportunities...
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl space-y-4 max-h-[calc(100dvh-2rem)] overflow-y-auto">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-[#FF6A00]" />
+                  <h3 className="text-base font-black text-slate-900 dark:text-white">
+                    Confirm Subscription
+                  </h3>
                 </div>
+                <button
+                  onClick={handleCloseModal}
+                  className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-lg cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-            ) : isProcessingPayment ? (
-              <div className="py-8 space-y-5 text-xs text-center">
-                <div className="flex flex-col items-center justify-center py-2 space-y-4">
-                  {/* Single Clean CSS Loader */}
-                  <div className="loader mx-auto" />
-                  <div className="text-slate-900 dark:text-white font-extrabold text-base">
-                    Processing Payment & USSD Push
-                  </div>
-                  <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                    Please approve the prompt on your phone for {paymentMethod} ({phoneNumber})
+
+              {paymentSuccessData ? (
+                <div className="py-8 text-center space-y-3">
+                  <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto" />
+                  <h4 className="text-lg font-black text-slate-900 dark:text-white">
+                    Payment Successful!
+                  </h4>
+                  <p className="text-xs text-slate-500">
+                    You are now subscribed to <strong>{paymentSuccessData.planName}</strong>.
                   </p>
+                  <div className="text-[11px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 p-2.5 rounded-xl border border-emerald-200">
+                    Redirecting you back to your commercial opportunities...
+                  </div>
                 </div>
-
-                <div className="flex items-center justify-between text-slate-700 dark:text-slate-300 font-bold px-1">
-                  <span className="flex items-center gap-1.5 text-xs">
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#FF6A00] animate-ping" />
-                    <span>Switch: {paymentMethod} Gateway</span>
-                  </span>
-                  <span className="text-[#FF6A00] font-mono font-black text-xs">Step {simStep} of 4</span>
-                </div>
-
-                {/* Simulation Logs Terminal */}
-                <div className="p-3.5 bg-slate-950 text-slate-200 rounded-2xl font-mono text-[11px] space-y-1.5 shadow-inner">
-                  {simLog.map((log, idx) => (
-                    <div key={idx} className="flex items-start gap-2">
-                      <span className="text-[#FF6A00] font-bold">›</span>
-                      <span>{log}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="p-3 bg-orange-50 dark:bg-slate-800 border border-orange-200 rounded-xl text-[11px] text-orange-950 dark:text-orange-200 flex items-center gap-2">
-                  <Smartphone className="w-4 h-4 text-[#FF6A00] shrink-0" />
-                  <span>Dispatched real-time USSD PIN push to Tanzania telecom switch...</span>
-                </div>
-              </div>
-            ) : (
-              <form onSubmit={(e) => { e.preventDefault(); handleSimulatePayment(); }} className="space-y-4 text-xs">
-                <div className="p-3.5 bg-orange-50/50 dark:bg-slate-800 rounded-2xl border border-orange-200/60 dark:border-slate-700 flex items-center justify-between">
+              ) : paymentStatus === 'INITIATING' ? (
+                <div className="py-10 space-y-4 text-center">
+                  <div className="flex justify-center">
+                    <div className="w-12 h-12 rounded-full border-4 border-[#FF6A00]/20 border-t-[#FF6A00] animate-spin" />
+                  </div>
                   <div>
-                    <span className="font-extrabold text-slate-900 dark:text-white block">
-                      {selectedPlanCode === 'MONTHLY' ? monthlyPlan.name : semiAnnualPlan.name}
+                    <h4 className="text-base font-extrabold text-slate-900 dark:text-white">
+                      Connecting to Snippe Payment Switch...
+                    </h4>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Requesting mobile money authorization for{' '}
+                      <span className="font-mono font-bold text-slate-700 dark:text-slate-200">{phoneNumber}</span>...
+                    </p>
+                  </div>
+                </div>
+              ) : paymentStatus === 'WAITING_USSD' ? (
+                <div className="py-6 space-y-5 text-center">
+                  <div className="relative mx-auto w-16 h-16 flex items-center justify-center">
+                    <div className="absolute inset-0 rounded-full bg-orange-100 dark:bg-orange-950/40 animate-ping opacity-75" />
+                    <div className="relative w-14 h-14 rounded-full bg-gradient-to-tr from-[#FF6A00] to-amber-500 flex items-center justify-center text-white shadow-lg">
+                      <Smartphone className="w-7 h-7" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-orange-50 dark:bg-orange-950/50 border border-orange-200 dark:border-orange-800 text-[#FF6A00] font-mono text-[11px] font-bold">
+                      <span className="w-2 h-2 rounded-full bg-[#FF6A00] animate-pulse" />
+                      USSD Push Dispatched
                     </span>
-                    <span className="text-[10px] text-slate-500">Instant Activation</span>
+                    <h4 className="text-base sm:text-lg font-black text-slate-900 dark:text-white">
+                      Authorize Payment on Your Handset
+                    </h4>
+                    <p className="text-xs text-slate-600 dark:text-slate-300 max-w-sm mx-auto leading-relaxed">
+                      A prompt has been sent to{' '}
+                      <strong className="font-mono text-slate-900 dark:text-white">{phoneNumber}</strong> ({providerTitle}).
+                      Please enter your {providerTitle} PIN to approve{' '}
+                      <strong className="text-[#FF6A00]">{activePlan.priceDisplay}</strong>.
+                    </p>
                   </div>
-                  <span className="text-base font-black font-mono text-[#FF6A00]">
-                    {selectedPlanCode === 'MONTHLY' ? monthlyPlan.priceDisplay : semiAnnualPlan.priceDisplay}
-                  </span>
-                </div>
 
-                <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                    Select Mobile Money Provider
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {(['MPESA', 'AIRTEL', 'TIGO', 'HALOPESA'] as const).map((method) => (
-                      <button
-                        key={method}
-                        type="button"
-                        onClick={() => setPaymentMethod(method)}
-                        className={`p-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
-                          paymentMethod === method
-                            ? 'border-[#FF6A00] bg-orange-50 dark:bg-slate-800 text-[#FF6A00] ring-1 ring-[#FF6A00]'
-                            : 'border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50'
-                        }`}
-                      >
-                        {method === 'MPESA'
-                          ? 'Vodacom M-Pesa'
-                          : method === 'AIRTEL'
-                          ? 'Airtel Money'
-                          : method === 'TIGO'
-                          ? 'Tigo Pesa'
-                          : 'HaloPesa'}
-                      </button>
-                    ))}
+                  <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 text-left space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-slate-500 font-medium">Snippe Gateway Ref:</span>
+                      <span className="font-mono font-bold text-slate-800 dark:text-slate-200 text-[11px]">
+                        {paymentReference || 'Pending...'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-slate-500 font-medium">Gateway Verification:</span>
+                      <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1.5">
+                        <RefreshCw className="w-3 h-3 animate-spin text-emerald-500" />
+                        Listening for PIN confirmation ({pollSecondsElapsed}s)
+                      </span>
+                    </div>
                   </div>
-                </div>
 
-                <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Mobile Money Phone Number (Tanzania)
-                  </label>
-                  <div className="relative">
-                    <Smartphone className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-                    <input
-                      type="tel"
-                      required
-                      value={phoneNumber}
-                      onChange={(e) => setPhoneNumber(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono"
-                    />
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={checkPaymentStatusManually}
+                      className="flex-1 py-2.5 px-3 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      <span>I Have Entered My PIN</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleCloseModal}
+                      className="py-2.5 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 font-semibold text-xs rounded-xl transition-all cursor-pointer"
+                    >
+                      Cancel
+                    </button>
                   </div>
                 </div>
+              ) : paymentStatus === 'ERROR' ? (
+                <div className="py-6 space-y-4 text-center">
+                  <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400 flex items-center justify-center mx-auto">
+                    <AlertCircle className="w-6 h-6" />
+                  </div>
 
-                <div className="space-y-2 pt-1">
-                  <button
-                    type="submit"
-                    disabled={isProcessingPayment}
-                    className="w-full py-3 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                  >
-                    <Zap className="h-4 w-4" aria-hidden="true" />
-                    <span>Confirm & Simulate Instant M-Pesa Approval</span>
-                  </button>
+                  <div className="space-y-1">
+                    <h4 className="text-base font-black text-slate-900 dark:text-white">
+                      Payment Initiation / Authorization Failed
+                    </h4>
+                    <p className="text-xs text-red-600 dark:text-red-400 max-w-sm mx-auto leading-relaxed">
+                      {paymentError || 'The transaction could not be completed. Please verify your phone number and balance.'}
+                    </p>
+                  </div>
 
-                  <p className="text-[10px] text-center text-slate-400">
-                    Live Mongike Payment Gateway simulator · Generates authentic transaction ID and unlocks all deals immediately.
-                  </p>
+                  <div className="flex items-center gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPaymentStatus('IDLE')
+                        setPaymentError(null)
+                      }}
+                      className="flex-1 py-2.5 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-bold text-xs rounded-xl shadow-xs transition-all cursor-pointer"
+                    >
+                      Try Again / Change Phone
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleCloseModal}
+                      className="py-2.5 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-300 font-semibold text-xs rounded-xl transition-all cursor-pointer"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
                 </div>
-              </form>
-            )}
+              ) : (
+                <form onSubmit={handleLivePayment} className="space-y-4 text-xs">
+                  <div className="p-3.5 bg-orange-50/50 dark:bg-slate-800 rounded-2xl border border-orange-200/60 dark:border-slate-700 flex items-center justify-between">
+                    <div>
+                      <span className="font-extrabold text-slate-900 dark:text-white block">
+                        {activePlan.name}
+                      </span>
+                      <span className="text-[10px] text-slate-500">Instant Activation via Snippe</span>
+                    </div>
+                    <span className="text-base font-black font-mono text-[#FF6A00]">
+                      {activePlan.priceDisplay}
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                      Select Mobile Money Provider
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {(['MPESA', 'AIRTEL', 'TIGO', 'HALOPESA'] as const).map((method) => (
+                        <button
+                          key={method}
+                          type="button"
+                          onClick={() => setPaymentMethod(method)}
+                          className={`p-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                            paymentMethod === method
+                              ? 'border-[#FF6A00] bg-orange-50 dark:bg-slate-800 text-[#FF6A00] ring-1 ring-[#FF6A00]'
+                              : 'border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50'
+                          }`}
+                        >
+                          {method === 'MPESA'
+                            ? 'Vodacom M-Pesa'
+                            : method === 'AIRTEL'
+                            ? 'Airtel Money'
+                            : method === 'TIGO'
+                            ? 'Tigo Pesa'
+                            : 'HaloPesa'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Mobile Money Phone Number (Tanzania)
+                    </label>
+                    <div className="relative">
+                      <Smartphone className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                      <input
+                        type="tel"
+                        required
+                        placeholder="07XX XXX XXX or 2557..."
+                        value={phoneNumber}
+                        onChange={(e) => setPhoneNumber(e.target.value)}
+                        className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono"
+                      />
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-1">
+                      Direct USSD push to Vodacom M-Pesa, Airtel Money, Tigo Pesa & HaloPesa.
+                    </p>
+                  </div>
+
+                  {paymentError && (
+                    <div className="p-2.5 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-xs flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      <span>{paymentError}</span>
+                    </div>
+                  )}
+
+                  <div className="space-y-2 pt-1">
+                    <button
+                      type="submit"
+                      disabled={isProcessingPayment}
+                      className="w-full py-3 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                    >
+                      <Smartphone className="h-4 w-4" aria-hidden="true" />
+                      <span>Pay {activePlan.priceDisplay} with {providerTitle}</span>
+                    </button>
+
+                    <p className="text-[10px] text-center text-slate-400">
+                      🔒 Secured by Snippe Payment Gateway · Instant USSD PIN prompt sent to your phone.
+                    </p>
+                  </div>
+                </form>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* ========================================================================= */}
       {/* ENTERPRISE INQUIRY MODAL                                                  */}

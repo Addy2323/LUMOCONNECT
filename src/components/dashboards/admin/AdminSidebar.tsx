@@ -123,6 +123,7 @@ function getNavGroups({
       title: 'SYSTEM',
       items: [
         { id: 'notifications', label: 'Notifications', icon: Bell, opType: 'Template & Delivery' },
+        { id: 'sms', label: 'SMS Operations', icon: MessageSquare, opType: 'Meseji Telco Gateway' },
         { id: 'content', label: 'Content & Promotions', icon: Megaphone, opType: 'Publish/Archive' },
         { id: 'roles', label: 'Roles & Permissions', icon: UserCog, opType: 'C/R/U/Revoke' },
         { id: 'integrations', label: 'Integrations & Webhooks', icon: Webhook, opType: 'API & Gateways' },

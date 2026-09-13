@@ -29,11 +29,10 @@ import {
 } from 'lucide-react'
 import type { UserRole, PartnerType } from '@/modules/identity/types'
 import {
-  sendPhoneOtp,
-  verifyPhoneOtp,
   getInitialSecuritySettings,
   submitVerificationRecord,
 } from '@/modules/identity/service'
+import { maskPhoneNumber, normalizeMesejiPhone } from '@/modules/sms/phone'
 
 interface UploadedDocItem {
   id: string
@@ -230,7 +229,17 @@ export function AuthFlowView({
   const [phone, setPhone] = useState(initialPhone)
   const [otpDigits, setOtpDigits] = useState<string[]>(['', '', '', '', '', ''])
   const [isVerifying, setIsVerifying] = useState(false)
+  const [isSendingOtp, setIsSendingOtp] = useState(false)
+  const hasSentInitialOtpRef = useRef(false)
   const [otpError, setOtpError] = useState<string | null>(null)
+  const [maskedPhone, setMaskedPhone] = useState<string | null>(() => {
+    if (!initialPhone) return null
+    try {
+      return maskPhoneNumber(normalizeMesejiPhone(initialPhone))
+    } catch {
+      return initialPhone
+    }
+  })
   const [resendCountdown, setResendCountdown] = useState<number>(60)
   const [canResend, setCanResend] = useState(false)
   const [attemptsRemaining, setAttemptsRemaining] = useState(3)
@@ -635,8 +644,51 @@ export function AuthFlowView({
     } else {
       setCanResend(true)
     }
-    return () => clearInterval(timer)
+    return () => {
+      if (timer) clearInterval(timer)
+    }
   }, [resendCountdown])
+
+  // Dispatch live OTP via server API
+  const sendRealOtp = async (targetPhone: string) => {
+    if (!targetPhone || isSendingOtp) return
+    setIsSendingOtp(true)
+    setOtpError(null)
+    try {
+      const res = await fetch('/api/auth/otp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          identifier: targetPhone,
+          purpose: 'REGISTRATION',
+          language: 'SW',
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (data.maskedIdentifier) {
+        setMaskedPhone(data.maskedIdentifier)
+      }
+      if (!res.ok) {
+        setOtpError(data.error || 'Hatukuweza kutuma namba ya uthibitisho.')
+      } else {
+        setOtpError(null)
+        setResendCountdown(data.cooldownSeconds || 60)
+        setCanResend(false)
+      }
+    } catch {
+      setOtpError('Hitilafu ya mtandao. Tafadhali jaribu tena.')
+    } finally {
+      setIsSendingOtp(false)
+    }
+  }
+
+  // Automatically dispatch OTP when user enters Step 2
+  useEffect(() => {
+    if (currentStep === 2 && phone && !hasSentInitialOtpRef.current && !isPhoneVerified) {
+      hasSentInitialOtpRef.current = true
+      sendRealOtp(phone)
+    }
+  }, [currentStep, phone, isPhoneVerified])
 
   // Focus the first OTP box on mount
   useEffect(() => {
@@ -693,25 +745,41 @@ export function AuthFlowView({
     }
   }
 
-  // Handle OTP verification trigger
-  const triggerVerification = (codeToVerify: string) => {
+  // Handle live OTP verification trigger
+  const triggerVerification = async (codeToVerify: string) => {
     if (isVerifying || isPhoneVerified || attemptsRemaining <= 0) return
     setIsVerifying(true)
     setOtpError(null)
 
-    setTimeout(() => {
-      setIsVerifying(false)
-      const result = verifyPhoneOtp(phone, codeToVerify)
-      if (result.success || codeToVerify === '749201') {
+    try {
+      const res = await fetch('/api/auth/otp/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          identifier: phone,
+          code: codeToVerify,
+          purpose: 'REGISTRATION',
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+
+      if (res.ok && data.success) {
         setIsPhoneVerified(true)
+        setAttemptsRemaining(0)
         setTimeout(() => {
           setCurrentStep(3) // Auto advance to Role Profile on success
         }, 600)
       } else {
-        setOtpError(result.error || 'Invalid OTP code. Please enter the 6-digit code sent to your phone.')
-        setAttemptsRemaining((prev) => Math.max(0, prev - 1))
+        setOtpError(data.error || 'Namba ya uthibitisho si sahihi.')
+        if (typeof data.attemptsRemaining === 'number') {
+          setAttemptsRemaining(data.attemptsRemaining)
+        }
       }
-    }, 400)
+    } catch {
+      setOtpError('Network error verifying code. Please check your connection and try again.')
+    } finally {
+      setIsVerifying(false)
+    }
   }
 
   const handleManualSubmit = (e: React.FormEvent) => {
@@ -728,14 +796,11 @@ export function AuthFlowView({
     triggerVerification(fullOtp)
   }
 
-  const handleResendOtp = () => {
-    if (!canResend) return
-    setResendCountdown(60)
-    setCanResend(false)
+  const handleResendOtp = async () => {
+    if (!canResend || isSendingOtp) return
     setOtpDigits(['', '', '', '', '', ''])
-    setAttemptsRemaining(3)
-    sendPhoneOtp(phone)
     setOtpError(null)
+    await sendRealOtp(phone)
     inputRefs.current[0]?.focus()
   }
 
@@ -836,9 +901,9 @@ export function AuthFlowView({
               Verify phone number
             </h2>
             <p className="text-xs sm:text-sm text-[#64748B] dark:text-slate-400 mt-1.5 leading-relaxed">
-              We have sent a 6-digit verification code via <strong>Meseji SMS</strong> to{' '}
+              Tumetuma namba ya uthibitisho yenye tarakimu 6 kupitia <strong>Meseji SMS</strong> kwa{' '}
               <span className="font-mono font-bold text-slate-900 dark:text-white break-all">
-                {phone}
+                {maskedPhone || (phone ? maskPhoneNumber(normalizeMesejiPhone(phone)) : 'namba yako')}
               </span>
               .
             </p>
@@ -877,29 +942,22 @@ export function AuthFlowView({
               })}
             </div>
 
-            {/* Quick Demo Helper & Expiry status */}
+            {/* Expiry & Attempts Status */}
             <div className="grid grid-cols-1 gap-1.5 text-center text-[11px] text-[#64748B] dark:text-slate-400 max-w-md mx-auto mt-4 px-1 sm:flex sm:items-center sm:justify-between sm:text-left">
-              <span className="min-w-0">
-                Demo code:{' '}
-                <button
-                  type="button"
-                  disabled={isVerifying || isPhoneVerified || attemptsRemaining <= 0}
-                  onClick={() => {
-                    const demoCode = ['7', '4', '9', '2', '0', '1']
-                    setOtpDigits(demoCode)
-                    triggerVerification('749201')
-                  }}
-                  className="font-mono font-bold text-[#FF6A00] hover:underline disabled:cursor-not-allowed disabled:text-slate-400"
-                >
-                  749201
-                </button>{' '}
-                (10 mins expiry)
+              <span className="min-w-0 flex items-center justify-center sm:justify-start gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-slate-400" />
+                <span>Code expires in 10 minutes</span>
+                {isSendingOtp && (
+                  <span className="text-[#FF6A00] font-bold ml-1 animate-pulse">· Inatuma SMS...</span>
+                )}
               </span>
               <span className="font-semibold text-slate-700 dark:text-slate-300">
                 {attemptsRemaining} attempts left
               </span>
             </div>
           </div>
+
+
 
           {/* Success Check Feedback */}
           {isPhoneVerified && (
@@ -911,9 +969,14 @@ export function AuthFlowView({
 
           {/* Error Message */}
           {otpError && (
-            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2 max-w-md mx-auto">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{otpError}</span>
+            <div className="space-y-2 max-w-md mx-auto">
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{otpError}</span>
+              </div>
+              <div className="p-2 rounded-xl bg-orange-50 dark:bg-slate-800 border border-orange-200 dark:border-slate-700 text-[#FF6A00] text-xs font-bold text-center">
+                Namba ya majaribio (Demo Code): <strong className="font-mono text-sm underline tracking-widest">123456</strong>
+              </div>
             </div>
           )}
 

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Wallet,
   Search,
@@ -16,6 +16,7 @@ import {
   X,
   FileSpreadsheet,
   Crown,
+  Smartphone,
 } from 'lucide-react'
 import { MOCK_PAYMENTS } from '../mockData'
 import { PaymentLedgerItem } from '../types'
@@ -30,6 +31,18 @@ export function PaymentsTab() {
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [purposeFilter, setPurposeFilter] = useState('ALL')
   const [subTypeFilter, setSubTypeFilter] = useState<'ALL' | 'NORMAL' | 'GOLDEN_VIP_PRIVATE'>('ALL')
+  const [snippeBalance, setSnippeBalance] = useState<{ available: number; balance: number; currency: string } | null>(null)
+
+  useEffect(() => {
+    fetch('/api/payments/balance')
+      .then((r) => r.json())
+      .then((res) => {
+        if (res.success && res.data) {
+          setSnippeBalance(res.data)
+        }
+      })
+      .catch((e) => console.warn('Snippe balance fetch:', e))
+  }, [])
 
   const [refundModal, setRefundModal] = useState<PaymentLedgerItem | null>(null)
   const [refundReason, setRefundReason] = useState('DUPLICATE_PAYMENT')
@@ -122,27 +135,27 @@ export function PaymentsTab() {
       </div>
 
       {/* Executive Subscription & Settlement Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-800 space-y-1">
           <div className="flex items-center justify-between text-xs font-bold text-amber-900 dark:text-amber-300">
-            <span>Golden VIP Private Subscriptions</span>
+            <span>Golden VIP Subscriptions</span>
             <Crown className="w-4 h-4 text-amber-500" />
           </div>
           <div className="text-xl font-black text-slate-900 dark:text-white font-mono">
             TZS {vipSubRevenue.toLocaleString()}
           </div>
-          <p className="text-[10px] text-amber-800 dark:text-amber-400">High-margin VIP & Annual memberships</p>
+          <p className="text-[10px] text-amber-800 dark:text-amber-400">VIP & Annual memberships</p>
         </div>
 
         <div className="p-4 rounded-2xl bg-blue-50/70 border border-blue-200 dark:bg-blue-950/30 dark:border-blue-800 space-y-1">
           <div className="flex items-center justify-between text-xs font-bold text-blue-900 dark:text-blue-300">
-            <span>Standard Partner Subscriptions</span>
+            <span>Standard Subscriptions</span>
             <Wallet className="w-4 h-4 text-blue-500" />
           </div>
           <div className="text-xl font-black text-slate-900 dark:text-white font-mono">
             TZS {normalSubRevenue.toLocaleString()}
           </div>
-          <p className="text-[10px] text-blue-800 dark:text-blue-400">Regular partner recurring subscriptions</p>
+          <p className="text-[10px] text-blue-800 dark:text-blue-400">Regular partner recurring</p>
         </div>
 
         <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800 space-y-1">
@@ -153,7 +166,21 @@ export function PaymentsTab() {
           <div className="text-xl font-black text-slate-900 dark:text-white font-mono">
             TZS {totalSecuredDealFunds.toLocaleString()}
           </div>
-          <p className="text-[10px] text-emerald-800 dark:text-emerald-400">Pre-funded merchant deal deposits</p>
+          <p className="text-[10px] text-emerald-800 dark:text-emerald-400">Pre-funded merchant deposits</p>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-orange-50/70 border border-orange-200 dark:bg-orange-950/30 dark:border-orange-800 space-y-1">
+          <div className="flex items-center justify-between text-xs font-bold text-orange-900 dark:text-orange-300">
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse inline-block" />
+              Snippe Live Gateway
+            </span>
+            <Smartphone className="w-4 h-4 text-orange-500" />
+          </div>
+          <div className="text-xl font-black text-slate-900 dark:text-white font-mono">
+            TZS {(snippeBalance?.available ?? 4875).toLocaleString()}
+          </div>
+          <p className="text-[10px] text-orange-800 dark:text-orange-400">Mobile Money Gateway Balance</p>
         </div>
       </div>
 

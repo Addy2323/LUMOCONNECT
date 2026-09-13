@@ -68,7 +68,7 @@ export function createCustomerOrder(input: CreateOrderInput): OrderItem {
     ? (totalAmountMinor * 1000n) / 10000n // 10%
     : 2500000n // TZS 25,000
 
-  const providerRef = `MOMO-TZ-${nanoid(8).toUpperCase()}`
+  const providerRef = input.paymentProviderRef || `SNP-TZ-${nanoid(8).toUpperCase()}`
   const customerAccessToken = `tok_${nanoid(24)}`
 
   const order: OrderItem = {
@@ -89,7 +89,7 @@ export function createCustomerOrder(input: CreateOrderInput): OrderItem {
     partnerRewardMinor,
     paymentMethod: input.paymentMethod,
     paymentProviderRef: providerRef,
-    status: 'PAID', // Instant authorized payment in demo flow
+    status: input.status || 'PAID',
     confirmations: {
       merchantDelivered: false,
       customerAccepted: false,

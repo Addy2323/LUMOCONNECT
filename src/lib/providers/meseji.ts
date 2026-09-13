@@ -1,28 +1,47 @@
 import type { SmsProvider, SmsMessage } from './types'
+import { MesejiClient, type MesejiConfig } from './meseji-client'
+import { normalizeMesejiPhone, maskPhoneNumber } from '@/modules/sms/phone'
+
+export { MesejiClient }
 
 /**
- * Meseji SMS Adapter (Tanzania & East Africa transactional SMS delivery)
+ * Production Meseji SMS Adapter for LUMO
+ * Conforms to decoupled SmsProvider interface while leveraging MesejiClient.
  */
 export class MesejiSmsAdapter implements SmsProvider {
   name = 'MESEJI_SMS'
-  private apiKey: string
-  private senderId: string
+  private client: MesejiClient
 
-  constructor(config?: { apiKey?: string; senderId?: string }) {
-    this.apiKey = config?.apiKey || process.env.MESEJI_API_KEY || 'mock_meseji_key'
-    this.senderId = config?.senderId || process.env.MESEJI_SENDER_ID || 'LUMO'
+  constructor(config?: MesejiConfig) {
+    this.client = new MesejiClient(config)
+  }
+
+  getClient(): MesejiClient {
+    return this.client
   }
 
   async sendSms(msg: SmsMessage): Promise<{ success: boolean; messageId?: string; error?: string }> {
-    // Standardizes phone number to E.164 (e.g. +255...)
-    const phone = msg.recipientPhone.startsWith('0') ? `+255${msg.recipientPhone.slice(1)}` : msg.recipientPhone
-    const msgId = `SMS-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+    const normalizedPhone = normalizeMesejiPhone(msg.recipientPhone)
+    const senderId = msg.senderId || this.client.configuredSenderId
 
-    // In local / sandbox environment, logs safely
-    if (process.env.NODE_ENV !== 'production') {
-      console.log(`[MESEJI SMS] Sent to ${phone} from ${this.senderId}: "${msg.messageText}" (ID: ${msgId})`)
+    const res = await this.client.sendSms({
+      sender_id: senderId,
+      message: msg.messageText,
+      contacts: normalizedPhone,
+    })
+
+    if (!res.success) {
+      return { success: false, error: res.error || 'Failed to dispatch SMS via Meseji' }
     }
 
-    return { success: true, messageId: msgId }
+    const masked = maskPhoneNumber(normalizedPhone)
+    if (process.env.NODE_ENV !== 'production' && res.isDryRun) {
+      console.log(`[MESEJI SMS DRY-RUN] Dispatched to ${masked} from ${senderId}: "${msg.messageText.slice(0, 40)}..." (Batch: ${res.batch_id})`)
+    }
+
+    return {
+      success: true,
+      messageId: res.batch_id || `SMS-${Date.now()}`,
+    }
   }
 }

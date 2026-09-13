@@ -585,6 +585,15 @@ export default function LumoApp() {
             subscriptionStatus={subscriptionRedirectContext.status}
             onSubscriptionSuccess={handleSubscriptionSuccess}
             onNavigateHome={() => setActiveView('marketplace')}
+            onRequireAuth={(intendedPlanCode) => {
+              setSubscriptionRedirectContext((prev) => ({
+                ...prev,
+                returnTo: 'subscriptions',
+                intent: 'join',
+                reasonMessage: 'Create an account or sign in to complete your subscription.',
+              }))
+              navigateToView('choose_path')
+            }}
           />
         )}
 

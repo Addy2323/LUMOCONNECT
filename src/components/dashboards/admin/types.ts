@@ -21,6 +21,7 @@ export type AdminSidebarSection =
   | 'logs'
   // Group 4: System
   | 'notifications'
+  | 'sms'
   | 'content'
   | 'roles'
   | 'integrations'

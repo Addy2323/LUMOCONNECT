@@ -1,7 +1,6 @@
 'use client'
 
 import { BackToHomeButton } from '@/components/shared/BackToHomeButton'
-
 import React, { useState } from 'react'
 import {
   Search,
@@ -38,6 +37,7 @@ import { FraudRiskTab } from './admin/tabs/FraudRiskTab'
 import { DisputesComplaintsTab } from './admin/tabs/DisputesComplaintsTab'
 import { AuditLogsTab } from './admin/tabs/AuditLogsTab'
 import { NotificationsTab } from './admin/tabs/NotificationsTab'
+import { AdminSmsCenterTab } from './admin/tabs/AdminSmsCenterTab'
 import { ContentPromotionsTab } from './admin/tabs/ContentPromotionsTab'
 import { RolesPermissionsTab } from './admin/tabs/RolesPermissionsTab'
 import { IntegrationsWebhooksTab } from './admin/tabs/IntegrationsWebhooksTab'
@@ -152,7 +152,8 @@ export function AdminDashboardView({
               {activeTab === 'risk' && 'Fraud Engine & Anomaly Case Management'}
               {activeTab === 'disputes' && 'Disputes, Complaints & Mediation'}
               {activeTab === 'logs' && 'Immutable Platform Audit Ledger'}
-              {activeTab === 'notifications' && 'Automated Communications & SMS/Email'}
+              {activeTab === 'notifications' && 'Automated Communications & Notifications'}
+              {activeTab === 'sms' && 'Meseji SMS Operations Centre'}
               {activeTab === 'content' && 'Promotions, Banners & Featured Content'}
               {activeTab === 'roles' && 'Internal RBAC Roles & Privileges'}
               {activeTab === 'integrations' && 'Payment Gateways & Webhooks'}
@@ -214,6 +215,7 @@ export function AdminDashboardView({
 
         {/* GROUP 4: SYSTEM */}
         {activeTab === 'notifications' && <NotificationsTab />}
+        {activeTab === 'sms' && <AdminSmsCenterTab />}
         {activeTab === 'content' && <ContentPromotionsTab />}
         {activeTab === 'roles' && <RolesPermissionsTab />}
         {activeTab === 'integrations' && <IntegrationsWebhooksTab />}

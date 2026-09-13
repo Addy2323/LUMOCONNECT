@@ -81,5 +81,7 @@ export interface CreateOrderInput {
     notes?: string
   }
   paymentMethod: 'MPESA' | 'AIRTEL_MONEY' | 'TIGO_PESA' | 'HALOPESA' | 'CARD'
+  paymentProviderRef?: string
+  status?: OrderStatus
 }
 
