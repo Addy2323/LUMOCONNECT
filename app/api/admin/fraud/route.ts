@@ -12,16 +12,20 @@ export async function GET() {
       },
     })
 
-    const formattedAlerts = alerts.map((a) => ({
-      id: a.id,
-      caseNumber: a.alertNumber,
-      userOrPartner: a.user?.name || 'Suspicious User',
-      riskScore: a.score,
-      riskLevel: a.level,
-      triggerReason: a.title,
-      status: a.status,
-      createdAt: a.createdAt.toISOString().slice(0, 10),
-    }))
+    const formattedAlerts = alerts.map((a) => {
+      const score = Number(a.riskScore || 0)
+      const level = score > 75 ? 'CRITICAL' : score > 50 ? 'HIGH' : score > 25 ? 'MEDIUM' : 'LOW'
+      return {
+        id: a.id,
+        caseNumber: a.id.slice(0, 8),
+        userOrPartner: a.user?.name || 'Suspicious User',
+        riskScore: score,
+        riskLevel: level,
+        triggerReason: a.reason,
+        status: a.status,
+        createdAt: a.createdAt.toISOString().slice(0, 10),
+      }
+    })
 
     return NextResponse.json({ alerts: formattedAlerts })
   } catch (error: any) {
@@ -54,8 +58,7 @@ export async function POST(request: NextRequest) {
         where: { id: alertId },
         data: {
           status: 'RESOLVED',
-          resolvedAt: new Date(),
-          resolvedByUserId: actorId,
+          dismissedBy: actorId,
         },
       })
 

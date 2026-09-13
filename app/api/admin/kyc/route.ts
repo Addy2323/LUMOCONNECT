@@ -51,9 +51,15 @@ export async function POST(request: NextRequest) {
       const kCase = await tx.verificationCase.update({
         where: { id: caseId },
         data: {
-          status,
-          reviewedAt: new Date(),
-          reviewedByUserId: actorId,
+          status: status as any,
+        },
+      })
+
+      await tx.verificationDecision.create({
+        data: {
+          caseId,
+          decidedById: actorId,
+          outcome: status,
         },
       })
 

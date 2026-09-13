@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
           ? {
               OR: [
                 { action: { contains: query, mode: 'insensitive' } },
-                { entityId: { contains: query, mode: 'insensitive' } },
+                ...(query.length === 36 ? [{ entityId: query }] : []),
               ],
             }
           : {}),

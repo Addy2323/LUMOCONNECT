@@ -15,19 +15,23 @@ export async function GET(request: NextRequest) {
       take: 100,
       include: {
         opportunity: true,
-        partnerUser: true,
-        evidences: true,
+        participation: {
+          include: {
+            partnerUser: true,
+          },
+        },
+        evidence: true,
       },
     })
 
     const formattedConversions = conversions.map((c) => ({
       id: c.id,
       dealTitle: c.opportunity?.title || 'LUMO Campaign',
-      partnerName: c.partnerUser?.name || 'Partner',
+      partnerName: c.participation?.partnerUser?.name || 'Partner',
       status: c.status,
-      grossValueTZS: Number(c.grossAmountMinor ? c.grossAmountMinor / 100n : 0n),
-      riskScore: 0,
-      evidenceCount: c.evidences.length,
+      grossValueTZS: Number(c.valueMinor ? c.valueMinor / 100n : 0n),
+      riskScore: c.riskScore || 0,
+      evidenceCount: c.evidence?.length || 0,
       createdAt: c.createdAt.toISOString().slice(0, 10),
     }))
 
@@ -62,7 +66,6 @@ export async function POST(request: NextRequest) {
         where: { id: conversionId },
         data: {
           status,
-          verifiedAt: status === 'APPROVED' ? new Date() : null,
         },
       })
 

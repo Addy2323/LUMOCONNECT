@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
         fileName: d.fileAsset.fileName,
         fileSize: '1.2 MB',
         fileUrl: '#',
-        status: (d.status === 'IN_REVIEW' ? 'PENDING' : d.status) as 'PENDING' | 'APPROVED' | 'REJECTED',
+        status: (vc.status === 'IN_REVIEW' ? 'PENDING' : vc.status) as 'PENDING' | 'APPROVED' | 'REJECTED',
         uploadedAt: d.createdAt.toISOString().slice(0, 10),
       })),
     }))

@@ -4,39 +4,38 @@ import { getDatabaseSession, DATABASE_SESSION_COOKIE } from '@/lib/database-sess
 
 export async function GET() {
   try {
-    const batches = await db.payoutBatch.findMany({
+    const payouts = await db.payout.findMany({
       orderBy: { createdAt: 'desc' },
       take: 50,
       include: {
-        payouts: {
-          include: {
-            user: true,
-          },
-        },
+        partnerUser: true,
+        payoutMethod: true,
       },
     })
 
-    const formattedBatches = batches.map((b) => {
-      const grossTZS = Number(b.totalGrossMinor / 100n)
-      const taxTZS = Number(b.totalTaxWithheldMinor / 100n)
-      const netTZS = Number(b.totalNetMinor / 100n)
+    const formattedBatches = payouts.map((p) => {
+      const grossTZS = Number(p.grossAmountMinor / 100n)
+      const taxTZS = Number(p.taxWithheldMinor / 100n)
+      const netTZS = Number(p.netAmountMinor / 100n)
 
       return {
-        id: b.id,
-        reference: b.batchNumber,
-        itemCount: b.totalItems,
+        id: p.id,
+        reference: p.providerReference || p.id.slice(0, 8),
+        itemCount: 1,
         grossAmountTZS: grossTZS,
         taxWithheldTZS: taxTZS,
         netAmountTZS: netTZS,
-        status: b.status,
-        createdAt: b.createdAt.toISOString().slice(0, 10),
-        payouts: b.payouts.map((p) => ({
-          id: p.id,
-          recipientName: p.user?.name || 'Partner',
-          phone: p.user?.phone || '—',
-          netAmountTZS: Number(p.netAmountMinor / 100n),
-          status: p.status,
-        })),
+        status: p.status,
+        createdAt: p.createdAt.toISOString().slice(0, 10),
+        payouts: [
+          {
+            id: p.id,
+            recipientName: p.partnerUser?.name || 'Partner',
+            phone: p.partnerUser?.phone || '—',
+            netAmountTZS: netTZS,
+            status: p.status,
+          },
+        ],
       }
     })
 
@@ -53,35 +52,36 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json().catch(() => ({}))
     const { batchId, action } = body // action = 'AUTHORIZE' | 'REJECT'
+    const payoutId = batchId
 
-    if (!batchId || !['AUTHORIZE', 'REJECT'].includes(action)) {
-      return NextResponse.json({ message: 'Missing batchId or invalid action.' }, { status: 400 })
+    if (!payoutId || !['AUTHORIZE', 'REJECT'].includes(action)) {
+      return NextResponse.json({ message: 'Missing payoutId or invalid action.' }, { status: 400 })
     }
 
-    const batch = await db.payoutBatch.findUnique({
-      where: { id: batchId },
+    const payout = await db.payout.findUnique({
+      where: { id: payoutId },
     })
 
-    if (!batch) {
-      return NextResponse.json({ message: 'Payout batch not found.' }, { status: 404 })
+    if (!payout) {
+      return NextResponse.json({ message: 'Payout not found.' }, { status: 404 })
     }
 
     const updated = await db.$transaction(async (tx) => {
-      const b = await tx.payoutBatch.update({
-        where: { id: batchId },
+      const b = await tx.payout.update({
+        where: { id: payoutId },
         data: {
-          status: action === 'AUTHORIZE' ? 'COMPLETED' : 'REJECTED',
-          approvedAt: action === 'AUTHORIZE' ? new Date() : null,
-          approvedByUserId: actorId,
+          status: action === 'AUTHORIZE' ? 'AUTHORIZED' : 'REVERSED',
+          authorizedAt: action === 'AUTHORIZE' ? new Date() : null,
+          authorizedBy: actorId,
         },
       })
 
       await tx.auditLog.create({
         data: {
           actorUserId: actorId,
-          action: action === 'AUTHORIZE' ? 'ADMIN_PAYOUT_BATCH_AUTHORIZED' : 'ADMIN_PAYOUT_BATCH_REJECTED',
-          entityType: 'PAYOUT_BATCH',
-          entityId: batchId,
+          action: action === 'AUTHORIZE' ? 'ADMIN_PAYOUT_AUTHORIZED' : 'ADMIN_PAYOUT_REJECTED',
+          entityType: 'PAYOUT',
+          entityId: payoutId,
           afterData: { action, status: b.status },
         },
       })

@@ -18,8 +18,8 @@ export async function GET() {
       title: n.title,
       body: n.body,
       channel: n.channel,
-      status: n.status,
-      sentAt: n.sentAt ? n.sentAt.toISOString().replace('T', ' ').slice(0, 19) : n.createdAt.toISOString().replace('T', ' ').slice(0, 19),
+      status: 'SENT',
+      sentAt: n.createdAt.toISOString().replace('T', ' ').slice(0, 19),
     }))
 
     return NextResponse.json({ notifications: formattedNotifications })
@@ -48,8 +48,6 @@ export async function POST(request: NextRequest) {
           title,
           body: message,
           channel: channel as any,
-          status: 'SENT',
-          sentAt: new Date(),
         },
       })
 

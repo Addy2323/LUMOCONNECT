@@ -9,6 +9,7 @@ export async function GET() {
       take: 100,
       include: {
         user: true,
+        plan: true,
       },
     })
 
@@ -17,13 +18,13 @@ export async function GET() {
       userId: s.userId,
       userName: s.user?.name || 'Partner',
       userEmail: s.user?.email || '—',
-      planCode: s.planCode,
-      tier: s.tier,
+      planCode: s.plan?.code || 'STANDARD',
+      tier: s.plan?.name || 'STANDARD',
       status: s.status,
-      startsAt: s.startsAt.toISOString().slice(0, 10),
-      expiresAt: s.expiresAt.toISOString().slice(0, 10),
+      startsAt: s.startsAt ? s.startsAt.toISOString().slice(0, 10) : 'N/A',
+      expiresAt: s.expiresAt ? s.expiresAt.toISOString().slice(0, 10) : 'N/A',
       autoRenew: s.autoRenew,
-      amountPaidTZS: Number(s.amountPaidMinor ? s.amountPaidMinor / 100n : 0n),
+      amountPaidTZS: Number(s.plan?.priceMinor ? s.plan.priceMinor / 100n : 0n),
     }))
 
     return NextResponse.json({ subscriptions: formattedSubs })
@@ -48,17 +49,30 @@ export async function POST(request: NextRequest) {
     const expiresAt = new Date()
     expiresAt.setDate(expiresAt.getDate() + Number(daysToAdd))
 
+    let plan = await db.subscriptionPlan.findUnique({
+      where: { code: planCode },
+    })
+
+    if (!plan) {
+      plan = await db.subscriptionPlan.create({
+        data: {
+          code: planCode,
+          name: planCode,
+          billingPeriod: 'MONTHLY',
+          priceMinor: BigInt(0),
+        },
+      })
+    }
+
     const created = await db.$transaction(async (tx) => {
       const sub = await tx.userSubscription.create({
         data: {
           userId,
-          planCode,
-          tier: planCode === 'GOLDEN_VIP' || planCode === 'ANNUAL' ? 'GOLDEN_VIP' : 'STANDARD',
+          planId: plan.id,
           status: 'ACTIVE',
           startsAt,
           expiresAt,
           autoRenew: true,
-          amountPaidMinor: BigInt(0),
         },
       })
 

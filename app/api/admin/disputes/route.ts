@@ -8,19 +8,19 @@ export async function GET() {
       orderBy: { createdAt: 'desc' },
       take: 50,
       include: {
-        creatorUser: true,
+        openedBy: true,
         messages: true,
       },
     })
 
     const formattedDisputes = disputes.map((d) => ({
       id: d.id,
-      disputeNumber: d.disputeNumber,
-      complainantName: d.creatorUser?.name || 'Complainant',
-      category: d.reason,
+      disputeNumber: d.id.slice(0, 8),
+      complainantName: d.openedBy?.name || 'Complainant',
+      category: d.disputeType,
       subject: d.title,
       status: d.status,
-      disputedAmountTZS: Number(d.disputedAmountMinor ? d.disputedAmountMinor / 100n : 0n),
+      disputedAmountTZS: 0,
       createdAt: d.createdAt.toISOString().slice(0, 10),
       messageCount: d.messages.length,
     }))
@@ -47,10 +47,8 @@ export async function POST(request: NextRequest) {
       const d = await tx.dispute.update({
         where: { id: disputeId },
         data: {
-          status: 'RESOLVED',
-          resolvedAt: new Date(),
-          resolutionOutcome: resolution,
-          notes: resolutionNotes,
+          status: 'RESOLVED_PARTNER_FAVOR',
+          resolutionNotes: resolutionNotes || resolution,
         },
       })
 

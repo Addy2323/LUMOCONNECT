@@ -18,8 +18,8 @@ export async function GET(request: NextRequest) {
           ? {
               OR: [
                 { title: { contains: query, mode: 'insensitive' } },
-                { companyName: { contains: query, mode: 'insensitive' } },
-                { category: { contains: query, mode: 'insensitive' } },
+                { organization: { legalName: { contains: query, mode: 'insensitive' } } },
+                { category: { name: { contains: query, mode: 'insensitive' } } },
               ],
             }
           : {}),
@@ -28,6 +28,8 @@ export async function GET(request: NextRequest) {
       take: 100,
       include: {
         organization: true,
+        category: true,
+        publishedVersion: true,
         _count: {
           select: {
             participations: true,
@@ -40,17 +42,17 @@ export async function GET(request: NextRequest) {
     const formattedDeals = opportunities.map((opp) => ({
       id: opp.id,
       title: opp.title,
-      businessName: opp.companyName || opp.organization?.legalName || 'LUMO Business',
+      businessName: opp.organization?.tradingName || opp.organization?.legalName || 'LUMO Business',
       type: opp.opportunityType,
-      category: opp.category,
+      category: opp.category?.name || 'General',
       region: opp.region,
-      rewardDisplay: opp.rewardDisplay,
+      rewardDisplay: opp.publishedVersion?.rewardSummary || 'Standard Reward',
       status: opp.status,
       activePartnersCount: opp._count.participations,
       totalConversionsCount: opp._count.conversions,
-      budgetTZS: Number(opp.totalBudgetTZS || 0n),
+      budgetTZS: Number(opp.totalBudgetMinor ? opp.totalBudgetMinor / 100n : 0n),
       createdAt: opp.createdAt.toISOString().slice(0, 10),
-      publishedAt: opp.publishedAt ? opp.publishedAt.toISOString().slice(0, 10) : undefined,
+      publishedAt: opp.publishedVersion ? opp.publishedVersion.effectiveAt.toISOString().slice(0, 10) : undefined,
     }))
 
     return NextResponse.json({ deals: formattedDeals })
@@ -84,7 +86,6 @@ export async function PATCH(request: NextRequest) {
         where: { id: dealId },
         data: {
           status,
-          ...(status === 'PUBLISHED' && !opportunity.publishedAt ? { publishedAt: new Date() } : {}),
         },
       })
 

@@ -12,18 +12,20 @@ export async function GET() {
       orderBy: { createdAt: 'desc' },
       include: {
         organization: true,
+        category: true,
+        publishedVersion: true,
       },
     })
 
     const formattedApprovals = pendingDeals.map((opp) => ({
       id: opp.id,
       title: opp.title,
-      companyName: opp.companyName || opp.organization?.legalName || 'Business',
+      companyName: opp.organization?.tradingName || opp.organization?.legalName || 'Business',
       type: opp.opportunityType,
-      category: opp.category,
-      rewardDisplay: opp.rewardDisplay,
+      category: opp.category?.name || 'General',
+      rewardDisplay: opp.publishedVersion?.rewardSummary || 'Standard Reward',
       submittedAt: opp.createdAt.toISOString().slice(0, 10),
-      budgetTZS: Number(opp.totalBudgetTZS || 0n),
+      budgetTZS: Number(opp.totalBudgetMinor ? opp.totalBudgetMinor / 100n : 0n),
       status: opp.status,
     }))
 
@@ -60,7 +62,6 @@ export async function POST(request: NextRequest) {
         where: { id: dealId },
         data: {
           status: targetStatus,
-          ...(targetStatus === 'PUBLISHED' ? { publishedAt: new Date() } : {}),
         },
       })
 

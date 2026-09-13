@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
       }),
       db.verificationCase.count({ where: { status: 'PENDING' } }),
       db.opportunity.count({ where: { status: 'UNDER_REVIEW', deletedAt: null } }),
-      db.payoutBatch.count({ where: { status: 'PENDING_APPROVAL' } }),
+      db.payout.count({ where: { status: 'DRAFT' } }),
       db.dispute.count({ where: { status: { in: ['OPENED', 'UNDER_REVIEW', 'EVIDENCE_SUBMITTED'] } } }),
       db.riskAlert.count({ where: { status: { in: ['OPEN', 'INVESTIGATING'] } } }),
       db.paymentAttempt.aggregate({
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
       }),
       db.reward.aggregate({
         where: { status: 'PAID' },
-        _sum: { amountMinor: true },
+        _sum: { netAmountMinor: true },
       }),
       db.user.findMany({
         where: { deletedAt: null },
@@ -115,7 +115,7 @@ export async function GET(request: NextRequest) {
     // Calculate Platform Revenue in TZS
     const grossPaymentMinor = paymentAggregate._sum.amountMinor ? Number(paymentAggregate._sum.amountMinor) : 0
     const platformRevenueTZS = Math.round(grossPaymentMinor / 100)
-    const paidRewardsMinor = rewardAggregate._sum.amountMinor ? Number(rewardAggregate._sum.amountMinor) : 0
+    const paidRewardsMinor = rewardAggregate._sum.netAmountMinor ? Number(rewardAggregate._sum.netAmountMinor) : 0
     const netVolumeTZS = Math.round((grossPaymentMinor + paidRewardsMinor) / 100)
 
     // Handle CSV Export
@@ -207,7 +207,7 @@ export async function GET(request: NextRequest) {
         fileName: d.fileAsset.fileName,
         fileSize: '1.2 MB',
         fileUrl: '#',
-        status: (d.status === 'IN_REVIEW' ? 'PENDING' : d.status) as 'PENDING' | 'APPROVED' | 'REJECTED',
+        status: (vc.status === 'IN_REVIEW' ? 'PENDING' : vc.status) as 'PENDING' | 'APPROVED' | 'REJECTED',
         uploadedAt: d.createdAt.toISOString().slice(0, 10),
       })),
     }))

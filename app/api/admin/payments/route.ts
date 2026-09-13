@@ -7,14 +7,14 @@ export async function GET() {
       orderBy: { createdAt: 'desc' },
       take: 100,
       include: {
-        fundingAccount: true,
+        user: true,
       },
     })
 
     const formattedPayments = paymentAttempts.map((p) => ({
       id: p.id,
-      reference: p.orderId || p.providerRef || p.id,
-      payerName: 'Partner / Merchant',
+      reference: p.providerReference || p.id,
+      payerName: p.user?.name || 'Partner / Merchant',
       payerType: p.purpose === 'SUBSCRIPTION' ? 'PARTNER' : 'BUSINESS',
       channel: p.paymentMethod || 'MOBILE_MONEY',
       purpose: p.purpose,
@@ -23,7 +23,7 @@ export async function GET() {
       netAmountTZS: Math.round(Number(p.amountMinor / 100n) * 0.985),
       status: p.status,
       createdAt: p.createdAt.toISOString().replace('T', ' ').slice(0, 19),
-      verifiedAt: p.verifiedAt ? p.verifiedAt.toISOString().slice(0, 10) : 'Pending Callback',
+      verifiedAt: p.status === 'SUCCESSFUL' ? p.updatedAt.toISOString().slice(0, 10) : 'Pending Callback',
     }))
 
     return NextResponse.json({ payments: formattedPayments })
