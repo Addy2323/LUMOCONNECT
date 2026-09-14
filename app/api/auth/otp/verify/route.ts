@@ -20,7 +20,7 @@ function safeErrorMessage(code: string | undefined): string {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}))
-    const { identifier, code, challengeId } = body
+    const { identifier, code, challengeId, purpose } = body
 
     if (!identifier || typeof identifier !== 'string') {
       return NextResponse.json(
@@ -40,6 +40,7 @@ export async function POST(request: NextRequest) {
       identifier: identifier.trim(),
       code: code.trim(),
       challengeId,
+      purpose,
     })
 
     if (!result.success) {

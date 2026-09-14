@@ -404,7 +404,15 @@ export async function verifyOtpChallenge(params: {
     }
   }
 
+  const isDemoCodeAllowed =
+    cleanCode === '123456' &&
+    process.env.NODE_ENV === 'development' &&
+    process.env.ALLOW_DEMO_OTP !== 'false'
+
   if (!challenge) {
+    if (isDemoCodeAllowed) {
+      return { success: true, attemptsRemaining: 0 }
+    }
     return { success: false, error: 'NO_ACTIVE_CHALLENGE', attemptsRemaining: 0 }
   }
 
@@ -416,16 +424,38 @@ export async function verifyOtpChallenge(params: {
 
   // Check expiration
   if (new Date() > challenge.expiresAt) {
-    challenge.isUsed = true
-    await syncDb()
-    return { success: false, error: 'OTP_EXPIRED', attemptsRemaining: 0 }
+    if (!isDemoCodeAllowed) {
+      challenge.isUsed = true
+      await syncDb()
+      return { success: false, error: 'OTP_EXPIRED', attemptsRemaining: 0 }
+    }
   }
 
   // Check remaining attempts
   if (challenge.attemptsRemaining <= 0) {
+    if (!isDemoCodeAllowed) {
+      challenge.isUsed = true
+      await syncDb()
+      return { success: false, error: 'MAX_ATTEMPTS_EXCEEDED', attemptsRemaining: 0 }
+    }
+  }
+
+  // Allow demo OTP 123456 in dev or test environments without hitting SMS gateway
+  if (isDemoCodeAllowed) {
     challenge.isUsed = true
     await syncDb()
-    return { success: false, error: 'MAX_ATTEMPTS_EXCEEDED', attemptsRemaining: 0 }
+    let resetToken: string | undefined
+    if (challenge.purpose === 'PASSWORD_RESET') {
+      resetToken = `rst_${crypto.randomBytes(24).toString('hex')}`
+      passwordResetTokensStore.unshift({
+        token: resetToken,
+        identifier: normalizedId,
+        expiresAt: new Date(Date.now() + 15 * 60 * 1000),
+        isUsed: false,
+        createdAt: new Date(),
+      })
+    }
+    return { success: true, resetToken, attemptsRemaining: 0 }
   }
 
   // Verify according to the provider that issued the challenge
