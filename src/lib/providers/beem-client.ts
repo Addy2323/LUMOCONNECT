@@ -276,25 +276,46 @@ export class BeemClient {
     }
 
     // Live execution
+    const requestUrl = `${this.otpBaseUrl}/request`
+    const requestBody = {
+      appId: Number(targetAppId) || targetAppId,
+      msisdn: normalizedPhone,
+    }
+
+    console.log(`[BEEM OTP LIVE] Dispatching to ${requestUrl}`, {
+      appId: requestBody.appId,
+      msisdn: maskPhoneNumber(normalizedPhone),
+      smsEnabled: this.isSmsEnabled,
+      dryRun: this.isDryRun,
+      inDryRunMode: this.inDryRunMode,
+      isConfigured: this.isConfigured,
+    })
+
     try {
-      const res = await this.safeFetch(`${this.otpBaseUrl}/request`, {
+      const res = await this.safeFetch(requestUrl, {
         method: 'POST',
         headers: {
           Authorization: this.getAuthHeader(),
           'Content-Type': 'application/json',
           Accept: 'application/json',
         },
-        body: JSON.stringify({
-          appId: Number(targetAppId) || targetAppId,
-          msisdn: normalizedPhone,
-        }),
+        body: JSON.stringify(requestBody),
       })
 
-      const json = await res.json().catch(() => ({}))
+      const rawText = await res.text().catch(() => '')
+      let json: any = {}
+      try { json = JSON.parse(rawText) } catch { json = {} }
+
+      console.log(`[BEEM OTP LIVE] Response status=${res.status}`, {
+        responseBody: rawText.slice(0, 500),
+        ok: res.ok,
+      })
+
       const code = json?.data?.message?.code ?? json?.code ?? (res.ok ? 100 : 101)
       const message = json?.data?.message?.message ?? json?.message ?? (res.ok ? 'OTP sent successfully' : 'Request failed')
 
       if (!res.ok || code !== 100) {
+        console.error(`[BEEM OTP LIVE] FAILED code=${code} status=${res.status}`, { message, rawText: rawText.slice(0, 300) })
         return {
           success: false,
           code,
@@ -303,6 +324,7 @@ export class BeemClient {
         }
       }
 
+      console.log(`[BEEM OTP LIVE] SUCCESS pinId=${json?.data?.pinId}`)
       return {
         success: true,
         pinId: json?.data?.pinId,
@@ -312,6 +334,7 @@ export class BeemClient {
         expiresInSeconds: json?.data?.expiresInSeconds ?? 300,
       }
     } catch (err: any) {
+      console.error(`[BEEM OTP LIVE] NETWORK ERROR`, { error: err?.message, stack: err?.stack?.slice(0, 300) })
       return {
         success: false,
         code: 103,

@@ -7,6 +7,12 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}))
     const { identifier, purpose = 'REGISTRATION', language = 'EN' } = body
 
+    console.log('[OTP SEND API] Request received', {
+      identifier: identifier ? `${identifier.slice(0, 4)}***` : 'MISSING',
+      purpose,
+      language,
+    })
+
     if (!identifier || typeof identifier !== 'string') {
       return NextResponse.json(
         { error: 'Identifier (phone number or email) is required.' },
@@ -19,6 +25,7 @@ export async function POST(request: NextRequest) {
     const isEmail = cleanId.includes('@') && cleanId.includes('.')
 
     if (!isPhone && !isEmail) {
+      console.warn('[OTP SEND API] Invalid identifier format', { cleanId: cleanId.slice(0, 5) + '***' })
       return NextResponse.json(
         { error: 'Invalid identifier. Must be a valid Tanzanian mobile number (e.g. 07XXXXXXXX) or email address.' },
         { status: 400 }
@@ -32,6 +39,14 @@ export async function POST(request: NextRequest) {
       purpose,
       ipAddress: ip,
       language: language === 'SW' ? 'SW' : 'EN',
+    })
+
+    console.log('[OTP SEND API] Service result', {
+      success: result.success,
+      challengeId: result.challengeId,
+      smsAccepted: result.smsAccepted,
+      error: result.error,
+      cooldownSeconds: result.cooldownSeconds,
     })
 
     if (!result.success) {
@@ -51,7 +66,8 @@ export async function POST(request: NextRequest) {
         ? 'Ombi la kutuma namba ya uthibitisho limepokelewa. SMS inaweza kuchukua muda kufika.'
         : 'Verification code dispatched.',
     })
-  } catch {
+  } catch (err) {
+    console.error('[OTP SEND API] Unexpected error', err)
     return NextResponse.json(
       { error: 'Hitilafu ya mfumo. Tafadhali jaribu tena.' },
       { status: 500 }
