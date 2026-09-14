@@ -18,6 +18,7 @@ export interface MesejiConfig {
   apiKey?: string
   senderId?: string
   smsEnabled?: boolean
+  enabled?: boolean
   dryRun?: boolean
   timeoutMs?: number
 }
@@ -112,7 +113,7 @@ export class MesejiClient {
     this.baseUrl = (config?.baseUrl || process.env.MESEJI_BASE_URL || 'https://meseji.co.tz/api/v1').replace(/\/$/, '')
     this.apiKey = config?.apiKey || process.env.MESEJI_API_KEY || ''
     this.senderId = config?.senderId || process.env.MESEJI_SENDER_ID || 'Lumo'
-    this.isSmsEnabled = config?.smsEnabled ?? (process.env.SMS_ENABLED === 'true')
+    this.isSmsEnabled = config?.smsEnabled ?? config?.enabled ?? (process.env.SMS_ENABLED === 'true')
     this.isDryRun = config?.dryRun ?? (process.env.SMS_DRY_RUN !== 'false')
     this.timeoutMs = config?.timeoutMs || 15000
   }

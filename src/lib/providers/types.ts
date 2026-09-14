@@ -81,6 +81,7 @@ export interface SmsMessage {
   recipientPhone: string // E.164 e.g. "+255712345678"
   messageText: string
   senderId?: string
+  metadata?: Record<string, unknown>
 }
 
 export interface SmsProvider {

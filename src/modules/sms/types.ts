@@ -25,19 +25,23 @@ export type TanzaniaOperator = 'VODACOM' | 'AIRTEL' | 'TIGO' | 'HALOTEL' | 'TTCL
 
 export interface SmsJob {
   id: string
-  deduplicationKey: string
-  templateCode: string
+  deduplicationKey?: string
+  templateCode?: string
   recipientPhone: string // Normalized: 255XXXXXXXXX
   maskedPhone: string    // 25578***4567
   recipientUserId?: string
-  purpose: SmsJobPurpose
-  language: 'EN' | 'SW'
-  sanitizedMessage: string // OTP codes redacted if sensitive
+  purpose?: SmsJobPurpose | string
+  language?: 'EN' | 'SW' | string
+  sanitizedMessage?: string // OTP codes redacted if sensitive
   messageText?: string
   senderId?: string
   channel?: SmsChannel | string
   operator?: TanzaniaOperator | string
   batchId?: string
+  campaignId?: string
+  segments?: number
+  characterCount?: number
+  isGsm7?: boolean
   status: SmsJobStatus
   providerStatus?: string
   recipientDeliveryStatus: 'RECIPIENT_DELIVERY_UNAVAILABLE' | 'DELIVERED' | 'FAILED'
@@ -67,13 +71,14 @@ export interface SmsBatchRecord {
 
 export interface SmsFundingRecord {
   id: string
-  method: 'USSD' | 'ZENOPAY'
-  amountTZS: number
-  amountTzs?: number
-  phone: string
+  method: 'USSD' | 'ZENOPAY' | 'USSD_PUSH' | string
+  amountTZS?: number
+  amountTzs: number
+  phone?: string
   orderId: string
   reference?: string
-  status: 'PENDING' | 'COMPLETED' | 'FAILED'
+  provider?: string
+  status: 'PENDING' | 'COMPLETED' | 'FAILED' | string
   creditedCredits?: number
   createdAt: Date
   completedAt?: Date
@@ -82,25 +87,41 @@ export interface SmsFundingRecord {
 
 export interface SmsCampaign {
   id: string
-  title: string
-  name?: string
-  targetAudience: 'ALL_PARTNERS' | 'ALL_BUSINESSES' | 'ALL_CUSTOMERS' | 'ACTIVE_MEMBERS'
-  templateCode: string
-  language: 'EN' | 'SW'
+  title?: string
+  name: string
+  senderId?: string
+  messageText?: string
+  targetAudience?: 'ALL_PARTNERS' | 'ALL_BUSINESSES' | 'ALL_CUSTOMERS' | 'ACTIVE_MEMBERS' | string
+  templateCode?: string
+  language?: 'EN' | 'SW' | string
   totalRecipients: number
-  totalSegmentsEstimated: number
-  estimatedCostTZS: number
-  status: 'DRAFT' | 'CONFIRMED' | 'DISPATCHING' | 'COMPLETED' | 'PAUSED' | 'CANCELLED' | 'ACTIVE' | 'FAILED'
+  totalSegments?: number
+  totalSegmentsEstimated?: number
+  costEstimateTzs?: number
+  estimatedCostTZS?: number
+  status: 'DRAFT' | 'CONFIRMED' | 'DISPATCHING' | 'COMPLETED' | 'PAUSED' | 'CANCELLED' | 'ACTIVE' | 'FAILED' | string
+  audienceFilter?: Record<string, unknown>
+  scheduledAt?: Date
   confirmedBy?: string
   createdAt: Date
   dispatchedAt?: Date
   updatedAt?: Date
 }
 
+export type SmsAuditAction =
+  | 'DISPATCH_SMS'
+  | 'REQUEST_SENDER_ID'
+  | 'FUND_CREDITS'
+  | 'RECONCILE_BATCH'
+  | 'UPDATE_CAMPAIGN'
+  | string
+
 export interface SmsAuditLog {
   id: string
-  action: 'DISPATCH_SMS' | 'REQUEST_SENDER_ID' | 'FUND_CREDITS' | 'RECONCILE_BATCH' | 'UPDATE_CAMPAIGN'
-  adminId: string
-  details: string
+  action: SmsAuditAction
+  actor?: string
+  adminId?: string
+  targetId?: string
+  details: Record<string, unknown> | string
   timestamp: Date
 }

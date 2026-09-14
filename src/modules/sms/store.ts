@@ -191,11 +191,14 @@ export function createSmsCampaign(data: {
   const campaign: SmsCampaign = {
     id: `cmp_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
     name: data.name,
+    title: data.name,
     senderId: data.senderId || 'Lumo',
     messageText: data.messageText,
     totalRecipients: data.totalRecipients,
     totalSegments: data.totalSegments,
+    totalSegmentsEstimated: data.totalSegments,
     costEstimateTzs: data.costEstimateTzs || data.totalSegments * 25,
+    estimatedCostTZS: data.costEstimateTzs || data.totalSegments * 25,
     status: 'ACTIVE',
     audienceFilter: data.audienceFilter,
     scheduledAt: data.scheduledAt,
@@ -232,11 +235,14 @@ export function recordFundingAttempt(data: {
   status?: string
   provider?: string
   phone?: string
+  orderId?: string
 }): SmsFundingRecord {
   const funding: SmsFundingRecord = {
     id: `fnd_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
     method: data.method,
     amountTzs: data.amountTzs,
+    amountTZS: data.amountTzs,
+    orderId: data.orderId || data.reference,
     reference: data.reference,
     status: data.status || 'PENDING',
     provider: data.provider || 'M-PESA',
@@ -296,13 +302,14 @@ export function getSmsStoreSummary() {
 export function addSmsAuditLog(
   action: string,
   actor: string,
-  details: Record<string, unknown>,
+  details: Record<string, unknown> | string,
   targetId?: string
 ): SmsAuditLog {
   const log: SmsAuditLog = {
     id: `audit_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
     action,
     actor,
+    adminId: actor,
     targetId,
     details,
     timestamp: new Date(),
