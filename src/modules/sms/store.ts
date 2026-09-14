@@ -41,6 +41,8 @@ export function recordSmsJob(jobData: {
   purpose?: string
   language?: string
   sanitizedMessage?: string
+  provider?: string
+  providerRequestId?: string
   attemptsCount?: number
   maxAttempts?: number
   metadata?: Record<string, unknown>
@@ -62,6 +64,8 @@ export function recordSmsJob(jobData: {
     recipientPhone: masked,
     messageText: messageContent,
     senderId: jobData.senderId || 'Lumo',
+    provider: jobData.provider || (process.env.SMS_PROVIDER || 'beem').toUpperCase(),
+    providerRequestId: jobData.providerRequestId,
     channel: (jobData.channel as SmsChannel) || 'TRANSACTIONAL',
     operator: detectedOp as TanzaniaOperator,
     status: jobData.status || 'PENDING',
@@ -93,29 +97,69 @@ export function getSmsJobById(id: string): SmsJob | undefined {
 }
 
 /**
+ * Finds SMS job by Provider Request ID or Batch ID
+ */
+export function getSmsJobByRequestId(requestId: string): SmsJob | undefined {
+  return jobsStore.find((j) => j.providerRequestId === requestId || j.batchId === requestId)
+}
+
+/**
  * Updates status of an existing SMS job
  */
 export function updateSmsJobStatus(
   id: string,
-  statusOrUpdate: SmsJobStatus | { status: SmsJobStatus; batchId?: string; error?: string },
+  statusOrUpdate: SmsJobStatus | { status: SmsJobStatus; batchId?: string; providerRequestId?: string; error?: string },
   batchId?: string,
   error?: string
 ): SmsJob | undefined {
-  const job = jobsStore.find((j) => j.id === id)
+  const job = jobsStore.find((j) => j.id === id || j.providerRequestId === id)
   if (!job) return undefined
 
   if (typeof statusOrUpdate === 'string') {
     job.status = statusOrUpdate
-    if (batchId) job.batchId = batchId
+    if (batchId) {
+      job.batchId = batchId
+      job.providerRequestId = batchId
+    }
     if (error) job.lastError = error
   } else {
     job.status = statusOrUpdate.status
     if (statusOrUpdate.batchId) job.batchId = statusOrUpdate.batchId
+    if (statusOrUpdate.providerRequestId) job.providerRequestId = statusOrUpdate.providerRequestId
     if (statusOrUpdate.error) job.lastError = statusOrUpdate.error
   }
 
   job.updatedAt = new Date()
   return job
+}
+
+/**
+ * Updates individual delivery receipt status for an SMS job
+ */
+export function updateSmsJobDeliveryStatus(
+  idOrRequestId: string,
+  deliveryStatus: SmsJob['recipientDeliveryStatus'],
+  error?: string
+): SmsJob | undefined {
+  const job = jobsStore.find((j) => j.id === idOrRequestId || j.providerRequestId === idOrRequestId || j.batchId === idOrRequestId)
+  if (!job) return undefined
+
+  job.recipientDeliveryStatus = deliveryStatus
+  if (error) job.lastError = error
+  if (deliveryStatus === 'DELIVERED') {
+    job.status = 'COMPLETED'
+  } else if (deliveryStatus === 'FAILED' || deliveryStatus === 'UNDELIVERED') {
+    job.status = 'FAILED'
+  }
+  job.updatedAt = new Date()
+  return job
+}
+
+/**
+ * Retrieves failed and uncertain submissions that need administrative review
+ */
+export function getSmsJobsNeedingReview(): SmsJob[] {
+  return jobsStore.filter((j) => j.status === 'FAILED' || j.status === 'UNCERTAIN')
 }
 
 /**

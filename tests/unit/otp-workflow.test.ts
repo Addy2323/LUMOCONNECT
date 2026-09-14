@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest'
 import crypto from 'node:crypto'
 import {
   createAndSendOtp,
@@ -9,9 +9,16 @@ import {
 import { providers } from '@/lib/providers'
 
 describe('OTP & Password Recovery Security Service', () => {
+  const originalProvider = process.env.SMS_PROVIDER
+
   beforeEach(() => {
+    process.env.SMS_PROVIDER = 'meseji'
     resetOtpStoreForTesting()
     vi.restoreAllMocks()
+  })
+
+  afterAll(() => {
+    process.env.SMS_PROVIDER = originalProvider
   })
 
   it('generates an OTP challenge with masked phone and initiates SMS dispatch', async () => {
@@ -67,7 +74,7 @@ describe('OTP & Password Recovery Security Service', () => {
     })
 
     // Attempt 1: wrong code
-    const attempt1 = verifyOtpChallenge({
+    const attempt1 = await verifyOtpChallenge({
       identifier: '0712345678',
       code: '000000',
       challengeId: challenge.challengeId,
@@ -76,7 +83,7 @@ describe('OTP & Password Recovery Security Service', () => {
     expect(attempt1.attemptsRemaining).toBe(2)
 
     // Attempt 2: wrong code
-    const attempt2 = verifyOtpChallenge({
+    const attempt2 = await verifyOtpChallenge({
       identifier: '0712345678',
       code: '000001',
       challengeId: challenge.challengeId,
@@ -85,7 +92,7 @@ describe('OTP & Password Recovery Security Service', () => {
     expect(attempt2.attemptsRemaining).toBe(1)
 
     // Attempt 3: wrong code -> lockout
-    const attempt3 = verifyOtpChallenge({
+    const attempt3 = await verifyOtpChallenge({
       identifier: '0712345678',
       code: '000002',
       challengeId: challenge.challengeId,
@@ -94,7 +101,7 @@ describe('OTP & Password Recovery Security Service', () => {
     expect(attempt3.error).toBe('MAX_ATTEMPTS_EXCEEDED')
 
     // Attempt 4: challenge is now dead
-    const attempt4 = verifyOtpChallenge({
+    const attempt4 = await verifyOtpChallenge({
       identifier: '0712345678',
       code: '000003',
       challengeId: challenge.challengeId,
@@ -121,7 +128,7 @@ describe('OTP & Password Recovery Security Service', () => {
     expect(capturedCode).toHaveLength(6)
 
     // Step 2: Verify correct OTP
-    const verifyResult = verifyOtpChallenge({
+    const verifyResult = await verifyOtpChallenge({
       identifier: '0754123456',
       code: capturedCode,
       challengeId: otpRequest.challengeId,

@@ -35,6 +35,8 @@ export interface SmsJob {
   sanitizedMessage?: string // OTP codes redacted if sensitive
   messageText?: string
   senderId?: string
+  provider?: string
+  providerRequestId?: string
   channel?: SmsChannel | string
   operator?: TanzaniaOperator | string
   batchId?: string
@@ -44,7 +46,7 @@ export interface SmsJob {
   isGsm7?: boolean
   status: SmsJobStatus
   providerStatus?: string
-  recipientDeliveryStatus: 'RECIPIENT_DELIVERY_UNAVAILABLE' | 'DELIVERED' | 'FAILED'
+  recipientDeliveryStatus: 'RECIPIENT_DELIVERY_UNAVAILABLE' | 'DELIVERED' | 'FAILED' | 'PENDING' | 'UNDELIVERED'
   attemptsCount: number
   maxAttempts: number
   estimatedCostTZS?: number

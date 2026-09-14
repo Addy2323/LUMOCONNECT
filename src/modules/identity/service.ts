@@ -120,9 +120,8 @@ export async function sendPhoneOtp(phone: string): Promise<{ challengeId: string
 /**
  * Verifies the submitted OTP code against keyed HMAC hash.
  */
-export function verifyPhoneOtp(phone: string, inputCode: string): { success: boolean; error?: string } {
-  // During local test / demo flow, also support dev test code if needed
-  const res = verifyOtpChallenge({
+export async function verifyPhoneOtp(phone: string, inputCode: string): Promise<{ success: boolean; error?: string }> {
+  const res = await verifyOtpChallenge({
     identifier: phone,
     code: inputCode,
   })

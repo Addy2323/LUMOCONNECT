@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const result = verifyOtpChallenge({
+    const result = await verifyOtpChallenge({
       identifier: identifier.trim(),
       code: code.trim(),
       challengeId,

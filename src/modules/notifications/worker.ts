@@ -281,6 +281,100 @@ export function initializeNotificationWorker(): void {
       )
     }
   })
+
+  // 11. Merchant Deal Submission Decision
+  registerOutboxHandler('HOT_DEAL_SUBMISSION_DECISION', async (event: OutboxEventRecord) => {
+    const payload = event.payload as {
+      dealTitle: string
+      decision: string
+      phone?: string
+    }
+    if (payload.phone) {
+      const rendered = renderTemplate('HOT_DEAL_SUBMISSION_DECISION', {
+        deal_title: payload.dealTitle,
+        decision: payload.decision,
+      }, 'SW')
+      await safeSendSms(payload.phone, rendered.messageText, {
+        templateCode: 'HOT_DEAL_SUBMISSION_DECISION',
+      })
+    }
+  })
+
+  // 12. Customer Referral Confirmed
+  registerOutboxHandler('REFERRAL_CONFIRMED', async (event: OutboxEventRecord) => {
+    const payload = event.payload as {
+      dealTitle: string
+      customerName: string
+      partnerPhone?: string
+    }
+    if (payload.partnerPhone) {
+      const rendered = renderTemplate('REFERRAL_CONFIRMED', {
+        deal_title: payload.dealTitle,
+        customer_name: payload.customerName,
+      }, 'SW')
+      await safeSendSms(payload.partnerPhone, rendered.messageText, {
+        templateCode: 'REFERRAL_CONFIRMED',
+      })
+    }
+  })
+
+  // 13. Dispute Case Progress Update
+  registerOutboxHandler('DISPUTE_UPDATED', async (event: OutboxEventRecord) => {
+    const payload = event.payload as {
+      disputeId: string
+      status: string
+      recipientPhone?: string
+    }
+    if (payload.recipientPhone) {
+      const rendered = renderTemplate('DISPUTE_UPDATED', {
+        dispute_id: payload.disputeId.slice(-6),
+        status: payload.status,
+      }, 'SW')
+      await safeSendSms(payload.recipientPhone, rendered.messageText, {
+        templateCode: 'DISPUTE_UPDATED',
+      })
+    }
+  })
+
+  // 14. Merchant Reported Direct Reward Payment
+  registerOutboxHandler('MERCHANT_REPORTED_REWARD_PAYMENT', async (event: OutboxEventRecord) => {
+    const payload = event.payload as {
+      merchantName: string
+      amount: string
+      dealTitle: string
+      partnerPhone?: string
+    }
+    if (payload.partnerPhone) {
+      const rendered = renderTemplate('MERCHANT_REPORTED_REWARD_PAYMENT', {
+        merchant_name: payload.merchantName,
+        amount: payload.amount,
+        deal_title: payload.dealTitle,
+      }, 'SW')
+      await safeSendSms(payload.partnerPhone, rendered.messageText, {
+        templateCode: 'MERCHANT_REPORTED_REWARD_PAYMENT',
+      })
+    }
+  })
+
+  // 15. Partner Confirmed Direct Reward Receipt
+  registerOutboxHandler('PARTNER_CONFIRMED_REWARD_RECEIPT', async (event: OutboxEventRecord) => {
+    const payload = event.payload as {
+      partnerName: string
+      amount: string
+      dealTitle: string
+      merchantPhone?: string
+    }
+    if (payload.merchantPhone) {
+      const rendered = renderTemplate('PARTNER_CONFIRMED_REWARD_RECEIPT', {
+        partner_name: payload.partnerName,
+        amount: payload.amount,
+        deal_title: payload.dealTitle,
+      }, 'SW')
+      await safeSendSms(payload.merchantPhone, rendered.messageText, {
+        templateCode: 'PARTNER_CONFIRMED_REWARD_RECEIPT',
+      })
+    }
+  })
 }
 
 // Auto-initialize worker handlers upon import

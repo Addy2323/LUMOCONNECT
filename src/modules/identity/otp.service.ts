@@ -2,24 +2,30 @@
  * Cryptographically Secure OTP & Password Recovery Service
  *
  * Implements:
- * - CSPRNG 6-digit OTP generation (crypto.randomInt)
- * - Keyed HMAC-SHA256 hash storage (Zero plaintext OTP storage)
- * - Anti-enumeration defenses
- * - Strict expiry, single-use, 60s cooldown, max 3 attempts
+ * - Provider-managed OTP via Beem Africa (when SMS_PROVIDER=beem)
+ * - CSPRNG 6-digit OTP generation with keyed HMAC-SHA256 hash storage (for email / local fallback)
+ * - Anti-enumeration defenses and strict phone normalization
+ * - Strict expiry, single-use atomic consumption, 60s cooldown, max 3 attempts
+ * - Invalidation of previous challenges upon phone or request change
  * - Short-lived password reset tokens upon successful verification
  * - Zero OTP leakage in logs, responses, or analytics
+ * - Provider-consistent verification (existing challenges verified with the provider that issued them)
  */
 
 import crypto from 'node:crypto'
-import { normalizeMesejiPhone, maskPhoneNumber, isValidTanzaniaPhone } from '@/modules/sms/phone'
-import { providers } from '@/lib/providers'
+import { normalizeTanzaniaPhone, maskPhoneNumber, isValidTanzaniaPhone } from '@/modules/sms/phone'
+import { providers, getActiveSmsProviderName } from '@/lib/providers'
 import { renderTemplate } from '@/modules/sms/templates'
 import { recordSmsJob } from '@/modules/sms/store'
+
+export type OtpProviderType = 'BEEM' | 'LOCAL_MESEJI' | 'EMAIL'
 
 export interface OtpChallengeRecord {
   challengeId: string
   identifier: string // Normalized phone number or email
-  hashedCode: string // Keyed HMAC-SHA256(code + challengeId)
+  provider: OtpProviderType
+  providerPinId?: string // Server-side provider challenge identifier (e.g. Beem pinId)
+  hashedCode?: string // Keyed HMAC-SHA256(code + challengeId) for local/email challenges
   purpose: 'REGISTRATION' | 'PASSWORD_RESET' | 'STEP_UP_ADMIN' | 'TRANSACTION_CONFIRM'
   attemptsRemaining: number
   expiresAt: Date
@@ -84,7 +90,7 @@ export async function createAndSendOtp(params: {
   error?: string
 }> {
   const isPhone = isValidTanzaniaPhone(params.identifier) || params.identifier.replace(/\D/g, '').length >= 9
-  const normalizedId = isPhone ? normalizeMesejiPhone(params.identifier) : params.identifier.toLowerCase().trim()
+  const normalizedId = isPhone ? normalizeTanzaniaPhone(params.identifier) : params.identifier.toLowerCase().trim()
 
   const now = Date.now()
 
@@ -111,14 +117,86 @@ export async function createAndSendOtp(params: {
     }
   }
 
-  // 3. Generate 6-digit CSPRNG code
-  const numericCode = crypto.randomInt(100000, 1000000).toString()
   const challengeId = `otp_${crypto.randomBytes(12).toString('hex')}`
+  const activeSmsProvider = getActiveSmsProviderName()
+
+  // 3. Provider-Managed OTP via Beem Africa
+  if (isPhone && activeSmsProvider === 'beem') {
+    const otpRes = await providers.otp.requestOtp({
+      phone: normalizedId,
+      appId: process.env.BEEM_APPLICATION_ID || 5075,
+    })
+
+    if (!otpRes.success || !otpRes.pinId) {
+      // Log the failure for server-side observability — never log the OTP code or secret
+      console.warn(`[BEEM OTP GATEWAY] Dispatch failed for ${maskPhoneNumber(normalizedId)}: ${otpRes.error || otpRes.message}`)
+      return {
+        success: false,
+        challengeId,
+        maskedIdentifier: maskPhoneNumber(normalizedId),
+        cooldownSeconds: 15,
+        smsAccepted: false,
+        error: params.language === 'SW'
+          ? 'Hatukuweza kutuma namba ya uthibitisho kwa sasa. Tafadhali jaribu tena baada ya muda mfupi.'
+          : 'Failed to send verification code. Please try again in a few moments.',
+      }
+    }
+
+    const expirySeconds = otpRes.expiresInSeconds || (otpRes.pinExpiryMinutes ? otpRes.pinExpiryMinutes * 60 : 300)
+
+    const challenge: OtpChallengeRecord = {
+      challengeId,
+      identifier: normalizedId,
+      provider: 'BEEM',
+      providerPinId: otpRes.pinId,
+      purpose: params.purpose,
+      attemptsRemaining: MAX_ATTEMPTS,
+      expiresAt: new Date(now + expirySeconds * 1000),
+      cooldownExpiresAt: new Date(now + COOLDOWN_MS),
+      isUsed: false,
+      isSuperseded: false,
+      ipAddress: params.ipAddress,
+      createdAt: new Date(),
+    }
+
+    otpChallengesStore.unshift(challenge)
+
+    // Stage in SMS Audit Store without generating a redundant local code
+    const templateCode = params.purpose === 'PASSWORD_RESET' ? 'PASSWORD_RESET_OTP' : 'USER_REGISTRATION_OTP'
+    recordSmsJob({
+      deduplicationKey: `otp_${challengeId}`,
+      templateCode,
+      recipientPhone: normalizedId,
+      purpose: 'AUTH_OTP',
+      language: params.language || 'EN',
+      provider: 'BEEM',
+      providerRequestId: otpRes.pinId,
+      messageText: `[BEEM OTP DISPATCHED - PIN ID: ${otpRes.pinId}]`,
+      sanitizedMessage: `[BEEM OTP DISPATCHED - PIN ID: ${otpRes.pinId}]`,
+      status: 'SUBMITTED',
+      attemptsCount: 1,
+      maxAttempts: 3,
+      metadata: { challengeId, purpose: params.purpose, pinId: otpRes.pinId },
+    })
+
+    return {
+      success: true,
+      challengeId,
+      maskedIdentifier: maskPhoneNumber(normalizedId),
+      cooldownSeconds: 60,
+      smsAccepted: true,
+    }
+  }
+
+  // 4. Local OTP Generation (for Email or legacy Meseji fallback)
+  const numericCode = crypto.randomInt(100000, 1000000).toString()
   const hashedCode = hashOtpCode(numericCode, challengeId)
+  const providerType: OtpProviderType = isPhone ? 'LOCAL_MESEJI' : 'EMAIL'
 
   const challenge: OtpChallengeRecord = {
     challengeId,
     identifier: normalizedId,
+    provider: providerType,
     hashedCode,
     purpose: params.purpose,
     attemptsRemaining: MAX_ATTEMPTS,
@@ -132,33 +210,31 @@ export async function createAndSendOtp(params: {
 
   otpChallengesStore.unshift(challenge)
 
-  // 4. Render template according to purpose
   const templateCode = params.purpose === 'PASSWORD_RESET' ? 'PASSWORD_RESET_OTP' : 'USER_REGISTRATION_OTP'
   const rendered = renderTemplate(templateCode, { code: numericCode }, params.language || 'EN')
 
-  // 5. Stage in SMS Store with OTP redacted from sanitizedMessage
-  recordSmsJob({
-    deduplicationKey: `otp_${challengeId}`,
-    templateCode,
-    recipientPhone: normalizedId,
-    purpose: 'AUTH_OTP',
-    language: params.language || 'EN',
-    messageText: rendered.messageText.replace(numericCode, '******'),
-    sanitizedMessage: rendered.messageText.replace(numericCode, '******'),
-    status: 'PENDING',
-    attemptsCount: 0,
-    maxAttempts: 2,
-    metadata: { challengeId, purpose: params.purpose },
-  })
-
-  // 6. Send SMS via Meseji adapter (or Email if email identifier)
   if (isPhone) {
+    recordSmsJob({
+      deduplicationKey: `otp_${challengeId}`,
+      templateCode,
+      recipientPhone: normalizedId,
+      purpose: 'AUTH_OTP',
+      language: params.language || 'EN',
+      provider: 'MESEJI',
+      messageText: rendered.messageText.replace(numericCode, '******'),
+      sanitizedMessage: rendered.messageText.replace(numericCode, '******'),
+      status: 'PENDING',
+      attemptsCount: 0,
+      maxAttempts: 2,
+      metadata: { challengeId, purpose: params.purpose },
+    })
+
     const smsRes = await providers.sms.sendSms({
       recipientPhone: normalizedId,
       messageText: rendered.messageText,
     })
+
     if (!smsRes.success) {
-      // Log the failure for server-side observability — never log the OTP code
       console.warn(`[SMS GATEWAY] Dispatch failed for ${maskPhoneNumber(normalizedId)}`)
       return {
         success: false,
@@ -187,76 +263,103 @@ export async function createAndSendOtp(params: {
 }
 
 /**
- * Verifies submitted OTP against stored keyed hash
+ * Verifies submitted OTP against the provider that issued it
  */
-export function verifyOtpChallenge(params: {
+export async function verifyOtpChallenge(params: {
   challengeId?: string
   identifier: string
   code: string
-}): {
+  purpose?: OtpChallengeRecord['purpose']
+}): Promise<{
   success: boolean
   resetToken?: string
   attemptsRemaining?: number
   error?: string
-} {
+}> {
   const isPhone = isValidTanzaniaPhone(params.identifier) || params.identifier.replace(/\D/g, '').length >= 9
-  const normalizedId = isPhone ? normalizeMesejiPhone(params.identifier) : params.identifier.toLowerCase().trim()
+  const normalizedId = isPhone ? normalizeTanzaniaPhone(params.identifier) : params.identifier.toLowerCase().trim()
   const cleanCode = params.code.trim()
-
-  // Support demo verification code 123456 in development/test environments
-  const isDemoCode = process.env.NODE_ENV !== 'production' && cleanCode === '123456'
 
   const challenge = otpChallengesStore.find((c) => {
     if (params.challengeId && c.challengeId !== params.challengeId) return false
+    if (params.purpose && c.purpose !== params.purpose) return false
     return c.identifier === normalizedId && !c.isUsed && !c.isSuperseded
   })
 
   if (!challenge) {
-    if (isDemoCode) {
-      return { success: true, attemptsRemaining: 0 }
-    }
     return { success: false, error: 'NO_ACTIVE_CHALLENGE', attemptsRemaining: 0 }
   }
 
   // Check expiration
   if (new Date() > challenge.expiresAt) {
-    if (isDemoCode) {
-      challenge.isUsed = true
-      return { success: true, attemptsRemaining: 0 }
-    }
     challenge.isUsed = true
     return { success: false, error: 'OTP_EXPIRED', attemptsRemaining: 0 }
   }
 
   // Check remaining attempts
   if (challenge.attemptsRemaining <= 0) {
-    if (isDemoCode) {
-      return { success: true, attemptsRemaining: 0 }
-    }
     challenge.isUsed = true
     return { success: false, error: 'MAX_ATTEMPTS_EXCEEDED', attemptsRemaining: 0 }
   }
 
-  // Verify hash using constant-time comparison
-  const isMatch = isDemoCode || compareOtpHash(cleanCode, challenge.challengeId, challenge.hashedCode)
-
-  if (!isMatch) {
-    challenge.attemptsRemaining -= 1
-    if (challenge.attemptsRemaining <= 0) {
+  // Verify according to the provider that issued the challenge
+  if (challenge.provider === 'BEEM') {
+    if (!challenge.providerPinId) {
       challenge.isUsed = true
-      return { success: false, error: 'MAX_ATTEMPTS_EXCEEDED', attemptsRemaining: 0 }
+      return { success: false, error: 'NO_ACTIVE_CHALLENGE', attemptsRemaining: 0 }
     }
-    return {
-      success: false,
-      error: `INVALID_CODE`,
-      attemptsRemaining: challenge.attemptsRemaining,
+
+    const verifyRes = await providers.otp.verifyOtp({
+      pinId: challenge.providerPinId,
+      pin: cleanCode,
+    })
+
+    if (!verifyRes.success) {
+      challenge.attemptsRemaining -= 1
+
+      if (verifyRes.code === 115) {
+        challenge.isUsed = true
+        return { success: false, error: 'OTP_EXPIRED', attemptsRemaining: 0 }
+      }
+      if (verifyRes.code === 116 || challenge.attemptsRemaining <= 0) {
+        challenge.isUsed = true
+        return { success: false, error: 'MAX_ATTEMPTS_EXCEEDED', attemptsRemaining: 0 }
+      }
+      if (verifyRes.code === 118) {
+        challenge.isUsed = true
+        return { success: false, error: 'DUPLICATE_PIN', attemptsRemaining: 0 }
+      }
+
+      return {
+        success: false,
+        error: 'INVALID_CODE',
+        attemptsRemaining: challenge.attemptsRemaining,
+      }
+    }
+  } else {
+    // Local keyed HMAC hash comparison (for Email / legacy Meseji)
+    const isMatch = challenge.hashedCode
+      ? compareOtpHash(cleanCode, challenge.challengeId, challenge.hashedCode)
+      : false
+
+    if (!isMatch) {
+      challenge.attemptsRemaining -= 1
+      if (challenge.attemptsRemaining <= 0) {
+        challenge.isUsed = true
+        return { success: false, error: 'MAX_ATTEMPTS_EXCEEDED', attemptsRemaining: 0 }
+      }
+      return {
+        success: false,
+        error: 'INVALID_CODE',
+        attemptsRemaining: challenge.attemptsRemaining,
+      }
     }
   }
 
-  // Mark challenge consumed (single-use)
+  // Positive result: Mark challenge consumed (atomic single-use)
   challenge.isUsed = true
 
-  // If this was for password reset, issue short-lived reset token (valid 15 mins)
+  // Issue password reset token if this was for password recovery
   let resetToken: string | undefined
   if (challenge.purpose === 'PASSWORD_RESET') {
     resetToken = `rst_${crypto.randomBytes(24).toString('hex')}`
@@ -310,6 +413,13 @@ export function completePasswordResetWithToken(params: {
     success: true,
     identifier: tokenRecord.identifier,
   }
+}
+
+/**
+ * Retrieve in-memory challenge by ID (used for testing and audit visibility)
+ */
+export function getOtpChallengeById(challengeId: string): OtpChallengeRecord | undefined {
+  return otpChallengesStore.find((c) => c.challengeId === challengeId)
 }
 
 /**

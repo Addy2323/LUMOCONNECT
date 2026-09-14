@@ -94,6 +94,7 @@ const sw: Record<string, string> = {
   'Continue to Security': 'Endelea na Usalama',
   'Security Setup & Activation': 'Usalama na Kuwasha Akaunti',
   'Activate Account & Enter Partner Portal': 'Washa Akaunti na Uingie Sehemu ya Mshirika wa Mauzo',
+  'Phone Number (for SMS OTP & Payouts)': 'Namba ya Simu (kwa namba ya siri ya SMS na malipo)',
   'Phone Number (for Meseji OTP & Payouts)': 'Namba ya Simu (kwa namba ya siri ya SMS na malipo)',
   'Step 1 of 4': 'Hatua ya 1 kati ya 4',
   'Step 2 of 4': 'Hatua ya 2 kati ya 4',

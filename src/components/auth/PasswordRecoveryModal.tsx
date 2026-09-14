@@ -190,7 +190,7 @@ export function PasswordRecoveryModal({
             <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/60 text-[11px] text-[#64748B] flex items-start gap-2">
               <ShieldCheck className="w-4 h-4 text-[#F97316] shrink-0 mt-0.5" />
               <span>
-                A 6-digit verification code will be dispatched via Meseji SMS to your phone to confirm ownership.
+                A 6-digit verification code will be dispatched via SMS to your phone to confirm ownership.
               </span>
             </div>
 
@@ -199,7 +199,7 @@ export function PasswordRecoveryModal({
               disabled={loading}
               className="w-full py-3 bg-[#F97316] hover:bg-[#EA580C] text-white font-extrabold text-xs rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
             >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Send Recovery Code via Meseji'}
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Send Recovery Code via SMS'}
             </button>
           </form>
         )}

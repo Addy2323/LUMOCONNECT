@@ -120,7 +120,7 @@ export function IntegrationsWebhooksTab() {
         </button>
       </div>
 
-      {/* Meseji SMS Gateway Integration Banner */}
+      {/* SMS Gateway Integration Banner */}
       <div className="p-4 rounded-3xl bg-gradient-to-r from-orange-500/10 via-amber-500/10 to-transparent border border-orange-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3.5">
           <div className="w-10 h-10 rounded-2xl bg-[#FF6A00] text-white flex items-center justify-center font-black shadow-sm">
@@ -129,20 +129,20 @@ export function IntegrationsWebhooksTab() {
           <div>
             <div className="flex items-center gap-2">
               <h3 className="text-sm font-black text-slate-900 dark:text-white">
-                Meseji Tanzania SMS Telco Gateway
+                SMS Telco Gateway (Beem Africa / Meseji)
               </h3>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400">
-                DRY RUN / VERIFIED
+                DRY RUN / CONFIGURED
               </span>
             </div>
             <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
-              Integrated for Vodacom, Airtel, Tigo, and Halotel SMS dispatch, OTP verification, and transactional broadcasts.
+              Integrated for Vodacom, Airtel, Tigo, and Halotel SMS dispatch, secure OTP verification, and transactional broadcasts.
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2 text-xs font-mono font-bold text-slate-700 dark:text-slate-300">
           <span className="px-2.5 py-1 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-            Sender ID: Lumo
+            Active Sender ID: MHEMA CARGO
           </span>
         </div>
       </div>

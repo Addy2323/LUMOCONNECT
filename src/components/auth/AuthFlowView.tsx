@@ -901,7 +901,7 @@ export function AuthFlowView({
               Verify phone number
             </h2>
             <p className="text-xs sm:text-sm text-[#64748B] dark:text-slate-400 mt-1.5 leading-relaxed">
-              Tumetuma namba ya uthibitisho yenye tarakimu 6 kupitia <strong>Meseji SMS</strong> kwa{' '}
+              Tumetuma namba ya uthibitisho yenye tarakimu 6 kupitia <strong>SMS</strong> kwa{' '}
               <span className="font-mono font-bold text-slate-900 dark:text-white break-all">
                 {maskedPhone || (phone ? maskPhoneNumber(normalizeMesejiPhone(phone)) : 'namba yako')}
               </span>
@@ -989,7 +989,7 @@ export function AuthFlowView({
                 onClick={handleResendOtp}
                 className="font-bold text-[#FF6A00] hover:underline"
               >
-                Resend Code via Meseji
+                Resend Code
               </button>
             ) : (
               <span className="text-slate-400 font-mono text-[11px]">
@@ -1951,7 +1951,7 @@ export function AuthFlowView({
                   Two-Factor Authentication (2FA)
                 </div>
                 <div className="text-[11px] text-[#64748B] dark:text-slate-400">
-                  Requires Meseji SMS OTP for payout authorization and sensitive logins.
+                  Requires SMS OTP for payout authorization and sensitive logins.
                 </div>
               </div>
             </div>

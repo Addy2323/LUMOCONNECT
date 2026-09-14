@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest'
 import {
   createAndSendOtp,
   verifyOtpChallenge,
@@ -13,9 +13,16 @@ import { providers } from '@/lib/providers'
  * logs, or error messages, and that server-side controls are authoritative.
  */
 describe('OTP Security Regressions', () => {
+  const originalProvider = process.env.SMS_PROVIDER
+
   beforeEach(() => {
+    process.env.SMS_PROVIDER = 'meseji'
     resetOtpStoreForTesting()
     vi.restoreAllMocks()
+  })
+
+  afterAll(() => {
+    process.env.SMS_PROVIDER = originalProvider
   })
 
   it('createAndSendOtp return value NEVER contains the plaintext OTP code', async () => {
@@ -123,7 +130,7 @@ describe('OTP Security Regressions', () => {
     expect(sendResult.success).toBe(false)
 
     // Attacker cannot verify because they don't know the OTP
-    const verifyResult = verifyOtpChallenge({
+    const verifyResult = await verifyOtpChallenge({
       identifier: '0712345678',
       code: '000000',
       challengeId: sendResult.challengeId,
@@ -146,7 +153,7 @@ describe('OTP Security Regressions', () => {
     })
 
     // First verification succeeds
-    const first = verifyOtpChallenge({
+    const first = await verifyOtpChallenge({
       identifier: '0712345678',
       code: capturedCode,
       challengeId: sendResult.challengeId,
@@ -154,7 +161,7 @@ describe('OTP Security Regressions', () => {
     expect(first.success).toBe(true)
 
     // Second verification with same code fails
-    const second = verifyOtpChallenge({
+    const second = await verifyOtpChallenge({
       identifier: '0712345678',
       code: capturedCode,
       challengeId: sendResult.challengeId,
@@ -192,7 +199,7 @@ describe('OTP Security Regressions', () => {
 
     // The old code must not work for the new challenge
     if (firstCode && firstCode !== secondCode) {
-      const oldCodeResult = verifyOtpChallenge({
+      const oldCodeResult = await verifyOtpChallenge({
         identifier: '0712345678',
         code: firstCode,
         challengeId: secondSend.challengeId,
@@ -215,7 +222,7 @@ describe('OTP Security Regressions', () => {
     })
 
     // Attempt with wrong phone
-    const wrongPhone = verifyOtpChallenge({
+    const wrongPhone = await verifyOtpChallenge({
       identifier: '0754999999',
       code: capturedCode,
       challengeId: sendResult.challengeId,
@@ -232,7 +239,7 @@ describe('OTP Security Regressions', () => {
     })
 
     // First wrong attempt
-    const attempt1 = verifyOtpChallenge({
+    const attempt1 = await verifyOtpChallenge({
       identifier: '0712345678',
       code: '000000',
       challengeId: sendResult.challengeId,
@@ -241,7 +248,7 @@ describe('OTP Security Regressions', () => {
     expect(attempt1.attemptsRemaining).toBe(2)
 
     // Second wrong attempt
-    const attempt2 = verifyOtpChallenge({
+    const attempt2 = await verifyOtpChallenge({
       identifier: '0712345678',
       code: '000001',
       challengeId: sendResult.challengeId,
@@ -250,7 +257,7 @@ describe('OTP Security Regressions', () => {
     expect(attempt2.attemptsRemaining).toBe(1)
 
     // Third wrong attempt — lockout
-    const attempt3 = verifyOtpChallenge({
+    const attempt3 = await verifyOtpChallenge({
       identifier: '0712345678',
       code: '000002',
       challengeId: sendResult.challengeId,
@@ -268,7 +275,7 @@ describe('OTP Security Regressions', () => {
       purpose: 'REGISTRATION',
     })
 
-    const attempt = verifyOtpChallenge({
+    const attempt = await verifyOtpChallenge({
       identifier: '0712345678',
       code: '000000',
       challengeId: sendResult.challengeId,

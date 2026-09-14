@@ -89,6 +89,39 @@ export interface SmsProvider {
   sendSms(msg: SmsMessage): Promise<{ success: boolean; messageId?: string; error?: string }>
 }
 
+export interface OtpRequest {
+  phone: string
+  appId?: number | string
+}
+
+export interface OtpRequestResult {
+  success: boolean
+  pinId?: string
+  code?: number
+  message?: string
+  pinExpiryMinutes?: number
+  expiresInSeconds?: number
+  error?: string
+}
+
+export interface OtpVerifyRequest {
+  pinId: string
+  pin: string
+}
+
+export interface OtpVerifyResult {
+  success: boolean
+  code?: number
+  message?: string
+  error?: string
+}
+
+export interface OtpProvider {
+  name: string
+  requestOtp(req: OtpRequest): Promise<OtpRequestResult>
+  verifyOtp(req: OtpVerifyRequest): Promise<OtpVerifyResult>
+}
+
 export interface EmailMessage {
   to: string
   subject: string

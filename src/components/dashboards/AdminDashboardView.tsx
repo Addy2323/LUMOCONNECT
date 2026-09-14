@@ -153,7 +153,7 @@ export function AdminDashboardView({
               {activeTab === 'disputes' && 'Disputes, Complaints & Mediation'}
               {activeTab === 'logs' && 'Immutable Platform Audit Ledger'}
               {activeTab === 'notifications' && 'Automated Communications & Notifications'}
-              {activeTab === 'sms' && 'Meseji SMS Operations Centre'}
+              {activeTab === 'sms' && 'SMS Operations Centre'}
               {activeTab === 'content' && 'Promotions, Banners & Featured Content'}
               {activeTab === 'roles' && 'Internal RBAC Roles & Privileges'}
               {activeTab === 'integrations' && 'Payment Gateways & Webhooks'}

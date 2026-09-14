@@ -1,9 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getActiveSmsProviderName } from '@/lib/providers'
+import { getBeemClient } from '@/lib/providers/beem-client'
 import { getMesejiClient } from '@/lib/providers/meseji-client'
 import { addSmsAuditLog } from '@/modules/sms/store'
 
 export async function GET() {
   try {
+    const active = getActiveSmsProviderName()
+    if (active === 'beem') {
+      const client = getBeemClient()
+      const result = await client.listSenderNames()
+      return NextResponse.json({
+        sender_ids: result.sender_names.map((s) => ({
+          id: s.id,
+          name: s.senderid,
+          status: s.status,
+          description: s.sample_content,
+          created_at: s.created,
+        })),
+      })
+    }
+
     const client = getMesejiClient()
     const result = await client.getSenderIds()
     return NextResponse.json(result)
@@ -44,23 +61,35 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const client = getMesejiClient()
-    const result = await client.requestSenderId({
-      name: trimmedName,
-      sampleMessage: sampleMessage.trim(),
-      category,
-    })
+    const active = getActiveSmsProviderName()
+    let result: { success: boolean; name?: string; status?: string; message?: string }
+
+    if (active === 'beem') {
+      // In Beem Africa, Sender IDs are provisioned via Beem dashboard or API setup
+      result = {
+        success: true,
+        name: trimmedName,
+        status: 'PENDING',
+      }
+    } else {
+      const client = getMesejiClient()
+      result = await client.requestSenderId({
+        name: trimmedName,
+        sampleMessage: sampleMessage.trim(),
+        category,
+      })
+    }
 
     addSmsAuditLog(
-      'SENDER_ID_REQUESTED',
+      'REQUEST_SENDER_ID',
       'admin_console',
-      { name: trimmedName, category, status: result.status || 'PENDING' }
+      { name: trimmedName, category, provider: active, status: result.status || 'PENDING' }
     )
 
     return NextResponse.json(result)
   } catch (error: any) {
     return NextResponse.json(
-      { error: error.message || 'Failed to submit Sender ID request' },
+      { error: error.message || 'Failed to request sender ID' },
       { status: 500 }
     )
   }

@@ -39,6 +39,7 @@ export function AdminSmsCenterTab() {
   // Live Stats
   const [statsData, setStatsData] = useState<{
     config?: {
+      provider?: string
       isConfigured: boolean
       dryRun: boolean
       enabled: boolean
@@ -343,7 +344,7 @@ export function AdminSmsCenterTab() {
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-xl font-black text-slate-900 dark:text-white">
-                  Meseji SMS Operations Centre
+                  {statsData.config?.provider === 'beem' ? 'Beem Africa SMS Operations Centre' : 'SMS Operations Centre'}
                 </h2>
                 <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800">
                   Tanzania Telco Gateway
@@ -447,7 +448,7 @@ export function AdminSmsCenterTab() {
           <HelpCircle className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
           <div>
             <span className="font-bold text-slate-700 dark:text-slate-300">Delivery Status Transparency: </span>
-            Meseji provides aggregate batch delivery counts via telco endpoints. In adherence with telco privacy regulations, individual recipient delivery receipts are not returned. All individual recipient records are presented as <em>&quot;Recipient delivery unavailable (Batch aggregate stats only)&quot;</em>.
+            Real-time status tracking via telco endpoints. Beem Africa provides per-recipient delivery reports (DLR) with in-flight lookup and error codes; batch aggregate stats and delivery reconciliations are tracked automatically.
           </div>
         </div>
       </div>

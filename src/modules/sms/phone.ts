@@ -34,6 +34,7 @@ export function normalizeMesejiPhone(input: string): string {
 }
 
 export const normalizeTanzaniaPhone = normalizeMesejiPhone
+export const normalizeBeemPhone = normalizeMesejiPhone
 
 /**
  * Detects Tanzanian mobile network operator based on national dial code allocation
