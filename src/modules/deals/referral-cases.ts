@@ -1,6 +1,6 @@
 import { ReferralCase, ReferralCaseStage, DirectRewardStatus } from './types'
 
-export const LUMO_OFFICIAL_WHATSAPP = process.env.NEXT_PUBLIC_LUMO_WHATSAPP_NUMBER || '255700000000'
+export const LUMO_OFFICIAL_WHATSAPP = process.env.NEXT_PUBLIC_LUMO_WHATSAPP_NUMBER || '255775717501'
 
 /**
  * Normalizes Tanzanian phone numbers to standard E.164 format (+2557XXXXXXXX or +2556XXXXXXXX).

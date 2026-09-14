@@ -406,7 +406,7 @@ export function OverviewTab({
           </div>
 
           <div className="text-xs font-bold text-slate-500 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 shrink-0">
-            Coordination Desk: <span className="text-emerald-600 font-extrabold">+255 700 000 000</span>
+            Coordination Desk: <span className="text-emerald-600 font-extrabold">+255 775 717 501</span>
           </div>
         </div>
 
@@ -492,7 +492,7 @@ export function OverviewTab({
 
                     <td className="p-3 text-right">
                       <a
-                        href={`https://wa.me/255700000000?text=${encodeURIComponent(`Hello Lumo Protection Desk. Regarding Ticket ${inquiry.ticketCode} for ${inquiry.dealTitle}:`)}`}
+                        href={`https://wa.me/255775717501?text=${encodeURIComponent(`Hello Lumo Protection Desk. Regarding Ticket ${inquiry.ticketCode} for ${inquiry.dealTitle}:`)}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1.5 py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-extrabold transition-colors shadow-xs"

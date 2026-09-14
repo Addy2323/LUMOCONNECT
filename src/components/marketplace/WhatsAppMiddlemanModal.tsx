@@ -72,10 +72,10 @@ export function WhatsAppMiddlemanModal({
       dealTitle: deal.title,
       dealSlug: deal.slug,
       sellerCompany: 'Lumo Dealers',
-      sellerPhone: '+255 700 000 000',
-      sellerWhatsApp: '255700000000',
+      sellerPhone: '+255 775 717 501',
+      sellerWhatsApp: '255775717501',
       buyerName: buyerName.trim() || 'Valued Partner',
-      buyerPhone: buyerPhone.trim() || '+255 700 000 000',
+      buyerPhone: buyerPhone.trim() || '+255 775 717 501',
       quantity: Number(quantity) || 1,
       deliveryLocation: deliveryLocation.trim() || deal.region,
       notes: buyerNotes.trim() || undefined,
@@ -103,7 +103,7 @@ export function WhatsAppMiddlemanModal({
   // Pre-formatted message text for WhatsApp (Lumo Dealers Operating Model Section 7)
   const ticketId = generatedTicket?.ticketCode || `LUMO-REF-${deal.id.slice(-6).toUpperCase()}`
   const messageText = `Hello Lumo, I am following up on referral ${ticketId} for ${deal.title}. Please assist with availability and the next steps.`
-  const waUrl = `https://wa.me/255700000000?text=${encodeURIComponent(messageText)}`
+  const waUrl = `https://wa.me/255775717501?text=${encodeURIComponent(messageText)}`
 
   const handleCopyMessage = () => {
     navigator.clipboard.writeText(messageText)
