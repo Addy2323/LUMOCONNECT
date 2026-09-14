@@ -27,7 +27,7 @@ import {
   Camera,
   ScanFace,
 } from 'lucide-react'
-import type { UserRole, PartnerType } from '@/modules/identity/types'
+import type { UserRole, PartnerType, IdentityType } from '@/modules/identity/types'
 import {
   getInitialSecuritySettings,
   submitVerificationRecord,
@@ -255,7 +255,7 @@ export function AuthFlowView({
   const [district, setDistrict] = useState('')
   const [selectedSkills, setSelectedSkills] = useState<string[]>([])
   const [socialChannels, setSocialChannels] = useState('')
-  const [identityType, setIdentityType] = useState<'NIDA_ID' | 'PASSPORT' | 'TIN_CERTIFICATE'>('NIDA_ID')
+  const [identityType, setIdentityType] = useState<IdentityType>('NIDA_ID')
   const [identityNumber, setIdentityNumber] = useState('')
   const [identityCheck, setIdentityCheck] = useState<{
     status: 'IDLE' | 'CHECKING' | 'VERIFIED' | 'ERROR'
@@ -292,7 +292,7 @@ export function AuthFlowView({
   const [isCaptureReady, setIsCaptureReady] = useState(false)
 
   const validateIdentityNumber = (
-    documentType: 'NIDA_ID' | 'PASSPORT' | 'TIN_CERTIFICATE',
+    documentType: IdentityType,
     rawValue: string
   ) => {
     const value = rawValue.trim().toUpperCase()
@@ -303,15 +303,31 @@ export function AuthFlowView({
         : 'Enter the complete 20-digit NIDA number.'
     }
 
+    if (documentType === 'VOTER_ID') {
+      return value.replace(/[-\s]/g, '').length >= 6
+        ? null
+        : 'Enter a valid Voter ID number.'
+    }
+
+    if (documentType === 'DRIVING_LICENSE') {
+      return value.replace(/[-\s]/g, '').length >= 6
+        ? null
+        : 'Enter a valid Driving License number.'
+    }
+
     if (documentType === 'PASSPORT') {
       return /^(?=.*\d)[A-Z0-9]{6,12}$/.test(value)
         ? null
         : 'Enter 6–12 passport letters and numbers without spaces.'
     }
 
-    return /^\d{9}$/.test(value.replace(/[-\s]/g, ''))
-      ? null
-      : 'Enter a valid 9-digit TIN.'
+    if (documentType === 'ZANZIBAR_ID') {
+      return value.replace(/[-\s]/g, '').length >= 6
+        ? null
+        : 'Enter a valid Zanzibar Resident ID number.'
+    }
+
+    return null
   }
 
   const handleIdentityVerification = async () => {
@@ -1167,21 +1183,27 @@ export function AuthFlowView({
                   <select
                     value={identityType}
                     onChange={(e) => {
-                      setIdentityType(e.target.value as typeof identityType)
+                      setIdentityType(e.target.value as IdentityType)
                       setIdentityNumber('')
                       setIdentityCheck({ status: 'IDLE', message: '' })
                     }}
                     className="w-full py-2.5 px-3.5 text-xs sm:text-sm border border-[#E2E8F0] dark:border-slate-800 rounded-xl bg-[#F0F5FA] text-[#0F172A] dark:text-white"
                   >
-                    <option value="NIDA_ID">NIDA National ID (Tanzania)</option>
-                    <option value="PASSPORT">East African Passport</option>
-                    <option value="TIN_CERTIFICATE">TIN Certificate</option>
+                    <option value="NIDA_ID">NIDA National ID (Kitambulisho cha NIDA)</option>
+                    <option value="VOTER_ID">Voter ID (Kitambulisho cha Mpiga Kura)</option>
+                    <option value="DRIVING_LICENSE">Driving License (Leseni ya Udereva)</option>
+                    <option value="PASSPORT">East African Passport (Hati ya Kusafiria)</option>
+                    <option value="ZANZIBAR_ID">Zanzibar Resident ID (Kitambulisho cha Mzanzibari Mkaazi)</option>
                   </select>
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold text-[#0F172A] dark:text-slate-300 mb-1.5">
-                    Document / NIDA Number
+                    {identityType === 'NIDA_ID' && 'NIDA National ID Number'}
+                    {identityType === 'VOTER_ID' && 'Voter ID Number'}
+                    {identityType === 'DRIVING_LICENSE' && 'Driving License Number'}
+                    {identityType === 'PASSPORT' && 'Passport Number'}
+                    {identityType === 'ZANZIBAR_ID' && 'Zanzibar Resident ID Number'}
                   </label>
                   <input
                     type="text"
@@ -1200,7 +1222,17 @@ export function AuthFlowView({
                       }
                       setIdentityCheck({ status: 'IDLE', message: '' })
                     }}
-                    placeholder="19940823-14120-00001-29"
+                    placeholder={
+                      identityType === 'NIDA_ID'
+                        ? '19940823-14120-00001-29'
+                        : identityType === 'VOTER_ID'
+                        ? 'T-1029-3847-192'
+                        : identityType === 'DRIVING_LICENSE'
+                        ? 'TZ-98402194'
+                        : identityType === 'PASSPORT'
+                        ? 'AB123456'
+                        : 'Z-98234120'
+                    }
                     aria-invalid={identityCheck.status === 'ERROR'}
                     className={`w-full py-2.5 px-3.5 text-xs sm:text-sm border rounded-xl bg-[#F0F5FA] text-[#0F172A] dark:text-white font-mono ${
                       identityCheck.status === 'ERROR'
@@ -1383,6 +1415,26 @@ export function AuthFlowView({
               Required Statutory Documents ({role === 'BUSINESS' ? 'Business Track' : 'Partner Track'})
             </div>
 
+            {/* Partner Identity Selection Dropdown in Step 4 */}
+            {role === 'PARTNER' && (
+              <div>
+                <label className="block text-xs font-bold text-[#0F172A] dark:text-slate-300 mb-1.5">
+                  Select Identity Document Type to Upload
+                </label>
+                <select
+                  value={identityType}
+                  onChange={(e) => setIdentityType(e.target.value as IdentityType)}
+                  className="w-full py-2.5 px-3.5 text-xs sm:text-sm border border-[#E2E8F0] dark:border-slate-800 rounded-xl bg-[#F0F5FA] text-[#0F172A] dark:text-white font-semibold"
+                >
+                  <option value="NIDA_ID">NIDA National ID Card (Kitambulisho cha NIDA)</option>
+                  <option value="VOTER_ID">Voter ID Card (Kitambulisho cha Mpiga Kura)</option>
+                  <option value="DRIVING_LICENSE">Driving License (Leseni ya Udereva)</option>
+                  <option value="PASSPORT">East African Passport (Hati ya Kusafiria)</option>
+                  <option value="ZANZIBAR_ID">Zanzibar Resident ID Card (Kitambulisho cha Mzanzibari Mkaazi)</option>
+                </select>
+              </div>
+            )}
+
             {/* Document Slot 1: Primary ID / Incorporation */}
             <div className="border border-slate-200 dark:border-slate-800 rounded-2xl p-4 bg-white dark:bg-slate-900 shadow-2xs space-y-3">
               <div className="flex items-start justify-between">
@@ -1394,12 +1446,28 @@ export function AuthFlowView({
                     <div className="text-xs font-black text-slate-900 dark:text-white">
                       {role === 'BUSINESS'
                         ? 'BRELA Certificate of Incorporation / Registration'
-                        : 'NIDA National ID Card / Passport'}
+                        : identityType === 'NIDA_ID'
+                        ? 'NIDA National ID Card (Kitambulisho cha NIDA)'
+                        : identityType === 'VOTER_ID'
+                        ? 'Voter ID Card (Kitambulisho cha Mpiga Kura)'
+                        : identityType === 'DRIVING_LICENSE'
+                        ? 'Driving License (Leseni ya Udereva)'
+                        : identityType === 'PASSPORT'
+                        ? 'East African Passport (Hati ya Kusafiria)'
+                        : 'Zanzibar Resident ID Card (Kitambulisho cha Mzanzibari Mkaazi)'}
                     </div>
                     <div className="text-[11px] text-slate-500">
                       {role === 'BUSINESS'
                         ? 'Official certificate issued by BRELA Tanzania'
-                        : 'Clear front and back photo or scanned PDF'}
+                        : identityType === 'NIDA_ID'
+                        ? 'Clear front and back photo or scanned PDF of your NIDA Card'
+                        : identityType === 'VOTER_ID'
+                        ? 'Clear front and back photo or scanned PDF of your Voter ID Card'
+                        : identityType === 'DRIVING_LICENSE'
+                        ? 'Clear photo or scanned PDF of your valid Tanzania Driving License'
+                        : identityType === 'PASSPORT'
+                        ? 'Clear photo or scanned PDF of your Passport bio-data page'
+                        : 'Clear photo or scanned PDF of your official Zanzibar Resident ID card'}
                     </div>
                   </div>
                 </div>

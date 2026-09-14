@@ -11,6 +11,13 @@ export type PartnerType =
   | 'MARKETING_AGENCY'
   | 'COMMUNITY_LEADER'
 
+export type IdentityType =
+  | 'NIDA_ID'
+  | 'VOTER_ID'
+  | 'DRIVING_LICENSE'
+  | 'PASSPORT'
+  | 'ZANZIBAR_ID'
+
 export interface PartnerProfileData {
   entityType: 'INDIVIDUAL' | 'COMPANY'
   partnerType: PartnerType
@@ -22,7 +29,7 @@ export interface PartnerProfileData {
     handle: string
     audienceSize?: string
   }[]
-  identityType: 'NIDA_ID' | 'PASSPORT' | 'TIN_CERTIFICATE'
+  identityType: IdentityType
   identityNumber: string
   nidaDocumentUrl?: string
   status: VerificationStatus
