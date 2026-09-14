@@ -33,6 +33,7 @@ import {
   submitVerificationRecord,
 } from '@/modules/identity/service'
 import { maskPhoneNumber, normalizeMesejiPhone } from '@/modules/sms/phone'
+import { SocialChannelPicker } from './SocialChannelPicker'
 
 interface UploadedDocItem {
   id: string
@@ -1144,19 +1145,11 @@ export function AuthFlowView({
                 </div>
               </div>
 
-              {/* Promotion Channels & Social Handles */}
-              <div>
-                <label className="block text-xs font-bold text-[#0F172A] dark:text-slate-300 mb-1.5">
-                  Social & Business Channels
-                </label>
-                <input
-                  type="text"
-                  value={socialChannels}
-                  onChange={(e) => setSocialChannels(e.target.value)}
-                  placeholder="e.g. @alexmushi (Instagram 25k followers, WhatsApp 1,200 contacts, YouTube)"
-                  className="w-full py-2.5 px-3.5 text-xs sm:text-sm border border-[#E2E8F0] dark:border-slate-800 rounded-xl bg-[#F0F5FA] text-[#0F172A] dark:text-white"
-                />
-              </div>
+              {/* Promotion Channels & Social Handles with Clickable Icons & Fillable Inputs */}
+              <SocialChannelPicker
+                value={socialChannels}
+                onChange={setSocialChannels}
+              />
 
               {/* National Identity / NIDA Details */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
