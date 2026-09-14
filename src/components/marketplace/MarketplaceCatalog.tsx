@@ -28,8 +28,9 @@ import {
   PhoneCall,
   Sparkles,
 } from 'lucide-react'
-import { TANZANIA_OPPORTUNITY_CATEGORIES, TANZANIA_REGIONS } from '@/modules/deals/taxonomy'
+import { TANZANIA_OPPORTUNITY_CATEGORIES, TANZANIA_REGIONS, getLocalizedCategoryLabel } from '@/modules/deals/taxonomy'
 import { OPPORTUNITY_TYPES } from './MarketplaceFilters'
+import { useLanguage, getOpportunitiesCountLabel } from '@/lib/i18n'
 
 type MarketplaceSort = 'recommended' | 'highest_reward' | 'newest' | 'ending_soon'
 
@@ -88,6 +89,7 @@ export function MarketplaceCatalog({
   onConnectWhatsApp,
   onUpgradeToVip,
 }: MarketplaceCatalogProps) {
+  const { t, locale } = useLanguage()
   const categoryIcons = [House, CarFront, Package, Sprout, BriefcaseBusiness, Wrench]
   const [vipTab, setVipTab] = useState<'ALL' | 'VIP' | 'STANDARD'>('ALL')
 
@@ -142,7 +144,7 @@ export function MarketplaceCatalog({
         <aside className="sticky top-24 hidden overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 lg:block">
           <div className="border-b border-slate-200 px-5 py-4 dark:border-slate-800">
             <h3 className="flex items-center gap-2 text-base font-black text-slate-900 dark:text-white">
-              <SlidersHorizontal className="h-4 w-4 text-orange-500" /> Categories
+              <SlidersHorizontal className="h-4 w-4 text-orange-500" /> {t('Categories')}
             </h3>
           </div>
 
@@ -152,7 +154,7 @@ export function MarketplaceCatalog({
               onClick={() => onCategoryChange('ALL')}
               className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-bold transition ${selectedCategory === 'ALL' ? 'bg-orange-50 text-orange-600 dark:bg-orange-950/40' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800'}`}
             >
-              <Grid3X3 className="h-4 w-4" /> All Categories
+              <Grid3X3 className="h-4 w-4" /> {locale === 'sw' ? 'Makundi Yote' : 'All Categories'}
             </button>
             {TANZANIA_OPPORTUNITY_CATEGORIES.map((category, index) => {
               const Icon = categoryIcons[index]
@@ -164,7 +166,7 @@ export function MarketplaceCatalog({
                   onClick={() => onCategoryChange(category.value)}
                   className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-bold transition ${selected ? 'bg-orange-50 text-orange-600 dark:bg-orange-950/40' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800'}`}
                 >
-                  <Icon className="h-4 w-4" /> {category.label}
+                  <Icon className="h-4 w-4" /> {getLocalizedCategoryLabel(category.value, locale)}
                 </button>
               )
             })}
@@ -173,25 +175,25 @@ export function MarketplaceCatalog({
           <div className="space-y-4 border-t border-slate-200 p-5 dark:border-slate-800">
             <label className="block">
               <span className="mb-1.5 flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-slate-500">
-                <MapPin className="h-3.5 w-3.5" /> Region
+                <MapPin className="h-3.5 w-3.5" /> {t('Region')}
               </span>
               <select value={selectedRegion} onChange={(event) => onRegionChange(event.target.value)} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-orange-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
-                <option value="ALL">All Regions</option>
-                {TANZANIA_REGIONS.filter((region) => region !== 'All Tanzania').map((region) => <option key={region} value={region}>{region}</option>)}
+                <option value="ALL">{t('All Regions')}</option>
+                {TANZANIA_REGIONS.filter((region) => region !== 'All Tanzania').map((region) => <option key={region} value={region}>{t(region)}</option>)}
               </select>
             </label>
 
             <label className="block">
-              <span className="mb-1.5 block text-xs font-extrabold uppercase tracking-wider text-slate-500">Opportunity type</span>
+              <span className="mb-1.5 block text-xs font-extrabold uppercase tracking-wider text-slate-500">{t('Opportunity Type')}</span>
               <select value={selectedType} onChange={(event) => onTypeChange(event.target.value)} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-orange-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
-                {OPPORTUNITY_TYPES.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
+                {OPPORTUNITY_TYPES.map((type) => <option key={type.value} value={type.value}>{t(type.label)}</option>)}
               </select>
             </label>
 
             <label className="block">
-              <span className="mb-1.5 block text-xs font-extrabold uppercase tracking-wider text-slate-500">Minimum reward</span>
+              <span className="mb-1.5 block text-xs font-extrabold uppercase tracking-wider text-slate-500">{t('Minimum Reward')}</span>
               <select value={minReward} onChange={(event) => onMinRewardChange(Number(event.target.value))} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-orange-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
-                <option value={0}>Any reward</option>
+                <option value={0}>{t('Any Reward')}</option>
                 <option value={50000}>TZS 50,000+</option>
                 <option value={100000}>TZS 100,000+</option>
                 <option value={250000}>TZS 250,000+</option>
@@ -199,7 +201,7 @@ export function MarketplaceCatalog({
               </select>
             </label>
 
-            {activeFilterCount > 0 && <button type="button" onClick={onClearFilters} className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200 py-2.5 text-xs font-bold text-slate-600 hover:border-orange-300 hover:text-orange-600 dark:border-slate-700 dark:text-slate-300"><X className="h-3.5 w-3.5" /> Clear filters</button>}
+            {activeFilterCount > 0 && <button type="button" onClick={onClearFilters} className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200 py-2.5 text-xs font-bold text-slate-600 hover:border-orange-300 hover:text-orange-600 dark:border-slate-700 dark:text-slate-300"><X className="h-3.5 w-3.5" /> {t('Clear filters')}</button>}
           </div>
         </aside>
 
@@ -211,13 +213,15 @@ export function MarketplaceCatalog({
                 <Crown className="h-6 w-6 text-amber-500 shrink-0 mt-0.5" />
                 <div>
                   <p className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                    <span>Golden VIP 24-Hour Exclusivity Window</span>
+                    <span>{locale === 'sw' ? 'Dirisha la Kipekee la Saa 24 kwa Golden VIP' : 'Golden VIP 24-Hour Exclusivity Window'}</span>
                     <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-500 text-slate-950 font-black">
-                      1 Month VIP Free with Annual
+                      {locale === 'sw' ? 'Mwezi 1 wa VIP Bure na Usajili wa Mwaka' : '1 Month VIP Free with Annual'}
                     </span>
                   </p>
                   <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
-                    VIP & Annual subscribers get first-look early access during the first 24 hours of hot deals. Regular partners see deals unlock after 24 hours.
+                    {locale === 'sw'
+                      ? 'Wanachama wa VIP na wa Kila Mwaka wanapata ufikiaji wa mapema katika saa 24 za kwanza za fursa moto. Fursa hufunguliwa kwa washirika wote baada ya saa 24.'
+                      : 'VIP & Annual subscribers get first-look early access during the first 24 hours of hot deals. Regular partners see deals unlock after 24 hours.'}
                   </p>
                 </div>
               </div>
@@ -227,7 +231,7 @@ export function MarketplaceCatalog({
                   onClick={onUpgradeToVip}
                   className="shrink-0 px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-black text-xs shadow-sm hover:from-amber-400 hover:to-orange-400 transition-all cursor-pointer"
                 >
-                  Get Annual (1 Mo VIP Free) →
+                  {locale === 'sw' ? 'Pata ya Mwaka (Mwezi 1 wa VIP Bure) →' : 'Get Annual (1 Mo VIP Free) →'}
                 </button>
               )}
             </div>
@@ -244,7 +248,7 @@ export function MarketplaceCatalog({
                   : 'bg-white text-slate-600 border border-slate-200 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 hover:bg-slate-100'
               }`}
             >
-              All Deals ({opportunities.length})
+              {t('All Deals')} ({opportunities.length})
             </button>
 
             <button
@@ -257,7 +261,7 @@ export function MarketplaceCatalog({
               }`}
             >
               <Crown className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-              <span>Golden VIP Early Access ({vipCount})</span>
+              <span>{t('VIP Early Access')} ({vipCount})</span>
             </button>
 
             <button
@@ -270,28 +274,32 @@ export function MarketplaceCatalog({
               }`}
             >
               <Handshake className="h-3.5 w-3.5 shrink-0" />
-              <span>Standard Partner Deals ({standardCount})</span>
+              <span>{t('Standard Partner Deals')} ({standardCount})</span>
             </button>
           </div>
 
           <div className="mb-5 flex flex-col gap-3 border-b border-slate-200 pb-4 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-slate-900 dark:text-white">
-                {vipTab === 'VIP' ? 'Golden VIP Priority Opportunities' : vipTab === 'STANDARD' ? 'Standard Partner Deals' : 'All Marketplace Opportunities'}
+                {vipTab === 'VIP'
+                  ? (locale === 'sw' ? 'Fursa za Kipaumbele za Golden VIP' : 'Golden VIP Priority Opportunities')
+                  : vipTab === 'STANDARD'
+                    ? t('Standard Partner Deals')
+                    : (locale === 'sw' ? 'Fursa Zote za Soko' : 'All Marketplace Opportunities')}
               </p>
-              <p className="mt-1 text-xs text-slate-500">Showing {displayedOpportunities.length} opportunities</p>
+              <p className="mt-1 text-xs text-slate-500">{getOpportunitiesCountLabel(displayedOpportunities.length, locale)}</p>
             </div>
             <div className="flex flex-col sm:flex-row flex-1 items-stretch sm:items-center gap-2 sm:max-w-xl sm:justify-end">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <input value={query} onChange={(event) => onQueryChange(event.target.value)} placeholder="Search marketplace..." className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-xs outline-none focus:border-orange-500 dark:border-slate-700 dark:bg-slate-900" />
+                <input value={query} onChange={(event) => onQueryChange(event.target.value)} placeholder={locale === 'sw' ? 'Tafuta fursa...' : 'Search marketplace...'} className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-xs outline-none focus:border-orange-500 dark:border-slate-700 dark:bg-slate-900" />
               </div>
               <div className="relative">
-                <select value={sortBy} onChange={(event) => onSortChange(event.target.value as MarketplaceSort)} aria-label="Sort marketplace deals" className="w-full sm:w-auto appearance-none rounded-xl border border-slate-200 bg-white py-2.5 pl-3 pr-8 text-xs font-bold outline-none focus:border-orange-500 dark:border-slate-700 dark:bg-slate-900">
-                  <option value="recommended">Recommended</option>
-                  <option value="newest">Newest</option>
-                  <option value="highest_reward">Highest reward</option>
-                  <option value="ending_soon">Ending soon</option>
+                <select value={sortBy} onChange={(event) => onSortChange(event.target.value as MarketplaceSort)} aria-label={locale === 'sw' ? 'Panga fursa' : 'Sort marketplace deals'} className="w-full sm:w-auto appearance-none rounded-xl border border-slate-200 bg-white py-2.5 pl-3 pr-8 text-xs font-bold outline-none focus:border-orange-500 dark:border-slate-700 dark:bg-slate-900">
+                  <option value="recommended">{t('Recommended')}</option>
+                  <option value="newest">{t('Newest')}</option>
+                  <option value="highest_reward">{t('Highest Reward')}</option>
+                  <option value="ending_soon">{t('Ending Soon')}</option>
                 </select>
                 <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
               </div>

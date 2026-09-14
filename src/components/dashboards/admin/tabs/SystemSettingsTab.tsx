@@ -170,7 +170,7 @@ export function SystemSettingsTab() {
           </div>
 
           <div className="p-3 bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 rounded-2xl text-[11px] text-amber-900 dark:text-amber-200 leading-relaxed">
-            The platform fee applies to verified rewards only. Withholding tax here (5%) is the statutory default for new partners; each partner’s official TRA exemption/TIN profile overrides it.
+            The platform fee applies to verified rewards only. Withholding tax here (5%) is the statutory default for new partners; each partner’s official tax exemption/TIN profile overrides it.
           </div>
         </div>
 

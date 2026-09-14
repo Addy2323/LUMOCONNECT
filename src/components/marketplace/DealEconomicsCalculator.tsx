@@ -55,7 +55,7 @@ export function DealEconomicsCalculator({
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Pre-Funded Secured
+              Direct Reward Budget
             </button>
             <button
               type="button"
@@ -90,7 +90,7 @@ export function DealEconomicsCalculator({
         </div>
 
         <div className="py-2 flex justify-between items-center text-slate-600 pl-4 text-[11px]">
-          <span>• TRA Statutory Withholding Tax (5%)</span>
+          <span>• Statutory Withholding / Settlement Allowance (5%)</span>
           <span>{economics.displays.taxWithheld}</span>
         </div>
 
@@ -110,14 +110,14 @@ export function DealEconomicsCalculator({
         </div>
       </div>
 
-      {/* Secured Funds requirement note */}
+      {/* Direct Reward Budget requirement note */}
       {fundingModel === 'PREPAID_ESCROW' && (
         <div className="mt-4 p-3 rounded-lg bg-orange-50/70 border border-orange-200 text-xs text-orange-800 flex items-start gap-2">
           <ShieldCheck className="w-4 h-4 text-orange-600 shrink-0 mt-0.5" />
           <div>
-            <strong>Funds Are Secured:</strong> To publish, deposit{' '}
-            <strong>{economics.displays.requiredEscrowPreFund}</strong> ({availableRewardCount} rewards) — all funds are secured.
-            Unused funds are 100% refundable upon deal completion.
+            <strong>Direct Partner Reward Budget:</strong> Allocated reward pool is{' '}
+            <strong>{economics.displays.requiredEscrowPreFund}</strong> ({availableRewardCount} rewards).
+            Merchants disburse agreed rewards directly to partners upon verified customer transaction completion.
           </div>
         </div>
       )}

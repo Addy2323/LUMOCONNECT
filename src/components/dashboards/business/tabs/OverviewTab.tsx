@@ -72,7 +72,7 @@ const PERFORMANCE_DATA_6M = [
 const DEFAULT_MOCK_INQUIRIES: EscrowInquiry[] = [
   {
     id: 'inq_vip_solar_01',
-    ticketCode: 'LUMO-ESCROW-793412',
+    ticketCode: 'LUMO-REF-793412',
     dealId: 'opp_vip_solar_hybrid_08',
     dealTitle: 'VIP: 5kW Commercial Solar Hybrid Inverters (Container Lot)',
     dealSlug: '5kw-commercial-solar-hybrid-inverter',
@@ -83,13 +83,13 @@ const DEFAULT_MOCK_INQUIRIES: EscrowInquiry[] = [
     buyerPhone: '+255714902311',
     quantity: 10,
     deliveryLocation: 'Arusha Hub',
-    notes: 'Requires TRA EFD fiscalised receipt and 48-hour inspection seal verification.',
+    notes: 'Requires fiscalised receipt and delivery verification.',
     escrowStatus: 'DELIVERY_INSPECTION',
     createdAt: new Date(Date.now() - 3600000 * 4).toISOString(),
   },
   {
     id: 'inq_vip_macbook_02',
-    ticketCode: 'LUMO-ESCROW-610482',
+    ticketCode: 'LUMO-REF-610482',
     dealId: 'opp_vip_macbook_fleet_09',
     dealTitle: 'VIP: M3 Pro 16" Enterprise Fleet Lot (Sealed Units)',
     dealSlug: 'm3-pro-16-inch-enterprise-fleet-sealed',
@@ -100,7 +100,7 @@ const DEFAULT_MOCK_INQUIRIES: EscrowInquiry[] = [
     buyerPhone: '+255755123984',
     quantity: 5,
     deliveryLocation: 'Dar es Salaam (Posta)',
-    notes: 'Golden VIP buyer requesting same-day Lumo Escrow courier pickup.',
+    notes: 'Golden VIP buyer requesting same-day direct courier pickup.',
     escrowStatus: 'FUNDS_HELD_IN_ESCROW',
     createdAt: new Date(Date.now() - 3600000 * 8).toISOString(),
   },
@@ -393,20 +393,20 @@ export function OverviewTab({
                 <MessageCircle className="w-4 h-4" />
               </span>
               <h3 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white">
-                WhatsApp Protected Deals & 48h Inspection Holds ({escrowInquiries.length})
+                WhatsApp Referral Coordination Desk ({escrowInquiries.length})
               </h3>
-              <span className="text-[10px] bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 font-extrabold px-2 py-0.5 rounded-full flex items-center gap-1">
+              <span className="text-[10px] bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 font-extrabold px-2 py-0.5 rounded-full flex items-center gap-1">
                 <ShieldCheck className="w-3 h-3" />
-                <span>Lumo Middleman Protected</span>
+                <span>Lumo Referral Coordination</span>
               </span>
             </div>
             <p className="text-xs text-slate-500 mt-1">
-              Direct partner inquiries bridged through Lumo's WhatsApp protection desk with mandatory 48-hour post-delivery inspection guarantees.
+              Direct partner inquiries bridged through Lumo's WhatsApp coordination desk with direct merchant settlement upon delivery acceptance.
             </p>
           </div>
 
           <div className="text-xs font-bold text-slate-500 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 shrink-0">
-            Protection Desk: <span className="text-emerald-600 font-extrabold">+255 700 000 000</span>
+            Coordination Desk: <span className="text-emerald-600 font-extrabold">+255 700 000 000</span>
           </div>
         </div>
 
@@ -417,27 +417,27 @@ export function OverviewTab({
                 <th className="p-3">Ticket & Buyer</th>
                 <th className="p-3">Target Deal</th>
                 <th className="p-3">Quantity & Valuation</th>
-                <th className="p-3">Protection Status & Hold</th>
-                <th className="p-3 text-right">Protection Action</th>
+                <th className="p-3">Referral Status</th>
+                <th className="p-3 text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
               {escrowInquiries.map((inquiry) => {
                 const statusConfig: Record<string, { label: string; bg: string }> = {
                   DELIVERY_INSPECTION: {
-                    label: '48h Hold Placed',
+                    label: 'Inspection Active',
                     bg: 'bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300 border-blue-200',
                   },
                   FUNDS_HELD_IN_ESCROW: {
-                    label: 'Protection Active',
+                    label: 'Direct Settlement Active',
                     bg: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 border-emerald-200',
                   },
                   WAITING_ESCROW_PAYMENT: {
-                    label: 'Pending Match',
+                    label: 'Pending Referral Match',
                     bg: 'bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 border-amber-200',
                   },
                   RELEASED_TO_SELLER: {
-                    label: 'Completed & Released',
+                    label: 'Completed & Settled',
                     bg: 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300 border-slate-200',
                   },
                 }

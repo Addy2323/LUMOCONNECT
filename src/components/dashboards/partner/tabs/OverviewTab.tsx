@@ -303,12 +303,12 @@ export function OverviewTab({
 
             <div className="space-y-2 text-xs bg-slate-50 dark:bg-slate-800/60 p-3 rounded-2xl border">
               <div className="flex justify-between">
-                <span className="text-slate-500">Gross Payable:</span>
+                <span className="text-slate-500">Agreed Merchant Reward:</span>
                 <span className="font-mono font-bold text-slate-900 dark:text-white">TZS {performance.approvedRewardsTZS.toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">TRA Withholding Tax (5%):</span>
-                <span className="font-mono font-bold text-slate-700 dark:text-slate-300">- TZS {Math.round(performance.approvedRewardsTZS * 0.05).toLocaleString()}</span>
+                <span className="text-slate-500">Settlement Method:</span>
+                <span className="font-mono font-bold text-slate-700 dark:text-slate-300">Direct Merchant Payout</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">LUMO Platform Fee:</span>

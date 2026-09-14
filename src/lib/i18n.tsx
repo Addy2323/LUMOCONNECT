@@ -52,15 +52,17 @@ const sw: Record<string, string> = {
   'Unsave opportunity': 'Ondoa fursa iliyohifadhiwa',
   'Search opportunities': 'Tafuta fursa',
   'Search by title, business or keyword...': 'Tafuta kwa jina, biashara au neno...',
-  'All Categories': 'Makundi Yote',
   'All Types': 'Aina Zote',
-  'All Regions': 'Maeneo Yote',
   'Clear filters': 'Futa vichujio',
   'Create Your Account': 'Fungua Akaunti Yako',
-  'Choose how you want to use LUMO': 'Chagua jinsi unavyotaka kutumia LUMO',
-  'Join as Mshirika wa Mauzo / Partner': 'Jiunge kama Mshirika wa Mauzo / Partner',
-  'Select Mshirika wa Mauzo / Partner': 'Chagua Mshirika wa Mauzo / Partner',
-  'Create Mshirika wa Mauzo / Partner Account': 'Fungua Akaunti ya Mshirika wa Mauzo / Partner',
+  'Commercial Partner': 'Mshirika wa Mauzo',
+  'Commercial Partner Network': 'Mtandao wa Washirika wa Mauzo',
+  'COMMERCIAL PARTNER NETWORK': 'MTANDAO WA WASHIRIKA WA MAUZO',
+  'Join as Commercial Partner': 'Jiunge kama Mshirika wa Mauzo',
+  'Select Commercial Partner': 'Chagua Mshirika wa Mauzo',
+  'Create Commercial Partner Account': 'Fungua Akaunti ya Mshirika wa Mauzo',
+  'Switch to Commercial Partner': 'Badili kwenda kwa Mshirika wa Mauzo',
+  'Commercial Partner Overview': 'Muhtasari wa Mshirika wa Mauzo',
   'Create Business Account': 'Fungua Akaunti ya Biashara',
   'Join as Business': 'Jiunge kama Biashara',
   'Earn verified commissions on performance-driven commercial deals.': 'Pata kamisheni zilizothibitishwa kwa dili za biashara zinazolipa kwa matokeo.',
@@ -71,7 +73,6 @@ const sw: Record<string, string> = {
   'Confirm password': 'Thibitisha nenosiri',
   'terms': 'masharti',
   'privacy policy': 'sera ya faragha',
-  'Business': 'Biashara',
   'Continue': 'Endelea',
   'Back': 'Rudi',
   'Cancel': 'Ghairi',
@@ -147,22 +148,69 @@ const sw: Record<string, string> = {
   'Under 7-day cooling period': 'Yako kwenye muda wa ukaguzi wa siku 7',
   'Total Earnings Paid Out': 'Jumla ya Mapato Yaliyolipwa',
   'Disbursed to M-Pesa / Bank': 'Yametumwa M-Pesa / Benki',
-  'TRA Withholding Tax (5%)': 'Kodi ya Zuio ya TRA (5%)',
-  'Official tax certificates issued': 'Vyeti rasmi vya kodi vinatolewa',
+  'Statutory Deductions / Allowance': 'Makato ya Kisheria na Malipo',
+  'Direct merchant settlement confirmed': 'Malipo ya moja kwa moja kutoka kwa mfanyabiashara',
   'Payout Requests & Disbursement Trail': 'Maombi ya Malipo na Historia ya Utumaji',
   'Request Earnings Withdrawal': 'Omba Kutoa Mapato',
   'Available Balance:': 'Salio Linalopatikana:',
   'Withdrawal Amount (TZS)': 'Kiasi cha Kutoa (TZS)',
   'Select Payout Account': 'Chagua Akaunti ya Malipo',
   'Confirm & Request Payout': 'Thibitisha na Uombe Malipo',
-  'Monitor verified commissions, statutory TRA withholding tax deductions, and request mobile money or bank payouts.': 'Angalia kamisheni zilizothibitishwa, makato ya kodi ya TRA, na omba malipo kwa simu au benki.',
+  'Monitor verified commissions, referral rewards, and direct mobile money or bank settlements.': 'Angalia kamisheni zilizothibitishwa, malipo ya rufaa, na malipo ya moja kwa moja kwa simu au benki.',
   'Itemized Verified Rewards Ledger': 'Orodha ya Malipo Yaliyothibitishwa',
   'Help Desk, Support & Dispute Center': 'Kituo cha Msaada, Malalamiko na Migogoro',
   'Submit inquiries, request conversion reviews, escalate deal disputes, and communicate with Partner Support.': 'Tuma swali au malalamiko, omba ukaguzi wa mauzo, wasilisha mgogoro wa dili, au zungumza na timu ya msaada.',
   'Open Support Ticket': 'Fungua Ombi la Msaada',
   'No Support Tickets Submitted': 'Hakuna Ombi la Msaada Lililotumwa',
   'Create New Support Request': 'Fungua Ombi Jipya la Msaada',
-  'Category': 'Aina ya Tatizo',
+  'Ticket Category': 'Aina ya Tatizo',
+  'Category': 'Kundi',
+  'Categories': 'Makundi',
+  'All Categories': 'Makundi Yote',
+  'Property': 'Mali Isiyohamishika',
+  'Vehicles': 'Magari',
+  'Products': 'Bidhaa',
+  'Agriculture & Commodities': 'Kilimo na Mazao',
+  'Business': 'Biashara',
+  'Services': 'Huduma',
+  'Region': 'Mkoa',
+  'All Regions': 'Mikoa Yote',
+  'Opportunity Type': 'Aina ya Fursa',
+  'Opportunity type': 'Aina ya Fursa',
+  'Minimum Reward': 'Kiwango cha Chini cha Zawadi',
+  'Minimum reward': 'Kiwango cha Chini cha Zawadi',
+  'Any Reward': 'Kiasi Chochote cha Zawadi',
+  'Any reward': 'Kiasi Chochote cha Zawadi',
+  'All Deals': 'Fursa Zote',
+  'VIP Early Access': 'Ufikiaji wa Mapema kwa VIP',
+  'Standard Partner Deals': 'Fursa za Washirika wa Kawaida',
+  'Search Marketplace': 'Tafuta Fursa',
+  'Search marketplace...': 'Tafuta Fursa...',
+  'Recommended': 'Zilizopendekezwa',
+  'Newest': 'Mpya Zaidi',
+  'Highest reward': 'Zawadi ya Juu Zaidi',
+  'Ending soon': 'Zinazoisha Hivi Karibuni',
+  'Publisher': 'Mchapishaji',
+  'Published by Lumo Dealers': 'Imechapishwa na Lumo Dealers',
+  'Price': 'Bei',
+  'Principal Price': 'Bei',
+  'Principal price': 'Bei',
+  'Partner Reward': 'Zawadi ya Mshirika',
+  'Partner reward': 'Zawadi ya Mshirika',
+  'Time Left': 'Muda Uliobaki',
+  'Time left': 'Muda Uliobaki',
+  'Location': 'Eneo',
+  'Join & Promote': 'Jiunge na Utangaze',
+  'I Have a Customer': 'Nina Mteja',
+  'View Progress': 'Angalia Maendeleo',
+  'Chat with Lumo': 'Wasiliana na Lumo',
+  'Get Promotional Materials': 'Pata Nyenzo za Matangazo',
+  'Golden VIP 24-Hour Exclusivity Window': 'Dirisha Maalum la Saa 24 la Golden VIP',
+  '1 Month VIP Free with Annual': 'Mwezi 1 wa VIP Bure ukinunua Mpango wa Mwaka',
+  'VIP & Annual subscribers get first-look early access during the first 24 hours of hot deals. Regular partners see deals unlock after 24 hours.': 'Wanachama wa VIP na wa Kila Mwaka wanapata fursa za mapema ndani ya saa 24 za mwanzo. Washirika wa kawaida wataziona fursa baada ya saa 24.',
+  'Get Annual (1 Mo VIP Free) →': 'Pata Mpango wa Mwaka (Mwezi 1 Bure) →',
+  'Golden VIP Priority Opportunities': 'Fursa Maalum za Golden VIP',
+  'All Marketplace Opportunities': 'Fursa Zote za Soko',
   'Subject / Summary': 'Kichwa / Muhtasari',
   'Detailed Explanation & Evidence Links': 'Maelezo Kamili na Viungo vya Ushahidi',
   'Submit Request': 'Tuma Ombi',
@@ -181,11 +229,113 @@ const sw: Record<string, string> = {
   'Share on WhatsApp': 'Tuma kwa WhatsApp',
   'SMS Protection Balance Warnings': 'Tahadhari za SMS kuhusu Salio la Malipo',
   'Notifications': 'Taarifa',
+  'Enterprise AI & Custom API Inquiry': 'Ombi la Biashara la AI na API Maalum',
+  'Organization / Company': 'Shirika au Kampuni',
+  'Work Email': 'Barua Pepe ya Kazi',
+  'Custom Requirements or Message': 'Mahitaji Maalum au Ujumbe',
+  'Tell us about your team size, expected deal volume, or API integration requirements...': 'Tueleze kuhusu ukubwa wa timu yako, kiasi cha dili kinachotarajiwa, au mahitaji ya kuunganisha API...',
+  'Send Enterprise Inquiry': 'Tuma Ombi la Biashara',
+  'Inquiry Submitted!': 'Ombi Limetumwa!',
+  'Our enterprise onboarding team will reach out to you within 2 business hours.': 'Timu yetu ya biashara itawasiliana nawe ndani ya saa 2 za kazi.',
+  'Close': 'Funga',
+  'Submit': 'Wasilisha',
+  'Send': 'Tuma',
+  'Low Data': 'Data Kidogo',
+  'Memberships': 'Uanachama',
+  'Deals': 'Dili',
+  'Opportunities': 'Fursa',
+  'Overview': 'Muhtasari',
+  'Settings': 'Mipangilio',
+  'Profile': 'Wasifu',
+  'Help & Support': 'Msaada na Huduma',
+  'Documentation': 'Nyaraka',
+  'Enquiries and coordination handled by Lumo': 'Mawasiliano na uratibu unasimamiwa na Lumo',
+  // Subcategories
+  'House': 'Nyumba',
+  'Apartment': 'Ghorofa / Fleti',
+  'Land': 'Ardhi',
+  'Commercial property': 'Mali ya Biashara',
+  'Hotel / lodge': 'Hoteli / Loja',
+  'Office': 'Ofisi',
+  'Warehouse': 'Godown / Ghala',
+  'Plot': 'Kiwanja',
+  'Cars': 'Magari',
+  'Motorcycles': 'Pikipiki',
+  'Bajaji': 'Bajaji',
+  'Trucks': 'Malori',
+  'Spare parts': 'Vipuri',
+  'Machinery': 'Mashine',
+  'Electronics': 'Vifaa vya Umeme',
+  'Phones': 'Simu',
+  'Computers': 'Kompyuta',
+  'Furniture': 'Samani',
+  'Clothes': 'Nguo',
+  'Building materials': 'Vifaa vya Ujenzi',
+  'Agricultural products': 'Mazao ya Kilimo',
+  'Wholesale products': 'Bidhaa za Jumla',
+  'Businesses for sale': 'Biashara Zinazouzwa',
+  'Suppliers': 'Wauzaji wa Jumla',
+  'Distributors': 'Wasambazaji',
+  'Franchise opportunities': 'Fursa za Franchise',
+  'Partnerships': 'Ushirikiano wa Kibiashara',
+  'Wholesale buyers': 'Wanunuzi wa Jumla',
+  'Wholesale suppliers': 'Wasambazaji wa Jumla',
+  'Construction': 'Ujenzi',
+  'Transport': 'Usafirishaji',
+  'Photography': 'Picha na Video',
+  'IT': 'Teknolojia ya Habari',
+  'Marketing': 'Masoko na Matangazo',
+  'Legal': 'Sheria',
+  'Accounting': 'Uhasibu',
+  'Recruitment': 'Ajira na Uajiri',
+  'Repair': 'Marekebisho',
+}
+
+export const translations = {
+  sw,
+  en: {} as Record<string, string>,
 }
 
 export function translateUiText(value: string, locale: LumoLocale): string {
   if (locale === 'en') return value
   return sw[value] ?? value
+}
+
+export function getOpportunitiesCountLabel(count: number, locale: LumoLocale): string {
+  if (locale === 'sw') {
+    return count === 1 ? 'Inaonyeshwa fursa 1' : `Zinaonyeshwa fursa ${count}`
+  }
+  return `Showing ${count} ${count === 1 ? 'opportunity' : 'opportunities'}`
+}
+
+export function getDaysRemainingLabel(days: number | null, locale: LumoLocale): string {
+  if (days === null) {
+    return locale === 'sw' ? 'Bila tarehe ya mwisho' : 'No expiry date'
+  }
+  if (days <= 0) {
+    return locale === 'sw' ? 'Muda umekwisha' : 'Expired'
+  }
+  if (locale === 'sw') {
+    return days === 1 ? 'Imebaki siku 1' : `Zimebaki siku ${days}`
+  }
+  return days === 1 ? '1 day remaining' : `${days} days remaining`
+}
+
+export function parseLocaleCookie(cookieString: string): LumoLocale | null {
+  if (!cookieString) return null
+  const match = cookieString.match(/(?:^|; )lumo_locale=(en|sw)(?:;|$)/)
+  return match ? (match[1] as LumoLocale) : null
+}
+
+export function getLocaleCookie(): LumoLocale | null {
+  if (typeof document === 'undefined') return null
+  return parseLocaleCookie(document.cookie)
+}
+
+export function setLocaleCookie(locale: LumoLocale) {
+  if (typeof document === 'undefined') return
+  const maxAge = 365 * 24 * 60 * 60
+  document.cookie = `lumo_locale=${locale}; path=/; max-age=${maxAge}; SameSite=Lax`
 }
 
 interface LanguageContextValue {
@@ -197,21 +347,33 @@ interface LanguageContextValue {
 const LanguageContext = createContext<LanguageContextValue | null>(null)
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = useState<LumoLocale>('sw')
+  const [locale, setLocaleState] = useState<LumoLocale>('en')
 
   useEffect(() => {
+    const cookieLocale = getLocaleCookie()
     const saved = window.localStorage.getItem(STORAGE_KEY)
-    if (saved === 'en' || saved === 'sw') setLocaleState(saved)
+    const effective = (cookieLocale === 'en' || cookieLocale === 'sw')
+      ? cookieLocale
+      : (saved === 'en' || saved === 'sw')
+      ? saved
+      : 'en'
+    setLocaleState(effective as LumoLocale)
+    document.documentElement.lang = effective
+    setLocaleCookie(effective as LumoLocale)
   }, [])
 
-  useEffect(() => {
-    document.documentElement.lang = locale
-    window.localStorage.setItem(STORAGE_KEY, locale)
-  }, [locale])
+  const setLocale = (newLocale: LumoLocale) => {
+    setLocaleState(newLocale)
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(STORAGE_KEY, newLocale)
+      setLocaleCookie(newLocale)
+      document.documentElement.lang = newLocale
+    }
+  }
 
   const value = useMemo<LanguageContextValue>(() => ({
     locale,
-    setLocale: setLocaleState,
+    setLocale,
     t: (english, kiswahili) => locale === 'sw' ? (kiswahili ?? translateUiText(english, 'sw')) : english,
   }), [locale])
 

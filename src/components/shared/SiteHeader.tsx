@@ -91,7 +91,7 @@ export function SiteHeader({
     { id: 'marketplace_catalog', label: 'Marketplace', icon: Store },
     { id: 'subscriptions', label: 'Memberships', icon: Sparkles },
     ...(isAuthenticated && (activeWorkspace?.type === 'PARTNER' || activeWorkspace?.type === 'PERSONAL' || !activeWorkspace)
-      ? [{ id: 'partner', label: 'Mshirika wa Mauzo / Partner', icon: Users }]
+      ? [{ id: 'partner', label: 'Commercial Partner', icon: Users }]
       : []),
     ...(isAuthenticated && activeWorkspace?.type === 'BUSINESS'
       ? [{ id: 'business', label: 'Business Hub', icon: Building2 }]

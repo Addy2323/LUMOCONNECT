@@ -121,11 +121,11 @@ export function SignUpView({
 
           <div className="relative z-10 space-y-6">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 backdrop-blur-sm text-white text-[11px] font-extrabold uppercase tracking-wider">
-              <span>{role === 'PARTNER' ? 'MSHIRIKA WA MAUZO / PARTNER NETWORK' : 'BUSINESS HUB'}</span>
+              <span>{role === 'PARTNER' ? 'COMMERCIAL PARTNER NETWORK' : 'BUSINESS HUB'}</span>
             </div>
 
             <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white leading-tight">
-              {role === 'PARTNER' ? 'Join as Mshirika wa Mauzo / Partner' : 'Join as Business'}
+              {role === 'PARTNER' ? 'Join as Commercial Partner' : 'Join as Business'}
             </h1>
 
             <div className="space-y-4 pt-2 text-xs sm:text-sm">
@@ -152,7 +152,7 @@ export function SignUpView({
                   <div className="flex items-start gap-3">
                     <CheckCircle2 className="w-5 h-5 text-white shrink-0 mt-0.5" />
                     <span className="font-semibold text-white/95 leading-snug">
-                      Automated TRA statutory withholding tax certificate generation.
+                      Direct reward settlement upon verified merchant sales.
                     </span>
                   </div>
                 </>
@@ -234,7 +234,7 @@ export function SignUpView({
                     onClick={onChangePath}
                     className="text-[11px] font-bold text-[#F97316] hover:underline mr-1"
                   >
-                    {role === 'PARTNER' ? 'Switch to Business' : 'Switch to Mshirika wa Mauzo / Partner'}
+                    {role === 'PARTNER' ? 'Switch to Business' : 'Switch to Commercial Partner'}
                   </button>
                 )}
                 <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold border border-emerald-200 dark:border-emerald-800">
@@ -246,7 +246,7 @@ export function SignUpView({
             {/* Form Title & Subtitle */}
             <div className="mb-5">
               <h2 className="text-lg min-[380px]:text-xl sm:text-2xl font-black text-[#0F172A] dark:text-white tracking-tight leading-tight">
-                {role === 'PARTNER' ? 'Create Mshirika wa Mauzo / Partner Account' : 'Create Business Account'}
+                {role === 'PARTNER' ? 'Create Commercial Partner Account' : 'Create Business Account'}
               </h2>
               <p className="text-xs text-[#64748B] dark:text-slate-400 mt-1">
                 {role === 'PARTNER'

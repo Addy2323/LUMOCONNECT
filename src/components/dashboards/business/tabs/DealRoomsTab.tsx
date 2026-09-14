@@ -50,7 +50,7 @@ const DEFAULT_BUSINESS_DEAL_ROOMS: DealRoomSession[] = [
     partnerType: 'Certified Sales Agent',
     stage: 'TERMS_AGREED',
     currentProposedRewardTZS: 2000000,
-    deliverablesSummary: 'Signed vehicle purchase agreement, verified buyer TIN/NIDA, and official TRA registration transfer.',
+    deliverablesSummary: 'Signed vehicle purchase agreement, verified buyer TIN/NIDA, and official vehicle registration transfer.',
     contractSigned: true,
     messagesCount: 8,
     lastUpdated: '10 mins ago',
@@ -149,8 +149,8 @@ export function DealRoomsTab() {
     partnerType: 'Certified Sales Agent',
     partnerCategory: 'Automotive & Transportation',
     rewardAmountTZS: 2000000,
-    deliverablesSummary: 'Buyer purchase contract signed, TRA registration transfer completed, and proof of payment submitted.',
-    initialMessage: 'Welcome to our private B2B Deal Room. We are pleased to initiate this collaboration under LUMO terms — all funds are secured.',
+    deliverablesSummary: 'Buyer purchase contract signed, vehicle registration transfer completed, and proof of payment submitted.',
+    initialMessage: 'Welcome to our private B2B Deal Room. We are pleased to initiate this direct collaboration under LUMO terms.',
   })
 
   // Save rooms to localStorage on change

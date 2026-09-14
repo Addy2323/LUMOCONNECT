@@ -36,7 +36,7 @@ export const VERIFIED_PARTNERS_DIRECTORY: VerifiedPartnerDirectoryItem[] = [
     contactPhone: '+255 754 889 120',
     contactEmail: 'kassim@autobrokers.co.tz',
     category: 'Automotive & Transportation',
-    skills: ['High-Ticket Vehicle Sales', 'TRA Registration Transfer', 'Corporate Fleet Brokering', 'Direct B2B Sourcing'],
+    skills: ['High-Ticket Vehicle Sales', 'Vehicle Registration Transfer', 'Corporate Fleet Brokering', 'Direct B2B Sourcing'],
     type: 'Certified Sales Agent',
     region: 'Dar es Salaam',
     completedDeals: 38,

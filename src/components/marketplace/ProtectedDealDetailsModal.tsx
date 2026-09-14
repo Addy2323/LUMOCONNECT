@@ -25,12 +25,18 @@ import {
 import type { ProtectedDealDetails } from '@/modules/deals/service'
 import { DealMediaViewer } from '@/components/common/DealMediaViewer'
 import { joinOpportunityDeal, getVideoEmbedInfo } from '@/modules/deals/service'
+import { CustomerReferralModal } from '@/components/marketplace/CustomerReferralModal'
+import { PromotionalToolkitModal } from '@/components/marketplace/PromotionalToolkitModal'
+import { useLanguage } from '@/lib/i18n'
+import { formatCategoryBadgeLabel } from '@/modules/deals/taxonomy'
 
 interface ProtectedDealDetailsModalProps {
   deal: ProtectedDealDetails | null
   isOpen: boolean
   onClose: () => void
   currentUserId?: string
+  partnerName?: string
+  partnerPhone?: string
   userRole?: string
   userOrgId?: string
   onDealJoined?: (code: string) => void
@@ -42,16 +48,21 @@ export function ProtectedDealDetailsModal({
   isOpen,
   onClose,
   currentUserId,
+  partnerName = 'Alex Mwakasege',
+  partnerPhone = '+255712345678',
   userRole = 'PARTNER',
   userOrgId,
   onDealJoined,
   onConnectWhatsApp,
 }: ProtectedDealDetailsModalProps) {
+  const { t, locale } = useLanguage()
   const [isJoining, setIsJoining] = useState(false)
   const [joinedCode, setJoinedCode] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [mediaMode, setMediaMode] = useState<'PHOTO' | 'VIDEO'>('PHOTO')
   const [termsAccepted, setTermsAccepted] = useState(false)
+  const [showReferralModal, setShowReferralModal] = useState(false)
+  const [showPromoModal, setShowPromoModal] = useState(false)
 
   if (!isOpen || !deal) return null
 
@@ -92,10 +103,10 @@ export function ProtectedDealDetailsModal({
           <div className="flex items-center gap-2 mb-1.5">
             <span className="inline-flex items-center gap-1 px-3 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 text-xs font-bold border border-emerald-200 dark:border-emerald-800">
               <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>Full Opportunity Unlocked</span>
+              <span>{locale === 'sw' ? 'Fursa Kamili Imefunguliwa' : 'Full Opportunity Unlocked'}</span>
             </span>
             <span className="text-xs font-semibold text-slate-400">
-              {deal.category} · {deal.region}
+              {formatCategoryBadgeLabel(deal.category, undefined, locale)} · {t(deal.region)}
             </span>
           </div>
 
@@ -104,7 +115,9 @@ export function ProtectedDealDetailsModal({
           </h2>
 
           <p className="text-xs text-slate-500 mt-1">
-            Published by <strong>{deal.companyName}</strong> (Verified Tanzanian Enterprise)
+            {locale === 'sw'
+              ? <span>Imechapishwa na <strong>Lumo Dealers</strong> · Maswali na uratibu hushughulikiwa na Lumo</span>
+              : <span>Published by <strong>Lumo Dealers</strong> · Enquiries and coordination handled by Lumo</span>}
           </p>
         </div>
 
@@ -264,15 +277,14 @@ export function ProtectedDealDetailsModal({
 
           <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1.5">
             <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-white">
-              <Mail className="w-4 h-4 text-blue-500" />
-              <span>Direct Business Contact</span>
+              <ShieldCheck className="w-4 h-4 text-emerald-500" />
+              <span>Lumo Coordination Desk</span>
             </div>
-            <div className="text-[11px] text-slate-600 dark:text-slate-300 font-mono">
-              {deal.businessContactEmail}
+            <div className="text-[11px] text-slate-600 dark:text-slate-300">
+              Enquiries and customer introductions handled by Lumo.
             </div>
-            <div className="text-[11px] text-slate-500 flex items-center gap-1">
-              <Phone className="w-3 h-3 text-slate-400" />
-              <span>{deal.businessContactPhone}</span>
+            <div className="text-[11px] text-slate-500 flex items-center gap-1 font-mono">
+              <span>Ref-based WhatsApp Coordination</span>
             </div>
           </div>
         </div>
@@ -319,7 +331,7 @@ export function ProtectedDealDetailsModal({
             </div>
           </div>
 
-          {/* WhatsApp Middleman Matchmaker Direct Trigger */}
+          {/* WhatsApp Coordination Trigger */}
           {onConnectWhatsApp && (
             <div className="pt-1">
               <button
@@ -328,10 +340,20 @@ export function ProtectedDealDetailsModal({
                 className="w-full py-3 px-4 bg-[#25D366] hover:bg-[#1EBE5D] text-slate-950 font-black text-xs rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
               >
                 <MessageSquare className="w-4 h-4 fill-slate-950" />
-                <span>Connect with Merchant via WhatsApp (Lumo Protected Hold)</span>
+                <span>{locale === 'sw' ? 'Wasiliana na Dawati la Uratibu la Lumo kupitia WhatsApp' : 'Connect with Lumo Coordination Desk via WhatsApp'}</span>
               </button>
             </div>
           )}
+        </div>
+
+        {/* Lumo Dealers Operating Model Disclaimer */}
+        <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-800 dark:text-amber-200 leading-relaxed">
+          <strong className="block mb-0.5 text-amber-900 dark:text-amber-100 font-bold">
+            {locale === 'sw' ? 'Mipaka ya Kibiashara ya Lumo Dealers:' : 'Lumo Dealers Commercial Boundaries:'}
+          </strong>
+          {locale === 'sw'
+            ? 'Lumo Dealers inatoza ada ya usajili kwa ajili ya kufikia fursa na kutoa uratibu wa rufaa. Wateja wanalipa wafanyabiashara moja kwa moja, na wafanyabiashara wanalipa zawadi zilizokubaliwa moja kwa moja kwa washirika. Lumo haikusanyi, haishiki wala haisambazi malipo ya miamala hii au zawadi.'
+            : 'Lumo Dealers charges subscription fees for access to opportunities and provides referral coordination. Customers pay merchants directly, and merchants pay agreed referral rewards directly to partners. Lumo does not collect, hold or disburse these transaction payments or rewards.'}
         </div>
 
         {/* Join / Active Tracking Action Area */}
@@ -339,12 +361,12 @@ export function ProtectedDealDetailsModal({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-xs font-bold text-[#FF6A00]">
               <Sparkles className="w-4 h-4" />
-              <span>Performance Tracking Link</span>
+              <span>{locale === 'sw' ? 'Utangazaji na Hatua za Rufaa za Mshirika' : 'Partner Promotion & Referral Actions'}</span>
             </div>
             {joinedCode || deal.isAlreadyJoined ? (
               <span className="text-[11px] font-bold text-emerald-400 flex items-center gap-1">
                 <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>Enrolled & Ready</span>
+                <span>{locale === 'sw' ? 'Umejiunga & Uko Tayari' : 'Enrolled & Ready'}</span>
               </span>
             ) : null}
           </div>
@@ -353,40 +375,103 @@ export function ProtectedDealDetailsModal({
             <div className="space-y-3">
               <div className="flex items-center justify-between p-2.5 bg-slate-800 rounded-xl border border-slate-700">
                 <span className="font-mono text-xs text-orange-400 truncate">
-                  https://lumo.co.tz/d/{deal.slug}?ref={joinedCode || `LUMO-${deal.companyLogo || 'TZ'}-${currentUserId ? currentUserId.slice(-4).toUpperCase() : 'MEMBER'}`}
+                  https://lumo.co.tz/d/{deal.slug}?ref={joinedCode || `LUMO-TZ-${currentUserId ? currentUserId.slice(-4).toUpperCase() : 'MEMBER'}`}
                 </span>
                 <button
                   type="button"
                   onClick={handleCopyLink}
-                  className="py-1 px-3 bg-[#FF6A00] text-white text-xs font-bold rounded-lg hover:bg-[#EA580C] shrink-0 ml-2"
+                  className="py-1 px-3 bg-[#FF6A00] text-white text-xs font-bold rounded-lg hover:bg-[#EA580C] shrink-0 ml-2 cursor-pointer"
                 >
-                  {copied ? 'Copied!' : 'Copy Link'}
+                  {copied ? (locale === 'sw' ? 'Imenakiliwa!' : 'Copied!') : (locale === 'sw' ? 'Nakili Kiungo' : 'Copy Link')}
+                </button>
+              </div>
+
+              {/* Two Primary Partner Action Buttons for Enrolled Partner */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowPromoModal(true)}
+                  className="py-3 px-4 bg-slate-800 hover:bg-slate-700 text-white font-extrabold text-xs rounded-xl border border-slate-700 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+                >
+                  <Download className="w-4 h-4 text-[#FF6A00]" />
+                  <span>{t('Get Promotional Materials')}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowReferralModal(true)}
+                  className="py-3 px-4 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold text-xs rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md"
+                >
+                  <ArrowRight className="w-4 h-4" />
+                  <span>{t('I Have a Customer')}</span>
                 </button>
               </div>
             </div>
           ) : (
             <div className="space-y-3">
               <label className="flex cursor-pointer items-start gap-2 rounded-xl bg-slate-800 p-3 text-xs text-slate-200">
-                <input type="checkbox" required checked={termsAccepted} onChange={(event) => setTermsAccepted(event.target.checked)} className="mt-0.5 h-4 w-4 accent-[#FF6A00]" />
-                <span>I understand and accept these commercial terms</span>
+                <input
+                  type="checkbox"
+                  required
+                  checked={termsAccepted}
+                  onChange={(event) => setTermsAccepted(event.target.checked)}
+                  className="mt-0.5 h-4 w-4 accent-[#FF6A00]"
+                />
+                <span>
+                  {locale === 'sw'
+                    ? 'Ninaelewa na kukubali masharti ya kibiashara yaliyochapishwa na malipo ya moja kwa moja kutoka kwa mfanyabiashara.'
+                    : 'I understand and accept the published commercial terms and direct merchant settlement.'}
+                </span>
               </label>
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-                <p className="text-xs text-slate-300">
-                  Start promoting this opportunity to generate verifiable sales and earn rewards.
-                </p>
-              <button
-                type="button"
-                onClick={handleJoin}
-                disabled={isJoining || !termsAccepted}
-                className="py-3 px-6 bg-[#FF6A00] hover:bg-[#EA580C] disabled:bg-slate-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 shrink-0"
-              >
-                {isJoining ? 'Joining Deal...' : 'Join Deal & Generate Link'}
-                <ArrowRight className="w-4 h-4" />
-              </button>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <button
+                  type="button"
+                  onClick={handleJoin}
+                  disabled={isJoining || !termsAccepted}
+                  className="py-3 px-4 bg-[#FF6A00] hover:bg-[#EA580C] disabled:bg-slate-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>{isJoining ? (locale === 'sw' ? 'Inajiunga...' : 'Joining Deal...') : t('Join & Promote')}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowReferralModal(true)}
+                  className="py-3 px-4 bg-white text-slate-900 hover:bg-slate-100 font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <ArrowRight className="w-4 h-4 text-[#FF6A00]" />
+                  <span>{t('I Have a Customer')}</span>
+                </button>
               </div>
             </div>
           )}
         </div>
+
+        {/* Modals */}
+        <CustomerReferralModal
+          deal={deal}
+          isOpen={showReferralModal}
+          onClose={() => setShowReferralModal(false)}
+          currentUserId={currentUserId}
+          partnerName={partnerName}
+          partnerPhone={partnerPhone}
+          userRole={userRole}
+          userOrgId={userOrgId}
+          onReferralSubmitted={() => {
+            onDealJoined?.(joinedCode || deal.slug)
+          }}
+        />
+
+        {showPromoModal && (
+          <PromotionalToolkitModal
+            dealTitle={deal.title}
+            companyName="Lumo Dealers"
+            trackingCode={joinedCode || `LUMO-TZ-${currentUserId ? currentUserId.slice(-4).toUpperCase() : 'MEMBER'}`}
+            rewardDisplay={deal.rewardDisplay}
+            onClose={() => setShowPromoModal(false)}
+          />
+        )}
       </div>
     </div>
   )

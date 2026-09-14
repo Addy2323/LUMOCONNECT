@@ -325,7 +325,7 @@ export function PartnerDashboardView({
                 <Menu className="h-5 w-5" />
               </button>
               <h1 className="min-w-0 truncate text-sm font-black text-[#0F172A] dark:text-white sm:text-xl">
-                {activeTab === 'overview' && 'Mshirika wa Mauzo / Partner Overview'}
+                {activeTab === 'overview' && 'Commercial Partner Overview'}
                 {activeTab === 'discover' && 'Discover Commercial Opportunities'}
                 {activeTab === 'saved_opportunities' && 'Saved Opportunities & Bookmarks'}
                 {activeTab === 'my_deals' && 'My Deals & Enrolled Campaigns'}

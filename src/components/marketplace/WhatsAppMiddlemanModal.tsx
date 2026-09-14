@@ -65,21 +65,21 @@ export function WhatsAppMiddlemanModal({
   const handleGenerateConnection = (e: React.FormEvent) => {
     e.preventDefault()
 
-    const ticketCode = `LUMO-ESCROW-${Date.now().toString().slice(-6)}`
+    const ticketCode = `LUMO-REF-${Date.now().toString().slice(-6)}`
     const inquiry: EscrowInquiry = {
       id: `inq_${Date.now()}`,
       dealId: deal.id,
       dealTitle: deal.title,
       dealSlug: deal.slug,
-      sellerCompany: deal.companyName,
-      sellerPhone: deal.sellerPhone || '+255 754 889 900',
-      sellerWhatsApp: deal.sellerWhatsApp || '255754889900',
+      sellerCompany: 'Lumo Dealers',
+      sellerPhone: '+255 700 000 000',
+      sellerWhatsApp: '255700000000',
       buyerName: buyerName.trim() || 'Valued Partner',
       buyerPhone: buyerPhone.trim() || '+255 700 000 000',
       quantity: Number(quantity) || 1,
       deliveryLocation: deliveryLocation.trim() || deal.region,
       notes: buyerNotes.trim() || undefined,
-      escrowStatus: 'FUNDS_HELD_IN_ESCROW',
+      escrowStatus: 'DELIVERY_INSPECTION',
       createdAt: new Date().toISOString(),
       ticketCode,
     }
@@ -100,21 +100,10 @@ export function WhatsAppMiddlemanModal({
     setGeneratedTicket(inquiry)
   }
 
-  // Pre-formatted message text for WhatsApp
-  const cleanPhone = (deal.sellerWhatsApp || '255754889900').replace(/[^0-9]/g, '')
-  const ticketId = generatedTicket?.ticketCode || `LUMO-ESCROW-${deal.id.slice(-4).toUpperCase()}`
-
-  const messageText = `Habari ${deal.companyName}! I am connecting via LUMO Middleman Matchmaker.
-Ref: ${ticketId}
-Deal: ${deal.title}
-Buyer Name: ${buyerName || 'Client'}
-Buyer Phone: ${buyerPhone || 'Provided'}
-Quantity Required: ${quantity} unit(s)
-Delivery Destination: ${deliveryLocation}
-Escrow Protection: Active (48-hour inspection window before funds release).
-${buyerNotes ? `Notes: ${buyerNotes}` : ''}`
-
-  const waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(messageText)}`
+  // Pre-formatted message text for WhatsApp (Lumo Dealers Operating Model Section 7)
+  const ticketId = generatedTicket?.ticketCode || `LUMO-REF-${deal.id.slice(-6).toUpperCase()}`
+  const messageText = `Hello Lumo, I am following up on referral ${ticketId} for ${deal.title}. Please assist with availability and the next steps.`
+  const waUrl = `https://wa.me/255700000000?text=${encodeURIComponent(messageText)}`
 
   const handleCopyMessage = () => {
     navigator.clipboard.writeText(messageText)
@@ -136,14 +125,14 @@ ${buyerNotes ? `Notes: ${buyerNotes}` : ''}`
         {/* Header */}
         <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 text-xs font-black uppercase tracking-wider mb-2">
           <ShieldCheck className="w-4 h-4" />
-          <span>LUMO Protection Matchmaker</span>
+          <span>Lumo Dealers Referral Coordination</span>
         </div>
 
         <h3 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white leading-snug mb-1">
-          WhatsApp Direct Deal Connection
+          WhatsApp Referral Coordination Desk
         </h3>
         <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
-          Lumo acts as the trusted partner matchmaker. We connect buyer and merchant directly while protecting funds during the 48-hour inspection window.
+          Lumo reviews listings and coordinates referrals through WhatsApp. Customers pay merchants directly, and merchants pay agreed referral rewards directly to partners.
         </p>
 
         {/* Deal Quick Summary Strip */}
@@ -249,7 +238,7 @@ ${buyerNotes ? `Notes: ${buyerNotes}` : ''}`
               />
             </div>
 
-            {/* Protection Guarantee Pill */}
+            {/* Referral Coordination Pill */}
             <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 dark:border-emerald-900 dark:bg-emerald-950/40">
               <label className="flex items-start gap-2.5 cursor-pointer">
                 <input
@@ -260,7 +249,7 @@ ${buyerNotes ? `Notes: ${buyerNotes}` : ''}`
                   className="mt-0.5 h-4 w-4 accent-emerald-600 rounded"
                 />
                 <span className="text-[11px] text-emerald-900 dark:text-emerald-300 font-medium">
-                  <strong>Lumo Buyer Protection:</strong> Funds are held safely during a 48-hour delivery inspection window. Payment is only released to the merchant once genuine product quality is confirmed.
+                  <strong>Lumo Referral Coordination:</strong> Lumo coordinates introductions and verifies listing authenticity. Customers transact directly with merchants, and agreed rewards are paid directly to partners upon purchase completion.
                 </span>
               </label>
             </div>
@@ -271,7 +260,7 @@ ${buyerNotes ? `Notes: ${buyerNotes}` : ''}`
               className="w-full py-3 bg-[#25D366] hover:bg-[#1EBE5D] text-slate-950 font-black text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99] disabled:opacity-50"
             >
               <MessageSquare className="w-4 h-4 fill-slate-950" />
-              <span>Generate WhatsApp Protection Ticket & Connect</span>
+              <span>Generate WhatsApp Referral Ticket & Connect</span>
             </button>
           </form>
         ) : (
@@ -282,7 +271,7 @@ ${buyerNotes ? `Notes: ${buyerNotes}` : ''}`
                 <CheckCircle2 className="w-5 h-5" />
               </div>
               <p className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">
-                Protected Ticket Ready
+                Referral Ticket Ready
               </p>
               <p className="font-mono text-base sm:text-lg font-black text-slate-900 dark:text-white mt-0.5">
                 {generatedTicket.ticketCode}
@@ -317,7 +306,7 @@ ${buyerNotes ? `Notes: ${buyerNotes}` : ''}`
                 className="w-full py-3.5 bg-[#25D366] hover:bg-[#1EBE5D] text-slate-950 font-black text-xs sm:text-sm rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
               >
                 <MessageSquare className="w-4 h-4 fill-slate-950" />
-                <span>Open WhatsApp Matchmaker Chat Now</span>
+                <span>Open WhatsApp Referral Coordination Now</span>
                 <ExternalLink className="w-3.5 h-3.5 ml-1" />
               </a>
 

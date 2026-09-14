@@ -70,11 +70,11 @@ export function TaxStatementsTab() {
           <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <span>Tax Compliance, Withholding & Statutory Statements</span>
             <span className="text-[10px] bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-extrabold px-2 py-0.5 rounded-full">
-              TRA 5% & Rules
+              Rules & Declarations
             </span>
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Configure effective-dated statutory tax classifications, generate Partner tax receipts, and export TRA compliance reports.
+            Configure effective-dated statutory tax classifications, generate Partner tax receipts, and export statutory compliance reports.
           </p>
         </div>
 
@@ -171,11 +171,11 @@ export function TaxStatementsTab() {
           </div>
 
           <div className="p-3 bg-white dark:bg-slate-900 rounded-2xl border border-emerald-100 dark:border-emerald-900/60">
-            <div className="font-bold text-slate-500">TRA 5% Withholding Deducted</div>
+            <div className="font-bold text-slate-500">Statutory Deduction / Allowance</div>
             <div className="text-lg font-black text-emerald-600 font-mono mt-1">
               - TZS {withholdingAmount.toLocaleString()}
             </div>
-            <div className="text-[10px] text-slate-400 mt-1">Remitted to TRA with TIN receipt</div>
+            <div className="text-[10px] text-slate-400 mt-1">Accounted with verified TIN receipt</div>
           </div>
 
           <div className="p-3 bg-white dark:bg-slate-900 rounded-2xl border border-emerald-100 dark:border-emerald-900/60">
@@ -188,16 +188,16 @@ export function TaxStatementsTab() {
         </div>
       </div>
 
-      {/* TRA WITHHOLDING TAX CERTIFICATE MODAL */}
+      {/* WITHHOLDING TAX CERTIFICATE MODAL */}
       {showTaxCertModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-200">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl relative space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
               <div>
                 <h3 className="text-base font-black text-slate-900 dark:text-white">
-                  Official TRA Withholding Tax Certificate
+                  Official Tax Deduction Certificate
                 </h3>
-                <div className="text-[11px] text-slate-500 font-mono">Certificate Ref: TRA-TZ-2026-W08-8841</div>
+                <div className="text-[11px] text-slate-500 font-mono">Certificate Ref: TAX-TZ-2026-W08-8841</div>
               </div>
               <button onClick={() => setShowTaxCertModal(false)} className="p-1 text-slate-400">
                 <X className="w-5 h-5" />
@@ -218,7 +218,7 @@ export function TaxStatementsTab() {
                 <span>5.0% Statutory</span>
               </div>
               <div className="flex justify-between font-mono font-bold text-emerald-600">
-                <span>Total Tax Remitted to TRA:</span>
+                <span>Total Statutory Tax Withheld:</span>
                 <span>TZS {withholdingAmount.toLocaleString()}</span>
               </div>
               <div className="flex justify-between border-t pt-1 font-black text-[#FF6A00]">
@@ -231,7 +231,7 @@ export function TaxStatementsTab() {
               <button
                 onClick={() => {
                   setShowTaxCertModal(false)
-                  showToast('success', 'Tax Certificate Generated', 'Official TRA withholding certificate downloaded (PDF).')
+                  showToast('success', 'Tax Certificate Generated', 'Official tax deduction certificate downloaded (PDF).')
                 }}
                 className="py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl text-xs flex items-center gap-1.5"
               >
@@ -260,7 +260,7 @@ export function TaxStatementsTab() {
                 <label className="font-bold block mb-1">Rule Title & Legal Citation</label>
                 <input
                   type="text"
-                  placeholder="e.g. TRA Statutory Commission Withholding 2026"
+                  placeholder="e.g. Statutory Commission Withholding 2026"
                   value={newRuleForm.title}
                   onChange={(e) => setNewRuleForm({ ...newRuleForm, title: e.target.value })}
                   className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"

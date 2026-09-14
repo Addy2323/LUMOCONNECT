@@ -297,7 +297,7 @@ export function EarningsPayoutsTab() {
               {platformConfig.platformFeePercent}%
             </div>
             <p className="text-[11px] text-slate-500 font-medium">
-              + {platformConfig.withholdingTaxPercent}% TRA tax (managed by Admin)
+              Direct settlement rate (managed by Admin)
             </p>
           </div>
         </div>
@@ -413,7 +413,7 @@ export function EarningsPayoutsTab() {
                   <th className="py-3 px-5 font-bold">PAYOUT METHOD</th>
                   <th className="py-3 px-5 font-bold text-right">GROSS</th>
                   <th className="py-3 px-5 font-bold text-right">{platformConfig.platformFeePercent}% FEE</th>
-                  <th className="py-3 px-5 font-bold text-right">{platformConfig.withholdingTaxPercent}% TRA TAX</th>
+                  <th className="py-3 px-5 font-bold text-right">WITHHOLDING</th>
                   <th className="py-3 px-5 font-bold text-right">NET RECEIVED</th>
                   <th className="py-3 px-5 font-bold text-center">STATUS</th>
                 </tr>
@@ -545,7 +545,7 @@ export function EarningsPayoutsTab() {
                   </span>
                 </div>
                 <div className="flex justify-between text-slate-400 text-[11px]">
-                  <span>{platformConfig.withholdingTaxPercent}% TRA Withholding Tax:</span>
+                  <span>Statutory Withholding / Allowance:</span>
                   <span className="font-mono">
                     -TZS {Math.round(requestAmount * taxRate).toLocaleString()}
                   </span>

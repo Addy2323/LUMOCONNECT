@@ -164,7 +164,7 @@ export function BusinessVerificationTab() {
             </span>
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Inspect BRELA incorporation certificates, TRA TIN documents, director IDs, and render compliance decisions.
+            Inspect BRELA incorporation certificates, tax registration documents (TIN), director IDs, and render compliance decisions.
           </p>
         </div>
 

@@ -263,7 +263,7 @@ export function PaymentsTab() {
           >
             <option value="ALL">All Purposes</option>
             <option value="SUBSCRIPTION">Subscriptions</option>
-            <option value="DEAL_ESCROW_FUNDING">Secured Deal Funding</option>
+            <option value="DEAL_ESCROW_FUNDING">Direct Deal Reward Funding</option>
           </select>
         </div>
 
@@ -459,7 +459,7 @@ export function PaymentsTab() {
                   className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
                 >
                   <option value="DUPLICATE_PAYMENT">Duplicate Telco STK Push Transaction</option>
-                  <option value="INCORRECT_DEAL_ESCROW">Incorrect Deal Secured Funding Deposit Amount</option>
+                  <option value="INCORRECT_DEAL_ESCROW">Incorrect Deal Reward Deposit Amount</option>
                   <option value="SUBSCRIPTION_RESCISSION">Subscription Cancellation within Cooling Period</option>
                   <option value="DISPUTE_MEDIATION_FINDING">Dispute Mediation Finding in Favor of Payer</option>
                 </select>
@@ -513,7 +513,7 @@ export function PaymentsTab() {
 
             <div className="space-y-3 text-xs">
               <p className="text-slate-500">
-                Export complete statutory audit ledger formatted for Tanzania Revenue Authority (TRA) electronic fiscal filing.
+                Export complete statutory audit ledger formatted for electronic fiscal and tax accounting filing.
               </p>
 
               <div>

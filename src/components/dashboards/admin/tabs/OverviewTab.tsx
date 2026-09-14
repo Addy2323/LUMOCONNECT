@@ -450,7 +450,7 @@ export function OverviewTab({ adminName, onOpenReviewQueue, onNavigateTab }: Ove
                     <div className="font-extrabold text-xs text-slate-900 dark:text-white">
                       Payout Batch Approvals
                     </div>
-                    <div className="text-[10px] text-slate-400">TRA 5% Withheld; Mp Ready</div>
+                    <div className="text-[10px] text-slate-400">Direct Partner Settlement Desk</div>
                   </div>
                 </div>
                 <span className="font-black text-xs text-slate-800 dark:text-slate-200 font-mono">{pendingPayouts}</span>

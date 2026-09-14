@@ -107,7 +107,7 @@ function getNavGroups({
         { id: 'payments', label: 'Payments', icon: Wallet, opType: 'Immutable Ledger' },
         { id: 'payouts', label: 'Rewards & Payouts', icon: Award, opType: 'Financial Workflow' },
         { id: 'reconciliation', label: 'Reconciliation', icon: Calculator, opType: 'Match & Close' },
-        { id: 'tax', label: 'Tax & Statements', icon: Receipt, opType: 'TRA 5% & Rules' },
+        { id: 'tax', label: 'Tax & Statements', icon: Receipt, opType: 'Settlement & Rules' },
       ],
     },
     {

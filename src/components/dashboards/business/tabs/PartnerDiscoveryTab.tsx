@@ -95,7 +95,7 @@ export function PartnerDiscoveryTab({ opportunities }: PartnerDiscoveryTabProps)
           <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
           <input
             type="text"
-            placeholder="Search by name, skills (e.g. Solar, TRA, Grain), phone, or email..."
+            placeholder="Search by name, skills (e.g. Solar, Fleet, Grain), phone, or email..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-9 pr-4 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white outline-hidden focus:border-[#FF6A00]"

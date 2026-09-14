@@ -97,7 +97,7 @@ export function AdminProfileModal({
     {
       role: 'FINANCE_ADMIN',
       label: 'Finance Administrator',
-      desc: 'Reconciliation, TRA tax statements, payment ledgers.',
+      desc: 'Reconciliation, tax statements, payment ledgers.',
     },
     {
       role: 'SUPPORT_OFFICER',

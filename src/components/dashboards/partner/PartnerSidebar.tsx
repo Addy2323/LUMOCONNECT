@@ -150,7 +150,7 @@ export function PartnerSidebar({
 
       {!sidebarCollapsed && (
         <div className="mt-3 rounded-md bg-[#071B42] px-3 py-2 text-center text-[10px] font-black uppercase tracking-wide text-white">
-          Mshirika wa Mauzo / Partner
+          Commercial Partner
         </div>
       )}
 
@@ -345,7 +345,7 @@ export function PartnerMobileSidebar({
               <div className="flex items-center gap-2">
                 <span className="font-black tracking-tight text-[#0F172A] dark:text-white">LUMO</span>
                 <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[9px] font-black uppercase text-[#FF6A00] dark:bg-orange-950/60">
-                  {subscription.status === 'ACTIVE' ? 'PRO' : 'Mshirika wa Mauzo / Partner'}
+                  {subscription.status === 'ACTIVE' ? 'PRO' : 'PARTNER'}
                 </span>
               </div>
               <p className="truncate text-xs font-medium text-slate-500 dark:text-slate-400">{partnerName}</p>

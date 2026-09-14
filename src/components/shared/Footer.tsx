@@ -171,7 +171,7 @@ export function Footer({ onNavigate, variant = 'default' }: { onNavigate?: (view
               Trust & Legal
             </h4>
             <ul className="space-y-2">
-              <li><span className="text-slate-400">TRA Tax Compliance (5%)</span></li>
+              <li><span className="text-slate-400">Direct Reward Settlement</span></li>
               <li><span className="text-slate-400">Mongike Mobile Money Integration</span></li>
               <li><span className="text-slate-400">Terms of Service</span></li>
               <li><span className="text-slate-400">Privacy & Data Protection</span></li>

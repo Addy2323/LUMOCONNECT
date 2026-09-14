@@ -104,7 +104,7 @@ export function ProfileVerificationTab({
       <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2.5">
         <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
         <div>
-          <strong>Identity Reverification Rule:</strong> You may freely update your active promotional channels, region, and phone number. Modifying your verified legal name, NIDA number, or TRA TIN will require automated identity reverification.
+          <strong>Identity Reverification Rule:</strong> You may freely update your active promotional channels, region, and phone number. Modifying your verified legal name, NIDA number, or TIN will require automated identity reverification.
         </div>
       </div>
 

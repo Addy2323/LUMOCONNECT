@@ -1,74 +1,92 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Award,
   Search,
-  Plus,
   ShieldCheck,
   CheckCircle2,
-  XCircle,
-  Download,
-  Wallet,
-  Building,
+  AlertTriangle,
   Clock,
   RotateCcw,
   Receipt,
   FileSpreadsheet,
   X,
   FileText,
+  MessageSquare,
+  Building,
+  Check,
 } from 'lucide-react'
-import { MOCK_REWARD_BATCHES } from '../mockData'
-import { RewardPayoutBatch } from '../types'
 import { useAdminToast } from '../AdminToast'
+import {
+  listAdminReferralCases,
+  updateReferralCaseStage,
+  getWhatsAppCoordinationUrl,
+} from '@/modules/deals/referral-cases'
+import type { ReferralCase } from '@/modules/deals/types'
 
 export function RewardsPayoutsTab() {
   const { showToast } = useAdminToast()
 
-  const [batches, setBatches] = useState<RewardPayoutBatch[]>(MOCK_REWARD_BATCHES)
-  const [showCreateBatchModal, setShowCreateBatchModal] = useState(false)
-  const [statementViewerModal, setStatementViewerModal] = useState<RewardPayoutBatch | null>(null)
+  const [cases, setCases] = useState<ReferralCase[]>([])
+  const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState('ALL')
+  const [selectedCaseForReview, setSelectedCaseForReview] = useState<ReferralCase | null>(null)
+  const [reviewNotes, setReviewNotes] = useState('')
 
-  const [newBatchForm, setNewBatchForm] = useState({
-    partnerCount: 48,
-    grossTZS: 8600000,
-  })
-
-  const handleDisburseBatch = (id: string) => {
-    setBatches((prev) =>
-      prev.map((b) =>
-        b.id === id
-          ? {
-              ...b,
-              status: 'COMPLETED',
-              disbursedAt: 'Just now via Vodacom M-Pesa B2C Bulk API',
-            }
-          : b
-      )
-    )
-    showToast('success', 'Mobile Money Payouts Dispatched', 'Batch disbursement successfully processed via Telco B2C Bulk Gateway.')
+  const reloadCases = () => {
+    setCases(listAdminReferralCases())
   }
 
-  const handleCreateBatch = () => {
-    const gross = Number(newBatchForm.grossTZS)
-    const tax = gross * 0.05 // 5% TRA Withholding
-    const net = gross - tax
+  useEffect(() => {
+    reloadCases()
+    const handleUpdate = () => reloadCases()
+    window.addEventListener('lumo:referral-cases-updated', handleUpdate)
+    return () => window.removeEventListener('lumo:referral-cases-updated', handleUpdate)
+  }, [])
 
-    const newBatch: RewardPayoutBatch = {
-      id: `batch_${Date.now()}`,
-      batchNumber: `LUMO-DISB-2026-W09`,
-      totalPartners: Number(newBatchForm.partnerCount),
-      grossPayoutTZS: gross,
-      withholdingTaxTZS: tax,
-      netPayoutTZS: net,
-      status: 'PENDING_MAKER',
-      createdAt: 'Today, Just now',
-      makerName: 'Finance Officer (Asha)',
+  const filteredCases = cases.filter((c) => {
+    const matchesSearch =
+      c.reference.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.partnerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.dealTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.customerFirstName.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesStatus = statusFilter === 'ALL' || c.rewardStatus === statusFilter
+    return matchesSearch && matchesStatus
+  })
+
+  // Aggregate metrics
+  const totalReportedPaid = cases
+    .filter((c) => c.rewardStatus === 'MERCHANT_REPORTS_PAID' || c.rewardStatus === 'PARTNER_CONFIRMS_RECEIPT')
+    .reduce((sum, c) => sum + c.rewardAmountTZS, 0)
+
+  const totalConfirmed = cases
+    .filter((c) => c.rewardStatus === 'PARTNER_CONFIRMS_RECEIPT')
+    .reduce((sum, c) => sum + c.rewardAmountTZS, 0)
+
+  const totalAwaiting = cases
+    .filter((c) => c.rewardStatus === 'AWAITING_MERCHANT_PAYMENT')
+    .reduce((sum, c) => sum + c.rewardAmountTZS, 0)
+
+  const disputedCount = cases.filter((c) => c.rewardStatus === 'DISPUTED').length
+
+  const handleResolveDispute = (caseItem: ReferralCase, resolution: 'CONFIRM' | 'REMIND_MERCHANT') => {
+    if (resolution === 'CONFIRM') {
+      updateReferralCaseStage(caseItem.id, caseItem.stage, {
+        rewardStatus: 'PARTNER_CONFIRMS_RECEIPT',
+        coordinatorNotes: `Dispute resolved by Admin: ${reviewNotes || 'Settlement verified with both parties.'}`,
+      })
+      reloadCases()
+      showToast('success', 'Dispute Resolved', `Referral ${caseItem.reference} reward marked as confirmed.`)
+    } else {
+      updateReferralCaseStage(caseItem.id, caseItem.stage, {
+        coordinatorNotes: `Admin follow-up: Merchant notified of overdue payment. Notes: ${reviewNotes}`,
+      })
+      reloadCases()
+      showToast('info', 'Merchant Reminder Sent', `Merchant reminded regarding overdue reward settlement.`)
     }
-
-    setBatches([newBatch, ...batches])
-    setShowCreateBatchModal(false)
-    showToast('success', 'Payout Batch Created', `Batch ${newBatch.batchNumber} submitted for Compliance Checker dual-control authorization.`)
+    setSelectedCaseForReview(null)
+    setReviewNotes('')
   }
 
   return (
@@ -77,308 +95,263 @@ export function RewardsPayoutsTab() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
         <div>
           <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <span>Rewards, Payout Batches & Disbursements</span>
-            <span className="text-[10px] bg-orange-100 dark:bg-orange-950/60 text-[#FF6A00] font-extrabold px-2 py-0.5 rounded-full">
-              Financial Workflow
+            <span>Direct Reward Tracking & Settlement Desk</span>
+            <span className="text-[10px] bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 font-extrabold px-2.5 py-0.5 rounded-full">
+              Lumo Dealers Operating Model
             </span>
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Authorize Partner reward disbursements, calculate 5% TRA withholding tax, and trigger automated mobile money payouts.
+            Audit merchant-reported direct payments, verify partner receipt confirmations, track overdue cases, and resolve disputes.
           </p>
         </div>
+      </div>
 
-        <button
-          onClick={() => setShowCreateBatchModal(true)}
-          className="py-2.5 px-4 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold text-xs rounded-xl shadow-xs transition-colors flex items-center gap-2 self-start sm:self-auto active:scale-[0.99]"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Create Payout Batch</span>
-        </button>
+      {/* Official Platform Disclaimer */}
+      <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-900 dark:text-amber-200 leading-relaxed flex items-start gap-2.5">
+        <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+        <div>
+          <strong>Platform Settlement Notice:</strong> Lumo Dealers charges subscription fees for access to opportunities and provides referral coordination. Customers pay merchants directly, and merchants pay agreed referral rewards directly to partners. Lumo does not collect, hold or disburse these transaction payments or rewards.
+        </div>
       </div>
 
       {/* 4 Settlement KPI Metric Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border">
-          <span className="text-[10px] font-bold text-slate-400 uppercase">Awaiting Release</span>
-          <div className="text-xl sm:text-2xl font-black text-amber-600 font-mono mt-1">
-            TZS 0
-          </div>
-          <span className="text-[10px] text-slate-500">0 payout requests waiting</span>
-        </div>
-
-        <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border">
-          <span className="text-[10px] font-bold text-slate-400 uppercase">Released to Date</span>
-          <div className="text-xl sm:text-2xl font-black text-emerald-600 font-mono mt-1">
-            TZS 0
-          </div>
-          <span className="text-[10px] text-slate-500">0 settled runs disbursed</span>
-        </div>
-
-        <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border">
-          <span className="text-[10px] font-bold text-slate-400 uppercase">Fees Collected</span>
-          <div className="text-xl sm:text-2xl font-black text-[#FF6A00] font-mono mt-1">
-            TZS 0
-          </div>
-          <span className="text-[10px] text-slate-500">Platform fee ledger</span>
-        </div>
-
-        <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border">
-          <span className="text-[10px] font-bold text-slate-400 uppercase">Tax Withheld (5%)</span>
-          <div className="text-xl sm:text-2xl font-black text-purple-600 font-mono mt-1">
-            TZS 0
-          </div>
-          <span className="text-[10px] text-purple-600 dark:text-purple-400 font-medium">Remitted separately to TRA</span>
-        </div>
-      </div>
-
-      {/* 5% Tax Rule Banner */}
-      <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center justify-between text-xs text-slate-700 dark:text-slate-300">
-        <div className="flex items-center gap-2.5">
-          <Receipt className="w-5 h-5 text-emerald-600 shrink-0" />
-          <span>
-            <strong>TRA Withholding Standard:</strong> 5% statutory withholding tax is automatically computed and deducted from gross Partner commission prior to mobile money dispatch.
+        <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-700/80">
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+            Merchant Reported Settlements
           </span>
+          <div className="text-xl sm:text-2xl font-black text-blue-600 font-mono mt-1">
+            TZS {totalReportedPaid.toLocaleString()}
+          </div>
+          <span className="text-[10px] text-slate-500 mt-0.5 block">Reported disbursed directly</span>
+        </div>
+
+        <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-700/80">
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+            Partner Confirmed Receipts
+          </span>
+          <div className="text-xl sm:text-2xl font-black text-emerald-600 font-mono mt-1">
+            TZS {totalConfirmed.toLocaleString()}
+          </div>
+          <span className="text-[10px] text-emerald-700 dark:text-emerald-400 mt-0.5 block">Verified by partners</span>
+        </div>
+
+        <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-700/80">
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+            Awaiting Merchant Payment
+          </span>
+          <div className="text-xl sm:text-2xl font-black text-amber-600 font-mono mt-1">
+            TZS {totalAwaiting.toLocaleString()}
+          </div>
+          <span className="text-[10px] text-slate-500 mt-0.5 block">Purchase complete, pending reward</span>
+        </div>
+
+        <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-700/80">
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+            Active Disputes
+          </span>
+          <div className="text-xl sm:text-2xl font-black text-rose-600 font-mono mt-1">
+            {disputedCount}
+          </div>
+          <span className="text-[10px] text-rose-600 mt-0.5 block">Requiring review</span>
         </div>
       </div>
 
-      {/* Pipeline Status Filter Scroller */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar text-xs">
-        {[
-          { label: 'all', count: batches.length, active: true },
-          { label: 'pending', count: batches.filter((b) => b.status === 'PENDING_MAKER').length, active: false },
-          { label: 'approved', count: batches.filter((b) => b.status === 'APPROVED_CHECKER').length, active: false },
-          { label: 'completed', count: batches.filter((b) => b.status === 'COMPLETED').length, active: false },
-        ].map((pill, idx) => (
-          <button
-            key={idx}
-            className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
-              pill.active
-                ? 'bg-[#0B132B] text-white shadow-2xs font-extrabold'
-                : 'bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 hover:bg-slate-100'
-            }`}
+      {/* Filter Bar */}
+      <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+        <div className="sm:col-span-8 relative">
+          <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search settlements by reference, partner, customer, or deal title..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+          />
+        </div>
+
+        <div className="sm:col-span-4">
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="w-full py-2 px-3 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-medium"
           >
-            <span className="capitalize">{pill.label}</span>
-            <span className="text-[10px] opacity-70 font-mono">({pill.count})</span>
-          </button>
-        ))}
+            <option value="ALL">All Reward Settlement Statuses</option>
+            <option value="NOT_YET_EARNED">Not Yet Earned</option>
+            <option value="AWAITING_MERCHANT_PAYMENT">Awaiting Merchant Payment</option>
+            <option value="MERCHANT_REPORTS_PAID">Merchant Reports Paid</option>
+            <option value="PARTNER_CONFIRMS_RECEIPT">Partner Confirms Receipt</option>
+            <option value="DISPUTED">Disputed</option>
+          </select>
+        </div>
       </div>
 
-      {/* Batches Table */}
+      {/* Table */}
       <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-2xl">
         <table className="w-full text-xs text-left min-w-[850px]">
-          <thead className="bg-slate-50 dark:bg-slate-800/80 text-[10px] text-slate-500 uppercase font-bold border-b border-slate-200 dark:border-slate-700">
+          <thead className="bg-slate-50 dark:bg-slate-800/80 text-[10px] text-slate-500 uppercase font-bold border-b">
             <tr>
-              <th className="p-3">Batch Number</th>
-              <th className="p-3">Recipients</th>
-              <th className="p-3">Gross Total</th>
-              <th className="p-3">TRA Withholding (5%)</th>
-              <th className="p-3">Net Disbursed</th>
-              <th className="p-3">Maker / Checker</th>
-              <th className="p-3">Status</th>
+              <th className="p-3">Reference & Opportunity</th>
+              <th className="p-3">Partner Details</th>
+              <th className="p-3">Customer</th>
+              <th className="p-3">Agreed Reward</th>
+              <th className="p-3">Settlement Status</th>
               <th className="p-3 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-            {batches.length === 0 ? (
-              <tr>
-                <td colSpan={8} className="text-center py-12 text-slate-400">
-                  No payout batches created or awaiting disbursement yet.
-                </td>
-              </tr>
-            ) : (
-              batches.map((b) => (
-                <tr key={b.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+            {filteredCases.map((caseItem) => {
+              const waLink = getWhatsAppCoordinationUrl(caseItem.reference, caseItem.dealTitle)
+
+              return (
+                <tr key={caseItem.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
                   <td className="p-3">
-                    <div className="font-extrabold text-slate-900 dark:text-white font-mono">{b.batchNumber}</div>
-                    <div className="text-[10px] text-slate-400 font-mono">{b.createdAt}</div>
+                    <div className="font-mono font-black text-blue-600 dark:text-blue-400">
+                      {caseItem.reference}
+                    </div>
+                    <div className="font-extrabold text-slate-900 dark:text-white line-clamp-1 max-w-xs">
+                      {caseItem.dealTitle}
+                    </div>
                   </td>
 
                   <td className="p-3">
-                    <span className="font-bold text-slate-900 dark:text-white">{b.totalPartners}</span>
-                    <span className="text-slate-400 text-[11px]"> verified partners</span>
+                    <div className="font-bold text-slate-800 dark:text-slate-200">{caseItem.partnerName}</div>
+                    <div className="font-mono text-[10px] text-slate-400">{caseItem.partnerPhone}</div>
                   </td>
 
-                <td className="p-3 font-mono font-bold text-slate-900 dark:text-white">
-                  TZS {b.grossPayoutTZS.toLocaleString()}
-                </td>
+                  <td className="p-3">
+                    <div className="font-bold text-slate-800 dark:text-slate-200">
+                      {caseItem.customerFirstName} {caseItem.customerLastName}
+                    </div>
+                    <div className="font-mono text-[10px] text-slate-400">{caseItem.customerPhoneMasked}</div>
+                  </td>
 
-                <td className="p-3 font-mono text-emerald-600 font-bold">
-                  - TZS {b.withholdingTaxTZS.toLocaleString()}
-                </td>
+                  <td className="p-3">
+                    <div className="font-mono font-black text-emerald-600">
+                      TZS {caseItem.rewardAmountTZS.toLocaleString()}
+                    </div>
+                    <div className="text-[10px] text-slate-400">{caseItem.rewardDisplay}</div>
+                  </td>
 
-                <td className="p-3 font-mono font-black text-[#FF6A00] text-sm">
-                  TZS {b.netPayoutTZS.toLocaleString()}
-                </td>
+                  <td className="p-3">
+                    {caseItem.rewardStatus === 'PARTNER_CONFIRMS_RECEIPT' && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-black text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                        <CheckCircle2 className="w-3 h-3" /> Confirmed by Partner
+                      </span>
+                    )}
+                    {caseItem.rewardStatus === 'MERCHANT_REPORTS_PAID' && (
+                      <div>
+                        <span className="inline-flex items-center gap-1 text-[10px] font-black text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">
+                          Merchant Reports Paid
+                        </span>
+                        {caseItem.merchantPaymentReference && (
+                          <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+                            Ref: {caseItem.merchantPaymentReference}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {caseItem.rewardStatus === 'AWAITING_MERCHANT_PAYMENT' && (
+                      <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
+                        Awaiting Payment
+                      </span>
+                    )}
+                    {caseItem.rewardStatus === 'NOT_YET_EARNED' && (
+                      <span className="text-[10px] text-slate-500">Not Yet Earned</span>
+                    )}
+                    {caseItem.rewardStatus === 'DISPUTED' && (
+                      <div>
+                        <span className="inline-flex items-center gap-1 text-[10px] font-black text-rose-700 bg-rose-100 px-2 py-0.5 rounded-full">
+                          <AlertTriangle className="w-3 h-3" /> Disputed
+                        </span>
+                        {caseItem.disputeReason && (
+                          <div className="text-[10px] text-rose-600 mt-0.5 max-w-xs line-clamp-1">
+                            {caseItem.disputeReason}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </td>
 
-                <td className="p-3 text-[11px] text-slate-500">
-                  <div>Maker: {b.makerName}</div>
-                  {b.checkerName && <div className="text-purple-600 font-bold">Checker: {b.checkerName}</div>}
-                </td>
-
-                <td className="p-3">
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
-                      b.status === 'COMPLETED'
-                        ? 'bg-emerald-100 text-emerald-700'
-                        : b.status === 'APPROVED_CHECKER'
-                        ? 'bg-purple-100 text-purple-700'
-                        : 'bg-amber-100 text-amber-700'
-                    }`}
-                  >
-                    {b.status.replace('_', ' ')}
-                  </span>
-                </td>
-
-                <td className="p-3 text-right">
-                  <div className="inline-flex items-center gap-1.5">
-                    {b.status === 'APPROVED_CHECKER' && (
-                      <button
-                        onClick={() => handleDisburseBatch(b.id)}
-                        className="py-1 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs shadow-xs"
+                  <td className="p-3 text-right space-y-1">
+                    <div>
+                      <a
+                        href={waLink}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#25D366]/15 hover:bg-[#25D366]/25 text-[#15803d] dark:text-[#25D366] font-bold text-[11px]"
                       >
-                        Release Payouts
+                        <MessageSquare className="w-3 h-3 text-[#25D366]" />
+                        <span>WhatsApp Handoff</span>
+                      </a>
+                    </div>
+
+                    {caseItem.rewardStatus === 'DISPUTED' && (
+                      <button
+                        onClick={() => setSelectedCaseForReview(caseItem)}
+                        className="py-1 px-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[11px] font-bold shadow-xs cursor-pointer"
+                      >
+                        Review Dispute
                       </button>
                     )}
-
-                    <button
-                      onClick={() => setStatementViewerModal(b)}
-                      className="py-1 px-2.5 border rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-bold flex items-center gap-1"
-                      title="View Payout Statement"
-                    >
-                      <FileText className="w-3.5 h-3.5" />
-                      <span>Statement</span>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))
-          )}
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>
 
-      {/* STATEMENT VIEWER MODAL */}
-      {statementViewerModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl relative space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-              <div>
+      {/* DISPUTE REVIEW MODAL */}
+      {selectedCaseForReview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-xs">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl space-y-4 text-xs">
+            <div className="flex items-center justify-between pb-3 border-b">
+              <div className="flex items-center gap-2 text-rose-600 font-bold">
+                <AlertTriangle className="w-4 h-4" />
                 <h3 className="text-base font-black text-slate-900 dark:text-white">
-                  Official Disbursement Statement
+                  Resolve Settlement Dispute
                 </h3>
-                <div className="text-xs text-slate-500 font-mono">{statementViewerModal.batchNumber}</div>
               </div>
-              <button onClick={() => setStatementViewerModal(null)} className="p-1 text-slate-400">
+              <button onClick={() => setSelectedCaseForReview(null)} className="p-1 text-slate-400">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border text-xs space-y-2">
-              <div className="flex justify-between">
-                <span className="text-slate-400">Total Beneficiaries:</span>
-                <span className="font-bold text-slate-900 dark:text-white">{statementViewerModal.totalPartners} Partners</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Gross Commission:</span>
-                <span className="font-mono font-bold text-slate-900 dark:text-white">
-                  TZS {statementViewerModal.grossPayoutTZS.toLocaleString()}
-                </span>
-              </div>
-              <div className="flex justify-between text-emerald-600">
-                <span>TRA Statutory 5% Withholding:</span>
-                <span className="font-mono font-bold">
-                  - TZS {statementViewerModal.withholdingTaxTZS.toLocaleString()}
-                </span>
-              </div>
-              <div className="flex justify-between text-[#FF6A00] font-black text-sm pt-1 border-t">
-                <span>Net Mobile Money Disbursement:</span>
-                <span className="font-mono">
-                  TZS {statementViewerModal.netPayoutTZS.toLocaleString()}
-                </span>
-              </div>
-            </div>
-
-            <div className="pt-3 border-t flex justify-end gap-2">
-              <button
-                onClick={() => {
-                  setStatementViewerModal(null)
-                  showToast('success', 'Statement Downloaded', `PDF statement for ${statementViewerModal.batchNumber} downloaded.`)
-                }}
-                className="py-2 px-4 bg-[#FF6A00] text-white font-extrabold rounded-xl text-xs flex items-center gap-1.5"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>Download PDF Statement</span>
-              </button>
-              <button onClick={() => setStatementViewerModal(null)} className="py-2 px-4 border rounded-xl text-xs font-bold">
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* CREATE BATCH MODAL */}
-      {showCreateBatchModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
-              <Award className="w-5 h-5 text-[#FF6A00]" />
-              <span>Generate New Partner Payout Batch</span>
-            </h3>
-
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="font-bold block mb-1">Eligible Partners Count</label>
-                <input
-                  type="number"
-                  value={newBatchForm.partnerCount}
-                  onChange={(e) => setNewBatchForm({ ...newBatchForm, partnerCount: Number(e.target.value) })}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-bold"
-                />
+            <div className="space-y-3">
+              <div className="p-3 bg-rose-50 dark:bg-rose-950/40 rounded-xl space-y-1">
+                <div className="font-bold text-rose-900 dark:text-rose-200">
+                  Referral: {selectedCaseForReview.reference}
+                </div>
+                <div className="text-[11px] text-rose-800 dark:text-rose-300">
+                  Dispute: {selectedCaseForReview.disputeReason}
+                </div>
               </div>
 
               <div>
-                <label className="font-bold block mb-1">Gross Approved Commission (TZS)</label>
-                <input
-                  type="number"
-                  value={newBatchForm.grossTZS}
-                  onChange={(e) => setNewBatchForm({ ...newBatchForm, grossTZS: Number(e.target.value) })}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-mono font-bold"
+                <label className="font-bold block mb-1">Admin Investigation Notes / Action</label>
+                <textarea
+                  rows={3}
+                  placeholder="Record outcome of conversation with merchant and partner..."
+                  value={reviewNotes}
+                  onChange={(e) => setReviewNotes(e.target.value)}
+                  className="w-full p-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 text-xs"
                 />
-              </div>
-
-              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 space-y-1">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Gross Total:</span>
-                  <span className="font-mono font-bold">TZS {newBatchForm.grossTZS.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between text-emerald-600">
-                  <span>TRA Withholding (5%):</span>
-                  <span className="font-mono font-bold">
-                    - TZS {(newBatchForm.grossTZS * 0.05).toLocaleString()}
-                  </span>
-                </div>
-                <div className="flex justify-between font-black text-[#FF6A00] pt-1 border-t">
-                  <span>Net Mobile Money Disbursement:</span>
-                  <span className="font-mono">
-                    TZS {(newBatchForm.grossTZS * 0.95).toLocaleString()}
-                  </span>
-                </div>
               </div>
             </div>
 
-            <div className="flex gap-2 pt-2">
+            <div className="flex gap-2 pt-2 border-t">
               <button
-                onClick={handleCreateBatch}
-                className="flex-1 py-2.5 bg-[#FF6A00] text-white font-extrabold rounded-xl text-xs"
+                onClick={() => handleResolveDispute(selectedCaseForReview, 'CONFIRM')}
+                className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl cursor-pointer"
               >
-                Submit Batch for Dual Control
+                Mark as Confirmed
               </button>
               <button
-                onClick={() => setShowCreateBatchModal(false)}
-                className="py-2.5 px-4 border rounded-xl text-xs font-bold"
+                onClick={() => handleResolveDispute(selectedCaseForReview, 'REMIND_MERCHANT')}
+                className="py-2.5 px-4 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl cursor-pointer"
               >
-                Cancel
+                Remind Merchant
               </button>
             </div>
           </div>

@@ -9,11 +9,11 @@ import {
   Lock,
   Clock3,
   Crown,
-  MessageSquare,
 } from 'lucide-react'
 import type { OpportunityItem } from '@/modules/deals/types'
 import { DealMediaViewer } from '@/components/common/DealMediaViewer'
 import { formatCategoryBadgeLabel } from '@/modules/deals/taxonomy'
+import { useLanguage, getDaysRemainingLabel } from '@/lib/i18n'
 
 interface OpportunityCardProps {
   item: OpportunityItem
@@ -36,18 +36,17 @@ export function OpportunityCard({
   onViewDetails,
   onConnectWhatsApp,
 }: OpportunityCardProps) {
+  const { t, locale } = useLanguage()
   const expiry = item.expiryDate ? new Date(item.expiryDate) : null
   const millisecondsPerDay = 24 * 60 * 60 * 1000
   const daysRemaining = expiry
     ? Math.max(0, Math.ceil((expiry.getTime() - Date.now()) / millisecondsPerDay))
     : null
   const expiryLabel = daysRemaining === null
-    ? 'No expiry date'
+    ? (locale === 'sw' ? 'Hakuna tarehe ya mwisho' : 'No expiry date')
     : expiry!.getTime() <= Date.now()
-      ? 'Expired'
-      : daysRemaining === 1
-        ? '1 day remaining'
-        : `${daysRemaining} days remaining`
+      ? (locale === 'sw' ? 'Imeisha muda' : 'Expired')
+      : getDaysRemainingLabel(daysRemaining, locale)
   const isExpired = Boolean(expiry && expiry.getTime() <= Date.now())
 
   // Golden VIP 24-hour window computation
@@ -126,8 +125,8 @@ export function OpportunityCard({
                 <Crown className="h-3 w-3 text-amber-500 shrink-0" />
                 <span>
                   {isWithin24hVipWindow
-                    ? `VIP 24h Priority: ${hoursRemainingVip}h ${minsRemainingVip}m`
-                    : 'Partner Released'}
+                    ? `${locale === 'sw' ? 'Kipaumbele cha VIP' : 'VIP 24h Priority'}: ${hoursRemainingVip}h ${minsRemainingVip}m`
+                    : (locale === 'sw' ? 'Imetolewa kwa Washirika' : 'Partner Released')}
                 </span>
               </span>
             </div>
@@ -140,7 +139,7 @@ export function OpportunityCard({
                   item.category
                 )}`}
               >
-                {formatCategoryBadgeLabel(item.category, item.subcategory)}
+                {formatCategoryBadgeLabel(item.category, item.subcategory, locale)}
               </span>
             </div>
           )}
@@ -153,7 +152,7 @@ export function OpportunityCard({
                   ? 'bg-white text-[#FF6A00]'
                   : 'bg-black/40 hover:bg-black/60 text-white'
               }`}
-              aria-label={isSaved ? 'Unsave opportunity' : 'Save opportunity'}
+              aria-label={isSaved ? (locale === 'sw' ? 'Ondoa fursa' : 'Unsave opportunity') : (locale === 'sw' ? 'Hifadhi fursa' : 'Save opportunity')}
             >
               {isSaved ? <Check className="w-3.5 h-3.5 text-[#FF6A00]" /> : <Bookmark className="w-3.5 h-3.5" />}
             </button>
@@ -163,76 +162,66 @@ export function OpportunityCard({
           {item.qualityScore && (
             <div className="absolute bottom-2.5 right-2.5 z-10">
               <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-slate-900/80 text-emerald-400 backdrop-blur-md border border-slate-700/50 flex items-center gap-1">
-                <Check className="h-3 w-3 text-emerald-400 shrink-0" /> {item.qualityScore}% Quality
+                <Check className="h-3 w-3 text-emerald-400 shrink-0" /> {item.qualityScore}% {locale === 'sw' ? 'Ubora' : 'Quality'}
               </span>
             </div>
           )}
         </div>
 
         <h3 className="mb-2 line-clamp-2 min-h-11 text-center text-sm font-black leading-snug text-[#0F172A] transition-colors group-hover:text-[#FF6A00] dark:text-white sm:text-base">
-          {item.title}
+          {(locale === 'sw' && item.titleSw) ? item.titleSw : item.title}
         </h3>
 
         <p className="mb-3 line-clamp-2 min-h-10 text-xs leading-5 text-slate-600 dark:text-slate-400">
-          {item.summary}
+          {(locale === 'sw' && item.summarySw) ? item.summarySw : item.summary}
         </p>
 
         {/* VIP Exclusivity Notice for non-VIPs during 24h window */}
         {isVipLockedForUser && (
           <div className="mb-3 rounded-xl border border-amber-300 bg-amber-50/80 p-2 text-center text-[11px] font-bold text-amber-900 dark:border-amber-800/80 dark:bg-amber-950/40 dark:text-amber-300">
-            <span className="inline-flex items-center justify-center gap-1.5"><Lock className="h-3.5 w-3.5 text-amber-600 shrink-0" /> Golden VIP Early Access window active. Opens to all partners in {hoursRemainingVip}h {minsRemainingVip}m.</span>
+            <span className="inline-flex items-center justify-center gap-1.5"><Lock className="h-3.5 w-3.5 text-amber-600 shrink-0" /> {locale === 'sw' ? `Dirisha la Ufikiaji wa Mapema kwa VIP linatumika. Litaanza kwa washirika wote baada ya saa ${hoursRemainingVip} na dakika ${minsRemainingVip}.` : `Golden VIP Early Access window active. Opens to all partners in ${hoursRemainingVip}h ${minsRemainingVip}m.`}</span>
           </div>
         )}
 
         <dl className="mb-3 space-y-2 border-t border-slate-100 pt-3 text-[11px] dark:border-slate-800">
           <div className="flex items-center justify-between gap-3">
-            <dt className="font-semibold text-slate-500">Category</dt>
-            <dd className="max-w-[65%] truncate text-right font-bold text-slate-800 dark:text-slate-200">{item.subcategory || item.category}</dd>
+            <dt className="font-semibold text-slate-500">{t('Category')}</dt>
+            <dd className="max-w-[65%] truncate text-right font-bold text-slate-800 dark:text-slate-200">{formatCategoryBadgeLabel(item.category, item.subcategory, locale)}</dd>
           </div>
           <div className="flex items-center justify-between gap-3">
-            <dt className="font-semibold text-slate-500">Posted by</dt>
-            <dd className="flex max-w-[65%] items-center gap-1 truncate text-right font-bold text-blue-600">
-              <span className="truncate">{item.companyName}</span>
-              {item.isVerified && <CheckCircle className="h-3 w-3 shrink-0 text-emerald-500" />}
+            <dt className="font-semibold text-slate-500">{t('Publisher')}</dt>
+            <dd className="flex max-w-[65%] items-center gap-1 truncate text-right font-bold text-slate-800 dark:text-slate-200">
+              <span className="truncate">Lumo Dealers</span>
+              <CheckCircle className="h-3 w-3 shrink-0 text-emerald-500" />
             </dd>
           </div>
           <div className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-2.5 py-2 dark:bg-slate-800/70">
-            <dt className="font-bold text-slate-600 dark:text-slate-300">Principal price</dt>
+            <dt className="font-bold text-slate-600 dark:text-slate-300">{t('Price')}</dt>
             <dd className="max-w-[68%] text-right font-black text-[#0F172A] dark:text-white">
-              {item.principalPriceDisplay || 'Price on request'}
+              {item.principalPriceDisplay || t('Price on request')}
             </dd>
           </div>
           <div className="flex items-center justify-between gap-3">
-            <dt className="font-semibold text-slate-500">Partner reward</dt>
+            <dt className="font-semibold text-slate-500">{t('Partner Reward')}</dt>
             <dd className="text-right font-black text-orange-600">{item.rewardDisplay}</dd>
           </div>
           <div className="flex items-center justify-between gap-3">
-            <dt className="font-semibold text-slate-500">Time left</dt>
+            <dt className="font-semibold text-slate-500">{t('Time Left')}</dt>
             <dd className={`flex items-center justify-end gap-1 text-right font-bold ${
-              expiryLabel === 'Expired' ? 'text-rose-600' : 'text-emerald-700 dark:text-emerald-400'
+              expiryLabel === 'Expired' || expiryLabel === 'Imeisha muda' ? 'text-rose-600' : 'text-emerald-700 dark:text-emerald-400'
             }`} title={expiry ? `Expires ${expiry.toLocaleDateString()}` : undefined}>
               <Clock3 className="h-3.5 w-3.5 shrink-0" />
               <span>{expiryLabel}</span>
             </dd>
           </div>
           <div className="flex items-center justify-between gap-3">
-            <dt className="font-semibold text-slate-500">Location</dt>
-            <dd className="flex max-w-[65%] items-center gap-1 truncate text-right font-bold text-slate-700 dark:text-slate-300"><MapPin className="h-3 w-3 shrink-0 text-orange-500" /><span className="truncate">{item.region}</span></dd>
+            <dt className="font-semibold text-slate-500">{t('Location')}</dt>
+            <dd className="flex max-w-[65%] items-center gap-1 truncate text-right font-bold text-slate-700 dark:text-slate-300"><MapPin className="h-3 w-3 shrink-0 text-orange-500" /><span className="truncate">{t(item.region)}</span></dd>
           </div>
         </dl>
       </div>
 
-      <div className="border-t border-slate-100 pt-3 dark:border-slate-800 space-y-2">
-        {/* WhatsApp Direct Action */}
-        <button
-          type="button"
-          onClick={onConnectWhatsApp}
-          className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#25D366]/15 hover:bg-[#25D366]/25 text-[#15803d] dark:text-[#25D366] border border-[#25D366]/30 py-2 px-3 text-center text-xs font-black transition-colors cursor-pointer"
-        >
-          <MessageSquare className="h-3.5 w-3.5 text-[#25D366] shrink-0" />
-          <span>Connect via WhatsApp (Lumo Guarantee)</span>
-        </button>
-
+      <div className="border-t border-slate-100 pt-3 dark:border-slate-800">
         <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
@@ -242,16 +231,16 @@ export function OpportunityCard({
             {isVipLockedForUser ? (
               <span key="vip-preview" className="inline-flex items-center justify-center gap-1 truncate">
                 <Lock className="w-3 h-3 text-amber-500 shrink-0" />
-                <span className="truncate">VIP Preview</span>
+                <span className="truncate">{t('VIP Preview')}</span>
               </span>
             ) : !isSubscribed ? (
               <span key="full-deal" className="inline-flex items-center justify-center gap-1 truncate">
                 <Lock className="w-3 h-3 text-[#FF6A00] shrink-0" />
-                <span className="truncate">View Full Deal</span>
+                <span className="truncate">{t('View Full Deal')}</span>
               </span>
             ) : (
               <span key="view-details" className="inline-flex items-center justify-center gap-1 truncate">
-                <span className="truncate">View Details</span>
+                <span className="truncate">{t('View Details')}</span>
               </span>
             )}
           </button>
@@ -268,21 +257,21 @@ export function OpportunityCard({
           >
             {isExpired ? (
               <span key="expired" className="inline-flex items-center justify-center gap-1 truncate">
-                <span className="truncate">Deal Expired</span>
+                <span className="truncate">{t('Deal Expired')}</span>
               </span>
             ) : isVipLockedForUser ? (
               <span key="unlock-vip" className="inline-flex items-center justify-center gap-1 truncate">
                 <Crown className="h-3.5 w-3.5 text-white/90 shrink-0" />
-                <span className="truncate">Unlock with VIP</span>
+                <span className="truncate">{t('Unlock with VIP')}</span>
               </span>
             ) : isSubscribed ? (
               <span key="join-deal" className="inline-flex items-center justify-center gap-1 truncate">
-                <span className="truncate">Join Deal</span>
+                <span className="truncate">{t('Join & Promote')}</span>
               </span>
             ) : (
               <span key="sub-join" className="inline-flex items-center justify-center gap-1 truncate">
                 <Lock className="w-3 h-3 text-white/90 shrink-0" />
-                <span className="truncate">Subscribe to Join</span>
+                <span className="truncate">{t('Subscribe to Join')}</span>
               </span>
             )}
           </button>

@@ -140,6 +140,8 @@ export interface ProtectedDealDetails extends OpportunityItem {
   businessContactPhone?: string
   eligibilityRequirements: string[]
   deliverableChecklist: string[]
+  publisherName: string
+  coordinationNote: string
 }
 
 export function listOpportunities(filters?: OpportunityFilterParams): OpportunityItem[] {
@@ -289,8 +291,16 @@ export function getProtectedOpportunityDetails(
   const userEnrollments = inMemoryEnrollments.get(item.id)
   const isAlreadyJoined = authContext?.userId ? (userEnrollments?.has(authContext.userId) ?? false) : false
 
+  const isPrivileged = Boolean(decision.isAdmin || decision.isOwner)
+
   const protectedDetails: ProtectedDealDetails = {
     ...item,
+    // Enforce merchant privacy for partners (Section 1 & Section 3)
+    companyName: isPrivileged ? item.companyName : 'Lumo Dealers',
+    sellerPhone: isPrivileged ? item.sellerPhone : undefined,
+    sellerWhatsApp: isPrivileged ? item.sellerWhatsApp : undefined,
+    publisherName: 'Lumo Dealers',
+    coordinationNote: 'Enquiries and coordination handled by Lumo.',
     isSubscribed: decision.hasActiveSubscription,
     isOwner: decision.isOwner,
     isAdmin: decision.isAdmin,
@@ -299,18 +309,19 @@ export function getProtectedOpportunityDetails(
       item.rewardType === 'PERCENTAGE_COMMISSION'
         ? `${((item as any).percentageBps ?? 1000) / 100}% on Net Invoice Value`
         : 'Fixed Tiered Milestone Bounty',
-    salesAssetsUrl: `https://vault.lumo.co.tz/deals/${item.slug}/assets.zip`,
-    businessContactEmail: `partner-desk@${item.slug.replace(/-/g, '')}.co.tz`,
-    businessContactPhone: '+255 700 123 456',
+    businessContactEmail: isPrivileged
+      ? `merchant-desk@${item.slug.replace(/-/g, '')}.co.tz`
+      : 'coordination@lumo.co.tz',
+    businessContactPhone: isPrivileged ? '+255 754 889 900' : '+255 700 000 000',
     eligibilityRequirements: [
       'Active LUMO Commercial Pass',
       'Verified National Identity (NIDA) or Tax PIN',
-      'Compliant Lead Tracking Link Attribution',
+      'Compliant Customer Referral Submission',
     ],
     deliverableChecklist: [
-      'Customer KYC and contact authorization verification',
-      'Signed Commercial Proposal or Proof of Purchase receipt',
-      'Submission within standard 30-day attribution window',
+      'Customer verified interest and contact permission confirmation',
+      'Direct purchase agreement and settlement with merchant',
+      'Direct reward payment report and partner confirmation',
     ],
   }
 

@@ -143,7 +143,7 @@ export function SignInView({
               <div className="flex items-start gap-3">
                 <CheckCircle2 className="w-5 h-5 text-white shrink-0 mt-0.5" />
                 <span className="font-semibold text-white/95 leading-snug">
-                  Automated TRA tax reporting and instant mobile money settlement.
+                  Direct merchant referral rewards and verified deal opportunities.
                 </span>
               </div>
             </div>

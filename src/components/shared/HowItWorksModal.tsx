@@ -35,8 +35,8 @@ export function HowItWorksModal({ isOpen, onClose, onGetStarted }: HowItWorksMod
     },
     {
       num: '05',
-      title: 'Partners Earn & Disburse to Mobile Money',
-      desc: 'Commissions transition through an auditable lifecycle. Approved funds are disbursed directly to M-Pesa, Airtel Money, or Tigo Pesa with automated TRA tax withholding.',
+      title: 'Partners Earn Directly from Merchants',
+      desc: 'When verified sales are completed, merchants pay agreed referral rewards directly to partners via M-Pesa, Airtel Money, Tigo Pesa, or direct bank transfer.',
     },
     {
       num: '06',

@@ -19,7 +19,7 @@ export function BillingSubscriptionTab() {
   const [sub] = useState<BusinessSaaSSubscription>(MOCK_SAAS_SUBSCRIPTION)
 
   const handleDownloadInvoice = (invNum: string) => {
-    showToast('success', 'VAT Invoice Downloaded', `Official TRA electronic invoice ${invNum} downloaded (PDF).`)
+    showToast('success', 'Electronic Invoice Downloaded', `Official electronic invoice ${invNum} downloaded (PDF).`)
   }
 
   return (
@@ -90,7 +90,7 @@ export function BillingSubscriptionTab() {
       {/* Invoices List */}
       <div className="space-y-3">
         <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">
-          Electronic Fiscal Billing Invoices (TRA EFD Compliant)
+          Electronic Fiscal Billing Invoices (EFD Compliant)
         </h3>
 
         <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-2xl">

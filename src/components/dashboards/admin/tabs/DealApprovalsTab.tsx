@@ -57,7 +57,7 @@ export function DealApprovalsTab() {
     businessVerified: true,
     rewardTermsFair: true,
     evidenceCriteriaClear: true,
-    escrowFunded: true,
+    commercialTermsAccepted: true,
     prohibitedContentClear: true,
   })
 
@@ -115,7 +115,7 @@ export function DealApprovalsTab() {
             </span>
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Strict Dual-Control: Validate business KYB, reward economics, media claims, secured funding (funds are secured), and advertising compliance.
+            Strict Dual-Control: Validate merchant identity, reward terms, media assets, direct settlement terms, and advertising compliance.
           </p>
         </div>
 
@@ -321,7 +321,7 @@ export function DealApprovalsTab() {
                 {[
                   {
                     key: 'businessVerified',
-                    label: 'Business Identity Verified (BRELA & 2026 TRA Tax Clearance confirmed)',
+                    label: 'Business Identity Verified (BRELA & 2026 Tax Clearance confirmed)',
                   },
                   {
                     key: 'rewardTermsFair',
@@ -332,8 +332,8 @@ export function DealApprovalsTab() {
                     label: 'Evidence requirements defined & verifiable (GPS/Invoice/QR scan)',
                   },
                   {
-                    key: 'escrowFunded',
-                    label: 'Secured funding confirmed in CRDB/M-Pesa settlement ledger (funds are secured)',
+                    key: 'commercialTermsAccepted',
+                    label: 'Commercial terms accepted & direct settlement model confirmed',
                   },
                   {
                     key: 'prohibitedContentClear',
@@ -413,7 +413,7 @@ export function DealApprovalsTab() {
                 required
                 value={checkerNotes}
                 onChange={(e) => setCheckerNotes(e.target.value)}
-                placeholder="e.g. Media assets verified, pricing compliant with Tanzania advertising standards, secured funding deposit confirmed (funds are secured)."
+                placeholder="e.g. Media assets verified, pricing compliant with Tanzania standards, direct reward settlement agreed, published as Lumo Dealers opportunity."
                 className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-2xl bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900"
                 rows={3}
               />

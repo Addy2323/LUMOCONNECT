@@ -378,7 +378,7 @@ export function CreateDealWizard({ onSuccess, onCancel }: CreateDealWizardProps)
                   onChange={(e) => setHasTaxInvoice(e.target.checked)}
                   className="h-3.5 w-3.5 accent-blue-600 rounded"
                 />
-                <span>TRA Fiscalised EFD Tax Invoice issued upon physical delivery</span>
+                <span>Official Fiscalised EFD Tax Invoice issued upon physical delivery</span>
               </label>
 
               <label className="flex items-center gap-2 text-[11px] text-slate-700 dark:text-slate-300 cursor-pointer">

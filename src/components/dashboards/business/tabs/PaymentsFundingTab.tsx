@@ -272,7 +272,7 @@ export function PaymentsFundingTab({
       availableBalanceTZS: newBalance,
     }))
 
-    showToast('success', 'Wallet Top-Up Completed', `Deposit of TZS ${added.toLocaleString()} processed via Snippe (${topUpMethod.replace(/_/g, ' ')}). Funds are secured in escrow.`)
+    showToast('success', 'Wallet Top-Up Completed', `Deposit of TZS ${added.toLocaleString()} processed via Snippe (${topUpMethod.replace(/_/g, ' ')}). Funds credited to your business wallet.`)
     setShowTopUpModal(false)
   }
 
@@ -294,8 +294,16 @@ export function PaymentsFundingTab({
       {/* Page Header */}
       <div>
         <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
-          Wallet & payouts
+          Direct Partner Settlements & Payout Reports
         </h1>
+      </div>
+
+      {/* Lumo Dealers Operating Model Disclaimer Banner */}
+      <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-900 dark:text-amber-200 leading-relaxed flex items-start gap-2.5">
+        <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+        <div>
+          <strong>Direct Partner Settlement Notice:</strong> Lumo Dealers charges subscription fees for access to opportunities and provides referral coordination. Customers pay merchants directly, and merchants pay agreed referral rewards directly to partners. Lumo does not collect, hold or disburse these transaction payments or rewards.
+        </div>
       </div>
 
       {/* TOP METRICS ROW - 4 CARDS MATCHING SCREENSHOT */}

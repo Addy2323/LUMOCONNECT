@@ -147,7 +147,7 @@ export function AdminDashboardView({
               {activeTab === 'payments' && 'Incoming Payments & Settlement Ledger'}
               {activeTab === 'payouts' && 'Rewards & Partner Payout Batches'}
               {activeTab === 'reconciliation' && 'Payment Provider Reconciliation'}
-              {activeTab === 'tax' && 'TRA Tax & Statutory Withholding (5%)'}
+              {activeTab === 'tax' && 'Tax Rules & Settlement Statements'}
               {activeTab === 'kyc' && 'KYC & Identity Compliance'}
               {activeTab === 'risk' && 'Fraud Engine & Anomaly Case Management'}
               {activeTab === 'disputes' && 'Disputes, Complaints & Mediation'}

@@ -70,9 +70,12 @@ export interface OpportunityItem {
   isVerified: boolean
   type: z.infer<typeof OpportunityTypeSchema>
   title: string
+  titleSw?: string
   slug: string
   summary: string
+  summarySw?: string
   description: string
+  descriptionSw?: string
   category: string
   subcategory?: string
   countryCode: string
@@ -109,4 +112,60 @@ export interface OpportunityItem {
   sellerPhone?: string
   sellerWhatsApp?: string
   sellerLocation?: string
+  // Lumo Dealers Operating Model (Version 1.0)
+  publisherName?: string
+  coordinationNote?: string
+  termsVersion?: number
+}
+
+export type ReferralCaseStage =
+  | 'SUBMITTED'
+  | 'UNDER_REVIEW'
+  | 'AVAILABILITY_CONFIRMED'
+  | 'IN_PROGRESS'
+  | 'COMPLETED'
+  | 'CLOSED'
+
+export type DirectRewardStatus =
+  | 'NOT_YET_EARNED'
+  | 'AWAITING_MERCHANT_PAYMENT'
+  | 'MERCHANT_REPORTS_PAID'
+  | 'PARTNER_CONFIRMS_RECEIPT'
+  | 'DISPUTED'
+
+export interface ReferralCase {
+  id: string
+  reference: string // e.g. LUMO-REF-000123
+  dealId: string
+  dealTitle: string
+  dealSlug: string
+  partnerUserId: string
+  partnerName: string
+  partnerPhone: string
+  partnerPhoneMasked: string
+  customerFirstName: string
+  customerLastName: string
+  customerPhone: string // Normalized E.164 e.g. +255712345678
+  customerPhoneMasked: string
+  contactPermissionConfirmed: boolean
+  additionalNotes?: string
+  assignedCoordinator?: string
+  stage: ReferralCaseStage
+  stageUpdatedAt: string
+  nextAction?: string
+  nextActionDueDate?: string
+  coordinatorNotes?: string
+  partnerVisibleUpdate?: string
+  closureReason?: 'UNAVAILABLE' | 'DUPLICATE' | 'CANCELLED' | 'UNSUCCESSFUL' | 'OTHER'
+  rewardAmountTZS: number
+  rewardDisplay: string
+  rewardStatus: DirectRewardStatus
+  merchantPaymentReportedAt?: string
+  merchantPaymentReference?: string
+  merchantPaymentNotes?: string
+  partnerReceiptConfirmedAt?: string
+  disputeReason?: string
+  disputedAt?: string
+  createdAt: string
+  updatedAt: string
 }

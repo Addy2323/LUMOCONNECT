@@ -179,9 +179,9 @@ export function OnboardingView({ onComplete, onCancel }: OnboardingViewProps) {
           <div className="bg-emerald-50 dark:bg-emerald-950/40 p-4 rounded-xl border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-800 dark:text-emerald-300 flex items-start gap-3">
             <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
             <div>
-              <strong className="block mb-0.5">Automated TRA Tax Compliance</strong>
+              <strong className="block mb-0.5">Direct Merchant Reward Settlement</strong>
               <span>
-                LUMO automatically withholds statutory 5% TRA tax and generates monthly downloadable tax certificates for your earnings records.
+                Merchants pay agreed referral rewards directly to your mobile money or bank account upon verified transaction completion.
               </span>
             </div>
           </div>
@@ -241,7 +241,7 @@ export function OnboardingView({ onComplete, onCancel }: OnboardingViewProps) {
         <div className="space-y-4">
           <div>
             <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-              TRA Tax Identification Number (TIN)
+              Tax Identification Number (TIN)
             </label>
             <input
               type="text"

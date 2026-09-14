@@ -66,7 +66,7 @@ export function BusinessProfileTab({
             </span>
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Maintain your brand public listing, contact information, and verified BRELA / TRA legal declarations.
+            Maintain your brand public listing, contact information, and verified business legal declarations.
           </p>
         </div>
 
@@ -98,7 +98,7 @@ export function BusinessProfileTab({
       <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2.5">
         <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
         <div>
-          <strong>Legal Reverification Rule:</strong> You may freely update public marketing descriptions, logos, and contacts. Changes to verified legal entity name, BRELA incorporation certificate, or TRA TIN will trigger temporary compliance reverification.
+          <strong>Legal Reverification Rule:</strong> You may freely update public marketing descriptions, logos, and contacts. Changes to verified legal entity name, BRELA incorporation certificate, or TIN will trigger temporary compliance reverification.
         </div>
       </div>
 
@@ -158,7 +158,7 @@ export function BusinessProfileTab({
         <div className="p-5 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">
-              Verified Legal Credentials (TRA / BRELA)
+              Verified Legal Credentials (TIN / BRELA)
             </h3>
             <span className="inline-flex items-center gap-1 text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded">
               <ShieldCheck className="h-3 w-3" aria-hidden="true" />
@@ -174,7 +174,7 @@ export function BusinessProfileTab({
           </div>
 
           <div>
-            <label className="font-bold block mb-1">Tanzania Revenue Authority (TRA) TIN</label>
+            <label className="font-bold block mb-1">Tax Identification Number (TIN)</label>
             <div className="p-2.5 rounded-xl bg-slate-200 dark:bg-slate-700 font-mono text-slate-700 dark:text-slate-300 font-bold">
               {profile.tinNumber}
             </div>

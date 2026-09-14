@@ -48,7 +48,7 @@ export function RolesPermissionsTab() {
       name: 'Finance & Reconciliation Admin',
       code: 'FINANCE_ADMIN',
       members: 3,
-      desc: 'Telco reconciliation, TRA tax statement calculation, accounting exports.',
+      desc: 'Telco reconciliation, settlement statement calculation, accounting exports.',
       dualControlRequired: false,
       permissions: ['RECONCILIATION_RUN', 'TAX_MANAGE', 'PAYMENTS_LEDGER_VIEW', 'PAYOUTS_BATCH_CREATE'],
     },
@@ -81,7 +81,7 @@ export function RolesPermissionsTab() {
     { code: 'PAYOUTS_BATCH_CREATE', label: 'Prepare Payout Batches (Maker)', group: 'Finance' },
     { code: 'PAYOUTS_CHECKER_APPROVE', label: 'Authorize Mobile Money Payouts (Checker)', group: 'Finance' },
     { code: 'RECONCILIATION_RUN', label: 'Run Telco Reconciliation', group: 'Finance' },
-    { code: 'TAX_MANAGE', label: 'Update TRA Statutory Tax Rules', group: 'Finance' },
+    { code: 'TAX_MANAGE', label: 'Update Statutory Tax Rules', group: 'Finance' },
     { code: 'DISPUTES_RESOLVE', label: 'Resolve & Mediate Disputes', group: 'Support' },
     { code: 'SYSTEM_SETTINGS_WRITE', label: 'Modify Platform Settings', group: 'System' },
   ]

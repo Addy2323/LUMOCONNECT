@@ -163,7 +163,7 @@ export interface PartnerEarningsRecord {
   dealTitle: string
   businessName: string
   grossRewardTZS: number
-  taxWithheldTZS: number // 5% TRA Withholding Tax
+  taxWithheldTZS: number // Statutory Withholding Tax / Allowance
   platformFeeTZS: number // 0% for Partners
   netRewardTZS: number
   status: RewardStatus

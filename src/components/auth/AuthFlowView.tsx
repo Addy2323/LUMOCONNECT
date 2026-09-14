@@ -311,7 +311,7 @@ export function AuthFlowView({
 
     return /^\d{9}$/.test(value.replace(/[-\s]/g, ''))
       ? null
-      : 'Enter a valid 9-digit TRA TIN.'
+      : 'Enter a valid 9-digit TIN.'
   }
 
   const handleIdentityVerification = async () => {
@@ -1174,7 +1174,7 @@ export function AuthFlowView({
                   >
                     <option value="NIDA_ID">NIDA National ID (Tanzania)</option>
                     <option value="PASSPORT">East African Passport</option>
-                    <option value="TIN_CERTIFICATE">TRA TIN Certificate</option>
+                    <option value="TIN_CERTIFICATE">TIN Certificate</option>
                   </select>
                 </div>
 
@@ -1303,7 +1303,7 @@ export function AuthFlowView({
 
                 <div>
                   <label className="block text-xs font-bold text-[#0F172A] dark:text-slate-300 mb-1.5">
-                    TRA Tax Identification Number (TIN)
+                    Tax Identification Number (TIN)
                   </label>
                   <input
                     type="text"
@@ -1409,7 +1409,7 @@ export function AuthFlowView({
               Identity & Business Verification
             </h2>
             <p className="text-xs sm:text-sm text-[#64748B] dark:text-slate-400 mt-1">
-              Upload statutory verification files. Verification guarantees compliant commission settlements and TRA tax compliance.
+              Upload statutory verification files. Verification guarantees compliant commission settlements and business integrity.
             </p>
           </div>
 
@@ -1534,7 +1534,7 @@ export function AuthFlowView({
               )}
             </div>
 
-            {/* Document Slot 2: TRA TIN Certificate */}
+            {/* Document Slot 2: TIN Certificate */}
             <div className="border border-slate-200 dark:border-slate-800 rounded-2xl p-4 bg-white dark:bg-slate-900 shadow-2xs space-y-3">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
@@ -1543,10 +1543,10 @@ export function AuthFlowView({
                   </div>
                   <div>
                     <div className="text-xs font-black text-slate-900 dark:text-white">
-                      TRA Taxpayer Identification Number (TIN) Certificate
+                      Taxpayer Identification Number (TIN) Certificate
                     </div>
                     <div className="text-[11px] text-slate-500">
-                      Tanzania Revenue Authority Taxpayer Registration Certificate
+                      Official Taxpayer Registration Certificate
                     </div>
                   </div>
                 </div>
@@ -1584,7 +1584,7 @@ export function AuthFlowView({
                         className="hidden"
                         onChange={(e) => {
                           const file = e.target.files?.[0]
-                          if (file) handleFileUpload('tin', 'TRA TIN Certificate', file)
+                          if (file) handleFileUpload('tin', 'TIN Certificate', file)
                         }}
                       />
                     </label>
@@ -1619,7 +1619,7 @@ export function AuthFlowView({
                     className="hidden"
                     onChange={(e) => {
                       const file = e.target.files?.[0]
-                      if (file) handleFileUpload('tin', 'TRA TIN Certificate', file)
+                      if (file) handleFileUpload('tin', 'TIN Certificate', file)
                     }}
                   />
                 </label>

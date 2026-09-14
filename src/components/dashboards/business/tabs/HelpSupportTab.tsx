@@ -142,10 +142,10 @@ export function HelpSupportTab() {
                   className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
                 >
                   <option value="Opportunity Review">Deal Review & Compliance Approval</option>
-                  <option value="Banking & Settlement">Wallet Deposits & Settlement Ledger (Funds Are Secured)</option>
+                  <option value="Banking & Settlement">Wallet Deposits & Settlement Ledger</option>
                   <option value="API & Integration">API Webhooks & Tracking Integration</option>
                   <option value="Partner Mediation">Partner Mediation & Deliverable Dispute</option>
-                  <option value="Billing & Tax">VAT Invoicing & TRA Statements</option>
+                  <option value="Billing & Tax">VAT Invoicing & Billing Statements</option>
                 </select>
               </div>
 

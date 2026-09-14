@@ -116,10 +116,107 @@ export function getCategoryGroup(category: string, subcategory?: string) {
   return direct?.value || LEGACY_CATEGORY_GROUPS[category.toLowerCase()] || category
 }
 
-export function formatCategoryBadgeLabel(category: string, subcategory?: string): string {
-  const displayCat = category === 'Business' ? 'Biashara' : category
+export const CATEGORY_TRANSLATIONS_SW: Record<string, string> = {
+  'Property': 'Mali Isiyohamishika',
+  'Vehicles': 'Magari',
+  'Products': 'Bidhaa',
+  'Agriculture & Commodities': 'Kilimo na Mazao',
+  'Business': 'Biashara',
+  'Services': 'Huduma',
+}
+
+export const CATEGORY_TRANSLATIONS_EN: Record<string, string> = {
+  'Mali Isiyohamishika': 'Property',
+  'Magari': 'Vehicles',
+  'Bidhaa': 'Products',
+  'Kilimo na Mazao': 'Agriculture & Commodities',
+  'Biashara': 'Business',
+  'Huduma': 'Services',
+}
+
+export const SUBCATEGORY_TRANSLATIONS_SW: Record<string, string> = {
+  // Property
+  'House': 'Nyumba',
+  'Apartment': 'Ghorofa / Nyumba ya Kupanga',
+  'Land': 'Ardhi',
+  'Commercial property': 'Mali ya Biashara',
+  'Hotel / lodge': 'Hoteli / Nyumba ya Wageni',
+  'Office': 'Ofisi',
+  'Warehouse': 'Bohari / Ghala',
+  'Plot': 'Kiwanja',
+  // Vehicles
+  'Cars': 'Magari',
+  'Motorcycles': 'Pikipiki',
+  'Bajaji': 'Bajaji',
+  'Trucks': 'Malori',
+  'Spare parts': 'Vipuri',
+  'Machinery': 'Mitambo',
+  // Products
+  'Electronics': 'Vifaa vya Umeme',
+  'Phones': 'Simu',
+  'Computers': 'Kompyuta',
+  'Furniture': 'Samani',
+  'Clothes': 'Nguo',
+  'Building materials': 'Vifaa vya Ujenzi',
+  'Agricultural products': 'Mazao ya Kilimo',
+  'Wholesale products': 'Bidhaa za Jumla',
+  // Agriculture & Commodities
+  'Cashew': 'Korosho',
+  'Coffee': 'Kahawa',
+  'Rice': 'Mchele',
+  'Maize': 'Mahindi',
+  'Sesame': 'Ufuta',
+  'Avocado': 'Parachichi',
+  'Livestock': 'Mifugo',
+  'Fish': 'Samaki',
+  'Agricultural equipment': 'Vifaa vya Kilimo',
+  // Business
+  'Businesses for sale': 'Biashara Zinazouzwa',
+  'Suppliers': 'Wasambazaji',
+  'Distributors': 'Mawakala / Wasambazaji Wakuu',
+  'Franchise opportunities': 'Fursa za Franchise',
+  'Partnerships': 'Ushirikiano wa Kibiashara',
+  'Wholesale buyers': 'Wanunuzi wa Jumla',
+  'Wholesale suppliers': 'Wauzaji wa Jumla',
+  // Services
+  'Construction': 'Ujenzi',
+  'Transport': 'Usafirishaji',
+  'Photography': 'Upigaji Picha',
+  'IT': 'Teknolojia ya Habari (IT)',
+  'Marketing': 'Masoko',
+  'Legal': 'Sheria',
+  'Accounting': 'Uhasibu',
+  'Recruitment': 'Uajiri',
+  'Repair': 'Matengenezo',
+}
+
+export const SUBCATEGORY_TRANSLATIONS_EN: Record<string, string> = Object.entries(SUBCATEGORY_TRANSLATIONS_SW).reduce(
+  (acc, [en, sw]) => {
+    acc[sw] = en
+    return acc
+  },
+  {} as Record<string, string>
+)
+
+export function getLocalizedCategoryLabel(category: string, locale: string = 'en'): string {
+  if (locale === 'sw') {
+    return CATEGORY_TRANSLATIONS_SW[category] || category
+  }
+  return CATEGORY_TRANSLATIONS_EN[category] || category
+}
+
+export function getLocalizedSubcategoryLabel(subcategory: string, locale: string = 'en'): string {
+  if (locale === 'sw') {
+    return SUBCATEGORY_TRANSLATIONS_SW[subcategory] || subcategory
+  }
+  return SUBCATEGORY_TRANSLATIONS_EN[subcategory] || subcategory
+}
+
+export function formatCategoryBadgeLabel(category: string, subcategory?: string, locale: string = 'en'): string {
+  const displayCat = locale === 'sw' ? getLocalizedCategoryLabel(category, locale) : (CATEGORY_TRANSLATIONS_EN[category] || category)
   if (subcategory && subcategory.trim() !== '') {
-    return `${displayCat} · ${subcategory}`
+    const displaySub = locale === 'sw' ? getLocalizedSubcategoryLabel(subcategory, locale) : (SUBCATEGORY_TRANSLATIONS_EN[subcategory] || subcategory)
+    return `${displayCat} · ${displaySub}`
   }
   return displayCat
 }

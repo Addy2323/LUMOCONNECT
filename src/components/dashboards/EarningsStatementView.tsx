@@ -83,7 +83,7 @@ export function EarningsStatementView({ onBack }: { onBack?: () => void }) {
             <div className="text-slate-400 font-semibold uppercase text-[10px] mb-1">Partner Information</div>
             <strong className="block text-slate-900 dark:text-white text-sm">{statement.partnerName}</strong>
             <div className="text-slate-500">TIN: {statement.tinNumber}</div>
-            <div className="text-slate-500">Tax Classification: Resident Individual (TRA 5%)</div>
+            <div className="text-slate-500">Classification: Partner Referral Record</div>
             <div className="text-slate-500">Settlement: M-Pesa (+255 712 *** 881)</div>
           </div>
 
@@ -103,7 +103,7 @@ export function EarningsStatementView({ onBack }: { onBack?: () => void }) {
                 <th className="py-2.5 px-3">Date</th>
                 <th className="py-2.5 px-3">Reference / Deal</th>
                 <th className="py-2.5 px-3 text-right">Gross Earnings</th>
-                <th className="py-2.5 px-3 text-right">TRA Tax (5%)</th>
+                <th className="py-2.5 px-3 text-right">Withholding / Deduction</th>
                 <th className="py-2.5 px-3 text-right">Net Paid</th>
               </tr>
             </thead>
@@ -139,7 +139,7 @@ export function EarningsStatementView({ onBack }: { onBack?: () => void }) {
               </span>
             </div>
             <div className="flex justify-between text-slate-600 dark:text-slate-400">
-              <span>TRA Withholding Tax (5%):</span>
+              <span>Statutory Deductions / Allowance:</span>
               <span className="font-mono text-slate-900 dark:text-white">
                 - TZS {(Number(statement.taxWithheldMinorUnits) / 100).toLocaleString()}
               </span>
@@ -163,7 +163,7 @@ export function EarningsStatementView({ onBack }: { onBack?: () => void }) {
         <div className="border-t border-slate-100 dark:border-slate-800 pt-4 flex items-center gap-2 text-[11px] text-slate-400">
           <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
           <span>
-            This statement is generated in compliance with the Tanzania Revenue Authority (TRA) Withholding Tax regulations. Retain this certificate for annual statutory tax filings.
+            This statement summarizes partner referral activity and reward settlements. Retain this record for your commercial accounts.
           </span>
         </div>
       </div>

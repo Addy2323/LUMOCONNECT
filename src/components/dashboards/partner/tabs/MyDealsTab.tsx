@@ -21,6 +21,8 @@ import {
 } from 'lucide-react'
 import { JoinedDealItem, JoinedDealStatus } from '../types'
 import { usePartnerToast } from '../PartnerToast'
+import { CustomerReferralModal } from '@/components/marketplace/CustomerReferralModal'
+import { PromotionalToolkitModal } from '@/components/marketplace/PromotionalToolkitModal'
 
 interface MyDealsTabProps {
   joinedDeals: JoinedDealItem[]
@@ -39,6 +41,8 @@ export function MyDealsTab({
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedDealTools, setSelectedDealTools] = useState<JoinedDealItem | null>(null)
   const [showQrModal, setShowQrModal] = useState<JoinedDealItem | null>(null)
+  const [promoModalDeal, setPromoModalDeal] = useState<JoinedDealItem | null>(null)
+  const [referralModalDeal, setReferralModalDeal] = useState<JoinedDealItem | null>(null)
 
   const subTabs: { id: JoinedDealStatus; label: string; count: number }[] = [
     { id: 'ACTIVE', label: 'Active Deals', count: joinedDeals.filter((d) => d.status === 'ACTIVE').length },
@@ -166,7 +170,7 @@ export function MyDealsTab({
                 <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white leading-snug">
                   {deal.title}
                 </h3>
-                <p className="text-xs text-slate-500">Business: <strong>{deal.businessName}</strong> · Enrolled: {deal.joinedDate}</p>
+                <p className="text-xs text-slate-500">Published by: <strong>Lumo Dealers</strong> · Coordination: Lumo WhatsApp Desk · Enrolled: {deal.joinedDate}</p>
               </div>
 
               <div className="text-right sm:shrink-0 bg-white dark:bg-slate-900 p-3 rounded-2xl border">
@@ -224,21 +228,31 @@ export function MyDealsTab({
 
               <div className="flex items-center gap-2">
                 {deal.status === 'ACTIVE' && (
-                  <button
-                    onClick={() => onOpenSubmitLeadModal(deal)}
-                    className="py-1.5 px-3.5 bg-[#FF6A00] hover:bg-[#EA580C] text-white rounded-xl text-xs font-bold shadow-2xs flex items-center gap-1.5 transition-all"
-                  >
-                    <Send className="w-3.5 h-3.5" />
-                    <span>Submit Lead</span>
-                  </button>
+                  <>
+                    <button
+                      onClick={() => setPromoModalDeal(deal)}
+                      className="py-1.5 px-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold border border-slate-700 shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer"
+                    >
+                      <Download className="w-3.5 h-3.5 text-[#FF6A00]" />
+                      <span>Get Promotional Materials</span>
+                    </button>
+
+                    <button
+                      onClick={() => setReferralModalDeal(deal)}
+                      className="py-1.5 px-3.5 bg-[#FF6A00] hover:bg-[#EA580C] text-white rounded-xl text-xs font-bold shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      <span>I Have a Customer</span>
+                    </button>
+                  </>
                 )}
 
                 <button
                   onClick={() => setSelectedDealTools(deal)}
-                  className="py-1.5 px-3 bg-white dark:bg-slate-900 border rounded-xl text-xs font-bold hover:bg-slate-100 flex items-center gap-1"
+                  className="py-1.5 px-3 bg-white dark:bg-slate-900 border rounded-xl text-xs font-bold hover:bg-slate-100 flex items-center gap-1 cursor-pointer"
                 >
                   <FileText className="w-3.5 h-3.5" />
-                  <span>Deal Tools & Requirements</span>
+                  <span>Deal Tools</span>
                 </button>
               </div>
             </div>
@@ -328,12 +342,45 @@ export function MyDealsTab({
             </p>
             <button
               onClick={() => setShowQrModal(null)}
-              className="w-full py-2 bg-[#0B132B] text-white font-bold rounded-xl text-xs"
+              className="w-full py-2 bg-[#0B132B] text-white font-bold rounded-xl text-xs cursor-pointer"
             >
               Done
             </button>
           </div>
         </div>
+      )}
+
+      {/* Customer Referral Modal */}
+      {referralModalDeal && (
+        <CustomerReferralModal
+          deal={{
+            id: referralModalDeal.opportunityId || referralModalDeal.id,
+            title: referralModalDeal.title,
+            slug: referralModalDeal.opportunityId || referralModalDeal.id,
+            rewardDisplay: referralModalDeal.rewardDisplay,
+          } as any}
+          isOpen={Boolean(referralModalDeal)}
+          onClose={() => setReferralModalDeal(null)}
+          onReferralSubmitted={(ref) => {
+            showToast(
+              'success',
+              'Referral Submitted',
+              `Customer referral ${ref} submitted. Lumo coordinator is checking availability with the merchant.`
+            )
+            setReferralModalDeal(null)
+          }}
+        />
+      )}
+
+      {/* Promotional Toolkit Modal */}
+      {promoModalDeal && (
+        <PromotionalToolkitModal
+          dealTitle={promoModalDeal.title}
+          companyName="Lumo Dealers"
+          trackingCode={promoModalDeal.referralId || promoModalDeal.promoCode}
+          rewardDisplay={promoModalDeal.rewardDisplay}
+          onClose={() => setPromoModalDeal(null)}
+        />
       )}
     </div>
   )

@@ -124,7 +124,7 @@ export function LanguageSwitch() {
             <button
               type="button"
               onClick={toggleLowData}
-              title="Low data / Data kidogo"
+              title={locale === 'sw' ? 'Hali ya data kidogo' : 'Low data mode'}
               className={`rounded-xl p-1.5 text-xs font-extrabold transition-colors ${
                 lowData
                   ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
@@ -182,7 +182,7 @@ export function LanguageSwitch() {
           type="button"
           onClick={toggleLowData}
           aria-pressed={lowData}
-          title="Low data / Data kidogo"
+          title={locale === 'sw' ? 'Hali ya data kidogo' : 'Low data mode'}
           className={`min-h-9 rounded-full px-2.5 text-[11px] font-extrabold transition-colors ${
             lowData
               ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
@@ -190,7 +190,7 @@ export function LanguageSwitch() {
           }`}
         >
           <WifiOff className="inline h-3.5 w-3.5 mr-1" aria-hidden="true" />
-          <span>Data kidogo</span>
+          <span>{locale === 'sw' ? 'Data kidogo' : 'Low Data'}</span>
         </button>
       </div>
     </>
