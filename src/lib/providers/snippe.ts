@@ -112,11 +112,20 @@ export class SnippePaymentAdapter implements PaymentProvider {
     }
 
     const idempotencyKey = sanitizeIdempotencyKey(req.idempotencyKey || req.orderId)
-    const callbackUrl =
+    let callbackUrl =
       req.callbackUrl ||
-      (process.env.BETTER_AUTH_URL
-        ? `${process.env.BETTER_AUTH_URL}/api/webhooks/snippe`
-        : 'https://lumo.co.tz/api/webhooks/snippe')
+      process.env.SNIPPE_WEBHOOK_URL ||
+      'https://lumo.co.tz/api/webhooks/snippe'
+
+    // Snippe rejects localhost, 127.0.0.1, or non-https URLs in all environments
+    if (
+      !callbackUrl ||
+      callbackUrl.includes('localhost') ||
+      callbackUrl.includes('127.0.0.1') ||
+      callbackUrl.startsWith('http://')
+    ) {
+      callbackUrl = 'https://lumo.co.tz/api/webhooks/snippe'
+    }
 
     const payload = {
       payment_type: 'mobile',
@@ -314,19 +323,64 @@ export class SnippePaymentAdapter implements PaymentProvider {
     if (!signature || !this.webhookSecret) return false
 
     try {
-      // Snippe webhook signature formula:
-      const message = timestamp ? `${timestamp}.${payload}` : payload
-      const hmac = crypto.createHmac('sha256', this.webhookSecret)
-      const computedSignature = hmac.update(message).digest('hex')
+      let cleanSig = signature.trim()
+      let ts = timestamp
 
-      const sigBuffer = Buffer.from(signature, 'hex')
-      const compBuffer = Buffer.from(computedSignature, 'hex')
-
-      if (sigBuffer.length !== compBuffer.length) {
-        return false
+      // Support Svix/Standard format: 't=12345,v1=abcdef...'
+      if (cleanSig.includes('t=') && cleanSig.includes('v1=')) {
+        const parts = cleanSig.split(',')
+        for (const p of parts) {
+          if (p.startsWith('t=')) ts = p.slice(2)
+          if (p.startsWith('v1=')) cleanSig = p.slice(3)
+        }
+      } else if (cleanSig.startsWith('v1=')) {
+        cleanSig = cleanSig.slice(3)
+      } else if (cleanSig.startsWith('sha256=')) {
+        cleanSig = cleanSig.slice(7)
       }
 
-      return crypto.timingSafeEqual(sigBuffer, compBuffer)
+      const message = ts ? `${ts}.${payload}` : payload
+
+      // Support secret with or without 'whsec_' prefix
+      const secretsToTry = [this.webhookSecret]
+      if (this.webhookSecret.startsWith('whsec_')) {
+        secretsToTry.push(this.webhookSecret.slice(6))
+      }
+
+      for (const sec of secretsToTry) {
+        // 1. Hex comparison
+        const hmacHex = crypto.createHmac('sha256', sec).update(message).digest('hex')
+        try {
+          const sigBuf = Buffer.from(cleanSig, 'hex')
+          const compBuf = Buffer.from(hmacHex, 'hex')
+          if (sigBuf.length === compBuf.length && crypto.timingSafeEqual(sigBuf, compBuf)) {
+            return true
+          }
+        } catch {}
+
+        // 2. Base64 comparison
+        const hmacB64 = crypto.createHmac('sha256', sec).update(message).digest('base64')
+        if (cleanSig === hmacB64) {
+          return true
+        }
+
+        // 3. Fallback: payload without timestamp
+        const rawHmacHex = crypto.createHmac('sha256', sec).update(payload).digest('hex')
+        try {
+          const sigBuf = Buffer.from(cleanSig, 'hex')
+          const compBuf = Buffer.from(rawHmacHex, 'hex')
+          if (sigBuf.length === compBuf.length && crypto.timingSafeEqual(sigBuf, compBuf)) {
+            return true
+          }
+        } catch {}
+
+        const rawHmacB64 = crypto.createHmac('sha256', sec).update(payload).digest('base64')
+        if (cleanSig === rawHmacB64) {
+          return true
+        }
+      }
+
+      return false
     } catch {
       return false
     }
