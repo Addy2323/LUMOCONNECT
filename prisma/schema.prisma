@@ -80,14 +80,6 @@ enum OpportunityStatus {
   ARCHIVED
 }
 
-enum ApplicationStatus {
-  PENDING
-  UNDER_REVIEW
-  APPROVED
-  REJECTED
-  WITHDRAWN
-}
-
 enum ParticipationStatus {
   ACTIVE
   PAUSED
@@ -168,15 +160,6 @@ enum RewardStatus {
   REVERSED
 }
 
-enum AdjustmentType {
-  BONUS
-  PENALTY
-  CORRECTION
-  TAX_ADJUSTMENT
-  PLATFORM_FEE
-  REVERSAL
-}
-
 enum PaymentPurpose {
   SUBSCRIPTION
   WALLET_TOPUP
@@ -194,22 +177,6 @@ enum PaymentStatus {
   EXPIRED
   REVERSED
   REFUNDED
-}
-
-enum FundingTransactionType {
-  DEPOSIT
-  COMMITMENT
-  RELEASE
-  REFUND
-  FEE_DEDUCTION
-  WITHDRAWAL
-}
-
-enum FundingTransactionStatus {
-  PENDING
-  CONFIRMED
-  FAILED
-  REVERSED
 }
 
 enum PayoutStatus {
@@ -309,7 +276,9 @@ model User {
   partnerProfile    PartnerProfile?
   roleAssignments   RoleAssignment[]
   memberships       OrganizationMember[]
-  applications      OpportunityApplication[]
+  ordersAttributed Order[] @relation("OrderPartner")
+  ordersPlaced Order[] @relation("OrderCustomer")
+  deliverablesCreated DealDeliverable[] @relation("DealDeliverableCreator")
   participations    DealParticipation[]
   subscriptions     UserSubscription[]
   enterpriseInquiries EnterpriseInquiry[]
@@ -317,8 +286,7 @@ model User {
   payoutMethods     PayoutMethod[]
   payoutsReceived   Payout[]
   rewards           Reward[]
-  sentMessages      DealMessage[]          @relation("MessageSender")
-  disputesOpened    Dispute[]              @relation("DisputeOpener")
+    disputesOpened    Dispute[]              @relation("DisputeOpener")
   disputeMessages   DisputeMessage[]       @relation("DisputeMessageSender")
   verificationCasesUser VerificationCase[] @relation("VerificationUser")
   verificationDecisions VerificationDecision[] @relation("DecisionMaker")
@@ -472,7 +440,7 @@ model Organization {
   members             OrganizationMember[]
   roleAssignments     RoleAssignment[]
   opportunities       Opportunity[]
-  fundingAccount      RewardFundingAccount?
+  orders Order[]
   verificationCases   VerificationCase[]     @relation("VerificationOrg")
   riskAlerts          RiskAlert[]            @relation("RiskAlertOrg")
 
@@ -550,7 +518,7 @@ model Opportunity {
   category        OpportunityCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   publishedVersion OpportunityVersion? @relation("PublishedVersion", fields: [publishedVersionId], references: [id], onDelete: SetNull)
   versions        OpportunityVersion[] @relation("OpportunityVersions")
-  applications    OpportunityApplication[]
+  orders Order[]
   participations  DealParticipation[]
   conversions     Conversion[]
   hotDeal         HotDeal?
@@ -611,30 +579,6 @@ model RewardRule {
   @@map("reward_rules")
 }
 
-model OpportunityApplication {
-  id              String            @id @default(uuid()) @db.Uuid
-  opportunityId   String            @db.Uuid
-  partnerUserId   String            @db.Uuid
-  status          ApplicationStatus @default(PENDING)
-  proposalNotes   String?           @db.Text
-  reviewedBy      String?
-  reviewedAt      DateTime?
-  rejectionReason String?
-  submittedAt     DateTime          @default(now())
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-
-  opportunity  Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
-  partnerUser  User        @relation(fields: [partnerUserId], references: [id], onDelete: Cascade)
-  participation DealParticipation?
-
-  @@unique([opportunityId, partnerUserId])
-  @@index([opportunityId])
-  @@index([partnerUserId])
-  @@index([status])
-  @@map("opportunity_applications")
-}
-
 /// Critical model: `acceptedVersionId` preserves the exact commercial terms
 /// accepted by the Partner, even if the Business later creates a new version.
 model DealParticipation {
@@ -642,8 +586,7 @@ model DealParticipation {
   opportunityId     String              @db.Uuid
   partnerUserId     String              @db.Uuid
   acceptedVersionId String              @db.Uuid
-  applicationId     String?             @unique @db.Uuid
-  status            ParticipationStatus @default(ACTIVE)
+    status            ParticipationStatus @default(ACTIVE)
   joinedAt          DateTime            @default(now())
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
@@ -651,8 +594,7 @@ model DealParticipation {
   opportunity     Opportunity            @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
   partnerUser     User                   @relation(fields: [partnerUserId], references: [id], onDelete: Cascade)
   acceptedVersion OpportunityVersion     @relation("LockedTerms", fields: [acceptedVersionId], references: [id], onDelete: Restrict)
-  application     OpportunityApplication? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
-  trackingAssets  TrackingAsset[]
+    trackingAssets  TrackingAsset[]
   leads           Lead[]
   conversions     Conversion[]
   dealRoom        DealRoom?
@@ -776,39 +718,9 @@ model DealRoom {
   updatedAt       DateTime @updatedAt
 
   participation DealParticipation @relation(fields: [participationId], references: [id], onDelete: Cascade)
-  messages      DealMessage[]
-  documents     DealDocument[]
+  deliverables DealDeliverable[]
 
   @@map("deal_rooms")
-}
-
-model DealMessage {
-  id         String   @id @default(uuid()) @db.Uuid
-  dealRoomId String   @db.Uuid
-  senderId   String   @db.Uuid
-  content    String   @db.Text
-  createdAt  DateTime @default(now())
-
-  dealRoom DealRoom @relation(fields: [dealRoomId], references: [id], onDelete: Cascade)
-  sender   User     @relation("MessageSender", fields: [senderId], references: [id], onDelete: Restrict)
-
-  @@index([dealRoomId])
-  @@index([senderId])
-  @@map("deal_messages")
-}
-
-model DealDocument {
-  id          String   @id @default(uuid()) @db.Uuid
-  dealRoomId  String   @db.Uuid
-  fileAssetId String   @db.Uuid
-  label       String?
-  createdAt   DateTime @default(now())
-
-  dealRoom  DealRoom  @relation(fields: [dealRoomId], references: [id], onDelete: Cascade)
-  fileAsset FileAsset @relation(fields: [fileAssetId], references: [id], onDelete: Restrict)
-
-  @@index([dealRoomId])
-  @@map("deal_documents")
 }
 
 // ============================================================================
@@ -871,8 +783,7 @@ model PaymentAttempt {
   updatedAt         DateTime      @updatedAt
 
   user                 User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  fundingTransactions  FundingTransaction[]
-  reconciliationItems  ReconciliationItem[] @relation("ReconPayment")
+  orders Order[]
   hotDealFunding HotDealFunding?
 
   @@index([userId])
@@ -909,45 +820,6 @@ model EnterpriseInquiry {
 // 7. REWARD FUNDING & ESCROW
 // ============================================================================
 
-model RewardFundingAccount {
-  id                        String   @id @default(uuid()) @db.Uuid
-  organizationId            String   @unique @db.Uuid
-  providerAccountReference  String?
-  currency                  String   @default("TZS")
-  status                    String   @default("ACTIVE") // ACTIVE, SUSPENDED, CLOSED
-  createdAt                 DateTime @default(now())
-  updatedAt                 DateTime @updatedAt
-
-  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  transactions FundingTransaction[]
-
-  @@map("reward_funding_accounts")
-}
-
-model FundingTransaction {
-  id                 String                    @id @default(uuid()) @db.Uuid
-  fundingAccountId   String                    @db.Uuid
-  amountMinor        BigInt
-  currency           String                    @default("TZS")
-  transactionType    FundingTransactionType
-  providerReference  String?                   @unique
-  paymentAttemptId   String?                   @db.Uuid
-  description        String?
-  status             FundingTransactionStatus  @default(PENDING)
-  idempotencyKey     String?                   @unique
-  createdAt          DateTime                  @default(now())
-  updatedAt          DateTime                  @updatedAt
-
-  fundingAccount  RewardFundingAccount @relation(fields: [fundingAccountId], references: [id], onDelete: Cascade)
-  paymentAttempt  PaymentAttempt?      @relation(fields: [paymentAttemptId], references: [id], onDelete: SetNull)
-  reconciliationItems ReconciliationItem[] @relation("ReconFunding")
-
-  @@index([fundingAccountId])
-  @@index([providerReference])
-  @@index([status])
-  @@map("funding_transactions")
-}
-
 // ============================================================================
 // 8. REWARDS & PAYOUTS
 // ============================================================================
@@ -971,8 +843,7 @@ model Reward {
   conversion  Conversion       @relation(fields: [conversionId], references: [id], onDelete: Cascade)
   rewardRule  RewardRule        @relation(fields: [rewardRuleId], references: [id], onDelete: Restrict)
   partnerUser User              @relation(fields: [partnerUserId], references: [id], onDelete: Cascade)
-  adjustments RewardAdjustment[]
-  payoutItems PayoutItem[]
+    payoutItems PayoutItem[]
 
   @@unique([conversionId, rewardRuleId, partnerUserId])
   @@index([conversionId])
@@ -980,22 +851,6 @@ model Reward {
   @@index([partnerUserId])
   @@index([status])
   @@map("rewards")
-}
-
-model RewardAdjustment {
-  id             String         @id @default(uuid()) @db.Uuid
-  rewardId       String         @db.Uuid
-  amountMinor    BigInt
-  currency       String         @default("TZS")
-  reason         String
-  adjustmentType AdjustmentType
-  actorId        String?
-  createdAt      DateTime       @default(now())
-
-  reward Reward @relation(fields: [rewardId], references: [id], onDelete: Cascade)
-
-  @@index([rewardId])
-  @@map("reward_adjustments")
 }
 
 model PayoutMethod {
@@ -1040,8 +895,7 @@ model Payout {
   partnerUser   User              @relation(fields: [partnerUserId], references: [id], onDelete: Cascade)
   payoutMethod  PayoutMethod      @relation(fields: [payoutMethodId], references: [id], onDelete: Restrict)
   items         PayoutItem[]
-  reconciliationItems ReconciliationItem[] @relation("ReconPayout")
-
+  
   @@index([partnerUserId])
   @@index([status])
   @@index([providerReference])
@@ -1131,29 +985,9 @@ model ReconciliationRun {
   notes         String?
   createdAt     DateTime @default(now())
 
-  items ReconciliationItem[]
-
+  
   @@index([runDate])
   @@map("reconciliation_runs")
-}
-
-model ReconciliationItem {
-  id                    String   @id @default(uuid()) @db.Uuid
-  reconciliationRunId   String   @db.Uuid
-  paymentAttemptId      String?  @db.Uuid
-  fundingTransactionId  String?  @db.Uuid
-  payoutId              String?  @db.Uuid
-  matchStatus           String   @default("PENDING") // PENDING, MATCHED, UNMATCHED, EXCEPTION
-  notes                 String?
-  createdAt             DateTime @default(now())
-
-  reconciliationRun  ReconciliationRun  @relation(fields: [reconciliationRunId], references: [id], onDelete: Cascade)
-  paymentAttempt     PaymentAttempt?    @relation("ReconPayment", fields: [paymentAttemptId], references: [id], onDelete: SetNull)
-  fundingTransaction FundingTransaction? @relation("ReconFunding", fields: [fundingTransactionId], references: [id], onDelete: SetNull)
-  payout             Payout?            @relation("ReconPayout", fields: [payoutId], references: [id], onDelete: SetNull)
-
-  @@index([reconciliationRunId])
-  @@map("reconciliation_items")
 }
 
 // ============================================================================
@@ -1210,24 +1044,10 @@ model VerificationDecision {
   @@map("verification_decisions")
 }
 
-model RiskRule {
-  id          String   @id @default(uuid()) @db.Uuid
-  code        String   @unique
-  name        String
-  description String?
-  ruleLogic   Json     // Configurable rule parameters
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  alerts RiskAlert[]
-
-  @@map("risk_rules")
-}
-
 model RiskAlert {
   id             String          @id @default(uuid()) @db.Uuid
-  ruleId         String?         @db.Uuid
+  ruleCode String?
+fraudCaseId String? @db.Uuid
   subjectType    String          // USER, CONVERSION, ORGANIZATION
   subjectId      String          @db.Uuid
   userId         String?         @db.Uuid
@@ -1241,13 +1061,13 @@ model RiskAlert {
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
-  rule         RiskRule?     @relation(fields: [ruleId], references: [id], onDelete: SetNull)
-  user         User?         @relation("RiskAlertUser", fields: [userId], references: [id], onDelete: SetNull)
+    user         User?         @relation("RiskAlertUser", fields: [userId], references: [id], onDelete: SetNull)
   organization Organization? @relation("RiskAlertOrg", fields: [organizationId], references: [id], onDelete: SetNull)
   conversion   Conversion?   @relation("RiskAlertConversion", fields: [conversionId], references: [id], onDelete: SetNull)
-  fraudCaseLinks FraudCaseAlert[]
+  fraudCase FraudCase? @relation(fields: [fraudCaseId], references: [id], onDelete: SetNull)
 
-  @@index([ruleId])
+  @@index([ruleCode])
+  @@index([fraudCaseId])
   @@index([subjectType, subjectId])
   @@index([status])
   @@map("risk_alerts")
@@ -1265,24 +1085,11 @@ model FraudCase {
   updatedAt    DateTime          @updatedAt
 
   assignee   User?            @relation("FraudCaseAssignee", fields: [assignedTo], references: [id], onDelete: SetNull)
-  alertLinks FraudCaseAlert[]
+  alerts RiskAlert[]
 
   @@index([caseNumber])
   @@index([status])
   @@map("fraud_cases")
-}
-
-model FraudCaseAlert {
-  id          String   @id @default(uuid()) @db.Uuid
-  fraudCaseId String   @db.Uuid
-  riskAlertId String   @db.Uuid
-  createdAt   DateTime @default(now())
-
-  fraudCase FraudCase @relation(fields: [fraudCaseId], references: [id], onDelete: Cascade)
-  riskAlert RiskAlert @relation(fields: [riskAlertId], references: [id], onDelete: Cascade)
-
-  @@unique([fraudCaseId, riskAlertId])
-  @@map("fraud_case_alerts")
 }
 
 // ============================================================================
@@ -1370,25 +1177,10 @@ model AuditLog {
   @@map("audit_logs")
 }
 
-model NotificationTemplate {
-  id            String   @id @default(uuid()) @db.Uuid
-  code          String   @unique
-  channel       NotificationChannel @default(IN_APP)
-  titleTemplate String
-  bodyTemplate  String   @db.Text
-  isActive      Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  notifications Notification[]
-
-  @@map("notification_templates")
-}
-
 model Notification {
   id         String              @id @default(uuid()) @db.Uuid
   userId     String              @db.Uuid
-  templateId String?             @db.Uuid
+  templateCode String?
   channel    NotificationChannel @default(IN_APP)
   title      String
   body       String              @db.Text
@@ -1397,8 +1189,7 @@ model Notification {
   createdAt  DateTime            @default(now())
 
   user     User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  template NotificationTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
-
+  
   @@index([userId])
   @@index([isRead])
   @@map("notifications")
@@ -1420,7 +1211,7 @@ model FileAsset {
   uploader             User                   @relation("FileUploader", fields: [uploaderId], references: [id], onDelete: Cascade)
   conversionEvidence   ConversionEvidence[]
   verificationDocuments VerificationDocument[]
-  dealDocuments        DealDocument[]
+  dealDeliverables DealDeliverable[]
   disputeEvidence      DisputeEvidence[]
 
   @@index([uploaderId])
@@ -1441,8 +1232,7 @@ model OutboxEvent {
   retryCount    Int       @default(0)
   createdAt     DateTime  @default(now())
 
-  deliveries WebhookDelivery[]
-
+  
   @@index([eventType])
   @@index([processedAt])
   @@index([createdAt])
@@ -1450,40 +1240,7 @@ model OutboxEvent {
 }
 
 /// Registered external webhook endpoints.
-model WebhookEndpoint {
-  id          String   @id @default(uuid()) @db.Uuid
-  url         String
-  provider    String   // MONGIKE, MESEJI, EXTERNAL_COMMERCE, CUSTOM
-  secret      String   @db.Text // Signing secret for verification
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  deliveries WebhookDelivery[]
-
-  @@map("webhook_endpoints")
-}
-
 /// Delivery log for outbox events dispatched to webhook endpoints.
-model WebhookDelivery {
-  id              String   @id @default(uuid()) @db.Uuid
-  outboxEventId   String   @db.Uuid
-  endpointId      String?  @db.Uuid
-  httpStatus      Int?
-  responseBody    String?  @db.Text
-  deliveredAt     DateTime?
-  failedAt        DateTime?
-  retryCount      Int      @default(0)
-  createdAt       DateTime @default(now())
-
-  outboxEvent OutboxEvent      @relation(fields: [outboxEventId], references: [id], onDelete: Cascade)
-  endpoint    WebhookEndpoint? @relation(fields: [endpointId], references: [id], onDelete: SetNull)
-
-  @@index([outboxEventId])
-  @@index([endpointId])
-  @@map("webhook_deliveries")
-}
-
 enum HotDealStatus {
   DRAFT
   UNDER_REVIEW
@@ -1655,4 +1412,185 @@ model HotDealSave {
   deal HotDeal @relation(fields: [dealId], references: [id], onDelete: Restrict)
   @@id([userId, dealId])
   @@map("hot_deal_saves")
+}
+
+// ============================================================================
+// COMMERCE & MESSAGING CORE DOMAINS
+// ============================================================================
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum OrderPaymentStatus {
+  UNPAID
+  PENDING
+  PAID
+  PARTIALLY_REFUNDED
+  REFUNDED
+  FAILED
+}
+
+enum DeliverableStatus {
+  PENDING
+  IN_PROGRESS
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+enum SmsChannel {
+  TRANSACTIONAL
+  OTP
+  PROMOTIONAL
+}
+
+enum SmsJobStatus {
+  QUEUED
+  SENDING
+  SENT
+  DELIVERED
+  FAILED
+  RETRYING
+  CANCELLED
+}
+
+enum RecipientDeliveryStatus {
+  PENDING
+  DELIVERED
+  FAILED
+  UNDELIVERED
+}
+
+enum SmsCampaignStatus {
+  DRAFT
+  SCHEDULED
+  RUNNING
+  PAUSED
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model Order {
+  id                    String             @id @default(uuid()) @db.Uuid
+  orderNumber           String             @unique
+  organizationId        String?            @db.Uuid
+  opportunityId         String?            @db.Uuid
+  partnerUserId         String?            @db.Uuid
+  customerUserId        String?            @db.Uuid
+  customerAccessToken   String             @unique @default(uuid())
+  status                OrderStatus        @default(PENDING)
+  paymentStatus         OrderPaymentStatus @default(UNPAID)
+  paymentAttemptId      String?            @db.Uuid
+  currency              String             @default("TZS")
+  subtotalMinor         BigInt
+  taxMinor              BigInt             @default(0)
+  totalAmountMinor      BigInt
+  commissionRateBps     Int                @default(0)
+  commissionAmountMinor BigInt             @default(0)
+  itemsJson             Json
+  shippingDetailsJson   Json?
+  metadata              Json?
+  confirmedAt           DateTime?
+  fulfilledAt           DateTime?
+  cancelledAt           DateTime?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  organization   Organization?   @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  opportunity    Opportunity?    @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+  partnerUser    User?           @relation("OrderPartner", fields: [partnerUserId], references: [id], onDelete: SetNull)
+  customerUser   User?           @relation("OrderCustomer", fields: [customerUserId], references: [id], onDelete: SetNull)
+  paymentAttempt PaymentAttempt? @relation(fields: [paymentAttemptId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([opportunityId])
+  @@index([partnerUserId])
+  @@index([customerUserId])
+  @@index([status])
+  @@index([paymentStatus])
+  @@map("orders")
+}
+
+model DealDeliverable {
+  id          String            @id @default(uuid()) @db.Uuid
+  dealRoomId  String            @db.Uuid
+  title       String
+  description String?           @db.Text
+  status      DeliverableStatus @default(PENDING)
+  dueAt       DateTime?
+  completedAt DateTime?
+  fileAssetId String?           @db.Uuid
+  createdById String            @db.Uuid
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  dealRoom  DealRoom   @relation(fields: [dealRoomId], references: [id], onDelete: Cascade)
+  fileAsset FileAsset? @relation(fields: [fileAssetId], references: [id], onDelete: SetNull)
+  createdBy User       @relation("DealDeliverableCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([dealRoomId])
+  @@index([status])
+  @@map("deal_deliverables")
+}
+
+model SmsJob {
+  id                String                  @id @default(uuid()) @db.Uuid
+  jobId             String                  @unique
+  campaignId        String?                 @db.Uuid
+  recipientPhone    String
+  messageBody       String                  @db.Text
+  channel           SmsChannel              @default(TRANSACTIONAL)
+  status            SmsJobStatus            @default(QUEUED)
+  deliveryStatus    RecipientDeliveryStatus @default(PENDING)
+  providerMessageId String?
+  providerStatus    String?
+  attempts          Int                     @default(0)
+  maxAttempts       Int                     @default(3)
+  sentAt            DateTime?
+  deliveredAt       DateTime?
+  failedAt          DateTime?
+  failureReason     String?
+  metadata          Json?
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+
+  campaign SmsCampaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+
+  @@index([recipientPhone])
+  @@index([status])
+  @@index([deliveryStatus])
+  @@index([campaignId])
+  @@map("sms_jobs")
+}
+
+model SmsCampaign {
+  id              String            @id @default(uuid()) @db.Uuid
+  name            String
+  description     String?
+  messageBody     String            @db.Text
+  channel         SmsChannel        @default(PROMOTIONAL)
+  status          SmsCampaignStatus @default(DRAFT)
+  totalRecipients Int               @default(0)
+  sentCount       Int               @default(0)
+  deliveredCount  Int               @default(0)
+  failedCount     Int               @default(0)
+  scheduledAt     DateTime?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  metadata        Json?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  jobs SmsJob[]
+
+  @@index([status])
+  @@map("sms_campaigns")
 }

@@ -17,6 +17,7 @@ import { normalizeTanzaniaPhone, maskPhoneNumber, isValidTanzaniaPhone } from '@
 import { providers, getActiveSmsProviderName } from '@/lib/providers'
 import { renderTemplate } from '@/modules/sms/templates'
 import { recordSmsJob } from '@/modules/sms/store'
+import { db } from '@/lib/db'
 
 export type OtpProviderType = 'BEEM' | 'LOCAL_MESEJI' | 'EMAIL'
 
@@ -71,6 +72,113 @@ function compareOtpHash(submittedCode: string, challengeId: string, expectedHash
   const bufB = Buffer.from(expectedHash, 'hex')
   if (bufA.length !== bufB.length) return false
   return crypto.timingSafeEqual(bufA, bufB)
+}
+
+/**
+ * Multi-instance and serverless persistence helper (Netlify / lambda)
+ */
+async function persistChallengeToDatabase(challenge: OtpChallengeRecord): Promise<void> {
+  if (process.env.NODE_ENV === 'test') return
+  try {
+    const key = `otp:${challenge.identifier}:${challenge.purpose}`
+    const payload = JSON.stringify({
+      challengeId: challenge.challengeId,
+      identifier: challenge.identifier,
+      provider: challenge.provider,
+      providerPinId: challenge.providerPinId,
+      hashedCode: challenge.hashedCode,
+      purpose: challenge.purpose,
+      attemptsRemaining: challenge.attemptsRemaining,
+      isUsed: challenge.isUsed,
+    })
+
+    await db.verification.deleteMany({
+      where: { identifier: key },
+    }).catch(() => {})
+
+    await db.verification.create({
+      data: {
+        identifier: key,
+        value: payload,
+        expiresAt: challenge.expiresAt,
+      },
+    }).catch(() => {})
+  } catch {
+    // Non-blocking in-memory fallback
+  }
+}
+
+async function loadChallengeFromDatabase(
+  normalizedId: string,
+  purpose: string,
+  challengeId?: string
+): Promise<{ recordId: string; challenge: OtpChallengeRecord } | null> {
+  if (process.env.NODE_ENV === 'test') return null
+  try {
+    const key = `otp:${normalizedId}:${purpose}`
+    const record = await db.verification.findFirst({
+      where: {
+        identifier: key,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    if (!record) return null
+
+    const data = JSON.parse(record.value)
+    if (challengeId && data.challengeId !== challengeId) return null
+    if (data.isUsed) return null
+
+    const challenge: OtpChallengeRecord = {
+      challengeId: data.challengeId,
+      identifier: data.identifier || normalizedId,
+      provider: data.provider,
+      providerPinId: data.providerPinId,
+      hashedCode: data.hashedCode,
+      purpose: data.purpose,
+      attemptsRemaining: data.attemptsRemaining ?? MAX_ATTEMPTS,
+      expiresAt: record.expiresAt,
+      cooldownExpiresAt: new Date(record.createdAt.getTime() + COOLDOWN_MS),
+      isUsed: data.isUsed ?? false,
+      isSuperseded: false,
+      createdAt: record.createdAt,
+    }
+
+    return { recordId: record.id, challenge }
+  } catch {
+    return null
+  }
+}
+
+async function updateChallengeInDatabase(
+  recordId: string,
+  challenge: OtpChallengeRecord
+): Promise<void> {
+  if (process.env.NODE_ENV === 'test') return
+  try {
+    if (challenge.isUsed) {
+      await db.verification.deleteMany({ where: { id: recordId } }).catch(() => {})
+    } else {
+      await db.verification.update({
+        where: { id: recordId },
+        data: {
+          value: JSON.stringify({
+            challengeId: challenge.challengeId,
+            identifier: challenge.identifier,
+            provider: challenge.provider,
+            providerPinId: challenge.providerPinId,
+            hashedCode: challenge.hashedCode,
+            purpose: challenge.purpose,
+            attemptsRemaining: challenge.attemptsRemaining,
+            isUsed: challenge.isUsed,
+          }),
+        },
+      }).catch(() => {})
+    }
+  } catch {
+    // Non-blocking
+  }
 }
 
 /**
@@ -160,6 +268,7 @@ export async function createAndSendOtp(params: {
     }
 
     otpChallengesStore.unshift(challenge)
+    await persistChallengeToDatabase(challenge)
 
     // Stage in SMS Audit Store without generating a redundant local code
     const templateCode = params.purpose === 'PASSWORD_RESET' ? 'PASSWORD_RESET_OTP' : 'USER_REGISTRATION_OTP'
@@ -209,6 +318,7 @@ export async function createAndSendOtp(params: {
   }
 
   otpChallengesStore.unshift(challenge)
+  await persistChallengeToDatabase(challenge)
 
   const templateCode = params.purpose === 'PASSWORD_RESET' ? 'PASSWORD_RESET_OTP' : 'USER_REGISTRATION_OTP'
   const rendered = renderTemplate(templateCode, { code: numericCode }, params.language || 'EN')
@@ -280,25 +390,41 @@ export async function verifyOtpChallenge(params: {
   const normalizedId = isPhone ? normalizeTanzaniaPhone(params.identifier) : params.identifier.toLowerCase().trim()
   const cleanCode = params.code.trim()
 
-  const challenge = otpChallengesStore.find((c) => {
+  let challenge = otpChallengesStore.find((c) => {
     if (params.challengeId && c.challengeId !== params.challengeId) return false
     if (params.purpose && c.purpose !== params.purpose) return false
     return c.identifier === normalizedId && !c.isUsed && !c.isSuperseded
   })
 
+  let dbRecord: { recordId: string; challenge: OtpChallengeRecord } | null = null
+  if (!challenge) {
+    dbRecord = await loadChallengeFromDatabase(normalizedId, params.purpose || 'REGISTRATION', params.challengeId)
+    if (dbRecord) {
+      challenge = dbRecord.challenge
+    }
+  }
+
   if (!challenge) {
     return { success: false, error: 'NO_ACTIVE_CHALLENGE', attemptsRemaining: 0 }
+  }
+
+  const syncDb = async () => {
+    if (dbRecord && challenge) {
+      await updateChallengeInDatabase(dbRecord.recordId, challenge)
+    }
   }
 
   // Check expiration
   if (new Date() > challenge.expiresAt) {
     challenge.isUsed = true
+    await syncDb()
     return { success: false, error: 'OTP_EXPIRED', attemptsRemaining: 0 }
   }
 
   // Check remaining attempts
   if (challenge.attemptsRemaining <= 0) {
     challenge.isUsed = true
+    await syncDb()
     return { success: false, error: 'MAX_ATTEMPTS_EXCEEDED', attemptsRemaining: 0 }
   }
 
@@ -306,6 +432,7 @@ export async function verifyOtpChallenge(params: {
   if (challenge.provider === 'BEEM') {
     if (!challenge.providerPinId) {
       challenge.isUsed = true
+      await syncDb()
       return { success: false, error: 'NO_ACTIVE_CHALLENGE', attemptsRemaining: 0 }
     }
 
@@ -319,17 +446,21 @@ export async function verifyOtpChallenge(params: {
 
       if (verifyRes.code === 115) {
         challenge.isUsed = true
+        await syncDb()
         return { success: false, error: 'OTP_EXPIRED', attemptsRemaining: 0 }
       }
       if (verifyRes.code === 116 || challenge.attemptsRemaining <= 0) {
         challenge.isUsed = true
+        await syncDb()
         return { success: false, error: 'MAX_ATTEMPTS_EXCEEDED', attemptsRemaining: 0 }
       }
       if (verifyRes.code === 118) {
         challenge.isUsed = true
+        await syncDb()
         return { success: false, error: 'DUPLICATE_PIN', attemptsRemaining: 0 }
       }
 
+      await syncDb()
       return {
         success: false,
         error: 'INVALID_CODE',
@@ -346,8 +477,10 @@ export async function verifyOtpChallenge(params: {
       challenge.attemptsRemaining -= 1
       if (challenge.attemptsRemaining <= 0) {
         challenge.isUsed = true
+        await syncDb()
         return { success: false, error: 'MAX_ATTEMPTS_EXCEEDED', attemptsRemaining: 0 }
       }
+      await syncDb()
       return {
         success: false,
         error: 'INVALID_CODE',
@@ -358,6 +491,7 @@ export async function verifyOtpChallenge(params: {
 
   // Positive result: Mark challenge consumed (atomic single-use)
   challenge.isUsed = true
+  await syncDb()
 
   // Issue password reset token if this was for password recovery
   let resetToken: string | undefined
