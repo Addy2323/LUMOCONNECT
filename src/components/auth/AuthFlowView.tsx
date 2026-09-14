@@ -701,17 +701,16 @@ export function AuthFlowView({
   const handleDigitChange = (index: number, value: string) => {
     setOtpError(null)
 
-    // Handle single character or pasted string
+    // Handle single character or pasted string / mobile SMS autofill
     if (value.length > 1) {
-      // Pasted full code
       const pastedCode = value.replace(/\D/g, '').slice(0, 6)
       if (pastedCode) {
-        const newDigits = [...otpDigits]
-        for (let i = 0; i < 6; i++) {
+        const newDigits = ['', '', '', '', '', '']
+        for (let i = 0; i < pastedCode.length; i++) {
           newDigits[i] = pastedCode[i] || ''
         }
         setOtpDigits(newDigits)
-        const focusIdx = Math.min(pastedCode.length, 5)
+        const focusIdx = Math.min(pastedCode.length - 1, 5)
         inputRefs.current[focusIdx]?.focus()
 
         if (pastedCode.length === 6) {
@@ -925,7 +924,7 @@ export function AuthFlowView({
                     pattern="[0-9]*"
                     autoComplete={idx === 0 ? 'one-time-code' : 'off'}
                     aria-label={`Verification code digit ${idx + 1}`}
-                    maxLength={1}
+                    maxLength={idx === 0 ? 6 : 1}
                     value={digit}
                     onChange={(e) => handleDigitChange(idx, e.target.value)}
                     onKeyDown={(e) => handleKeyDown(idx, e)}
@@ -961,7 +960,7 @@ export function AuthFlowView({
 
           {/* Success Check Feedback */}
           {isPhoneVerified && (
-            <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center justify-center gap-2 animate-in fade-in zoom-in-95 duration-200">
+            <div key="phone-verified-banner" className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center justify-center gap-2 animate-in fade-in zoom-in-95 duration-200">
               <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
               <span>Phone number verified successfully! Proceeding to next step...</span>
             </div>
@@ -969,7 +968,7 @@ export function AuthFlowView({
 
           {/* Error Message */}
           {otpError && (
-            <div className="space-y-2 max-w-md mx-auto">
+            <div key="otp-error-banner" className="space-y-2 max-w-md mx-auto">
               <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>{otpError}</span>
