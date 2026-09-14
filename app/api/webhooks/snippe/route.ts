@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { SnippePaymentAdapter } from '@/lib/providers/snippe'
 import { postJournalEntry, CHART_OF_ACCOUNTS } from '@/lib/ledger'
 import { emitOutboxEvent } from '@/lib/outbox'
+import { activateSubscriptionInDatabase } from '@/modules/subscriptions/fulfillment'
 
 // Processed webhook idempotency cache
 const processedSnippeEventIds = new Set<string>()
@@ -138,6 +139,24 @@ export async function POST(request: NextRequest) {
           customerPhone: paymentData.customer?.phone,
         }
       )
+
+      // Fulfill subscription in database if this was a subscription payment
+      const planCode = (paymentData.metadata?.planCode || paymentData.metadata?.plan_code) as string
+      const subUserId = (paymentData.metadata?.userId || paymentData.metadata?.user_id) as string
+      const source = paymentData.metadata?.source as string
+
+      if (planCode || source === 'SUBSCRIPTION_CHECKOUT' || orderId.startsWith('SUB-') || orderId.startsWith('pay_sub_')) {
+        await activateSubscriptionInDatabase({
+          userId: subUserId,
+          email: paymentData.customer?.email,
+          phone: paymentData.customer?.phone,
+          planCode: planCode || (grossTZS >= 150000 ? 'ANNUAL' : grossTZS >= 80000 ? 'SEMI_ANNUAL' : grossTZS >= 45000 ? 'GOLDEN_VIP' : 'MONTHLY'),
+          amountTZS: grossTZS,
+          providerReference: reference,
+        }).catch((err) => {
+          console.warn('[SNIPPE WEBHOOK] Error activating subscription in DB:', err)
+        })
+      }
     }
 
     // 5. Handle Failed Payment

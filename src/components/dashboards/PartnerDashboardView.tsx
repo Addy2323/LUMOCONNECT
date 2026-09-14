@@ -35,7 +35,7 @@ import { HelpSupportTab } from './partner/tabs/HelpSupportTab'
 
 // Services
 import { listOpportunities } from '@/modules/deals/service'
-import { getUserSubscription } from '@/modules/subscriptions/service'
+import { getUserSubscription, setUserSubscription } from '@/modules/subscriptions/service'
 import type { OpportunityItem } from '@/modules/deals/types'
 
 // Initial Mock Data
@@ -50,6 +50,7 @@ import { calculatePartnerProfileCompletion } from './partner/profileCompletion'
 
 interface PartnerDashboardViewProps {
   initialTab?: PartnerSidebarSection
+  userId?: string
   partnerName?: string
   email?: string
   phone?: string
@@ -94,6 +95,7 @@ function mapOpportunityToPartnerSummary(
 
 export function PartnerDashboardView({
   initialTab = 'overview',
+  userId,
   partnerName = 'Alex M.',
   email,
   phone,
@@ -116,7 +118,7 @@ export function PartnerDashboardView({
     })
   )
 
-  // Central state managed across Partner tabs
+  const [subscription, setSubscription] = useState<PartnerSubscriptionPlan>(MOCK_PARTNER_SUBSCRIPTION)
   const [opportunities, setOpportunities] = useState<PartnerOpportunitySummary[]>([])
   const [joinedDeals, setJoinedDeals] = useState<JoinedDealItem[]>(() => {
     if (typeof window !== 'undefined') {
@@ -131,13 +133,12 @@ export function PartnerDashboardView({
   })
   const [leads, setLeads] = useState<PartnerLeadItem[]>(MOCK_PARTNER_LEADS)
   const [performance, setPerformance] = useState<PartnerPerformanceMetrics>(MOCK_PARTNER_PERFORMANCE)
-  const [subscription, setSubscription] = useState<PartnerSubscriptionPlan>(MOCK_PARTNER_SUBSCRIPTION)
 
   // Submit Lead Modal Trigger
   const [showSubmitLeadModal, setShowSubmitLeadModal] = useState(false)
   const [selectedDealForLead, setSelectedDealForLead] = useState<JoinedDealItem | null>(null)
 
-  // Reload Opportunities & Saved Bookmarks
+  // Reload Opportunities from shared storage
   const reloadOpportunities = useCallback(() => {
     let savedIds: string[] = []
     if (typeof window !== 'undefined') {
@@ -153,24 +154,55 @@ export function PartnerDashboardView({
     setOpportunities(mapped)
   }, [])
 
-  // Reload Subscription Status
+  // Reload Subscription Status from local store and database
   const reloadSubscription = useCallback(() => {
-    const userIdentifier = email || partnerName
-    const userSub = userIdentifier ? getUserSubscription(userIdentifier) : null
-    if (userSub && userSub.isActive) {
+    // 1. Immediate sync from local/memory store
+    const localSub =
+      (userId ? getUserSubscription(userId) : null) ||
+      (email ? getUserSubscription(email) : null) ||
+      (partnerName ? getUserSubscription(partnerName) : null)
+
+    if (localSub && localSub.isActive) {
       setSubscription({
-        planName: userSub.planName,
+        planName: localSub.planName,
         status: 'ACTIVE',
-        daysRemaining: userSub.daysRemaining,
-        priceTZS: userSub.amountPaidTZS || 25000,
-        cycle: (userSub.planCode as any) || 'MONTHLY',
-        expiryDate: userSub.expiresAt ? new Date(userSub.expiresAt).toLocaleDateString() : '—',
-        autoRenew: userSub.autoRenew,
+        daysRemaining: localSub.daysRemaining,
+        priceTZS: localSub.amountPaidTZS || 25000,
+        cycle: (localSub.planCode as any) || 'MONTHLY',
+        expiryDate: localSub.expiresAt ? new Date(localSub.expiresAt).toLocaleDateString() : '—',
+        autoRenew: localSub.autoRenew,
       })
     } else {
       setSubscription(MOCK_PARTNER_SUBSCRIPTION)
     }
-  }, [email, partnerName])
+
+    // 2. Query server database for permanently stored subscription
+    if (typeof window !== 'undefined' && (userId || email)) {
+      const q = new URLSearchParams()
+      if (userId) q.set('userId', userId)
+      if (email) q.set('email', email)
+
+      fetch(`/api/subscriptions/active?${q.toString()}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data?.success && data.hasActiveSubscription && data.subscription) {
+            const s = data.subscription
+            setSubscription({
+              planName: s.planName,
+              status: 'ACTIVE',
+              daysRemaining: s.daysRemaining,
+              priceTZS: s.amountPaidTZS || 25000,
+              cycle: (s.planCode as any) || 'MONTHLY',
+              expiryDate: s.expiresAt ? new Date(s.expiresAt).toLocaleDateString() : '—',
+              autoRenew: s.autoRenew,
+            })
+            if (userId) setUserSubscription(userId, s)
+            if (email) setUserSubscription(email, s)
+          }
+        })
+        .catch(() => {})
+    }
+  }, [userId, email, partnerName])
 
   // Reload Joined Deals
   const reloadJoinedDeals = useCallback(() => {

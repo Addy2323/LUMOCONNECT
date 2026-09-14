@@ -27,6 +27,8 @@ import type { EnterpriseInquiryInput, SubscriptionPlanItem, SubscriptionPlanCode
 
 interface SubscriptionsViewProps {
   currentUserId?: string
+  userEmail?: string
+  userPhone?: string
   returnTo?: string
   intent?: 'view' | 'join'
   reasonMessage?: string
@@ -38,6 +40,8 @@ interface SubscriptionsViewProps {
 
 export function SubscriptionsView({
   currentUserId,
+  userEmail,
+  userPhone,
   returnTo,
   intent,
   reasonMessage = "Subscribe now to unlock this deal. You'll return automatically after payment.",
@@ -114,12 +118,32 @@ export function SubscriptionsView({
 
   const completeSuccessfulSubscription = (targetPlan: SubscriptionPlanItem) => {
     const days = targetPlan.code === 'SEMI_ANNUAL' ? 180 : targetPlan.code === 'ANNUAL' ? 365 : 30
+    const primaryId = currentUserId || userEmail || 'guest_subscriber'
     const updated = grantUserSubscription(
-      currentUserId || 'guest_subscriber',
+      primaryId,
       targetPlan.code,
       days,
       targetPlan.priceTZS
     )
+    if (userEmail && userEmail !== primaryId) {
+      grantUserSubscription(userEmail, targetPlan.code, days, targetPlan.priceTZS)
+    }
+
+    // Notify backend to persist in PostgreSQL database immediately
+    fetch('/api/subscriptions/activate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: currentUserId,
+        email: userEmail,
+        phone: phoneNumber || userPhone,
+        planCode: targetPlan.code,
+        amountTZS: targetPlan.priceTZS,
+        providerReference: paymentReference,
+      }),
+    }).catch((err) => {
+      console.warn('Could not persist subscription to server:', err)
+    })
 
     setPaymentSuccessData({
       planName: targetPlan.name,

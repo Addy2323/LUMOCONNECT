@@ -157,10 +157,15 @@ export default function LumoApp() {
     }
   }
 
-  // Subscription status check
+  const [dealsRevision, setDealsRevision] = useState(0)
+
+  // Subscription status check (checks both userId UUID and email for robust session continuity)
   const userSub = useMemo(() => {
-    return currentUserId ? getUserSubscription(currentUserId) : null
-  }, [currentUserId, activeView])
+    return (
+      (currentUserId ? getUserSubscription(currentUserId) : null) ||
+      (userDetails.email ? getUserSubscription(userDetails.email) : null)
+    )
+  }, [currentUserId, userDetails.email, activeView, dealsRevision])
 
   const hasActiveSubscription = mounted ? Boolean(userSub && userSub.isActive) : false
   const isGoldenVipUser = mounted
@@ -172,12 +177,29 @@ export default function LumoApp() {
       )
     : false
 
+  // Synchronize active subscription from database whenever user identity is present
+  useEffect(() => {
+    if (!currentUserId && !userDetails.email) return
+    const q = new URLSearchParams()
+    if (currentUserId) q.set('userId', currentUserId)
+    if (userDetails.email) q.set('email', userDetails.email)
+
+    fetch(`/api/subscriptions/active?${q.toString()}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.success && data.hasActiveSubscription && data.subscription) {
+          if (currentUserId) setUserSubscription(currentUserId, data.subscription)
+          if (userDetails.email) setUserSubscription(userDetails.email, data.subscription)
+          setDealsRevision((r) => r + 1)
+        }
+      })
+      .catch(() => {})
+  }, [currentUserId, userDetails.email])
+
   const handleConnectWhatsApp = (deal: OpportunityItem) => {
     setSelectedDealForWhatsApp(deal)
     setShowWhatsAppModal(true)
   }
-
-  const [dealsRevision, setDealsRevision] = useState(0)
 
   useEffect(() => {
     const lockedPhoto = localStorage.getItem(`lumo_locked_profile_photo:${userDetails.email.toLowerCase()}`)
@@ -579,6 +601,8 @@ export default function LumoApp() {
         {activeView === 'subscriptions' && (
           <SubscriptionsView
             currentUserId={currentUserId}
+            userEmail={userDetails.email}
+            userPhone={userDetails.phone}
             returnTo={subscriptionRedirectContext.returnTo}
             intent={subscriptionRedirectContext.intent}
             reasonMessage={subscriptionRedirectContext.reasonMessage}
@@ -604,6 +628,7 @@ export default function LumoApp() {
             partnerName={userDetails.name || 'Partner'}
             email={userDetails.email}
             phone={userDetails.phone}
+            userId={currentUserId}
             profilePhotoUrl={userDetails.profilePhotoUrl}
             onOpenStatement={() => setActiveView('statement')}
             onExploreDeals={() => setActiveView('marketplace')}
@@ -846,6 +871,25 @@ export default function LumoApp() {
                   }))
                   if (authUser?.id) {
                     setCurrentUserId(authUser.id)
+                  }
+
+                  // Synchronize subscription from PostgreSQL database on login
+                  const syncUid = authUser?.id
+                  const syncEmail = email
+                  if (syncUid || syncEmail) {
+                    const q = new URLSearchParams()
+                    if (syncUid) q.set('userId', syncUid)
+                    if (syncEmail) q.set('email', syncEmail)
+                    fetch(`/api/subscriptions/active?${q.toString()}`)
+                      .then((res) => (res.ok ? res.json() : null))
+                      .then((data) => {
+                        if (data?.success && data.hasActiveSubscription && data.subscription) {
+                          if (syncUid) setUserSubscription(syncUid, data.subscription)
+                          if (syncEmail) setUserSubscription(syncEmail, data.subscription)
+                          setDealsRevision((r) => r + 1)
+                        }
+                      })
+                      .catch(() => {})
                   }
 
                   let target = availableWorkspaces.find((w) => w.type === effectiveRole) || INITIAL_WORKSPACES.find((w) => w.type === effectiveRole) || availableWorkspaces[1]
