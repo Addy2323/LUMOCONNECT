@@ -330,13 +330,15 @@ export function AuthFlowView({
   }
 
   const handleAdvanceToDocuments = () => {
-    if (role === 'PARTNER' && identityCheck.status !== 'VERIFIED') {
+    if (role === 'PARTNER' && identityNumber.trim()) {
       const error = validateIdentityNumber(identityType, identityNumber)
-      setIdentityCheck({
-        status: 'ERROR',
-        message: error || 'Select Verify number before continuing to document upload.',
-      })
-      return
+      if (error) {
+        setIdentityCheck({
+          status: 'ERROR',
+          message: error,
+        })
+        return
+      }
     }
     setCurrentStep(4)
   }
@@ -1209,48 +1211,11 @@ export function AuthFlowView({
                           : 'border-[#E2E8F0] dark:border-slate-800'
                     }`}
                   />
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-800/40">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2 text-[10px] font-extrabold uppercase tracking-wide">
-                      <span className="text-[#FF6A00]">1. Enter details</span>
-                      <span className={identityCheck.status === 'VERIFIED' ? 'text-emerald-600' : 'text-slate-400'}>2. Format check</span>
-                      <span className="text-slate-400">3. Upload document</span>
-                    </div>
-                    {identityCheck.status !== 'IDLE' && (
-                      <p className={`mt-1.5 text-[11px] font-semibold ${
-                        identityCheck.status === 'ERROR'
-                          ? 'text-red-600'
-                          : identityCheck.status === 'VERIFIED'
-                            ? 'text-emerald-700 dark:text-emerald-400'
-                            : 'text-blue-700 dark:text-blue-400'
-                      }`}>
-                        {identityCheck.message}
-                      </p>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleIdentityVerification}
-                    disabled={!identityNumber.trim() || identityCheck.status === 'CHECKING'}
-                    className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#0B132B] px-4 py-2 text-xs font-extrabold text-white transition-colors hover:bg-[#162347] disabled:cursor-not-allowed disabled:bg-slate-300"
-                  >
-                    {identityCheck.status === 'CHECKING' ? (
-                      <LoaderCircle className="h-4 w-4 animate-spin" />
-                    ) : identityCheck.status === 'VERIFIED' ? (
-                      <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                    ) : (
-                      <ShieldCheck className="h-4 w-4" />
-                    )}
-                    {identityCheck.status === 'CHECKING'
-                      ? 'Checking…'
-                      : identityCheck.status === 'VERIFIED'
-                        ? 'Format verified'
-                        : 'Verify number'}
-                  </button>
+                  {identityCheck.status === 'ERROR' && identityCheck.message && (
+                    <p className="mt-1 text-[11px] font-semibold text-red-600">
+                      {identityCheck.message}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -1410,25 +1375,6 @@ export function AuthFlowView({
             </h2>
             <p className="text-xs sm:text-sm text-[#64748B] dark:text-slate-400 mt-1">
               Upload statutory verification files. Verification guarantees compliant commission settlements and business integrity.
-            </p>
-          </div>
-
-          {/* Compliance Info Banner */}
-          <div className="p-4 sm:p-5 rounded-2xl border border-blue-200 dark:border-blue-900/50 bg-blue-50/70 dark:bg-blue-950/30 space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-blue-600 shrink-0" />
-                <span className="font-bold text-xs sm:text-sm text-blue-950 dark:text-blue-200">
-                  Compliance Status:
-                </span>
-              </div>
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-blue-600 text-white shadow-2xs">
-                {Object.keys(uploadedDocs).length > 0 ? 'READY FOR REVIEW' : 'PENDING UPLOAD'}
-              </span>
-            </div>
-
-            <p className="text-xs text-blue-900 dark:text-blue-300 leading-relaxed">
-              Documents are encrypted with 256-bit AES statutory safeguarding. Verification against official BRELA and NIDA registries takes place within 24 hours. You can continue with setup right away.
             </p>
           </div>
 
