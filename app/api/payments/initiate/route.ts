@@ -68,7 +68,10 @@ export async function POST(request: NextRequest) {
           : 'MPESA',
       callbackUrl:
         process.env.SNIPPE_WEBHOOK_URL ||
-        (request.nextUrl.origin && request.nextUrl.origin.startsWith('https://')
+        (request.nextUrl.origin &&
+        request.nextUrl.origin.startsWith('https://') &&
+        !request.nextUrl.origin.includes('localhost') &&
+        !request.nextUrl.origin.includes('127.0.0.1')
           ? `${request.nextUrl.origin}/api/webhooks/snippe`
           : 'https://lumo.co.tz/api/webhooks/snippe'),
       metadata,
