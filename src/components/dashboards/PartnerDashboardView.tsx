@@ -504,7 +504,7 @@ export function PartnerDashboardView({
             <><EarningsPayoutsTab />{onOpenStatement && <button type="button" onClick={onOpenStatement} className="text-sm font-semibold text-orange-700">Open earnings statement</button>}</>
           )}
 
-          {activeTab === 'notifications' && <NotificationsTab />}
+          {activeTab === 'notifications' && <NotificationsTab onNavigateTab={setActiveTab} />}
 
           {/* GROUP 3: ACCOUNT */}
           {activeTab === 'profile_verification' && (
