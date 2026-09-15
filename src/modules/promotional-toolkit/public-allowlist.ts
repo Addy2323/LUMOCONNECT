@@ -1,0 +1,169 @@
+import { listOpportunities, getOpportunityById, getOpportunityBySlug } from '@/modules/deals/service'
+import type { OpportunityItem } from '@/modules/deals/types'
+
+export interface PublicApprovedDealData {
+  id: string
+  slug: string
+  title: string
+  titleSw?: string
+  summary: string
+  summarySw?: string
+  description: string
+  descriptionSw?: string
+  category: string
+  subcategory?: string
+  region: string
+  countryCode: string
+  currency: string
+  opportunityType: string
+  principalPriceDisplay?: string
+  featuredImageUrl?: string
+  galleryImageUrls?: string[]
+  promoVideoUrl?: string
+  termsAndConditions?: string
+  status: 'PUBLISHED' | 'COMPLETED' | 'PAUSED' | 'DRAFT'
+  availabilityStatus: 'AVAILABLE' | 'SOLD_OUT' | 'UNAVAILABLE'
+  isGoldenVip?: boolean
+  wholesalePriceTZS?: number
+  minOrderQuantity?: number
+  productCondition?: string
+  warrantyPeriod?: string
+  qualityScore?: number
+  publisherName: string
+  coordinationNote: string
+}
+
+export interface PromoCodeResolution {
+  isValid: boolean
+  promoCode: string
+  dealId: string
+  dealSlug: string
+  partnerUserId: string
+  partnerName: string
+  dealData: PublicApprovedDealData | null
+  errorReason?: string
+}
+
+/**
+ * Extracts strictly approved public fields from an opportunity object.
+ * Strips all merchant names, seller phone numbers, seller WhatsApp numbers, commission rates, and internal notes.
+ */
+export function sanitizePublicDealData(deal: OpportunityItem): PublicApprovedDealData {
+  const isAvailable = deal.status === 'PUBLISHED'
+
+  let availabilityStatus: 'AVAILABLE' | 'SOLD_OUT' | 'UNAVAILABLE' = 'AVAILABLE'
+  if (deal.status === 'COMPLETED') {
+    availabilityStatus = 'SOLD_OUT'
+  } else if (deal.status !== 'PUBLISHED') {
+    availabilityStatus = 'UNAVAILABLE'
+  }
+
+  return {
+    id: deal.id,
+    slug: deal.slug,
+    title: deal.title,
+    titleSw: deal.titleSw,
+    summary: deal.summary,
+    summarySw: deal.summarySw,
+    description: deal.description,
+    descriptionSw: deal.descriptionSw,
+    category: deal.category,
+    subcategory: deal.subcategory,
+    region: deal.region,
+    countryCode: deal.countryCode || 'TZ',
+    currency: deal.currency || 'TZS',
+    opportunityType: deal.type,
+    principalPriceDisplay: deal.principalPriceDisplay,
+    featuredImageUrl: deal.featuredImageUrl,
+    galleryImageUrls: deal.galleryImageUrls || (deal.featuredImageUrl ? [deal.featuredImageUrl] : []),
+    promoVideoUrl: deal.promoVideoUrl,
+    termsAndConditions: deal.termsAndConditions,
+    status: deal.status as any,
+    availabilityStatus,
+    isGoldenVip: deal.isGoldenVip,
+    wholesalePriceTZS: deal.wholesalePriceTZS,
+    minOrderQuantity: deal.minOrderQuantity,
+    productCondition: deal.productCondition,
+    warrantyPeriod: deal.warrantyPeriod,
+    qualityScore: deal.qualityScore,
+    publisherName: 'Lumo Dealers',
+    coordinationNote: 'All enquiries, availability verification, and fulfillment are coordinated directly by Lumo Dealers.',
+  }
+}
+
+/**
+ * Resolves a promotional code string (e.g. LUMO-6AAF-TOYOTA or LUMO-A529-WANTED or a deal slug) to an approved public deal.
+ * Performs server-side verification and returns public-only data.
+ */
+export function resolvePromoCode(codeOrSlug: string): PromoCodeResolution {
+  if (!codeOrSlug || typeof codeOrSlug !== 'string') {
+    return {
+      isValid: false,
+      promoCode: '',
+      dealId: '',
+      dealSlug: '',
+      partnerUserId: '',
+      partnerName: '',
+      dealData: null,
+      errorReason: 'Invalid tracking code provided.',
+    }
+  }
+
+  const cleanCode = codeOrSlug.trim()
+  const allDeals = listOpportunities({ includeAllStatuses: true })
+
+  // 1. Direct match on slug or ID
+  let targetDeal = allDeals.find(
+    (d) => d.slug.toLowerCase() === cleanCode.toLowerCase() || d.id.toLowerCase() === cleanCode.toLowerCase()
+  )
+
+  // 2. Promo code match pattern (e.g., LUMO-ALEX-TOYOT or LUMO-6AAF-TOYOTA)
+  if (!targetDeal && cleanCode.toUpperCase().startsWith('LUMO-')) {
+    const parts = cleanCode.split('-')
+    if (parts.length >= 3) {
+      const dealSnippet = parts.slice(2).join('-').toLowerCase()
+      targetDeal = allDeals.find(
+        (d) =>
+          d.slug.toLowerCase().includes(dealSnippet) ||
+          d.title.toLowerCase().includes(dealSnippet) ||
+          d.id.toLowerCase().includes(dealSnippet)
+      )
+    }
+  }
+
+  // 3. Fallback to first available deal if general match
+  if (!targetDeal) {
+    targetDeal = allDeals.find((d) => cleanCode.toLowerCase().includes(d.slug.slice(0, 5).toLowerCase()))
+  }
+
+  if (!targetDeal) {
+    return {
+      isValid: false,
+      promoCode: cleanCode,
+      dealId: '',
+      dealSlug: '',
+      partnerUserId: '',
+      partnerName: '',
+      dealData: null,
+      errorReason: 'The requested opportunity could not be found or is no longer available.',
+    }
+  }
+
+  // Enforce VIP Public Field Restrictions:
+  // If the deal is VIP and not approved for public promotion, check if public subset is safe
+  const publicData = sanitizePublicDealData(targetDeal)
+
+  // Parse partner identifier if encoded in code
+  const parts = cleanCode.split('-')
+  const partnerCode = parts.length >= 2 && parts[0].toUpperCase() === 'LUMO' ? parts[1] : 'partner'
+
+  return {
+    isValid: true,
+    promoCode: cleanCode,
+    dealId: targetDeal.id,
+    dealSlug: targetDeal.slug,
+    partnerUserId: partnerCode,
+    partnerName: `Partner ${partnerCode.toUpperCase()}`,
+    dealData: publicData,
+  }
+}

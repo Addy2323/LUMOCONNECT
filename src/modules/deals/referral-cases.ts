@@ -413,3 +413,45 @@ export function disputeReferralReward(caseId: string, reason: string): boolean {
   syncCasesToStorage()
   return true
 }
+
+export function getReferralCaseByTrackingNumber(trackingRef: string): ReferralCase | null {
+  loadCasesFromStorage()
+  return inMemoryCases.find((c) => c.reference.toLowerCase() === trackingRef.toLowerCase()) || null
+}
+
+export function submitCustomerReferralEnquiry(input: {
+  promoCode: string
+  dealId: string
+  dealSlug: string
+  dealTitle: string
+  customerName: string
+  customerPhone: string
+  customerRegion?: string
+  notes?: string
+}): {
+  success: boolean
+  message: string
+  referralCase?: ReferralCase
+} {
+  const nameParts = input.customerName.trim().split(' ')
+  const customerFirstName = nameParts[0] || 'Customer'
+  const customerLastName = nameParts.slice(1).join(' ') || 'Enquirer'
+
+  const parts = input.promoCode.split('-')
+  const partnerCode = parts.length >= 2 ? parts[1] : 'partner'
+
+  return submitCustomerReferral({
+    dealId: input.dealId,
+    dealTitle: input.dealTitle,
+    dealSlug: input.dealSlug,
+    partnerUserId: partnerCode,
+    partnerName: `Partner ${partnerCode.toUpperCase()}`,
+    partnerPhone: '+255700000000',
+    customerFirstName,
+    customerLastName,
+    customerPhone: input.customerPhone,
+    contactPermissionConfirmed: true,
+    additionalNotes: input.notes,
+  })
+}
+

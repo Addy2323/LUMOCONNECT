@@ -23,6 +23,7 @@ export type AdminSidebarSection =
   | 'notifications'
   | 'sms'
   | 'content'
+  | 'promo_templates'
   | 'roles'
   | 'integrations'
   | 'settings'

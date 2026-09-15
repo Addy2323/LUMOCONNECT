@@ -11,7 +11,6 @@ import {
   Clock,
   Send,
   FileText,
-  ShieldCheck,
   Lock,
   X,
   MessageSquare,
@@ -165,14 +164,6 @@ export function LeadsReferralsTab({
           <Plus className="w-4 h-4" />
           <span>I Have a Customer</span>
         </button>
-      </div>
-
-      {/* Lumo Dealers Operating Model Disclaimer Banner */}
-      <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-900 dark:text-amber-200 leading-relaxed flex items-start gap-2.5">
-        <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-        <div>
-          <strong>Commercial Settlement Notice:</strong> Lumo Dealers charges subscription fees for access to opportunities and provides referral coordination. Customers pay merchants directly, and merchants pay agreed referral rewards directly to partners. Lumo does not collect, hold or disburse these transaction payments or rewards.
-        </div>
       </div>
 
       {/* Filter Bar */}

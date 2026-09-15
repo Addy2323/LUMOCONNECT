@@ -125,6 +125,7 @@ function getNavGroups({
         { id: 'notifications', label: 'Notifications', icon: Bell, opType: 'Template & Delivery' },
         { id: 'sms', label: 'SMS Operations', icon: MessageSquare, opType: 'SMS Telco Gateway' },
         { id: 'content', label: 'Content & Promotions', icon: Megaphone, opType: 'Publish/Archive' },
+        { id: 'promo_templates', label: 'Promo Card Templates', icon: Sparkles, opType: 'Template & Layout Rules' },
         { id: 'roles', label: 'Roles & Permissions', icon: UserCog, opType: 'C/R/U/Revoke' },
         { id: 'integrations', label: 'Integrations & Webhooks', icon: Webhook, opType: 'API & Gateways' },
         { id: 'settings', label: 'System Settings', icon: Settings, opType: 'Versioned Config' },

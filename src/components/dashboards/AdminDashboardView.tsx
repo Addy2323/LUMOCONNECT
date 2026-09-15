@@ -39,6 +39,7 @@ import { AuditLogsTab } from './admin/tabs/AuditLogsTab'
 import { NotificationsTab } from './admin/tabs/NotificationsTab'
 import { AdminSmsCenterTab } from './admin/tabs/AdminSmsCenterTab'
 import { ContentPromotionsTab } from './admin/tabs/ContentPromotionsTab'
+import { AdminPromotionalTemplatesTab } from './admin/tabs/AdminPromotionalTemplatesTab'
 import { RolesPermissionsTab } from './admin/tabs/RolesPermissionsTab'
 import { IntegrationsWebhooksTab } from './admin/tabs/IntegrationsWebhooksTab'
 import { SystemSettingsTab } from './admin/tabs/SystemSettingsTab'
@@ -154,6 +155,7 @@ export function AdminDashboardView({
               {activeTab === 'notifications' && 'Automated Communications & Notifications'}
               {activeTab === 'sms' && 'SMS Operations Centre'}
               {activeTab === 'content' && 'Promotions, Banners & Featured Content'}
+              {activeTab === 'promo_templates' && 'Promotional Card Templates & Controls'}
               {activeTab === 'roles' && 'Internal RBAC Roles & Privileges'}
               {activeTab === 'integrations' && 'Payment Gateways & Webhooks'}
               {activeTab === 'settings' && 'Platform Settings & Versioned Config'}
@@ -216,6 +218,7 @@ export function AdminDashboardView({
         {activeTab === 'notifications' && <NotificationsTab />}
         {activeTab === 'sms' && <AdminSmsCenterTab />}
         {activeTab === 'content' && <ContentPromotionsTab />}
+        {activeTab === 'promo_templates' && <AdminPromotionalTemplatesTab />}
         {activeTab === 'roles' && <RolesPermissionsTab />}
         {activeTab === 'integrations' && <IntegrationsWebhooksTab />}
         {activeTab === 'settings' && <SystemSettingsTab />}
