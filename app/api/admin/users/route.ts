@@ -3,6 +3,7 @@ import { randomBytes, randomUUID, scryptSync } from 'crypto'
 import { z } from 'zod'
 import { db } from '@/lib/db'
 import { DATABASE_SESSION_COOKIE, getDatabaseSession } from '@/lib/database-session'
+import { isValidRequestOrigin } from '@/lib/origin'
 
 const createUserSchema = z.object({
   name: z.string().trim().min(2).max(120),
@@ -112,8 +113,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const origin = request.headers.get('origin')
-    if (origin && origin !== request.nextUrl.origin) return NextResponse.json({ message: 'Invalid request origin.' }, { status: 403 })
+    if (!isValidRequestOrigin(request)) return NextResponse.json({ message: 'Invalid request origin.' }, { status: 403 })
     const session = await getDatabaseSession(request.cookies.get(DATABASE_SESSION_COOKIE)?.value)
     if (!session) return NextResponse.json({ message: 'Please sign out and sign in again before creating accounts.' }, { status: 401 })
     const allowed = session.user.roleAssignments.some(assignment =>

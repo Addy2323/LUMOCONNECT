@@ -1,6 +1,6 @@
 /**
  * Lumo Dealers - Safe Service Worker
- * Version: 1.0.0
+ * Version: 1.0.1
  * 
  * Strict Zero-Risk Caching Policy:
  * - NEVER caches authenticated, administrative, referral, OTP or payment endpoints.
@@ -8,7 +8,7 @@
  * - Navigation falls back to bilingual /offline.html on network failure.
  */
 
-const CACHE_VERSION = 'lumo-pwa-v1.0.0'
+const CACHE_VERSION = 'lumo-pwa-v1.0.1'
 const STATIC_CACHE_NAME = `lumo-static-${CACHE_VERSION}`
 
 // Core static assets to precache for offline shell
@@ -117,9 +117,9 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  // 1. Sensitive endpoints and API mutations: STRICT NETWORK-ONLY (Never cached)
+  // 1. Sensitive endpoints and API mutations: STRICT NETWORK-ONLY (Never intercepted or cached)
   if (isSensitiveRequest(request)) {
-    event.respondWith(fetch(request))
+    // Return early without calling event.respondWith() so the browser handles it natively
     return
   }
 
@@ -175,6 +175,14 @@ self.addEventListener('fetch', (event) => {
 
   // Default: Network with cache fallback
   event.respondWith(
-    fetch(request).catch(() => caches.match(request))
+    fetch(request).catch(async () => {
+      const cached = await caches.match(request)
+      if (cached) return cached
+      return new Response('Offline or Network Error', {
+        status: 503,
+        statusText: 'Service Unavailable',
+        headers: { 'Content-Type': 'text/plain' },
+      })
+    })
   )
 })
