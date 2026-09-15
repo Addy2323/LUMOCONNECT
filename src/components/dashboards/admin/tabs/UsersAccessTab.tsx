@@ -11,6 +11,7 @@ import {
   Key,
   RotateCcw,
   Archive,
+  Trash2,
   MoreVertical,
   CheckCircle2,
   AlertTriangle,
@@ -32,7 +33,7 @@ export function UsersAccessTab() {
   const [selectedUser, setSelectedUser] = useState<UserAccount | null>(null)
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [showActionModal, setShowActionModal] = useState<{
-    type: 'SUSPEND' | 'REACTIVATE' | 'RESET_MFA' | 'REVOKE_SESSIONS' | 'LOCK' | 'ARCHIVE'
+    type: 'SUSPEND' | 'REACTIVATE' | 'RESET_MFA' | 'REVOKE_SESSIONS' | 'LOCK' | 'ARCHIVE' | 'DELETE'
     user: UserAccount
   } | null>(null)
   const [actionReason, setActionReason] = useState('')
@@ -81,6 +82,26 @@ export function UsersAccessTab() {
   const handleExecuteAction = async () => {
     if (!showActionModal) return
     const { type, user } = showActionModal
+
+    if (type === 'DELETE') {
+      try {
+        const res = await fetch(`/api/admin/users?userId=${encodeURIComponent(user.id)}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: user.id, reason: actionReason || 'Permanent account deletion requested by administrator.' }),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.message || 'Action failed')
+
+        setUsers((prev) => prev.filter((u) => u.id !== user.id))
+        showToast('success', 'User Deleted Permanently', `${user.name} (${user.email}) has been permanently deleted from the system.`)
+      } catch (err: any) {
+        showToast('error', 'Deletion Failed', err.message || 'Could not permanently delete user.')
+      }
+      setShowActionModal(null)
+      setActionReason('')
+      return
+    }
 
     let newStatus: UserAccount['status'] | undefined
     if (type === 'SUSPEND') newStatus = 'SUSPENDED'
@@ -154,12 +175,12 @@ export function UsersAccessTab() {
         <div>
           <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <span>Users & Access Management</span>
-            <span className="text-[10px] bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 font-extrabold px-2 py-0.5 rounded-full">
-              C/R/U/Archive
+            <span className="text-[10px] bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-extrabold px-2 py-0.5 rounded-full">
+              Full Admin (CRUD)
             </span>
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Manage Partner & Business accounts, internal staff, role assignments and account security.
+            Manage Partner & Business accounts, internal staff, role assignments, security, and permanent account deletion.
           </p>
         </div>
 
@@ -172,12 +193,12 @@ export function UsersAccessTab() {
         </button>
       </div>
 
-      {/* Immutability Notice Alert */}
-      <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 flex items-center justify-between text-xs text-amber-800 dark:text-amber-300">
+      {/* Account Administration Policy Notice Alert */}
+      <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center justify-between text-xs text-slate-700 dark:text-slate-300">
         <div className="flex items-center gap-2">
-          <Shield className="w-4 h-4 text-amber-600 shrink-0" />
+          <Shield className="w-4 h-4 text-[#FF6A00] shrink-0" />
           <span>
-            <strong>Immutable Record Policy:</strong> User accounts with transaction histories or audit traces cannot be permanently deleted. Use <strong>Archive</strong> or <strong>Suspend</strong>.
+            <strong>Administrative Permissions:</strong> Full management privileges enabled. You can suspend, reactivate, or <strong>permanently delete</strong> user accounts and purge their associated platform credentials.
           </span>
         </div>
       </div>
@@ -359,6 +380,24 @@ export function UsersAccessTab() {
                     >
                       <Archive className="w-3.5 h-3.5" />
                     </button>
+
+                    {user.email.toLowerCase() === 'admin@lumo.co.tz' ? (
+                      <button
+                        disabled
+                        className="p-1 text-slate-300 dark:text-slate-600 cursor-not-allowed rounded-lg"
+                        title="Primary Root Administrator cannot be deleted"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => setShowActionModal({ type: 'DELETE', user })}
+                        className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors"
+                        title="Permanently Delete Account"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -468,22 +507,48 @@ export function UsersAccessTab() {
       {showActionModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-amber-500" />
-              <span>Confirm Administrative Action: {showActionModal.type}</span>
+            <h3 className={`text-base font-black flex items-center gap-2 ${
+              showActionModal.type === 'DELETE' ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-white'
+            }`}>
+              {showActionModal.type === 'DELETE' ? (
+                <Trash2 className="w-5 h-5 text-red-600 dark:text-red-400" />
+              ) : (
+                <AlertTriangle className="w-5 h-5 text-amber-500" />
+              )}
+              <span>
+                {showActionModal.type === 'DELETE'
+                  ? 'Permanently Delete User Account'
+                  : `Confirm Administrative Action: ${showActionModal.type}`}
+              </span>
             </h3>
 
             <p className="text-xs text-slate-600 dark:text-slate-300">
               Target Account: <strong>{showActionModal.user.name}</strong> ({showActionModal.user.email})
             </p>
 
+            {showActionModal.type === 'DELETE' && (
+              <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 text-xs text-red-700 dark:text-red-300 space-y-1">
+                <p className="font-bold flex items-center gap-1.5">
+                  <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+                  Irreversible Action Warning
+                </p>
+                <p>
+                  This will permanently purge <strong>{showActionModal.user.name}</strong> ({showActionModal.user.email}) from the platform. All access permissions, sessions, and associated account links will be permanently deleted.
+                </p>
+              </div>
+            )}
+
             <div className="text-xs space-y-1">
               <label className="font-bold block">
-                Mandatory Reason for Audit Log <span className="text-red-500">*</span>
+                {showActionModal.type === 'DELETE' ? 'Reason for Deletion (Audit Log)' : 'Mandatory Reason for Audit Log'} <span className="text-red-500">*</span>
               </label>
               <textarea
                 rows={3}
-                placeholder="Specify regulatory, compliance or security reason for this decision..."
+                placeholder={
+                  showActionModal.type === 'DELETE'
+                    ? "Specify the regulatory, administrative or fraud reason for deleting this account..."
+                    : "Specify regulatory, compliance or security reason for this decision..."
+                }
                 value={actionReason}
                 onChange={(e) => setActionReason(e.target.value)}
                 className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs"
@@ -493,13 +558,20 @@ export function UsersAccessTab() {
             <div className="flex gap-2 pt-2">
               <button
                 onClick={handleExecuteAction}
-                className="flex-1 py-2.5 bg-[#0B132B] dark:bg-slate-100 text-white dark:text-slate-900 font-extrabold rounded-xl text-xs"
+                className={`flex-1 py-2.5 font-extrabold rounded-xl text-xs text-white transition-colors ${
+                  showActionModal.type === 'DELETE'
+                    ? 'bg-red-600 hover:bg-red-700'
+                    : 'bg-[#0B132B] dark:bg-slate-100 dark:text-slate-900 hover:bg-slate-800'
+                }`}
               >
-                Confirm & Log Decision
+                {showActionModal.type === 'DELETE' ? 'Permanently Delete User' : 'Confirm & Log Decision'}
               </button>
               <button
-                onClick={() => setShowActionModal(null)}
-                className="py-2.5 px-4 border rounded-xl text-xs font-bold"
+                onClick={() => {
+                  setShowActionModal(null)
+                  setActionReason('')
+                }}
+                className="py-2.5 px-4 border rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
               >
                 Cancel
               </button>
