@@ -17,6 +17,7 @@ import {
 } from './partner/types'
 import { PartnerToastProvider } from './partner/PartnerToast'
 import { PartnerMobileSidebar, PartnerSidebar } from './partner/PartnerSidebar'
+import { ThemeToggle } from '@/components/theme/ThemeToggle'
 
 // Tab components
 import { OverviewTab } from './partner/tabs/OverviewTab'
@@ -398,6 +399,8 @@ export function PartnerDashboardView({
                   <span>Get PRO Pass</span>
                 </button>
               )}
+
+              <ThemeToggle variant="icon" />
 
               <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-200 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />

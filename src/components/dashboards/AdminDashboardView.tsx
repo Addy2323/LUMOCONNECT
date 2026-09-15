@@ -19,6 +19,7 @@ import { AdminMobileSidebar, AdminSidebar } from './admin/AdminSidebar'
 import { SystemStatusModal } from './admin/SystemStatusModal'
 import { AdminProfileModal } from './admin/AdminProfileModal'
 import { AdminToastProvider } from './admin/AdminToast'
+import { ThemeToggle } from '@/components/theme/ThemeToggle'
 
 // Tab components
 import { OverviewTab } from './admin/tabs/OverviewTab'
@@ -166,7 +167,9 @@ export function AdminDashboardView({
 
           <BackToHomeButton onNavigate={onExploreDeals} />
 
-          <div className="hidden shrink-0 items-center gap-4 sm:flex">
+          <div className="hidden shrink-0 items-center gap-3 sm:flex">
+            <ThemeToggle variant="icon" />
+
             <button
               onClick={() => handleOpenReviewQueue('ALL')}
               className="relative p-2 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"

@@ -24,10 +24,12 @@ import {
   Search,
   Languages,
   Download,
+  Sun,
 } from 'lucide-react'
 import { BrandMark } from './BrandMark'
 import { useLanguage } from '@/lib/i18n'
 import { usePwa } from '@/lib/pwa/PwaContext'
+import { ThemeToggle } from '@/components/theme/ThemeToggle'
 import type { UserWorkspaceInfo, WorkspaceType } from '@/lib/session'
 
 interface SiteHeaderProps {
@@ -223,6 +225,9 @@ export function SiteHeader({
                 </button>
               )}
 
+              {/* Theme Toggle */}
+              <ThemeToggle variant="icon" />
+
               {/* Sign In Button if not authenticated */}
               {!isAuthenticated ? (
                 <>
@@ -367,6 +372,10 @@ export function SiteHeader({
                           <span>Pricing & Subscriptions</span>
                         </button>
 
+                        <div className="pt-1 border-t border-slate-100 dark:border-slate-800">
+                          <ThemeToggle variant="menu-item" onSelect={() => setUserMenuOpen(false)} />
+                        </div>
+
                         <button
                           onClick={() => {
                             onSignOut?.()
@@ -472,6 +481,15 @@ export function SiteHeader({
                 English
               </button>
             </div>
+          </div>
+
+          {/* Mobile Theme Switcher */}
+          <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-500 flex items-center gap-1.5">
+              <Sun className="w-4 h-4 text-[#FF6A00]" />
+              <span>{locale === 'sw' ? 'Mandhari' : 'Theme'}</span>
+            </span>
+            <ThemeToggle variant="segmented" onSelect={() => setMobileMenuOpen(false)} />
           </div>
         </div>
       )}

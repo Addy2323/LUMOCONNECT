@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import '@/lib/domGuard'
 import { ClientDomGuard } from '@/components/common/ClientDomGuard'
+import { ThemeProvider } from '@/components/theme/ThemeProvider'
 import { LanguageProvider } from '@/lib/i18n'
 import { PwaRoot } from '@/components/pwa/PwaRoot'
 
@@ -50,11 +51,13 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       </head>
       <body suppressHydrationWarning className="notranslate antialiased">
         <ClientDomGuard />
-        <LanguageProvider>
-          <PwaRoot>
-            {children}
-          </PwaRoot>
-        </LanguageProvider>
+        <ThemeProvider>
+          <LanguageProvider>
+            <PwaRoot>
+              {children}
+            </PwaRoot>
+          </LanguageProvider>
+        </ThemeProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
