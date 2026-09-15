@@ -55,7 +55,9 @@ export function StartupAnimation({ onComplete }: StartupAnimationProps) {
         style={{
           width: '100%',
           height: '100%',
-          objectFit: 'cover',
+          maxWidth: '100vw',
+          maxHeight: '100vh',
+          objectFit: 'contain',
         }}
       />
     </div>
