@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import {
   X,
   Share2,
@@ -9,7 +9,6 @@ import {
   Download,
   MessageCircle,
   Sparkles,
-  ExternalLink,
   Square,
   Smartphone,
   Monitor,
@@ -41,7 +40,6 @@ export function PromotionalToolkitModal({
   dealTitle,
   companyName,
   trackingCode,
-  rewardDisplay,
   category = 'Products',
   region = 'Tanzania',
   priceDisplay = '',
@@ -56,18 +54,10 @@ export function PromotionalToolkitModal({
   const [selectedLanguage, setSelectedLanguage] = useState<'SW' | 'EN'>(locale === 'sw' ? 'SW' : 'EN')
   const [selectedAspect, setSelectedAspect] = useState<AspectRatioType>('SQUARE_1_1')
   const [renderedCardDataUrl, setRenderedCardDataUrl] = useState<string>('')
-  const [canNativeShare, setCanNativeShare] = useState<boolean>(false)
 
   const activeTemplate = getTemplateForCategory(category)
   const langQuery = selectedLanguage === 'SW' ? '?lang=sw' : '?lang=en'
   const referralUrl = `https://lumo.co.tz/p/${trackingCode}${langQuery}`
-
-  // Check navigator file sharing capability on mount
-  useEffect(() => {
-    if (typeof navigator !== 'undefined' && 'canShare' in navigator) {
-      setCanNativeShare(true)
-    }
-  }, [])
 
   const swahiliCaption = `Habari! Kama unahitaji "${dealTitle}", fursa hii imethibitishwa na kuratibiwa kupitia Lumo Dealers.\n\nTazama maelezo kamili na ungana nasi hapa:\nLink: ${referralUrl}\n\nUratibu wa moja kwa moja na fursa halisi Tanzania nzima.`
 
@@ -146,6 +136,7 @@ export function PromotionalToolkitModal({
         {/* Close Button */}
         <button
           onClick={onClose}
+          aria-label="Close promotional toolkit"
           className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors cursor-pointer"
         >
           <X className="w-5 h-5" />
@@ -175,7 +166,8 @@ export function PromotionalToolkitModal({
             </span>
             <button
               type="button"
-              onClick={() => setSelectedAspect('SQUARE_1_1')}
+              onClick={() => { setRenderedCardDataUrl(''); setSelectedAspect('SQUARE_1_1') }}
+              disabled={selectedAspect === 'SQUARE_1_1'}
               className={`px-2.5 py-1 rounded-xl font-extrabold flex items-center gap-1.5 transition-all cursor-pointer ${
                 selectedAspect === 'SQUARE_1_1'
                   ? 'bg-white dark:bg-slate-900 text-[#FF6A00] shadow-xs border border-slate-200 dark:border-slate-700'
@@ -187,7 +179,8 @@ export function PromotionalToolkitModal({
             </button>
             <button
               type="button"
-              onClick={() => setSelectedAspect('PORTRAIT_9_16')}
+              onClick={() => { setRenderedCardDataUrl(''); setSelectedAspect('PORTRAIT_9_16') }}
+              disabled={selectedAspect === 'PORTRAIT_9_16'}
               className={`px-2.5 py-1 rounded-xl font-extrabold flex items-center gap-1.5 transition-all cursor-pointer ${
                 selectedAspect === 'PORTRAIT_9_16'
                   ? 'bg-white dark:bg-slate-900 text-[#FF6A00] shadow-xs border border-slate-200 dark:border-slate-700'
@@ -199,7 +192,8 @@ export function PromotionalToolkitModal({
             </button>
             <button
               type="button"
-              onClick={() => setSelectedAspect('LANDSCAPE_16_9')}
+              onClick={() => { setRenderedCardDataUrl(''); setSelectedAspect('LANDSCAPE_16_9') }}
+              disabled={selectedAspect === 'LANDSCAPE_16_9'}
               className={`px-2.5 py-1 rounded-xl font-extrabold flex items-center gap-1.5 transition-all cursor-pointer ${
                 selectedAspect === 'LANDSCAPE_16_9'
                   ? 'bg-white dark:bg-slate-900 text-[#FF6A00] shadow-xs border border-slate-200 dark:border-slate-700'
@@ -216,7 +210,8 @@ export function PromotionalToolkitModal({
             <Globe className="w-3.5 h-3.5 text-slate-400 mr-1" />
             <button
               type="button"
-              onClick={() => setSelectedLanguage('SW')}
+              onClick={() => { setRenderedCardDataUrl(''); setSelectedLanguage('SW') }}
+              disabled={selectedLanguage === 'SW'}
               className={`px-2 py-0.5 rounded-lg text-[11px] font-bold cursor-pointer ${
                 selectedLanguage === 'SW'
                   ? 'bg-[#FF6A00] text-white shadow-2xs'
@@ -227,7 +222,8 @@ export function PromotionalToolkitModal({
             </button>
             <button
               type="button"
-              onClick={() => setSelectedLanguage('EN')}
+              onClick={() => { setRenderedCardDataUrl(''); setSelectedLanguage('EN') }}
+              disabled={selectedLanguage === 'EN'}
               className={`px-2 py-0.5 rounded-lg text-[11px] font-bold cursor-pointer ${
                 selectedLanguage === 'EN'
                   ? 'bg-[#FF6A00] text-white shadow-2xs'
@@ -240,7 +236,7 @@ export function PromotionalToolkitModal({
         </div>
 
         {/* Live Visual Card Canvas Preview */}
-        <div className="py-2 bg-slate-900/90 rounded-2xl border border-slate-800 flex items-center justify-center p-4">
+        <div className="bg-slate-950 rounded-2xl border border-slate-800 flex items-center justify-center p-4 sm:p-6">
           <PromotionalCardCanvas
             dealTitle={dealTitle}
             dealCategory={category}
@@ -254,7 +250,7 @@ export function PromotionalToolkitModal({
             aspectRatio={selectedAspect}
             selectedLanguage={selectedLanguage}
             template={activeTemplate}
-            onRendered={(dataUrl) => setRenderedCardDataUrl(dataUrl)}
+            onRendered={setRenderedCardDataUrl}
           />
         </div>
 
@@ -312,7 +308,8 @@ export function PromotionalToolkitModal({
           {/* Share Card (Native device sheet) */}
           <button
             onClick={handleNativeShareCard}
-            className="py-2.5 px-3 rounded-xl bg-[#FF6A00] hover:bg-[#EA580C] text-white font-bold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+            disabled={!renderedCardDataUrl}
+            className="py-2.5 px-3 rounded-xl bg-[#FF6A00] hover:bg-[#EA580C] text-white font-bold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-wait"
             title="Share generated image via device apps"
           >
             <Share2 className="w-4 h-4" />
@@ -331,7 +328,8 @@ export function PromotionalToolkitModal({
           {/* Download Card */}
           <button
             onClick={handleDownloadCard}
-            className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+            disabled={!renderedCardDataUrl}
+            className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-wait"
           >
             <Download className="w-4 h-4" />
             <span>Download</span>

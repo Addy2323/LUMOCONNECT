@@ -2,7 +2,7 @@
 
 import { BackToHomeButton } from '@/components/shared/BackToHomeButton'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Sparkles,
   Menu,
@@ -107,6 +107,11 @@ export function PartnerDashboardView({
   onSignOut,
 }: PartnerDashboardViewProps) {
   const [activeTab, setActiveTab] = useState<PartnerSidebarSection>(initialTab)
+  const contentScrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    contentScrollRef.current?.scrollTo({ top: 0, behavior: 'instant' })
+  }, [activeTab])
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [profileCompletion, setProfileCompletion] = useState(() =>
@@ -295,7 +300,7 @@ export function PartnerDashboardView({
 
   return (
     <PartnerToastProvider>
-      <div className="dashboard-shell w-full bg-[#F8FAFC] dark:bg-[#0B1220] min-h-screen text-[#0F172A] dark:text-slate-100 flex flex-col lg:flex-row transition-colors">
+      <div className="dashboard-shell partner-dashboard-shell w-full bg-[#F8FAFC] dark:bg-[#0B1220] text-[#0F172A] dark:text-slate-100 flex flex-col lg:flex-row transition-colors">
         {/* ========================================================================= */}
         {/* DESKTOP 3-GROUP STRUCTURED PARTNER SIDEBAR                                */}
         {/* ========================================================================= */}
@@ -341,7 +346,7 @@ export function PartnerDashboardView({
         {/* ========================================================================= */}
         {/* MAIN PARTNER DASHBOARD CONTENT AREA                                       */}
         {/* ========================================================================= */}
-        <main className="dashboard-main min-w-0 flex-1 w-full space-y-5 sm:space-y-6">
+        <main className="dashboard-main min-w-0 flex-1 w-full">
           {/* MOBILE SIDEBAR TRIGGER (VISIBLE ONLY BELOW DESKTOP BREAKPOINT) */}
           {/* Top Header Bar */}
           <div className="dashboard-topbar bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 flex items-center justify-between gap-3">
@@ -413,6 +418,7 @@ export function PartnerDashboardView({
           {/* TAB ROUTING RENDERER                                                      */}
           {/* ========================================================================= */}
           {/* GROUP 1: WORKSPACE */}
+          <div ref={contentScrollRef} className="partner-dashboard-content space-y-5 sm:space-y-6" tabIndex={0} role="region" aria-label="Partner dashboard content">
           {activeTab === 'overview' && (
             <OverviewTab
               partnerName={partnerName}
@@ -522,6 +528,7 @@ export function PartnerDashboardView({
           {activeTab === 'settings_security' && <SettingsSecurityTab />}
 
           {activeTab === 'help_support' && <HelpSupportTab />}
+          </div>
         </main>
       </div>
     </PartnerToastProvider>

@@ -154,7 +154,7 @@ export function PartnerSidebar({
       )}
 
       {/* Scrollable Navigation Groups */}
-      <div className="flex-1 overflow-y-auto space-y-5 py-3 pr-1 no-scrollbar">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain space-y-5 py-3 pr-1 no-scrollbar">
         {navGroups.map((group) => (
           <div key={group.title} className="space-y-1">
             {!sidebarCollapsed && (

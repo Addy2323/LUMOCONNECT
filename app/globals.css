@@ -353,6 +353,60 @@ html, body {
   }
 }
 
+/* The partner workspace owns its scroll area; navigation and header stay visible. */
+.partner-dashboard-shell {
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.partner-dashboard-shell > .dashboard-main {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
+}
+
+.partner-dashboard-shell .dashboard-topbar {
+  position: relative;
+  flex-shrink: 0;
+  margin: 0;
+}
+
+.partner-dashboard-shell > .dashboard-sidebar {
+  height: 100%;
+  min-height: 0;
+  position: relative;
+}
+
+.partner-dashboard-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+  padding: 24px 16px 32px;
+}
+
+.partner-dashboard-content:focus-visible {
+  outline: 2px solid #ff6a00;
+  outline-offset: -2px;
+}
+
+@media (min-width: 640px) {
+  .partner-dashboard-content {
+    padding: 24px 24px 40px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .partner-dashboard-content {
+    padding-right: 32px;
+    padding-left: 32px;
+  }
+}
+
 .dark .dashboard-shell {
   background: #0b1220;
 }
