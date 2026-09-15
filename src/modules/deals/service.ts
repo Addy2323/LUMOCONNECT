@@ -475,35 +475,18 @@ export const joinDeal = joinOpportunityDeal
  * Checks whether a user has already enrolled in / joined an opportunity deal.
  */
 export function isUserEnrolledInDeal(dealIdOrSlug: string, userId?: string): boolean {
+  if (userId === '') return false
   loadFromStorage()
   const opp = inMemoryOpportunities.find((o) => o.id === dealIdOrSlug || o.slug === dealIdOrSlug)
   const oppId = opp?.id || dealIdOrSlug
 
-  // 1. Check inMemoryEnrollments
   if (userId) {
     const enrolled = inMemoryEnrollments.get(oppId)
-    if (enrolled?.has(userId)) return true
+    return Boolean(enrolled?.has(userId))
   }
 
-  // 2. Check localStorage 'lumo_partner_joined_deals'
-  if (typeof window !== 'undefined' || typeof localStorage !== 'undefined') {
-    try {
-      const storage = typeof window !== 'undefined' ? window.localStorage : (typeof localStorage !== 'undefined' ? localStorage : null)
-      if (storage) {
-        const existingJoined: any[] = JSON.parse(storage.getItem('lumo_partner_joined_deals') || '[]')
-        return existingJoined.some(
-          (d) =>
-            d.opportunityId === oppId ||
-            d.id === oppId ||
-            (opp && (d.opportunityId === opp.slug || d.slug === opp.slug))
-        )
-      }
-    } catch {
-      return false
-    }
-  }
-
-  return false
+  // Fallback for legacy no-argument calls in tests
+  return getUserEnrolledDealIds().has(oppId) || (opp?.slug ? getUserEnrolledDealIds().has(opp.slug) : false)
 }
 
 /**
@@ -511,19 +494,8 @@ export function isUserEnrolledInDeal(dealIdOrSlug: string, userId?: string): boo
  */
 export function getUserEnrolledDealIds(userId?: string): Set<string> {
   const ids = new Set<string>()
-  if (typeof window !== 'undefined' || typeof localStorage !== 'undefined') {
-    try {
-      const storage = typeof window !== 'undefined' ? window.localStorage : (typeof localStorage !== 'undefined' ? localStorage : null)
-      if (storage) {
-        const existingJoined: any[] = JSON.parse(storage.getItem('lumo_partner_joined_deals') || '[]')
-        existingJoined.forEach((d) => {
-          if (d.opportunityId) ids.add(d.opportunityId)
-          if (d.id) ids.add(d.id)
-          if (d.slug) ids.add(d.slug)
-        })
-      }
-    } catch {}
-  }
+  if (userId === '') return ids
+
   if (userId) {
     inMemoryEnrollments.forEach((users, oppId) => {
       if (users.has(userId)) {
@@ -532,7 +504,31 @@ export function getUserEnrolledDealIds(userId?: string): Set<string> {
         if (opp?.slug) ids.add(opp.slug)
       }
     })
+    return ids
   }
+
+  // Fallback for legacy no-argument calls in tests
+  if (typeof window !== 'undefined' || typeof localStorage !== 'undefined') {
+    try {
+      const storage = typeof window !== 'undefined' ? window.localStorage : (typeof localStorage !== 'undefined' ? localStorage : null)
+      if (storage) {
+        const stored = storage.getItem('lumo_partner_joined_deals')
+        if (stored) {
+          const parsed = JSON.parse(stored)
+          if (Array.isArray(parsed)) {
+            parsed.forEach((d: any) => {
+              if (d.opportunityId) ids.add(d.opportunityId)
+              if (d.id) ids.add(d.id)
+              if (d.slug) ids.add(d.slug)
+            })
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Could not read enrolled deals from localStorage', e)
+    }
+  }
+
   return ids
 }
 

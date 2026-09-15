@@ -236,7 +236,7 @@ export function CustomerReferralModal({
       } catch { return null }
     })()
 
-    const resolvedPartnerId = currentUserId || partnerProfile?.id || storedUser?.id || 'usr_partner_001'
+    const resolvedPartnerId = currentUserId || partnerProfile?.id || storedUser?.id || ''
     const resolvedPartnerName = partnerProfile?.name || partnerName || storedUser?.name || 'Promoting Partner'
     const resolvedPartnerPhone = partnerProfile?.phone || partnerPhone || storedUser?.phone || ''
     const partnerWhatsApp = partnerProfile?.whatsapp || whatsAppInput.trim() || resolvedPartnerPhone || ''

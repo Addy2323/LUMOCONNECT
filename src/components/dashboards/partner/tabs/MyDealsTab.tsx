@@ -256,7 +256,7 @@ export function MyDealsTab({
                       className="w-full py-2.5 px-3 bg-gradient-to-r from-[#FF6A00] to-orange-500 hover:from-[#EA580C] hover:to-orange-600 text-white rounded-xl text-xs font-bold shadow-2xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                     >
                       <Send className="w-3.5 h-3.5" />
-                      <span>I Have a Customer</span>
+                      <span>{deal.activeLeadsCount > 0 ? `Referral Submitted (${deal.activeLeadsCount})` : 'I Have a Customer'}</span>
                     </button>
                   </>
                 )}
@@ -373,6 +373,9 @@ export function MyDealsTab({
               'Referral Submitted',
               `Customer referral ${ref} submitted. Lumo coordinator is checking availability with the merchant.`
             )
+            if (referralModalDeal) {
+              setJoinedDeals(prev => prev.map(d => d.id === referralModalDeal.id ? { ...d, activeLeadsCount: (d.activeLeadsCount || 0) + 1 } : d))
+            }
             setReferralModalDeal(null)
           }}
         />

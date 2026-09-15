@@ -13,28 +13,24 @@ export async function POST(req: Request) {
       })
     )
 
-    let userId = req.headers.get('X-User-Id') || body.partnerUserId
-    let name = req.headers.get('X-User-Name') || body.partnerName
-    let phone = req.headers.get('X-User-Phone') || body.partnerPhone
-    let email = req.headers.get('X-User-Email') || body.partnerEmail
-
-    // Try DB session if available
     const token = cookies[DATABASE_SESSION_COOKIE] || cookies['lumo_session']
-    if (token && process.env.DATABASE_URL?.trim()) {
-      try {
-        const session = await getDatabaseSession(token)
-        if (session) {
-          userId = session.user.id
-          name = session.user.name
-          phone = (session.user as any).phone || phone
-          email = session.user.email
-        }
-      } catch {}
-    }
-
-    if (!userId && !phone && !name) {
+    if (!token) {
       return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 })
     }
+
+    let session: any = null
+    try {
+      session = await getDatabaseSession(token)
+    } catch {}
+
+    if (!session || !session.user) {
+      return NextResponse.json({ success: false, error: 'Invalid or expired session' }, { status: 401 })
+    }
+
+    const userId = session.user.id
+    const name = session.user.name || 'Promoting Partner'
+    const email = session.user.email
+    const phone = (session.user as any).phone || body.accountNumber || body.partnerPhone || ''
 
     const grossAmount = Number(body.amountTZS || body.grossAmountTZS)
     if (!grossAmount || grossAmount <= 0) {
@@ -46,9 +42,9 @@ export async function POST(req: Request) {
     const netAmount = grossAmount - platformFee - taxWithheld
 
     const payout = await createPartnerPayoutRequest({
-      partnerUserId: userId || 'usr_partner_001',
-      partnerName: name || 'Promoting Partner',
-      partnerPhone: phone || body.accountNumber || '',
+      partnerUserId: userId,
+      partnerName: name,
+      partnerPhone: phone,
       partnerEmail: email,
       payoutChannel: body.payoutChannel || 'VODACOM_MPESA',
       accountNumber: body.accountNumber || phone || '',

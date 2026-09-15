@@ -508,12 +508,21 @@ export default function LumoApp() {
     setActiveWorkspace(INITIAL_WORKSPACES[0])
     setIsAdminModeActive(false)
     if (typeof window !== 'undefined') {
-      sessionStorage.removeItem('lumo_reg_pwd')
+      sessionStorage.clear()
       try {
         localStorage.removeItem('lumo_auth_session')
         localStorage.removeItem('lumo_active_workspace')
         localStorage.removeItem('lumo_available_workspaces')
         localStorage.removeItem('lumo_user_session')
+        localStorage.removeItem('lumo_partner_joined_deals')
+        localStorage.removeItem('lumo_user_subscriptions')
+        localStorage.removeItem('lumo_saved_deals')
+        // Clean up any email-specific locked profile photos
+        Object.keys(localStorage).forEach((key) => {
+          if (key.startsWith('lumo_locked_profile_photo') || key.startsWith('lumo_partner_')) {
+            localStorage.removeItem(key)
+          }
+        })
       } catch (e) {}
       window.history.pushState({}, '', '/')
     }

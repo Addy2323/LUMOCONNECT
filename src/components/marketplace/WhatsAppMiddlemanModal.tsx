@@ -181,7 +181,7 @@ export function WhatsAppMiddlemanModal({
       } catch { return null }
     })()
 
-    const resolvedPartnerId = partnerProfile?.id || storedUser?.id || 'usr_partner_001'
+    const resolvedPartnerId = partnerProfile?.id || storedUser?.id || ''
     const resolvedPartnerName = partnerProfile?.name || storedUser?.name || 'Promoting Partner'
     const resolvedPartnerPhone = partnerProfile?.phone || storedUser?.phone || partnerWhatsApp
 

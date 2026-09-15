@@ -196,20 +196,66 @@ export async function listAllPayoutRequests(query?: string, status?: string): Pr
 }
 
 /**
- * Lists payout requests for a single partner.
+ * Lists payout requests strictly for a single partner.
+ * Guaranteed account isolation: only returns records matching partnerUserId.
  */
 export async function listPartnerPayouts(
   partnerUserId: string,
   partnerPhone?: string
 ): Promise<PayoutRequestItem[]> {
-  const all = await listAllPayoutRequests()
-  const cleanPhone = partnerPhone?.replace(/\D/g, '')
+  if (!partnerUserId) return []
 
-  return all.filter((p) => {
-    if (p.partnerUserId === partnerUserId) return true
-    if (cleanPhone && p.partnerPhone.replace(/\D/g, '').includes(cleanPhone)) return true
-    return false
-  })
+  const dbItems: PayoutRequestItem[] = []
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(partnerUserId)
+  if (process.env.DATABASE_URL?.trim() && isUuid) {
+    try {
+      const records = await db.payout.findMany({
+        where: { partnerUserId },
+        orderBy: { createdAt: 'desc' },
+        include: { partnerUser: true, payoutMethod: true },
+        take: 100,
+      })
+
+      for (const p of records) {
+        dbItems.push({
+          id: p.id,
+          reference: p.providerReference || p.id.slice(0, 10),
+          partnerUserId: p.partnerUserId,
+          partnerName: p.partnerUser?.name || 'Partner',
+          partnerPhone: p.partnerUser?.phone || '—',
+          partnerEmail: p.partnerUser?.email,
+          payoutChannel: p.payoutMethod?.provider || 'MOBILE_MONEY',
+          accountNumber: p.payoutMethod?.accountNumber || p.partnerUser?.phone || '—',
+          accountName: p.payoutMethod?.accountName || p.partnerUser?.name,
+          grossAmountTZS: Number(p.grossAmountMinor / 100n),
+          platformFeeTZS: Number(p.platformFeeMinor / 100n),
+          taxWithheldTZS: Number(p.taxWithheldMinor / 100n),
+          netAmountTZS: Number(p.netAmountMinor / 100n),
+          status: p.status as any,
+          authorizedBy: p.authorizedBy || undefined,
+          authorizedAt: p.authorizedAt ? p.authorizedAt.toISOString() : undefined,
+          createdAt: p.createdAt.toISOString(),
+          updatedAt: p.updatedAt.toISOString(),
+        })
+      }
+    } catch (err) {
+      console.warn('Failed to query partner payouts from DB:', err)
+    }
+  }
+
+  // Combine with in-memory store matching partnerUserId
+  const memoryItems = inMemoryPayouts.filter((p) => p.partnerUserId === partnerUserId)
+  const itemMap = new Map<string, PayoutRequestItem>()
+  for (const item of memoryItems) {
+    itemMap.set(item.id, item)
+  }
+  for (const item of dbItems) {
+    itemMap.set(item.id, item)
+  }
+
+  return Array.from(itemMap.values()).sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  )
 }
 
 /**

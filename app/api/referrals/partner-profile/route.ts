@@ -90,23 +90,6 @@ export async function GET(req: Request) {
       })
     }
 
-    // Fallback: use in-memory partner
-    const partnerUser = findUserByEmail('partner@lumo.co.tz')
-    if (partnerUser) {
-      return NextResponse.json({
-        success: true,
-        profile: {
-          id: partnerUser.id,
-          name: partnerUser.name,
-          email: partnerUser.email,
-          phone: partnerUser.phone || null,
-          whatsapp: partnerUser.phone || null,
-          hasWhatsApp: false,
-          isPhoneVerified: false,
-        },
-      })
-    }
-
     return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 })
   } catch (error: any) {
     console.error('Partner profile retrieval error:', error)

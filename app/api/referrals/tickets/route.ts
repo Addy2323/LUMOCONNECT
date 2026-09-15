@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { DATABASE_SESSION_COOKIE, getDatabaseSession } from '@/lib/database-session'
-import { findUserByEmail } from '@/lib/userRegistry'
+import { db } from '@/lib/db'
 import {
   createReferralTicket,
   listPartnerReferralTickets,
@@ -9,10 +9,10 @@ import {
 } from '@/modules/deals/referral-cases'
 
 /**
- * Extracts the authenticated user from the session cookie, client session headers,
- * request body identity payload, or fallback partner registry.
+ * Strictly extracts the authenticated user from the database session.
+ * Never allows client-supplied identity overrides or generic fallbacks.
  */
-async function getAuthenticatedUser(req: Request, body?: any) {
+async function getAuthenticatedUser(req: Request) {
   const cookieHeader = req.headers.get('cookie') || ''
   const cookies = Object.fromEntries(
     cookieHeader.split(';').map((c) => {
@@ -22,12 +22,12 @@ async function getAuthenticatedUser(req: Request, body?: any) {
   )
 
   const token = cookies[DATABASE_SESSION_COOKIE] || cookies['lumo_session']
+  if (!token) return null
 
-  // 1. Try database session if token exists and DB is configured
-  if (token && process.env.DATABASE_URL?.trim()) {
+  if (process.env.DATABASE_URL?.trim()) {
     try {
       const session = await getDatabaseSession(token)
-      if (session) {
+      if (session && session.user && session.user.accountStatus === 'ACTIVE' && !session.user.deletedAt) {
         const user = session.user
         const roleCode = user.roleAssignments[0]?.role?.code
         const isAdmin = roleCode === 'SUPER_ADMIN' || roleCode === 'ADMIN' || user.email === 'admin@lumo.co.tz'
@@ -40,77 +40,8 @@ async function getAuthenticatedUser(req: Request, body?: any) {
           isAdmin,
         }
       }
-    } catch {
-      // Fallback below
-    }
-  }
-
-  // 2. Check X-User-* headers (client session hydration, PWA, or auth-guard)
-  const headerUserId = req.headers.get('X-User-Id')
-  const headerUserName = req.headers.get('X-User-Name')
-  const headerUserPhone = req.headers.get('X-User-Phone')
-  const headerUserEmail = req.headers.get('X-User-Email')
-  const headerUserRole = req.headers.get('X-User-Role')
-
-  if (headerUserId || headerUserPhone || headerUserName) {
-    const isAdmin = headerUserRole === 'ADMIN' || headerUserEmail === 'admin@lumo.co.tz'
-    return {
-      id: headerUserId || 'usr_partner_' + (headerUserPhone || '001').replace(/\D/g, '').slice(-6),
-      name: headerUserName || 'Promoting Partner',
-      email: headerUserEmail || '',
-      phone: headerUserPhone || '',
-      role: isAdmin ? 'ADMIN' : 'PARTNER',
-      isAdmin,
-    }
-  }
-
-  // 3. Check request body if provided (e.g. from partner referral forms)
-  if (body) {
-    const bodyPartnerPhone = body.partnerPhone || body.partnerWhatsApp
-    const bodyPartnerName = body.partnerName
-    const bodyPartnerId = body.partnerUserId
-
-    if (bodyPartnerPhone || bodyPartnerName || bodyPartnerId) {
-      return {
-        id: bodyPartnerId || 'usr_partner_' + (bodyPartnerPhone || '001').replace(/\D/g, '').slice(-6),
-        name: bodyPartnerName || 'Promoting Partner',
-        email: body.partnerEmail || '',
-        phone: bodyPartnerPhone || '',
-        role: 'PARTNER',
-        isAdmin: false,
-      }
-    }
-  }
-
-  // 4. Check URL query parameters (for GET requests)
-  try {
-    const url = new URL(req.url)
-    const paramPhone = url.searchParams.get('partnerPhone') || url.searchParams.get('phone')
-    const paramUserId = url.searchParams.get('partnerUserId') || url.searchParams.get('userId')
-    const paramName = url.searchParams.get('partnerName') || url.searchParams.get('name')
-
-    if (paramPhone || paramUserId || paramName) {
-      return {
-        id: paramUserId || 'usr_partner_' + (paramPhone || '001').replace(/\D/g, '').slice(-6),
-        name: paramName || 'Promoting Partner',
-        email: '',
-        phone: paramPhone || '',
-        role: 'PARTNER',
-        isAdmin: false,
-      }
-    }
-  } catch {}
-
-  // 5. Fallback: in-memory partner
-  const partnerUser = findUserByEmail('partner@lumo.co.tz')
-  if (partnerUser) {
-    return {
-      id: partnerUser.id,
-      name: partnerUser.name,
-      email: partnerUser.email,
-      phone: partnerUser.phone || '',
-      role: partnerUser.role,
-      isAdmin: partnerUser.role === 'ADMIN',
+    } catch (err) {
+      console.warn('Session resolution error in referral tickets route:', err)
     }
   }
 
@@ -121,16 +52,16 @@ async function getAuthenticatedUser(req: Request, body?: any) {
  * POST /api/referrals/tickets
  *
  * Creates a new referral or coordination ticket.
- * Resolves partner identity securely from database session, client session headers,
- * or authenticated request payload.
+ * Partner identity is strictly bound to the authenticated database session.
  */
 export async function POST(req: Request) {
   try {
-    const body = await req.json().catch(() => ({}))
-    const user = await getAuthenticatedUser(req, body)
+    const user = await getAuthenticatedUser(req)
     if (!user) {
       return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 })
     }
+
+    const body = await req.json().catch(() => ({}))
 
     // Validate submission type
     const submissionType = body.submissionType
@@ -141,17 +72,17 @@ export async function POST(req: Request) {
       )
     }
 
-    // Build input, resolving partner identity
+    // Strictly enforce partner identity from authenticated session
     const input: CreateReferralTicketInput = {
       dealId: body.dealId,
       opportunityId: body.opportunityId || null,
-      dealTitle: body.dealTitle,
-      dealSlug: body.dealSlug,
+      dealTitle: body.dealTitle || 'Opportunity Deal',
+      dealSlug: body.dealSlug || body.dealId,
       submissionType,
-      partnerUserId: user.id || body.partnerUserId || 'usr_partner_001',
-      partnerName: user.name || body.partnerName || 'Promoting Partner',
-      partnerPhone: body.partnerPhone || user.phone || body.partnerWhatsApp || '',
-      partnerWhatsApp: body.partnerWhatsApp || body.partnerPhone || user.phone || '',
+      partnerUserId: user.id, // Immutable authenticated ID
+      partnerName: user.name,
+      partnerPhone: user.phone || body.partnerPhone || '',
+      partnerWhatsApp: body.partnerWhatsApp || user.phone || body.partnerPhone || '',
       promotionalCode: body.promotionalCode || null,
       // Customer info (only validated for CUSTOMER_REFERRAL)
       customerFirstName: body.customerFirstName || null,
@@ -166,7 +97,7 @@ export async function POST(req: Request) {
       additionalNotes: body.additionalNotes || null,
       // Terms
       acceptedTermsVersion: body.acceptedTermsVersion || 1,
-      // Internal merchant association (can be pre-populated from deal data)
+      // Internal merchant association
       merchantOrgId: body.merchantOrgId || null,
       merchantName: body.merchantName || null,
       // Reward info
@@ -185,6 +116,39 @@ export async function POST(req: Request) {
       )
     }
 
+    // Real-time notification dispatch in PostgreSQL
+    if (process.env.DATABASE_URL?.trim()) {
+      try {
+        // 1. Notify Partner
+        await db.notification.create({
+          data: {
+            userId: user.id,
+            title: 'Referral Ticket Submitted',
+            body: `Your customer referral for "${input.dealTitle}" has been submitted (Ref: ${result.ticket?.ticketReference}) and is currently under review by Lumo.`,
+            linkUrl: '/partner?tab=leads_referrals',
+          },
+        }).catch(() => {})
+
+        // 2. Notify Platform Administrator
+        const adminUser = await db.user.findFirst({
+          where: { email: 'admin@lumo.co.tz' },
+          select: { id: true },
+        })
+        if (adminUser) {
+          await db.notification.create({
+            data: {
+              userId: adminUser.id,
+              title: 'New Customer Referral Received',
+              body: `Partner ${user.name} submitted a customer referral for "${input.dealTitle}". Reference: ${result.ticket?.ticketReference}.`,
+              linkUrl: '/admin?tab=referrals',
+            },
+          }).catch(() => {})
+        }
+      } catch (notifErr) {
+        console.warn('Failed to dispatch referral notifications:', notifErr)
+      }
+    }
+
     return NextResponse.json({
       success: true,
       message: result.message,
@@ -199,9 +163,9 @@ export async function POST(req: Request) {
 /**
  * GET /api/referrals/tickets
  *
- * Lists referral tickets.
- * - Partners see only their own tickets (merchant data stripped).
- * - Admins see all tickets with full detail.
+ * Lists referral tickets strictly scoped to the authenticated viewer.
+ * - Partners see ONLY their own tickets (merchant data stripped).
+ * - Admins see all tickets with full audit detail.
  */
 export async function GET(req: Request) {
   try {
@@ -224,7 +188,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ success: true, tickets, total: tickets.length })
     }
 
-    // Partner view: only their tickets, merchant-stripped
+    // Partner view: strictly their own tickets
     const tickets = await listPartnerReferralTickets(user.id, user.phone)
     return NextResponse.json({ success: true, tickets, total: tickets.length })
   } catch (error: any) {

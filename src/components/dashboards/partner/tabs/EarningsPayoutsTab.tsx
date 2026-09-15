@@ -55,58 +55,17 @@ export function EarningsPayoutsTab() {
   const feeRate = (platformConfig.platformFeePercent || 3) / 100
   const taxRate = (platformConfig.withholdingTaxPercent || 5) / 100
 
-  const [rewards, setRewards] = useState<PartnerRewardItem[]>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('lumo_partner_rewards_list')
-        if (saved) {
-          const parsed = JSON.parse(saved)
-          if (Array.isArray(parsed)) return parsed
-        }
-      } catch (e) {
-        console.warn('Failed to load partner rewards', e)
-      }
-    }
-    return DEFAULT_PARTNER_REWARDS
-  })
-
-  const [payouts, setPayouts] = useState<PartnerPayoutRecord[]>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('lumo_partner_payout_history')
-        if (saved) {
-          const parsed = JSON.parse(saved)
-          if (Array.isArray(parsed)) return parsed
-        }
-      } catch (e) {
-        console.warn('Failed to load partner payouts', e)
-      }
-    }
-    return DEFAULT_PARTNER_PAYOUTS
-  })
+  const [rewards, setRewards] = useState<PartnerRewardItem[]>([])
+  const [payouts, setPayouts] = useState<PartnerPayoutRecord[]>([])
 
   // Synchronize live partner payouts and earned rewards from server
-  useEffect(() => {
-    const storedUser = (() => {
-      try {
-        const s = localStorage.getItem('lumo_auth_session') || localStorage.getItem('lumo_user_session')
-        return s ? JSON.parse(s) : null
-      } catch { return null }
-    })()
-
-    const partnerId = storedUser?.id || ''
-    const partnerPhone = storedUser?.phone || ''
-
-    fetch(`/api/payouts?userId=${encodeURIComponent(partnerId)}&phone=${encodeURIComponent(partnerPhone)}`, {
+  const reloadPayoutData = () => {
+    fetch('/api/payouts', {
       credentials: 'include',
-      headers: {
-        ...(partnerId ? { 'X-User-Id': partnerId } : {}),
-        ...(partnerPhone ? { 'X-User-Phone': partnerPhone } : {}),
-      },
     })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (data?.success && Array.isArray(data.payouts) && data.payouts.length > 0) {
+        if (data?.success && Array.isArray(data.payouts)) {
           const mapped: PartnerPayoutRecord[] = data.payouts.map((p: any) => ({
             id: p.id,
             reference: p.reference,
@@ -124,53 +83,37 @@ export function EarningsPayoutsTab() {
       })
       .catch(() => {})
 
-    fetch(`/api/referrals/tickets?partnerUserId=${encodeURIComponent(partnerId)}&partnerPhone=${encodeURIComponent(partnerPhone)}`, {
+    fetch('/api/referrals/tickets', {
       credentials: 'include',
-      headers: {
-        ...(partnerId ? { 'X-User-Id': partnerId } : {}),
-        ...(partnerPhone ? { 'X-User-Phone': partnerPhone } : {}),
-      },
     })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (data?.success && Array.isArray(data.tickets) && data.tickets.length > 0) {
+        if (data?.success && Array.isArray(data.tickets)) {
           const eligibleTickets = data.tickets.filter((t: any) => t.rewardAmountTZS && t.rewardAmountTZS > 0)
-          if (eligibleTickets.length > 0) {
-            const mappedRewards: PartnerRewardItem[] = eligibleTickets.map((t: any) => ({
-              id: t.id,
-              opportunityTitle: t.dealTitle,
-              merchantName: t.merchantName || 'Lumo Commercial Partner',
-              category: 'Commercial Deal',
-              completionsCount: 1,
-              grossAmountTZS: t.rewardAmountTZS,
-              status: t.rewardStatus === 'PARTNER_CONFIRMS_RECEIPT' || t.stage === 'COMPLETED' ? 'PAYABLE' : 'PENDING',
-            }))
-            setRewards(mappedRewards)
-          }
+          const mappedRewards: PartnerRewardItem[] = eligibleTickets.map((t: any) => ({
+            id: t.id,
+            opportunityTitle: t.dealTitle,
+            merchantName: t.merchantName || 'Lumo Commercial Partner',
+            category: 'Commercial Deal',
+            completionsCount: 1,
+            grossAmountTZS: t.rewardAmountTZS,
+            status: t.rewardStatus === 'PARTNER_CONFIRMS_RECEIPT' || t.stage === 'COMPLETED' ? 'PAYABLE' : 'PENDING',
+          }))
+          setRewards(mappedRewards)
         }
       })
       .catch(() => {})
+  }
+
+  useEffect(() => {
+    reloadPayoutData()
   }, [])
 
   const [showRequestModal, setShowRequestModal] = useState(false)
   const [requestTargetReward, setRequestTargetReward] = useState<PartnerRewardItem | null>(null)
-
-  // Modal Form State
   const [payoutChannel, setPayoutChannel] = useState<'VODACOM_MPESA' | 'TIGO_PESA' | 'AIRTEL_MONEY' | 'CRDB_BANK'>('VODACOM_MPESA')
   const [payoutPhone, setPayoutPhone] = useState('')
   const [requestAmount, setRequestAmount] = useState<number>(517000)
-
-  // Sync to storage
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem('lumo_partner_rewards_list', JSON.stringify(rewards))
-        localStorage.setItem('lumo_partner_payout_history', JSON.stringify(payouts))
-      } catch (e) {
-        console.warn('Failed to save partner payout state', e)
-      }
-    }
-  }, [rewards, payouts])
 
   // Calculated totals
   const payableRewards = rewards.filter((r) => r.status === 'PAYABLE')
@@ -218,7 +161,7 @@ export function EarningsPayoutsTab() {
       } catch { return null }
     })()
 
-    const partnerId = storedUser?.id || 'usr_partner_001'
+    const partnerId = storedUser?.id || ''
     const partnerName = storedUser?.name || 'Promoting Partner'
     const partnerPhone = storedUser?.phone || payoutPhone
 

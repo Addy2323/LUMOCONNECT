@@ -125,17 +125,7 @@ export function PartnerDashboardView({
 
   const [subscription, setSubscription] = useState<PartnerSubscriptionPlan>(MOCK_PARTNER_SUBSCRIPTION)
   const [opportunities, setOpportunities] = useState<PartnerOpportunitySummary[]>([])
-  const [joinedDeals, setJoinedDeals] = useState<JoinedDealItem[]>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('lumo_partner_joined_deals')
-        if (saved) return JSON.parse(saved)
-      } catch (e) {
-        console.warn('Could not read joined deals from localStorage', e)
-      }
-    }
-    return MOCK_JOINED_DEALS
-  })
+  const [joinedDeals, setJoinedDeals] = useState<JoinedDealItem[]>([])
   const [leads, setLeads] = useState<PartnerLeadItem[]>(MOCK_PARTNER_LEADS)
   const [performance, setPerformance] = useState<PartnerPerformanceMetrics>(MOCK_PARTNER_PERFORMANCE)
 
@@ -209,22 +199,16 @@ export function PartnerDashboardView({
     }
   }, [userId, email, partnerName])
 
-  // Reload Joined Deals
+  // Reload Joined Deals from authenticated server database
   const reloadJoinedDeals = useCallback(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('lumo_partner_joined_deals')
-        if (saved) {
-          const parsed = JSON.parse(saved)
-          if (Array.isArray(parsed)) {
-            setJoinedDeals(parsed)
-            return
-          }
+    fetch('/api/partner/deals', { credentials: 'include' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.success && Array.isArray(data.deals)) {
+          setJoinedDeals(data.deals)
         }
-      } catch (e) {
-        console.warn('Could not read joined deals from localStorage', e)
-      }
-    }
+      })
+      .catch((err) => console.warn('Could not fetch partner enrolled deals:', err))
   }, [])
 
   useEffect(() => {
@@ -254,40 +238,30 @@ export function PartnerDashboardView({
 
   const saveJoinedDeals = (newDeals: JoinedDealItem[]) => {
     setJoinedDeals(newDeals)
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('lumo_partner_joined_deals', JSON.stringify(newDeals))
-    }
   }
 
-  const handleJoinOpportunity = (opp: PartnerOpportunitySummary) => {
+  const handleJoinOpportunity = async (opp: PartnerOpportunitySummary) => {
     const isAlreadyJoined = joinedDeals.some((d) => d.opportunityId === opp.id)
     if (!isAlreadyJoined) {
-      const partnerCode = (partnerName || 'partner').toLowerCase().replace(/[^a-z0-9]/g, '_')
-      const newJoined: JoinedDealItem = {
-        id: `joined_${Date.now()}`,
-        opportunityId: opp.id,
-        title: opp.title,
-        businessName: opp.businessName,
-        category: opp.category,
-        status: 'ACTIVE',
-        joinedDate: new Date().toLocaleDateString(),
-        rewardDisplay: opp.rewardDisplay,
-        rewardValueTZS: opp.rewardValueTZS,
-        trackingLink: `https://lumo.co.tz/d/${opp.slug}?partner=${partnerCode}`,
-        referralId: `LUMO-${partnerCode.slice(0, 4).toUpperCase()}-${Date.now().toString().slice(-4)}`,
-        promoCode: `${partnerCode.slice(0, 4).toUpperCase()}${opp.slug.slice(0, 4).toUpperCase()}`,
-        qrCodeUrl: `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://lumo.co.tz/d/${opp.slug}?partner=${partnerCode}`,
-        activeLeadsCount: 0,
-        verifiedConversionsCount: 0,
-        earningsEarnedTZS: 0,
-        deliverablesSummary: opp.confidentialTerms?.qualifyingDeliverables || opp.publicSummary,
-        evidenceRequired: opp.confidentialTerms?.evidenceRequired || 'Verified transaction matching.',
-        milestoneProgressPercent: 0,
-        canExit: true,
-        coverImageUrl: opp.coverImageUrl,
-        promoVideoUrl: opp.promoVideoUrl,
+      try {
+        const res = await fetch('/api/partner/deals', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            opportunityId: opp.id,
+            dealId: opp.id,
+            slug: opp.slug,
+            title: opp.title,
+          }),
+        })
+        const data = await res.json()
+        if (data?.success && data.deal) {
+          setJoinedDeals((prev) => [data.deal, ...prev.filter((d) => d.opportunityId !== opp.id)])
+        }
+      } catch (e) {
+        console.error('Error joining deal on server:', e)
       }
-      saveJoinedDeals([newJoined, ...joinedDeals])
     }
     setActiveTab('my_deals')
   }

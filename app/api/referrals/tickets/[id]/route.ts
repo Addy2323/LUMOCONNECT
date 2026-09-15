@@ -17,11 +17,12 @@ async function getAuthenticatedUser(req: Request) {
   )
 
   const token = cookies[DATABASE_SESSION_COOKIE] || cookies['lumo_session']
+  if (!token) return null
 
-  if (token && process.env.DATABASE_URL?.trim()) {
+  if (process.env.DATABASE_URL?.trim()) {
     try {
       const session = await getDatabaseSession(token)
-      if (session) {
+      if (session && session.user && session.user.accountStatus === 'ACTIVE' && !session.user.deletedAt) {
         const user = session.user
         const roleCode = user.roleAssignments[0]?.role?.code
         const isAdmin = roleCode === 'SUPER_ADMIN' || roleCode === 'ADMIN' || user.email === 'admin@lumo.co.tz'
@@ -38,33 +39,6 @@ async function getAuthenticatedUser(req: Request) {
     }
   }
 
-  // Check client session headers
-  const headerUserId = req.headers.get('X-User-Id')
-  const headerUserName = req.headers.get('X-User-Name')
-  const headerUserEmail = req.headers.get('X-User-Email')
-  const headerUserRole = req.headers.get('X-User-Role')
-
-  if (headerUserId || headerUserName) {
-    const isAdmin = headerUserRole === 'ADMIN' || headerUserEmail === 'admin@lumo.co.tz'
-    return {
-      id: headerUserId || 'usr_partner_001',
-      name: headerUserName || 'Promoting Partner',
-      email: headerUserEmail || '',
-      role: isAdmin ? 'ADMIN' : 'PARTNER',
-      isAdmin,
-    }
-  }
-
-  const partnerUser = findUserByEmail('partner@lumo.co.tz')
-  if (partnerUser) {
-    return {
-      id: partnerUser.id,
-      name: partnerUser.name,
-      email: partnerUser.email,
-      role: partnerUser.role,
-      isAdmin: partnerUser.role === 'ADMIN',
-    }
-  }
   return null
 }
 

@@ -79,31 +79,7 @@ export async function GET(req: Request) {
       }
     }
 
-    // Fallback: Check if token is associated with default demo users in memory
-    const adminUser = findUserByEmail('admin@lumo.co.tz')
-    const partnerUser = findUserByEmail('partner@lumo.co.tz')
-    const businessUser = findUserByEmail('business@lumo.co.tz')
-
-    // If token exists in cookies, return session based on default active token
-    if (token) {
-      // Decode or check token user info if available
-      return NextResponse.json({
-        success: true,
-        user: {
-          id: partnerUser?.id || 'usr_partner_001',
-          email: partnerUser?.email || 'partner@lumo.co.tz',
-          name: partnerUser?.name || 'Alex Mushi',
-          phone: partnerUser?.phone || '+255 712 345 678',
-          image: partnerUser?.image,
-          role: partnerUser?.role || 'PARTNER',
-          organizationId: partnerUser?.organizationId,
-          organizationName: partnerUser?.organizationName,
-          accountStatus: partnerUser?.accountStatus || 'ACTIVE',
-          twoFactorEnabled: true,
-        },
-      })
-    }
-
+    // If no active database session was found, return 401 unauthorized
     return NextResponse.json({ success: false, user: null }, { status: 401 })
   } catch (error: any) {
     console.error('Session retrieval error:', error)

@@ -19,6 +19,7 @@ import {
   AlertCircle,
   RefreshCw,
   Loader2,
+  ChevronRight,
 } from 'lucide-react'
 import { PartnerLeadItem, JoinedDealItem } from '../types'
 import { usePartnerToast } from '../PartnerToast'
@@ -57,32 +58,14 @@ export function LeadsReferralsTab({
   const [selectedCaseForDispute, setSelectedCaseForDispute] = useState<ReferralCase | null>(null)
   const [disputeReason, setDisputeReason] = useState('')
   const [showReferralModal, setShowReferralModal] = useState(false)
+  const [showDealSelectorModal, setShowDealSelectorModal] = useState(false)
   const [selectedDealForReferral, setSelectedDealForReferral] = useState<JoinedDealItem | null>(null)
 
   const reloadCases = useCallback(async () => {
     setLoading(true)
     try {
-      const storedUser = (() => {
-        try {
-          const s = localStorage.getItem('lumo_auth_session') || localStorage.getItem('lumo_user_session')
-          return s ? JSON.parse(s) : null
-        } catch { return null }
-      })()
-
-      const partnerId = storedUser?.id || ''
-      const partnerPhone = storedUser?.phone || ''
-      const query = new URLSearchParams()
-      if (partnerId) query.set('partnerUserId', partnerId)
-      if (partnerPhone) query.set('partnerPhone', partnerPhone)
-
-      const url = `/api/referrals/tickets${query.toString() ? '?' + query.toString() : ''}`
-      const res = await fetch(url, {
+      const res = await fetch('/api/referrals/tickets', {
         credentials: 'include',
-        headers: {
-          ...(partnerId ? { 'X-User-Id': partnerId } : {}),
-          ...(partnerPhone ? { 'X-User-Phone': partnerPhone } : {}),
-          ...(storedUser?.name ? { 'X-User-Name': storedUser.name } : {}),
-        },
       })
       const data = await res.json()
       if (data.success && Array.isArray(data.tickets)) {
@@ -229,9 +212,12 @@ export function LeadsReferralsTab({
 
         <button
           onClick={() => {
-            const firstDeal = joinedDeals.find((d) => d.status === 'ACTIVE') || joinedDeals[0]
-            setSelectedDealForReferral(firstDeal || null)
-            setShowReferralModal(true)
+            if (selectedDealForLead) {
+              setSelectedDealForReferral(selectedDealForLead)
+              setShowReferralModal(true)
+            } else {
+              setShowDealSelectorModal(true)
+            }
           }}
           className="py-2.5 px-4 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold text-xs rounded-xl shadow-xs flex items-center gap-2 self-start sm:self-auto transition-all active:scale-[0.99] cursor-pointer"
         >
@@ -469,6 +455,72 @@ export function LeadsReferralsTab({
               <button
                 onClick={() => setSelectedCaseForDispute(null)}
                 className="py-2.5 px-4 border rounded-xl font-bold cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Opportunity Selection Modal for Global Referral Entry Point */}
+      {showDealSelectorModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <h3 className="text-base font-black text-slate-900 dark:text-white">
+                  Select Opportunity
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Which enrolled opportunity is this customer interested in?
+                </p>
+              </div>
+              <button
+                onClick={() => setShowDealSelectorModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {joinedDeals.filter((d) => d.status === 'ACTIVE').length === 0 ? (
+              <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 text-xs text-amber-800 dark:text-amber-200 space-y-2">
+                <p className="font-bold">No Active Enrolled Deals Found</p>
+                <p>You must join at least one opportunity from My Deals or the Marketplace before submitting customer referrals.</p>
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                {joinedDeals
+                  .filter((d) => d.status === 'ACTIVE')
+                  .map((deal) => (
+                    <button
+                      key={deal.id}
+                      onClick={() => {
+                        setSelectedDealForReferral(deal)
+                        setShowDealSelectorModal(false)
+                        setShowReferralModal(true)
+                      }}
+                      className="w-full text-left p-3 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-[#FF6A00] dark:hover:border-[#FF6A00] hover:bg-orange-50/50 dark:hover:bg-orange-950/20 transition-all flex items-center justify-between group cursor-pointer"
+                    >
+                      <div>
+                        <div className="font-bold text-xs text-slate-900 dark:text-white group-hover:text-[#FF6A00]">
+                          {deal.title}
+                        </div>
+                        <div className="text-[10px] text-slate-500 mt-0.5">
+                          {deal.businessName} · Reward: {deal.rewardDisplay}
+                        </div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-[#FF6A00] shrink-0" />
+                    </button>
+                  ))}
+              </div>
+            )}
+
+            <div className="pt-2 flex justify-end">
+              <button
+                onClick={() => setShowDealSelectorModal(false)}
+                className="py-2 px-4 text-xs font-bold border rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"
               >
                 Cancel
               </button>

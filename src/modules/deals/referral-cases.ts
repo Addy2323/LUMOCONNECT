@@ -498,26 +498,43 @@ export async function getReferralTicket(
  * Lists all tickets belonging to an authenticated partner, with merchant data strictly stripped.
  */
 export async function listPartnerReferralTickets(partnerUserId: string, partnerPhone?: string): Promise<ReferralTicketDTO[]> {
-  try {
-    const normalizedPhone = partnerPhone ? normalizeTanzanianPhone(partnerPhone) : undefined
-    const records = await db.referralTicket.findMany({
-      where: {
-        OR: [
-          { partnerUserId },
-          ...(normalizedPhone ? [{ partnerPhone: normalizedPhone }, { partnerWhatsApp: normalizedPhone }] : []),
-          ...(partnerPhone ? [{ partnerPhone }, { partnerWhatsApp: partnerPhone }] : []),
-        ],
-      },
-      orderBy: { createdAt: 'desc' },
-    })
-    return records.map((r) => sanitizeTicketForPartner(mapPrismaTicketToDTO(r)))
-  } catch (err) {
-    console.error('listPartnerReferralTickets DB error:', err)
+  if (!partnerUserId) return []
+
+  const dbTickets: ReferralTicketDTO[] = []
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(partnerUserId)
+  if (process.env.DATABASE_URL?.trim() && isUuid) {
+    try {
+      const records = await db.referralTicket.findMany({
+        where: {
+          partnerUserId,
+        },
+        orderBy: { createdAt: 'desc' },
+      })
+      for (const r of records) {
+        dbTickets.push(sanitizeTicketForPartner(mapPrismaTicketToDTO(r)))
+      }
+    } catch (err) {
+      console.error('listPartnerReferralTickets DB error:', err)
+    }
   }
 
-  return inMemoryTickets
-    .filter((t) => t.partnerUserId === partnerUserId || partnerUserId === 'all' || !partnerUserId)
+  const memoryTickets = inMemoryTickets
+    .filter((t) => t.partnerUserId === partnerUserId)
     .map(sanitizeTicketForPartner)
+
+  const ticketMap = new Map<string, ReferralTicketDTO>()
+  for (const t of memoryTickets) {
+    ticketMap.set(t.id, t)
+    if (t.ticketReference) ticketMap.set(t.ticketReference, t)
+  }
+  for (const t of dbTickets) {
+    ticketMap.set(t.id, t)
+    if (t.ticketReference) ticketMap.set(t.ticketReference, t)
+  }
+
+  return Array.from(new Set(ticketMap.values())).sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  )
 }
 
 /**

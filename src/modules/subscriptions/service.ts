@@ -241,17 +241,9 @@ export function getSubscriptionPlanByCode(code: SubscriptionPlanCode): Subscript
 }
 
 export function getUserSubscription(userId: string): UserSubscriptionItem | null {
+  if (!userId) return null
   loadSubscriptionsFromStorage()
-  let sub = inMemorySubscriptions.get(userId)
-  
-  // Cross-user fallback check for session consistency
-  if (!sub && typeof window !== 'undefined') {
-    const allSubs = Array.from(inMemorySubscriptions.values())
-    const activeOne = allSubs.find((s) => s.status === 'ACTIVE' && new Date(s.expiresAt) > new Date())
-    if (activeOne) {
-      sub = activeOne
-    }
-  }
+  const sub = inMemorySubscriptions.get(userId)
 
   if (!sub) return null
 

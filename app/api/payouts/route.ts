@@ -13,36 +13,35 @@ export async function GET(req: Request) {
       })
     )
 
-    let userId = req.headers.get('X-User-Id') || url.searchParams.get('userId') || url.searchParams.get('partnerUserId')
-    let phone = req.headers.get('X-User-Phone') || url.searchParams.get('phone')
-    let userRole = req.headers.get('X-User-Role')
-
     const token = cookies[DATABASE_SESSION_COOKIE] || cookies['lumo_session']
-    if (token && process.env.DATABASE_URL?.trim()) {
-      try {
-        const session = await getDatabaseSession(token)
-        if (session) {
-          userId = session.user.id
-          phone = (session.user as any).phone || phone
-          const roleCode = session.user.roleAssignments[0]?.role?.code
-          if (roleCode === 'SUPER_ADMIN' || roleCode === 'ADMIN' || session.user.email === 'admin@lumo.co.tz') {
-            userRole = 'ADMIN'
-          }
-        }
-      } catch {}
+    if (!token) {
+      return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 })
     }
 
-    if (userRole === 'ADMIN') {
+    let session: any = null
+    try {
+      session = await getDatabaseSession(token)
+    } catch {}
+
+    if (!session) {
+      return NextResponse.json({ success: false, error: 'Invalid or expired session' }, { status: 401 })
+    }
+
+    const roleCode = session.user.roleAssignments?.[0]?.role?.code
+    const isAdmin = roleCode === 'SUPER_ADMIN' || roleCode === 'ADMIN' || session.user.email === 'admin@lumo.co.tz'
+
+    if (isAdmin) {
+      const partnerUserId = url.searchParams.get('userId') || url.searchParams.get('partnerUserId')
+      if (partnerUserId) {
+        const payouts = await listPartnerPayouts(partnerUserId)
+        return NextResponse.json({ success: true, payouts })
+      }
       const all = await listAllPayoutRequests()
       return NextResponse.json({ success: true, payouts: all })
     }
 
-    if (!userId && !phone) {
-      // Fallback in case no query was provided
-      return NextResponse.json({ success: true, payouts: [] })
-    }
-
-    const payouts = await listPartnerPayouts(userId || '', phone || undefined)
+    // Non-admin partners can ONLY access their own payouts
+    const payouts = await listPartnerPayouts(session.user.id, (session.user as any).phone)
     return NextResponse.json({ success: true, payouts })
   } catch (error: any) {
     console.error('List payouts error:', error)
