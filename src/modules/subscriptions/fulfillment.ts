@@ -4,6 +4,7 @@ import {
   DEFAULT_SUBSCRIPTION_PLANS,
   grantUserSubscription,
   getUserSubscription,
+  calculateSubscriptionExpiry,
 } from './service'
 import type { UserSubscriptionItem, SubscriptionPlanCode } from './types'
 
@@ -25,18 +26,6 @@ export async function activateSubscriptionInDatabase(params: {
   const { userId, email, phone, planCode, amountTZS, providerReference, reason, actorUserId } = params
 
   const normalizedCode = (planCode || 'MONTHLY').toUpperCase() as SubscriptionPlanCode
-  const defaultDays =
-    normalizedCode === 'SEMI_ANNUAL'
-      ? 180
-      : normalizedCode === 'ANNUAL' || normalizedCode === 'ENTERPRISE'
-      ? 365
-      : 30
-
-  const days = params.days && params.days > 0 ? params.days : defaultDays
-
-  const startsAt = new Date()
-  const expiresAt = new Date()
-  expiresAt.setDate(expiresAt.getDate() + days)
 
   const isVip =
     normalizedCode === 'GOLDEN_VIP' ||
@@ -104,7 +93,33 @@ export async function activateSubscriptionInDatabase(params: {
 
       // 3. Persist to user_subscriptions table if targetUser found
       if (targetUser && dbPlan) {
-        // Expire any existing active subscriptions for this user
+        const now = new Date()
+        const existingActiveSub = await db.userSubscription.findFirst({
+          where: {
+            userId: targetUser.id,
+            status: 'ACTIVE',
+          },
+          orderBy: { expiresAt: 'desc' },
+        })
+
+        const baseDate =
+          existingActiveSub?.expiresAt && new Date(existingActiveSub.expiresAt) > now
+            ? new Date(existingActiveSub.expiresAt)
+            : now
+
+        const startsAt =
+          existingActiveSub?.expiresAt && new Date(existingActiveSub.expiresAt) > now
+            ? existingActiveSub.startsAt || now
+            : now
+
+        let expiresAt: Date
+        if (params.days && params.days > 0) {
+          expiresAt = new Date(baseDate.getTime() + params.days * 86400000)
+        } else {
+          expiresAt = calculateSubscriptionExpiry(baseDate, normalizedCode)
+        }
+
+        // Expire any existing active subscriptions for this user so only the new prolonged one is ACTIVE
         await db.userSubscription.updateMany({
           where: {
             userId: targetUser.id,
@@ -127,6 +142,8 @@ export async function activateSubscriptionInDatabase(params: {
           },
         })
 
+        const effectiveDays = Math.max(1, Math.ceil((expiresAt.getTime() - now.getTime()) / 86400000))
+
         if (actorUserId) {
           try {
             await db.auditLog.create({
@@ -139,7 +156,7 @@ export async function activateSubscriptionInDatabase(params: {
                   userId: targetUser.id,
                   userEmail: targetUser.email,
                   planCode: normalizedCode,
-                  days,
+                  days: effectiveDays,
                   amountTZS,
                   reason: reason || 'Admin manual upgrade',
                   providerReference,
@@ -151,7 +168,7 @@ export async function activateSubscriptionInDatabase(params: {
           }
         }
 
-        console.log(`[SUBSCRIPTION FULFILLMENT] Activated plan ${normalizedCode} for user ${targetUser.email} (ID: ${targetUser.id})`)
+        console.log(`[SUBSCRIPTION FULFILLMENT] Activated plan ${normalizedCode} for user ${targetUser.email} (ID: ${targetUser.id}), expires: ${expiresAt.toISOString()}`)
       }
     } catch (dbError) {
       console.warn('[SUBSCRIPTION FULFILLMENT] Database activation warning:', dbError)
@@ -163,16 +180,16 @@ export async function activateSubscriptionInDatabase(params: {
   const userSub = grantUserSubscription(
     targetId,
     normalizedCode,
-    days,
+    params.days,
     amountTZS || 25000
   )
 
   // Also index by email so lookups by email find it
   if (targetUser?.email && targetUser.email !== targetId) {
-    grantUserSubscription(targetUser.email, normalizedCode, days, amountTZS || 25000)
+    grantUserSubscription(targetUser.email, normalizedCode, params.days, amountTZS || 25000)
   }
   if (email && email !== targetId) {
-    grantUserSubscription(email.toLowerCase().trim(), normalizedCode, days, amountTZS || 25000)
+    grantUserSubscription(email.toLowerCase().trim(), normalizedCode, params.days, amountTZS || 25000)
   }
 
   return userSub

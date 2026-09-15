@@ -160,11 +160,25 @@ export function PartnerDashboardView({
     if (localSub && localSub.isActive) {
       setSubscription({
         planName: localSub.planName,
-        status: 'ACTIVE',
+        status: localSub.status,
         daysRemaining: localSub.daysRemaining,
         priceTZS: localSub.amountPaidTZS || 25000,
         cycle: (localSub.planCode as any) || 'MONTHLY',
         expiryDate: localSub.expiresAt ? new Date(localSub.expiresAt).toLocaleDateString() : '—',
+        startedAtISO: localSub.startsAt ? new Date(localSub.startsAt).toISOString() : undefined,
+        expiresAtISO: localSub.expiresAt ? new Date(localSub.expiresAt).toISOString() : undefined,
+        autoRenew: localSub.autoRenew,
+      })
+    } else if (localSub) {
+      setSubscription({
+        planName: localSub.planName,
+        status: localSub.status || 'EXPIRED',
+        daysRemaining: 0,
+        priceTZS: localSub.amountPaidTZS || 25000,
+        cycle: (localSub.planCode as any) || 'MONTHLY',
+        expiryDate: localSub.expiresAt ? new Date(localSub.expiresAt).toLocaleDateString() : '—',
+        startedAtISO: localSub.startsAt ? new Date(localSub.startsAt).toISOString() : undefined,
+        expiresAtISO: localSub.expiresAt ? new Date(localSub.expiresAt).toISOString() : undefined,
         autoRenew: localSub.autoRenew,
       })
     } else {
@@ -177,22 +191,28 @@ export function PartnerDashboardView({
       if (userId) q.set('userId', userId)
       if (email) q.set('email', email)
 
-      fetch(`/api/subscriptions/active?${q.toString()}`)
+      fetch(`/api/subscriptions/active?${q.toString()}`, { credentials: 'include' })
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
-          if (data?.success && data.hasActiveSubscription && data.subscription) {
+          if (data?.success && data.subscription) {
             const s = data.subscription
             setSubscription({
               planName: s.planName,
-              status: 'ACTIVE',
+              status: s.status,
               daysRemaining: s.daysRemaining,
               priceTZS: s.amountPaidTZS || 25000,
               cycle: (s.planCode as any) || 'MONTHLY',
               expiryDate: s.expiresAt ? new Date(s.expiresAt).toLocaleDateString() : '—',
+              startedAtISO: s.startsAt,
+              expiresAtISO: s.expiresAt,
+              serverTimeISO: data.serverTime || s.serverTime,
+              remainingMilliseconds: s.remainingMilliseconds,
               autoRenew: s.autoRenew,
             })
             if (userId) setUserSubscription(userId, s)
             if (email) setUserSubscription(email, s)
+          } else if (data?.success && !data.hasActiveSubscription) {
+            setSubscription(MOCK_PARTNER_SUBSCRIPTION)
           }
         })
         .catch(() => {})

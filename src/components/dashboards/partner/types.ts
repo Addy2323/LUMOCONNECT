@@ -1,3 +1,5 @@
+import type { SubscriptionStatus } from '@/modules/subscriptions/types'
+
 export type PartnerSidebarSection =
   // Workspace
   | 'overview'
@@ -195,13 +197,16 @@ export interface PartnerPayoutMethod {
 
 export interface PartnerSubscriptionPlan {
   planName: string // e.g. "Semi-Annual Access Pass"
-  status: 'ACTIVE' | 'GRACE_PERIOD' | 'EXPIRED'
+  status: SubscriptionStatus | 'GRACE_PERIOD'
   daysRemaining: number
   priceTZS: number
-  cycle: 'MONTHLY' | 'SEMI_ANNUAL'
+  cycle: 'MONTHLY' | 'SEMI_ANNUAL' | 'ANNUAL' | 'ENTERPRISE'
   expiryDate: string
   autoRenew: boolean
+  startedAtISO?: string
   expiresAtISO?: string
+  serverTimeISO?: string
+  remainingMilliseconds?: number
 }
 
 export interface PartnerKYCProfile {

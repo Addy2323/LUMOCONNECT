@@ -131,6 +131,10 @@ export interface SubscriptionTransaction {
   startsAt: string
   expiresAt: string
   daysRemaining?: number
+  hoursRemaining?: number
+  startsAtISO?: string
+  expiresAtISO?: string
+  remainingMilliseconds?: number
   isGoldenVip?: boolean
   autoRenew?: boolean
   createdAt?: string
