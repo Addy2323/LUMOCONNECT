@@ -208,6 +208,110 @@ export default function LumoApp() {
     }
   }, [])
 
+  // Session Restoration & Hydration Effect (Persists auth state on page refresh)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    // 1. Synchronous hydration from localStorage cache
+    try {
+      const cachedUser = localStorage.getItem('lumo_auth_session')
+      const cachedWorkspace = localStorage.getItem('lumo_active_workspace')
+      const cachedWorkspaces = localStorage.getItem('lumo_available_workspaces')
+
+      if (cachedUser) {
+        const parsedUser = JSON.parse(cachedUser)
+        if (parsedUser?.id) {
+          setCurrentUserId(parsedUser.id)
+          setUserDetails((prev) => ({
+            ...prev,
+            name: parsedUser.name || prev.name,
+            email: parsedUser.email || prev.email,
+            phone: parsedUser.phone || prev.phone,
+            profilePhotoUrl: parsedUser.image || prev.profilePhotoUrl,
+          }))
+        }
+      }
+
+      if (cachedWorkspace) {
+        const parsedWs = JSON.parse(cachedWorkspace)
+        if (parsedWs?.type) setActiveWorkspace(parsedWs)
+      }
+
+      if (cachedWorkspaces) {
+        const parsedWss = JSON.parse(cachedWorkspaces)
+        if (Array.isArray(parsedWss) && parsedWss.length > 0) setAvailableWorkspaces(parsedWss)
+      }
+    } catch (e) {
+      console.warn('Session hydration cache error', e)
+    }
+
+    // 2. Asynchronous verification check against /api/auth/me cookie endpoint
+    fetch('/api/auth/me')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.success && data.user?.id) {
+          const u = data.user
+          setCurrentUserId(u.id)
+          setUserDetails((prev) => ({
+            ...prev,
+            name: u.name || prev.name,
+            email: u.email || prev.email,
+            phone: u.phone || prev.phone,
+            profilePhotoUrl: u.image || prev.profilePhotoUrl,
+          }))
+
+          let targetWs: UserWorkspaceInfo
+          if (u.role === 'ADMIN') {
+            targetWs = INITIAL_WORKSPACES[3]
+            setIsAdminModeActive(true)
+          } else if (u.role === 'BUSINESS') {
+            targetWs = {
+              type: 'BUSINESS',
+              id: `ws_${u.organizationId || 'biz'}`,
+              label: `${u.organizationName || u.name}'s Business`,
+              organizationId: u.organizationId,
+              organizationName: u.organizationName,
+              role: 'BUSINESS_OWNER',
+            }
+          } else {
+            targetWs = {
+              type: 'PARTNER',
+              id: 'ws_partner',
+              label: `${u.name} Workspace`,
+              role: 'PARTNER',
+            }
+          }
+
+          const freshWorkspaces = [INITIAL_WORKSPACES[0], targetWs]
+          setAvailableWorkspaces(freshWorkspaces)
+          setActiveWorkspace(targetWs)
+
+          try {
+            localStorage.setItem('lumo_auth_session', JSON.stringify(u))
+            localStorage.setItem('lumo_active_workspace', JSON.stringify(targetWs))
+            localStorage.setItem('lumo_available_workspaces', JSON.stringify(freshWorkspaces))
+          } catch (e) {}
+
+          const currentPath = window.location.pathname
+          const matchedView = PATH_TO_VIEW_MAP[currentPath]
+          if (matchedView) {
+            setActiveView(matchedView)
+          } else if (currentPath === '/' || currentPath === '') {
+            if (u.role === 'ADMIN') setActiveView('admin')
+            else if (u.role === 'BUSINESS') setActiveView('business')
+            else if (u.role === 'PARTNER') setActiveView('partner')
+          }
+        } else {
+          try {
+            localStorage.removeItem('lumo_auth_session')
+            localStorage.removeItem('lumo_active_workspace')
+            localStorage.removeItem('lumo_available_workspaces')
+          } catch (e) {}
+        }
+      })
+      .catch(() => {})
+  }, [])
+
   // Sync URL location path on initial load & popstate browser back/forward navigation
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -364,11 +468,9 @@ export default function LumoApp() {
 
   const handleSignOut = async () => {
     try {
-      const response = await fetch('/api/auth/logout', { method: 'POST' })
-      if (!response.ok) throw new Error('Sign out failed')
+      await fetch('/api/auth/logout', { method: 'POST' })
     } catch {
-      window.alert('Unable to sign out. Please try again.')
-      return
+      // Proceed to clear local state if network is offline
     }
     setCurrentUserId(undefined)
     setUserDetails({ name: '', email: '', phone: '' })
@@ -376,7 +478,15 @@ export default function LumoApp() {
     setAvailableWorkspaces([INITIAL_WORKSPACES[0]])
     setActiveWorkspace(INITIAL_WORKSPACES[0])
     setIsAdminModeActive(false)
-    if (typeof window !== 'undefined') sessionStorage.removeItem('lumo_reg_pwd')
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('lumo_reg_pwd')
+      try {
+        localStorage.removeItem('lumo_auth_session')
+        localStorage.removeItem('lumo_active_workspace')
+        localStorage.removeItem('lumo_available_workspaces')
+      } catch (e) {}
+      window.history.pushState({}, '', '/')
+    }
     setActiveView('marketplace')
   }
 
@@ -893,6 +1003,7 @@ export default function LumoApp() {
                   }
 
                   let target = availableWorkspaces.find((w) => w.type === effectiveRole) || INITIAL_WORKSPACES.find((w) => w.type === effectiveRole) || availableWorkspaces[1]
+                  let nextWorkspaces = availableWorkspaces
                   
                   if (effectiveRole === 'BUSINESS') {
                     const bizName = authUser?.organizationName || `${displayName}'s Business`
@@ -904,10 +1015,11 @@ export default function LumoApp() {
                       organizationName: bizName,
                       role: 'BUSINESS_OWNER',
                     }
-                    setAvailableWorkspaces((prev) => [
-                      ...prev.filter((w) => w.type !== 'BUSINESS'),
+                    nextWorkspaces = [
+                      ...availableWorkspaces.filter((w) => w.type !== 'BUSINESS'),
                       bizWs,
-                    ])
+                    ]
+                    setAvailableWorkspaces(nextWorkspaces)
                     target = bizWs
                   } else if (effectiveRole === 'ADMIN') {
                     target = INITIAL_WORKSPACES[3] // LUMO Administration
@@ -919,22 +1031,51 @@ export default function LumoApp() {
                       label: `${displayName} — Partner`,
                       role: 'PARTNER',
                     }
-                    setAvailableWorkspaces((prev) => [
-                      ...prev.filter((w) => w.type !== 'PARTNER'),
+                    nextWorkspaces = [
+                      ...availableWorkspaces.filter((w) => w.type !== 'PARTNER'),
                       partnerWs,
-                    ])
+                    ]
+                    setAvailableWorkspaces(nextWorkspaces)
                     target = partnerWs
                   }
                   
                   setActiveWorkspace(target)
+
+                  // Save authenticated session in local storage for instant hydration on refresh
+                  if (typeof window !== 'undefined') {
+                    try {
+                      localStorage.setItem('lumo_auth_session', JSON.stringify({
+                        id: authUser?.id || credentials?.user?.id,
+                        email,
+                        name: displayName,
+                        role: effectiveRole,
+                        phone: authUser?.phone,
+                        image: authUser?.image,
+                        organizationId: target.organizationId,
+                        organizationName: target.organizationName,
+                      }))
+                      localStorage.setItem('lumo_active_workspace', JSON.stringify(target))
+                      localStorage.setItem('lumo_available_workspaces', JSON.stringify(nextWorkspaces))
+                    } catch (e) {}
+                  }
+
+                  let destinationView = 'partner'
+                  let destinationPath = '/partner'
+
                   if (subscriptionRedirectContext.returnTo) {
-                    setActiveView('subscriptions')
+                    destinationView = 'subscriptions'
+                    destinationPath = '/subscriptions'
                   } else if (effectiveRole === 'ADMIN') {
-                    setActiveView('admin')
+                    destinationView = 'admin'
+                    destinationPath = '/admin'
                   } else if (effectiveRole === 'BUSINESS') {
-                    setActiveView('business')
-                  } else {
-                    setActiveView('partner')
+                    destinationView = 'business'
+                    destinationPath = '/business'
+                  }
+
+                  setActiveView(destinationView)
+                  if (typeof window !== 'undefined' && window.location.pathname !== destinationPath) {
+                    window.history.pushState({}, '', destinationPath)
                   }
                 }}
                 onCreateAccount={() => setActiveView('choose_path')}
