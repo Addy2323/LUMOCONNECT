@@ -1,10 +1,12 @@
 .overlay {
   position: fixed;
   inset: 0;
-  z-index: 99999;
+  width: 100vw;
+  height: 100vh;
   height: 100dvh;
+  z-index: 99999;
   overflow: hidden;
-  background: #091224;
+  background: #000;
   color: #fff;
   opacity: 1;
   transition: opacity 350ms ease-out;
@@ -101,7 +103,20 @@
   animation: startup-spin 900ms linear infinite;
 }
 
-.video { width: 100%; height: 100%; object-fit: contain; }
+.video {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  min-width: 100%;
+  min-height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
 @keyframes startup-spin { to { transform: rotate(360deg); } }
 
 @media (max-height: 540px) and (orientation: landscape) {

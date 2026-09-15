@@ -3,22 +3,42 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import styles from './StartupAnimation.module.css'
 
-const deviceQuery = '(max-width: 1024px), (pointer: coarse)'
+const mobileQuery = '(max-width: 767px)'
 
 function subscribeToDeviceChange(callback: () => void) {
-  const query = window.matchMedia(deviceQuery)
+  const query = window.matchMedia(mobileQuery)
   query.addEventListener('change', callback)
-  return () => query.removeEventListener('change', callback)
+  window.addEventListener('resize', callback)
+  return () => {
+    query.removeEventListener('change', callback)
+    window.removeEventListener('resize', callback)
+  }
 }
 
-function isMobileOrTablet() {
-  return window.matchMedia(deviceQuery).matches ||
-    /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
-    (/Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1)
+function isMobilePhoneDevice() {
+  if (typeof window === 'undefined') return false
+
+  const ua = navigator.userAgent || ''
+
+  // 1. TVs (Smart TV, Android TV, Tizen, WebOS, AppleTV, etc.) -> ALWAYS animated video
+  if (/SmartTV|GoogleTV|AppleTV|BRAVIA|NetCast|Viera|Roku|HbbTV|Tizen|Web0S|POV_TV|CrKey/i.test(ua)) {
+    return false
+  }
+
+  // 2. Desktop & Laptop screens (including touch laptops like Surface) -> ALWAYS animated video
+  if (window.innerWidth >= 768 && window.innerHeight >= 500) {
+    return false
+  }
+
+  // 3. Mobile phone user-agent or small screen width (< 768px)
+  const isPhoneUA = /iPhone|iPod|Windows Phone|webOS|BlackBerry|Opera Mini/i.test(ua) ||
+    (/Android/i.test(ua) && /Mobile/i.test(ua))
+
+  return isPhoneUA || window.innerWidth < 768
 }
 
 export function StartupAnimation({ onComplete }: { onComplete: () => void }) {
-  const mobile = useSyncExternalStore(subscribeToDeviceChange, isMobileOrTablet, () => true)
+  const isMobile = useSyncExternalStore(subscribeToDeviceChange, isMobilePhoneDevice, () => false)
   const [fadingOut, setFadingOut] = useState(false)
   const completing = useRef(false)
   const completionTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -36,9 +56,9 @@ export function StartupAnimation({ onComplete }: { onComplete: () => void }) {
 
   useEffect(() => {
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    const timer = setTimeout(finish, reducedMotion ? 250 : mobile ? 1800 : 8000)
+    const timer = setTimeout(finish, reducedMotion ? 250 : isMobile ? 1800 : 8000)
     return () => clearTimeout(timer)
-  }, [mobile, finish])
+  }, [isMobile, finish])
 
   useEffect(() => () => {
     if (completionTimer.current) clearTimeout(completionTimer.current)
@@ -46,8 +66,16 @@ export function StartupAnimation({ onComplete }: { onComplete: () => void }) {
   }, [])
 
   return (
-    <div className={`${styles.overlay} ${fadingOut ? styles.leaving : ''}`} aria-busy="true">
-      {mobile ? (
+    <div
+      className={`${styles.overlay} ${fadingOut ? styles.leaving : ''}`}
+      aria-busy="true"
+      onClick={finish}
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (['Enter', ' ', 'Escape'].includes(e.key)) finish()
+      }}
+    >
+      {isMobile ? (
         <div className={styles.mobile}>
           <div className={styles.brand}>
             <div className={styles.emblem} aria-hidden="true">
@@ -66,7 +94,19 @@ export function StartupAnimation({ onComplete }: { onComplete: () => void }) {
           </div>
         </div>
       ) : (
-        <video className={styles.video} src="/logo/startup.mp4" autoPlay muted playsInline onEnded={finish} onError={finish} aria-label="Lumo Dealers startup" />
+        <video
+          className={styles.video}
+          src="/logo/startup.mp4"
+          autoPlay
+          muted
+          playsInline
+          preload="auto"
+          disablePictureInPicture
+          controls={false}
+          onEnded={finish}
+          onError={finish}
+          aria-label="Lumo Dealers startup"
+        />
       )}
     </div>
   )
