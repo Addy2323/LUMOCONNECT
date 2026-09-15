@@ -95,10 +95,10 @@ export function StartupAnimation({ onComplete }: StartupAnimationProps) {
           {/* Center Branding & Emblem */}
           <div className="relative z-10 flex flex-col items-center text-center space-y-5 my-auto">
             <div className="relative">
-              {/* Outer Glowing Pulsing Ring */}
-              <div className="w-24 h-24 rounded-3xl bg-gradient-to-tr from-[#FF6A00] to-amber-400 p-1 shadow-2xl shadow-[#FF6A00]/40 animate-pulse">
-                <div className="w-full h-full bg-[#0B132B] rounded-[22px] flex items-center justify-center">
-                  <Zap className="w-12 h-12 text-[#FF6A00] fill-[#FF6A00]/20" />
+              {/* Outer Glowing Pulsing Ring with Custom Logo */}
+              <div className="w-28 h-28 rounded-3xl bg-gradient-to-tr from-[#FF6A00] to-amber-400 p-1 shadow-2xl shadow-[#FF6A00]/40 animate-pulse">
+                <div className="w-full h-full bg-[#0B132B] rounded-[22px] flex items-center justify-center p-2 overflow-hidden">
+                  <img src="/startup.png" alt="LUMO Logo" className="w-full h-full object-contain" />
                 </div>
               </div>
               <Sparkles className="w-5 h-5 text-amber-300 absolute -top-2 -right-2 animate-bounce" />

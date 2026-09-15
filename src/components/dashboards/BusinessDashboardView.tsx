@@ -13,7 +13,6 @@ import { CreateOpportunityWizardModal } from './business/tabs/CreateOpportunityW
 import { OverviewTab } from './business/tabs/OverviewTab'
 import { MyOpportunitiesTab } from './business/tabs/MyOpportunitiesTab'
 import { PartnersApplicationsTab } from './business/tabs/PartnersApplicationsTab'
-import { DealRoomsTab } from './business/tabs/DealRoomsTab'
 import { DealPerformanceTab } from './business/tabs/DealPerformanceTab'
 import { ConversionsResultsTab } from './business/tabs/ConversionsResultsTab'
 import { RewardsCommissionsTab } from './business/tabs/RewardsCommissionsTab'
@@ -215,7 +214,6 @@ export function BusinessDashboardView({
                 {activeTab === 'create_opportunity' && 'Create Commercial Opportunity'}
                 {activeTab === 'my_opportunities' && 'My Opportunities & Terms Registry'}
                 {activeTab === 'partners_applications' && 'Partners & Opportunity Applications'}
-                {activeTab === 'deal_rooms' && 'Deal Rooms & B2B Negotiations'}
                 {activeTab === 'deal_performance' && 'Deal Performance & ROI Analytics'}
                 {activeTab === 'conversions_results' && 'Commercial Outcomes & Conversions'}
                 {activeTab === 'rewards_commissions' && 'Rewards, Commissions & Obligations'}
@@ -278,7 +276,6 @@ export function BusinessDashboardView({
               setPartners={setPartners}
             />
           )}
-          {activeTab === 'deal_rooms' && <DealRoomsTab />}
 
           {/* GROUP 2: PERFORMANCE */}
           {activeTab === 'deal_performance' && (

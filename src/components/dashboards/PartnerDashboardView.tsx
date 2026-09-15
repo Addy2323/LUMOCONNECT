@@ -24,7 +24,6 @@ import { DiscoverOpportunitiesTab } from './partner/tabs/DiscoverOpportunitiesTa
 import { SavedOpportunitiesTab } from './partner/tabs/SavedOpportunitiesTab'
 import { MyDealsTab } from './partner/tabs/MyDealsTab'
 import { LeadsReferralsTab } from './partner/tabs/LeadsReferralsTab'
-import { DealRoomsTab } from './partner/tabs/DealRoomsTab'
 import { PerformanceTab } from './partner/tabs/PerformanceTab'
 import { EarningsPayoutsTab } from './partner/tabs/EarningsPayoutsTab'
 import { NotificationsTab } from './partner/tabs/NotificationsTab'
@@ -361,7 +360,6 @@ export function PartnerDashboardView({
                 {activeTab === 'saved_opportunities' && 'Saved Opportunities & Bookmarks'}
                 {activeTab === 'my_deals' && 'My Deals & Enrolled Campaigns'}
                 {activeTab === 'leads_referrals' && 'Customer Leads & Commercial Referrals'}
-                {activeTab === 'deal_rooms' && 'Deal Rooms & Negotiations'}
                 {activeTab === 'performance' && 'Performance & Outcome Analytics'}
                 {activeTab === 'earnings_payouts' && 'Earnings, Commissions & Payouts'}
                 {activeTab === 'notifications' && 'Notifications & Operational Alerts'}
@@ -483,8 +481,6 @@ export function PartnerDashboardView({
               selectedDealForLead={selectedDealForLead}
             />
           )}
-
-          {activeTab === 'deal_rooms' && <DealRoomsTab />}
 
           {/* GROUP 2: PERFORMANCE */}
           {activeTab === 'performance' && (

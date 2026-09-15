@@ -85,7 +85,6 @@ function getNavGroups({
         { id: 'create_opportunity', label: 'Create Opportunity', icon: PlusCircle, opType: 'Draft CRUD / Wizard', isSpecialAction: true },
         { id: 'my_opportunities', label: 'My Opportunities', icon: Briefcase, opType: 'C/R/U/Archive', badge: myOpportunitiesCount > 0 ? myOpportunitiesCount : undefined, badgeColor: 'bg-orange-100 dark:bg-orange-950/60 text-[#FF6A00]' },
         { id: 'partners_applications', label: 'Partners & Applications', icon: Users, opType: 'Read/Workflow', badge: pendingApplicationsCount > 0 ? pendingApplicationsCount : undefined, badgeColor: 'bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300' },
-        { id: 'deal_rooms', label: 'Deal Rooms', icon: MessageSquareCode, opType: 'Negotiate & Milestones', badge: activeDealRoomsCount > 0 ? activeDealRoomsCount : undefined, badgeColor: 'bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300' },
       ],
     },
     {
