@@ -13,6 +13,7 @@ import {
   Award,
   Calculator,
   Receipt,
+  FileSpreadsheet,
   UserCheck,
   AlertTriangle,
   MessageSquare,
@@ -109,7 +110,7 @@ function getNavGroups({
         { id: 'payments', label: 'Payments', icon: Wallet, opType: 'Immutable Ledger' },
         { id: 'payouts', label: 'Rewards & Payouts', icon: Award, opType: 'Financial Workflow' },
         { id: 'reconciliation', label: 'Reconciliation', icon: Calculator, opType: 'Match & Close' },
-        { id: 'tax', label: 'Tax & Statements', icon: Receipt, opType: 'Settlement & Rules' },
+        { id: 'tax', label: 'Reports & Records', icon: FileSpreadsheet, opType: 'Reports & Calendar' },
       ],
     },
     {

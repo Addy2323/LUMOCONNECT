@@ -32,7 +32,7 @@ import { SubscriptionsTab } from './admin/tabs/SubscriptionsTab'
 import { PaymentsTab } from './admin/tabs/PaymentsTab'
 import { RewardsPayoutsTab } from './admin/tabs/RewardsPayoutsTab'
 import { ReconciliationTab } from './admin/tabs/ReconciliationTab'
-import { TaxStatementsTab } from './admin/tabs/TaxStatementsTab'
+import { FinancialReportsRecordsTab } from './admin/tabs/FinancialReportsRecordsTab'
 import { KycComplianceTab } from './admin/tabs/KycComplianceTab'
 import { FraudRiskTab } from './admin/tabs/FraudRiskTab'
 import { DisputesComplaintsTab } from './admin/tabs/DisputesComplaintsTab'
@@ -150,7 +150,7 @@ export function AdminDashboardView({
               {activeTab === 'payments' && 'Incoming Payments & Settlement Ledger'}
               {activeTab === 'payouts' && 'Rewards & Partner Payout Batches'}
               {activeTab === 'reconciliation' && 'Payment Provider Reconciliation'}
-              {activeTab === 'tax' && 'Tax Rules & Settlement Statements'}
+              {activeTab === 'tax' && 'Financial Reports, Records & Reporting Calendar'}
               {activeTab === 'kyc' && 'KYC & Identity Compliance'}
               {activeTab === 'risk' && 'Fraud Engine & Anomaly Case Management'}
               {activeTab === 'disputes' && 'Disputes, Complaints & Mediation'}
@@ -212,7 +212,7 @@ export function AdminDashboardView({
         {activeTab === 'payments' && <PaymentsTab onNavigateToSubscriptions={() => setActiveTab('subscriptions')} />}
         {activeTab === 'payouts' && <RewardsPayoutsTab />}
         {activeTab === 'reconciliation' && <ReconciliationTab />}
-        {activeTab === 'tax' && <TaxStatementsTab />}
+        {activeTab === 'tax' && <FinancialReportsRecordsTab />}
 
         {/* GROUP 3: RISK & SUPPORT */}
         {activeTab === 'kyc' && <KycComplianceTab />}
