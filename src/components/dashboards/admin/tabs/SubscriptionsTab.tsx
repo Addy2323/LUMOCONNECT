@@ -45,7 +45,15 @@ export function SubscriptionsTab() {
     if (typeof window !== 'undefined') {
       try {
         const saved = localStorage.getItem('lumo_admin_sub_ledger')
-        if (saved) return JSON.parse(saved)
+        if (saved) {
+          const parsed = JSON.parse(saved)
+          if (Array.isArray(parsed)) {
+            return parsed.map((s: any) => ({
+              ...s,
+              amountTZS: Number(s.amountTZS ?? s.amountPaidTZS ?? 0),
+            }))
+          }
+        }
       } catch (e) {
         console.warn('Could not read admin sub ledger', e)
       }
@@ -89,9 +97,13 @@ export function SubscriptionsTab() {
       if (res.ok) {
         const data = await res.json()
         if (data.subscriptions && Array.isArray(data.subscriptions) && data.subscriptions.length > 0) {
-          setLedger(data.subscriptions)
+          const sanitized = data.subscriptions.map((s: any) => ({
+            ...s,
+            amountTZS: Number(s.amountTZS ?? s.amountPaidTZS ?? 0),
+          }))
+          setLedger(sanitized)
           if (typeof window !== 'undefined') {
-            localStorage.setItem('lumo_admin_sub_ledger', JSON.stringify(data.subscriptions))
+            localStorage.setItem('lumo_admin_sub_ledger', JSON.stringify(sanitized))
           }
         }
       }
@@ -578,7 +590,7 @@ export function SubscriptionsTab() {
                   </td>
 
                   <td className="p-3 font-mono font-bold text-slate-900 dark:text-white">
-                    TZS {sub.amountTZS.toLocaleString()}
+                    TZS {Number(sub.amountTZS ?? sub.amountPaidTZS ?? 0).toLocaleString()}
                   </td>
 
                   <td className="p-3 text-[11px] text-slate-500">

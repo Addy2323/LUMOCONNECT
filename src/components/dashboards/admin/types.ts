@@ -123,6 +123,7 @@ export interface SubscriptionTransaction {
   planCode: SubscriptionPlanCode
   planName: string
   amountTZS: number
+  amountPaidTZS?: number
   status: 'PENDING' | 'ACTIVE' | 'PAST_DUE' | 'SUSPENDED' | 'EXPIRED' | 'CANCELLED'
   providerRef: string
   startsAt: string

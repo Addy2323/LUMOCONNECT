@@ -42,6 +42,7 @@ export async function GET() {
         expiresAt: s.expiresAt ? s.expiresAt.toISOString().slice(0, 10) : 'N/A',
         daysRemaining: isCurrentActive ? daysRemaining : 0,
         autoRenew: s.autoRenew,
+        amountTZS: Number(s.plan?.priceMinor ? s.plan.priceMinor / 100n : 0n),
         amountPaidTZS: Number(s.plan?.priceMinor ? s.plan.priceMinor / 100n : 0n),
         providerRef: `SUB-${s.id.slice(0, 8).toUpperCase()}`,
         createdAt: s.createdAt ? s.createdAt.toISOString().slice(0, 10) : 'N/A',

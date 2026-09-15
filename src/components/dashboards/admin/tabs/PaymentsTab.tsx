@@ -158,7 +158,7 @@ export function PaymentsTab({ onNavigateToSubscriptions }: PaymentsTabProps = {}
             <Crown className="w-4 h-4 text-amber-500" />
           </div>
           <div className="text-xl font-black text-slate-900 dark:text-white font-mono">
-            TZS {vipSubRevenue.toLocaleString()}
+            TZS {(vipSubRevenue ?? 0).toLocaleString()}
           </div>
           <p className="text-[10px] text-amber-800 dark:text-amber-400">VIP & Annual memberships</p>
         </div>
@@ -169,7 +169,7 @@ export function PaymentsTab({ onNavigateToSubscriptions }: PaymentsTabProps = {}
             <Wallet className="w-4 h-4 text-blue-500" />
           </div>
           <div className="text-xl font-black text-slate-900 dark:text-white font-mono">
-            TZS {normalSubRevenue.toLocaleString()}
+            TZS {(normalSubRevenue ?? 0).toLocaleString()}
           </div>
           <p className="text-[10px] text-blue-800 dark:text-blue-400">Regular partner recurring</p>
         </div>
@@ -180,7 +180,7 @@ export function PaymentsTab({ onNavigateToSubscriptions }: PaymentsTabProps = {}
             <Shield className="w-4 h-4 text-emerald-600" />
           </div>
           <div className="text-xl font-black text-slate-900 dark:text-white font-mono">
-            TZS {totalSecuredDealFunds.toLocaleString()}
+            TZS {(totalSecuredDealFunds ?? 0).toLocaleString()}
           </div>
           <p className="text-[10px] text-emerald-800 dark:text-emerald-400">Pre-funded merchant deposits</p>
         </div>
@@ -355,11 +355,11 @@ export function PaymentsTab({ onNavigateToSubscriptions }: PaymentsTabProps = {}
 
                 <td className="p-3 font-mono">
                   <div className="text-slate-900 dark:text-white font-bold">
-                    TZS {pay.grossAmountTZS.toLocaleString()}
+                    TZS {(pay.grossAmountTZS ?? 0).toLocaleString()}
                   </div>
-                  {pay.processingFeeTZS > 0 && (
+                  {Number(pay.processingFeeTZS || 0) > 0 && (
                     <div className="text-[10px] text-slate-400">
-                      Fee: TZS {pay.processingFeeTZS.toLocaleString()}
+                      Fee: TZS {(pay.processingFeeTZS ?? 0).toLocaleString()}
                     </div>
                   )}
                 </td>
