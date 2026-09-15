@@ -17,6 +17,7 @@ import {
 } from './partner/types'
 import { PartnerToastProvider } from './partner/PartnerToast'
 import { PartnerMobileSidebar, PartnerSidebar } from './partner/PartnerSidebar'
+import { useSubscriptionCountdown } from './partner/useSubscriptionCountdown'
 import { ThemeToggle } from '@/components/theme/ThemeToggle'
 
 // Tab components
@@ -124,6 +125,7 @@ export function PartnerDashboardView({
   )
 
   const [subscription, setSubscription] = useState<PartnerSubscriptionPlan>(MOCK_PARTNER_SUBSCRIPTION)
+  const countdown = useSubscriptionCountdown(subscription)
   const [opportunities, setOpportunities] = useState<PartnerOpportunitySummary[]>([])
   const [joinedDeals, setJoinedDeals] = useState<JoinedDealItem[]>([])
   const [leads, setLeads] = useState<PartnerLeadItem[]>(MOCK_PARTNER_LEADS)
@@ -373,7 +375,7 @@ export function PartnerDashboardView({
             <BackToHomeButton onNavigate={onExploreDeals} />
 
           <div className="hidden shrink-0 items-center gap-3 sm:flex">
-              {subscription.status === 'ACTIVE' ? (
+              {subscription.status === 'ACTIVE' && !countdown.isExpired ? (
                 <div
                   onClick={() => setActiveTab('subscription')}
                   className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-300 dark:border-amber-700/60 text-amber-900 dark:text-amber-300 cursor-pointer shadow-2xs hover:scale-105 transition-transform"
@@ -383,7 +385,7 @@ export function PartnerDashboardView({
                     PRO
                   </span>
                   <span className="hidden sm:inline-block font-mono font-extrabold text-[#FF6A00]">
-                    {subscription.daysRemaining}d remaining
+                    {countdown.badgeDisplay}
                   </span>
                 </div>
               ) : (

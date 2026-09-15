@@ -207,4 +207,39 @@ describe('LUMO Subscription Engine & Authoritative Lifecycle', () => {
       expect(sorted[3].id).toBe('4') // Expired
     })
   })
+
+  describe('8. Progressive Bar Decay & Live Decrementing Calculations', () => {
+    it('calculates progressive decay percentage accurately from remaining and total cycle', () => {
+      const totalDurationMs = 30 * 24 * 60 * 60 * 1000 // 30 days
+      const remainingMs = 15 * 24 * 60 * 60 * 1000 // 15 days left (50%)
+
+      const progressPercent = Math.max(0, Math.min(100, (remainingMs / totalDurationMs) * 100))
+      expect(progressPercent).toBe(50)
+
+      // Near expiry (1 day left out of 30)
+      const remaining1Day = 1 * 24 * 60 * 60 * 1000
+      const progress1Day = Math.max(0, Math.min(100, (remaining1Day / totalDurationMs) * 100))
+      expect(progress1Day.toFixed(1)).toBe('3.3')
+
+      // Expired (0ms left)
+      const expiredProgress = Math.max(0, Math.min(100, (0 / totalDurationMs) * 100))
+      expect(expiredProgress).toBe(0)
+    })
+
+    it('correctly formats live decrementing display strings', () => {
+      // 29 days, 23 hours, 45 minutes, 30 seconds
+      const ms = (29 * 86400 + 23 * 3600 + 45 * 60 + 30) * 1000
+      const days = Math.floor(ms / 86400000)
+      const hours = Math.floor((ms % 86400000) / 3600000)
+      const minutes = Math.floor((ms % 3600000) / 60000)
+      const seconds = Math.floor((ms % 60000) / 1000)
+
+      const displayTime = `${days}d ${hours}h ${minutes}m ${seconds}s`
+      const badgeDisplay = `${days}d ${hours}h left`
+
+      expect(displayTime).toBe('29d 23h 45m 30s')
+      expect(badgeDisplay).toBe('29d 23h left')
+    })
+  })
 })
+

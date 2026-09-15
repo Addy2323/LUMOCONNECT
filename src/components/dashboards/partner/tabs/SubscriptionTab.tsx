@@ -46,10 +46,29 @@ export function SubscriptionTab({
   }, [subscription.serverTimeISO])
 
   const targetExpiryMs = useMemo(() => {
-    if (!subscription.expiresAtISO) return 0
-    const expiryMs = new Date(subscription.expiresAtISO).getTime()
-    return isNaN(expiryMs) ? 0 : expiryMs
-  }, [subscription.expiresAtISO])
+    if (subscription.expiresAtISO) {
+      const expiryMs = new Date(subscription.expiresAtISO).getTime()
+      if (!isNaN(expiryMs) && expiryMs > 0) return expiryMs
+    }
+    if (subscription.daysRemaining && subscription.daysRemaining > 0) {
+      return Date.now() + subscription.daysRemaining * 86400000
+    }
+    return 0
+  }, [subscription.expiresAtISO, subscription.daysRemaining])
+
+  const cycleDurationMs = useMemo(() => {
+    if (subscription.cycle === 'SEMI_ANNUAL') return 180 * 86400000
+    if (subscription.cycle === 'ANNUAL' || subscription.cycle === 'ENTERPRISE') return 365 * 86400000
+    return 30 * 86400000
+  }, [subscription.cycle])
+
+  const startMs = useMemo(() => {
+    if (subscription.startedAtISO) {
+      const s = new Date(subscription.startedAtISO).getTime()
+      if (!isNaN(s) && targetExpiryMs > s) return s
+    }
+    return targetExpiryMs > 0 ? targetExpiryMs - cycleDurationMs : 0
+  }, [subscription.startedAtISO, targetExpiryMs, cycleDurationMs])
 
   const calculateTimeLeft = useCallback(() => {
     if (subscription.status === 'EXPIRED' || !targetExpiryMs) {
@@ -329,6 +348,47 @@ export function SubscriptionTab({
               </div>
             </div>
           </div>
+
+          {/* Progressive Cycle Bar */}
+          {isProActive && (
+            <div className="mt-3.5 max-w-lg space-y-1.5">
+              <div className="w-full bg-white/10 dark:bg-black/30 backdrop-blur-sm h-2 rounded-full overflow-hidden p-0.5 border border-white/10 shadow-inner">
+                <div
+                  className={`h-full rounded-full transition-all duration-1000 ease-linear ${
+                    timeLeft.totalMs / Math.max(1, targetExpiryMs - startMs) > 0.35
+                      ? 'bg-gradient-to-r from-[#FF6A00] to-emerald-400'
+                      : timeLeft.totalMs / Math.max(1, targetExpiryMs - startMs) > 0.12
+                      ? 'bg-gradient-to-r from-amber-400 to-[#FF6A00]'
+                      : 'bg-gradient-to-r from-rose-500 to-red-500 animate-pulse'
+                  }`}
+                  style={{
+                    width: `${Math.max(
+                      2,
+                      Math.min(
+                        100,
+                        (timeLeft.totalMs / Math.max(1, targetExpiryMs - startMs)) * 100
+                      )
+                    )}%`,
+                  }}
+                />
+              </div>
+              <div className="flex items-center justify-between text-[10px] font-mono text-slate-300">
+                <span>Pass Cycle Decay</span>
+                <span>
+                  {Math.round(
+                    Math.max(
+                      0,
+                      Math.min(
+                        100,
+                        (timeLeft.totalMs / Math.max(1, targetExpiryMs - startMs)) * 100
+                      )
+                    )
+                  )}
+                  % remaining
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Feature Check List */}

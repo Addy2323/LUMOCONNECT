@@ -24,6 +24,7 @@ import {
 } from 'lucide-react'
 import { PartnerSidebarSection, PartnerSubscriptionPlan } from './types'
 import { BrandMark } from '@/components/shared/BrandMark'
+import { useSubscriptionCountdown } from './useSubscriptionCountdown'
 
 interface PartnerSidebarProps {
   activeTab: PartnerSidebarSection
@@ -118,6 +119,7 @@ export function PartnerSidebar({
   onManagePlan,
 }: PartnerSidebarProps) {
   const navGroups = getNavGroups({ myDealsCount, savedCount, leadsCount })
+  const countdown = useSubscriptionCountdown(subscription)
 
   return (
     <aside
@@ -214,35 +216,60 @@ export function PartnerSidebar({
       {/* Bottom Subscription Access Pass Card */}
       {!sidebarCollapsed && (
         <div className="pt-3 border-t border-slate-100 dark:border-slate-800 shrink-0 space-y-2">
-          {subscription.status === 'ACTIVE' ? (
+          {!countdown.isExpired && subscription.status === 'ACTIVE' ? (
             <div className="p-3 rounded-2xl bg-gradient-to-r from-orange-50 to-amber-50 dark:from-slate-800 dark:to-slate-800/60 border border-orange-200/80 dark:border-slate-700 space-y-2 text-xs">
               <div className="flex items-center justify-between">
                 <span className="font-extrabold text-[11px] text-slate-900 dark:text-white flex items-center gap-1">
                   <Sparkles className="w-3 h-3 text-[#FF6A00] fill-[#FF6A00]" />
                   <span>{subscription.planName}</span>
                 </span>
-                <span className="text-[9px] bg-emerald-100 text-emerald-700 font-black px-1.5 py-0.2 rounded-full flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <span>PRO ACTIVE</span>
+                <span
+                  className={`text-[9px] font-black px-1.5 py-0.2 rounded-full flex items-center gap-1 ${
+                    countdown.isExpiringSoon
+                      ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                      : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                  }`}
+                >
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      countdown.isExpiringSoon ? 'bg-amber-500' : 'bg-emerald-500'
+                    } animate-pulse`}
+                  />
+                  <span>{countdown.isExpiringSoon ? 'EXPIRING' : 'PRO ACTIVE'}</span>
                 </span>
               </div>
 
-              {/* Countdown Ticker & Progress Bar */}
-              <div className="space-y-1">
+              {/* Countdown Ticker & Progressive Decrementing Bar */}
+              <div className="space-y-1.5">
                 <div className="flex items-center justify-between text-[10px] font-mono font-bold text-slate-600 dark:text-slate-300">
                   <span>⏳ Remaining Time:</span>
-                  <span className="text-[#FF6A00]">{subscription.daysRemaining} Days</span>
+                  <span
+                    className={`font-black ${
+                      countdown.isExpiringSoon
+                        ? 'text-rose-600 animate-pulse'
+                        : 'text-[#FF6A00]'
+                    }`}
+                  >
+                    {countdown.displayTime}
+                  </span>
                 </div>
-                <div className="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
+                <div className="w-full bg-slate-200/80 dark:bg-slate-700 h-2 rounded-full overflow-hidden p-0.5 shadow-inner">
                   <div
-                    className="bg-gradient-to-r from-[#FF6A00] to-emerald-500 h-full rounded-full"
+                    className={`h-full rounded-full transition-all duration-1000 ease-linear ${
+                      countdown.progressPercent > 35
+                        ? 'bg-gradient-to-r from-[#FF6A00] to-emerald-500'
+                        : countdown.progressPercent > 12
+                        ? 'bg-gradient-to-r from-amber-500 to-[#FF6A00]'
+                        : 'bg-gradient-to-r from-rose-500 to-red-600 animate-pulse'
+                    }`}
                     style={{
-                      width: `${Math.min(
-                        100,
-                        Math.max(10, (subscription.daysRemaining / (subscription.cycle === 'SEMI_ANNUAL' ? 180 : 30)) * 100)
-                      )}%`,
+                      width: `${Math.max(2, countdown.progressPercent)}%`,
                     }}
                   />
+                </div>
+                <div className="flex items-center justify-between text-[9px] font-mono text-slate-400">
+                  <span>Pass Cycle</span>
+                  <span>{Math.round(countdown.progressPercent)}% remaining</span>
                 </div>
               </div>
 
@@ -251,9 +278,41 @@ export function PartnerSidebar({
                   if (onManagePlan) onManagePlan()
                   else onSelectTab('subscription')
                 }}
-                className="w-full py-1.5 bg-white dark:bg-slate-900 border border-orange-200 dark:border-slate-700 text-[#FF6A00] font-extrabold rounded-xl text-[11px] hover:bg-orange-50 transition-colors text-center cursor-pointer shadow-2xs"
+                className="w-full py-1.5 bg-white dark:bg-slate-900 border border-orange-200 dark:border-slate-700 text-[#FF6A00] font-extrabold rounded-xl text-[11px] hover:bg-orange-50 dark:hover:bg-slate-800 transition-colors text-center cursor-pointer shadow-2xs"
               >
                 Manage Access Pass
+              </button>
+            </div>
+          ) : subscription.status === 'EXPIRED' || countdown.isExpired ? (
+            <div className="p-3 rounded-2xl bg-rose-50/80 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="font-extrabold text-[11px] text-rose-900 dark:text-rose-200 flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-rose-500" />
+                  <span>{subscription.planName || 'Access Pass'}</span>
+                </span>
+                <span className="text-[9px] bg-rose-100 text-rose-700 dark:bg-rose-900/60 dark:text-rose-300 font-black px-1.5 py-0.2 rounded-full">
+                  EXPIRED
+                </span>
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-[10px] font-mono font-bold text-rose-700 dark:text-rose-300">
+                  <span>⏳ Remaining Time:</span>
+                  <span className="text-rose-600 font-black">0d 00h (Expired)</span>
+                </div>
+                <div className="w-full bg-rose-200 dark:bg-rose-900/40 h-2 rounded-full overflow-hidden">
+                  <div className="bg-rose-500 h-full rounded-full" style={{ width: '0%' }} />
+                </div>
+              </div>
+
+              <button
+                onClick={() => {
+                  if (onManagePlan) onManagePlan()
+                  else onSelectTab('subscription')
+                }}
+                className="w-full py-1.5 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold rounded-xl text-[11px] transition-colors text-center cursor-pointer shadow-xs"
+              >
+                Renew Access Pass
               </button>
             </div>
           ) : (
@@ -299,6 +358,7 @@ export function PartnerMobileSidebar({
   onSignOut,
 }: PartnerMobileSidebarProps) {
   const navGroups = getNavGroups({ myDealsCount, savedCount, leadsCount })
+  const countdown = useSubscriptionCountdown(subscription)
 
   useEffect(() => {
     if (!open) return
@@ -423,6 +483,35 @@ export function PartnerMobileSidebar({
               Log out
             </button>
           </div>
+          {/* Mobile Subscription Progressive Countdown Card */}
+          {subscription.status === 'ACTIVE' && !countdown.isExpired ? (
+            <div className="p-3 rounded-2xl bg-gradient-to-r from-orange-50 to-amber-50 dark:from-slate-800 dark:to-slate-800/60 border border-orange-200/80 dark:border-slate-700 space-y-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-extrabold text-[11px] text-slate-900 dark:text-white flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-[#FF6A00] fill-[#FF6A00]" />
+                  <span>{subscription.planName}</span>
+                </span>
+                <span className="text-[9px] font-black px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                  PRO ACTIVE
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-[10px] font-mono font-bold text-slate-600 dark:text-slate-300">
+                <span>⏳ Time Left:</span>
+                <span className="font-black text-[#FF6A00]">{countdown.displayTime}</span>
+              </div>
+              <div className="w-full bg-slate-200/80 dark:bg-slate-700 h-2 rounded-full overflow-hidden p-0.5">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-[#FF6A00] to-emerald-500 transition-all duration-1000"
+                  style={{ width: `${Math.max(2, countdown.progressPercent)}%` }}
+                />
+              </div>
+              <div className="flex items-center justify-between text-[9px] font-mono text-slate-400">
+                <span>Pass Cycle</span>
+                <span>{Math.round(countdown.progressPercent)}% remaining</span>
+              </div>
+            </div>
+          ) : null}
+
           <button
             type="button"
             onClick={() => {
@@ -433,7 +522,9 @@ export function PartnerMobileSidebar({
             className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#FF6A00] px-4 py-3 text-sm font-extrabold text-white shadow-sm transition-colors hover:bg-[#EA580C]"
           >
             <Sparkles className="h-4 w-4" />
-            {subscription.status === 'ACTIVE' ? 'Manage Access Pass' : 'Get PRO Pass'}
+            {subscription.status === 'ACTIVE' && !countdown.isExpired
+              ? `Manage Pass (${countdown.badgeDisplay})`
+              : 'Get PRO Pass'}
           </button>
         </div>
       </aside>
