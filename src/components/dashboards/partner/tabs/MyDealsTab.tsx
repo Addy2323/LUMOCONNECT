@@ -173,12 +173,12 @@ export function MyDealsTab({
                 <p className="text-xs text-slate-500">Published by: <strong>Lumo Dealers</strong> · Coordination: Lumo WhatsApp Desk · Enrolled: {deal.joinedDate}</p>
               </div>
 
-              <div className="text-right sm:shrink-0 bg-white dark:bg-slate-900 p-3 rounded-2xl border">
-                <div className="text-[10px] text-slate-400 font-bold uppercase">Reward Value</div>
-                <div className="text-base font-black text-[#FF6A00] font-mono">
+              <div className="w-full sm:w-auto text-left sm:text-right shrink-0 bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800">
+                <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Reward Value</div>
+                <div className="text-sm sm:text-base font-black text-[#FF6A00] font-mono leading-tight">
                   {deal.rewardDisplay}
                 </div>
-                <div className="text-[10px] text-emerald-600 font-bold">
+                <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold mt-0.5">
                   Earned: TZS {deal.earningsEarnedTZS.toLocaleString()}
                 </div>
               </div>
@@ -186,10 +186,10 @@ export function MyDealsTab({
 
             {/* Quick Tracking Strip */}
             {deal.status === 'ACTIVE' && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs bg-white dark:bg-slate-900 p-3 rounded-2xl border">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800">
                 <div className="space-y-1">
                   <span className="text-[10px] text-slate-400 font-bold uppercase block">Your Tracking URL</span>
-                  <div className="flex items-center justify-between gap-2 p-2 bg-slate-50 dark:bg-slate-800 rounded-xl font-mono text-[11px]">
+                  <div className="flex items-center justify-between gap-2 p-2 bg-slate-50 dark:bg-slate-800 rounded-xl font-mono text-[11px] min-w-0">
                     <span className="truncate">{deal.trackingLink}</span>
                     <button
                       onClick={() => handleCopy(deal.trackingLink, 'Tracking Link')}
@@ -202,11 +202,11 @@ export function MyDealsTab({
 
                 <div className="space-y-1">
                   <span className="text-[10px] text-slate-400 font-bold uppercase block">Promo Code & QR</span>
-                  <div className="flex items-center justify-between gap-2 p-2 bg-slate-50 dark:bg-slate-800 rounded-xl font-mono text-[11px]">
+                  <div className="flex items-center justify-between gap-2 p-2 bg-slate-50 dark:bg-slate-800 rounded-xl font-mono text-[11px] min-w-0">
                     <span>Code: <strong>{deal.promoCode}</strong></span>
                     <button
                       onClick={() => setShowQrModal(deal)}
-                      className="text-blue-600 hover:underline shrink-0 font-bold flex items-center gap-1"
+                      className="text-blue-600 dark:text-blue-400 hover:underline shrink-0 font-bold flex items-center gap-1"
                     >
                       <QrCode className="w-3.5 h-3.5" />
                       <span>View QR</span>
@@ -216,22 +216,25 @@ export function MyDealsTab({
               </div>
             )}
 
-            {/* Metrics & Actions Row */}
-            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-200 dark:border-slate-700">
-              <div className="flex items-center gap-4 text-xs">
-                <span>Leads: <strong className="text-slate-900 dark:text-white font-mono">{deal.activeLeadsCount}</strong></span>
-                <span>Conversions: <strong className="text-emerald-600 font-mono">{deal.verifiedConversionsCount}</strong></span>
+            {/* Metrics & Actions Section */}
+            <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-700">
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-600 dark:text-slate-400">
+                <div className="flex items-center gap-4">
+                  <span>Leads: <strong className="text-slate-900 dark:text-white font-mono">{deal.activeLeadsCount}</strong></span>
+                  <span>Conversions: <strong className="text-emerald-600 dark:text-emerald-400 font-mono">{deal.verifiedConversionsCount}</strong></span>
+                </div>
                 {deal.milestoneProgressPercent > 0 && (
-                  <span>Milestone: <strong className="text-purple-600 font-mono">{deal.milestoneProgressPercent}%</strong></span>
+                  <span>Milestone: <strong className="text-purple-600 dark:text-purple-400 font-mono">{deal.milestoneProgressPercent}%</strong></span>
                 )}
               </div>
 
-              <div className="flex items-center gap-2">
+              {/* Responsive Action Buttons Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full">
                 {deal.status === 'ACTIVE' && (
                   <>
                     <button
                       onClick={() => setPromoModalDeal(deal)}
-                      className="py-1.5 px-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold border border-slate-700 shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer"
+                      className="w-full py-2.5 px-3 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 text-white rounded-xl text-xs font-bold border border-slate-700 shadow-2xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                     >
                       <Download className="w-3.5 h-3.5 text-[#FF6A00]" />
                       <span>Get Promotional Materials</span>
@@ -239,7 +242,7 @@ export function MyDealsTab({
 
                     <button
                       onClick={() => setReferralModalDeal(deal)}
-                      className="py-1.5 px-3.5 bg-[#FF6A00] hover:bg-[#EA580C] text-white rounded-xl text-xs font-bold shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer"
+                      className="w-full py-2.5 px-3 bg-gradient-to-r from-[#FF6A00] to-orange-500 hover:from-[#EA580C] hover:to-orange-600 text-white rounded-xl text-xs font-bold shadow-2xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                     >
                       <Send className="w-3.5 h-3.5" />
                       <span>I Have a Customer</span>
@@ -249,9 +252,9 @@ export function MyDealsTab({
 
                 <button
                   onClick={() => setSelectedDealTools(deal)}
-                  className="py-1.5 px-3 bg-white dark:bg-slate-900 border rounded-xl text-xs font-bold hover:bg-slate-100 flex items-center gap-1 cursor-pointer"
+                  className="w-full py-2.5 px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center gap-1.5 cursor-pointer"
                 >
-                  <FileText className="w-3.5 h-3.5" />
+                  <FileText className="w-3.5 h-3.5 text-slate-500" />
                   <span>Deal Tools</span>
                 </button>
               </div>

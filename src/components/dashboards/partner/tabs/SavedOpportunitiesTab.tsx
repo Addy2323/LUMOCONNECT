@@ -141,8 +141,8 @@ export function SavedOpportunitiesTab({
 
                 <div className="p-4 space-y-2">
                   <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                    <span className="font-bold text-slate-800 dark:text-slate-200">{opp.businessName}</span>
-                    {opp.isBusinessVerified && <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />}
+                    <span className="font-bold text-slate-800 dark:text-slate-200">Lumo Dealers</span>
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
                   </div>
 
                   <h4 className="font-black text-sm text-slate-900 dark:text-white line-clamp-2 leading-snug">

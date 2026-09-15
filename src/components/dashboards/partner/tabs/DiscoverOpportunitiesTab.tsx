@@ -542,8 +542,8 @@ export function DiscoverOpportunitiesTab({
                     <div className="p-4 space-y-2">
                       <div className="flex items-center justify-between text-xs text-slate-500">
                         <div className="flex items-center gap-1.5">
-                          <span className="font-bold text-slate-800 dark:text-slate-200">{opp.businessName}</span>
-                          {opp.isBusinessVerified && <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />}
+                          <span className="font-bold text-slate-800 dark:text-slate-200">Lumo Dealers</span>
+                          <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
                         </div>
                         <span className="text-[10px]">{opp.region}</span>
                       </div>
@@ -701,8 +701,8 @@ export function DiscoverOpportunitiesTab({
 
             <div className="space-y-3 pt-2">
               <div className="flex items-center gap-1.5">
-                <span className="font-bold text-sm text-slate-800 dark:text-slate-200">{selectedOpp.businessName}</span>
-                {selectedOpp.isBusinessVerified && <ShieldCheck className="w-4 h-4 text-emerald-600" />}
+                <span className="font-bold text-sm text-slate-800 dark:text-slate-200">Lumo Dealers</span>
+                <ShieldCheck className="w-4 h-4 text-emerald-600" />
               </div>
 
               <h3 className="font-black text-lg text-slate-900 dark:text-white leading-snug">

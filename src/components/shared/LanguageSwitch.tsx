@@ -80,7 +80,7 @@ export function LanguageSwitch() {
   }, [locale])
 
   return (
-    <div data-no-auto-translate className="fixed bottom-4 right-4 z-[70]">
+    <div data-no-auto-translate className="fixed bottom-[74px] md:bottom-4 right-3 md:right-4 z-[70]">
       {!expanded ? (
         <button
           type="button"

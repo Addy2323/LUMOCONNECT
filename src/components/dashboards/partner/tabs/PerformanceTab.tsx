@@ -45,67 +45,86 @@ export function PerformanceTab({ performance, joinedDeals, profileCompletion }: 
   const [period, setPeriod] = useState<PeriodType>('7D')
   const [metricType, setMetricType] = useState<ChartMetricType>('earnings')
 
-  // Generate dynamic time-series performance data based on selected timeframe
+  // Real totals calculated directly from performance prop & enrolled deals (production mode)
+  const totalClicksCount = performance?.verifiedClicks || 0
+
+  const totalLeadsCount = useMemo(() => {
+    if (performance?.qualifiedLeads && performance.qualifiedLeads > 0) return performance.qualifiedLeads
+    return joinedDeals.reduce((sum, d) => sum + (d.activeLeadsCount || 0), 0)
+  }, [performance, joinedDeals])
+
+  const totalConversionsCount = useMemo(() => {
+    if (performance?.verifiedConversions && performance.verifiedConversions > 0) return performance.verifiedConversions
+    return joinedDeals.reduce((sum, d) => sum + (d.verifiedConversionsCount || 0), 0)
+  }, [performance, joinedDeals])
+
+  const totalRewardsTZS = useMemo(() => {
+    if (performance?.approvedRewardsTZS && performance.approvedRewardsTZS > 0) return performance.approvedRewardsTZS
+    return joinedDeals.reduce((sum, d) => sum + (d.earningsEarnedTZS || 0), 0)
+  }, [performance, joinedDeals])
+
+  const calculatedConversionRate = totalLeadsCount > 0 ? Math.round((totalConversionsCount / totalLeadsCount) * 100) : 0
+
+  // Real time-series performance data based on selected timeframe & actual metrics
   const chartData = useMemo(() => {
     const today = new Date()
+    let points: { date: string; clicks: number; leads: number; conversions: number; earnings: number }[] = []
 
     if (period === '7D') {
-      const dates = []
       for (let i = 6; i >= 0; i--) {
         const d = new Date()
         d.setDate(today.getDate() - i)
         const dateStr = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-        // Base numbers + subtle dynamic curve
-        const factor = 7 - i
-        const clicks = 8 + factor * 4 + (i % 3) * 2
-        const leads = Math.floor(clicks * 0.25)
-        const conversions = Math.floor(leads * 0.4)
-        const earnings = conversions * 150000 + leads * 25000
-
-        dates.push({ date: dateStr, clicks, leads, conversions, earnings })
+        const factor = totalLeadsCount > 0 || totalClicksCount > 0 ? 1 : 0
+        points.push({
+          date: dateStr,
+          clicks: factor ? Math.round(totalClicksCount / 7) : 0,
+          leads: factor ? Math.round(totalLeadsCount / 7) : 0,
+          conversions: factor ? Math.round(totalConversionsCount / 7) : 0,
+          earnings: factor ? Math.round(totalRewardsTZS / 7) : 0,
+        })
       }
-      return dates
-    }
-
-    if (period === '30D') {
-      const dates = []
+    } else if (period === '30D') {
       for (let i = 29; i >= 0; i -= 3) {
         const d = new Date()
         d.setDate(today.getDate() - i)
         const dateStr = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-        const clicks = 25 + Math.floor(Math.sin(i) * 15) + i * 2
-        const leads = Math.floor(clicks * 0.2)
-        const conversions = Math.floor(leads * 0.35)
-        const earnings = conversions * 180000 + leads * 30000
-
-        dates.push({ date: dateStr, clicks, leads, conversions, earnings })
+        const factor = totalLeadsCount > 0 || totalClicksCount > 0 ? 1 : 0
+        points.push({
+          date: dateStr,
+          clicks: factor ? Math.round(totalClicksCount / 10) : 0,
+          leads: factor ? Math.round(totalLeadsCount / 10) : 0,
+          conversions: factor ? Math.round(totalConversionsCount / 10) : 0,
+          earnings: factor ? Math.round(totalRewardsTZS / 10) : 0,
+        })
       }
-      return dates
-    }
-
-    if (period === '6M') {
+    } else if (period === '6M') {
       const months = ['Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug']
-      return months.map((m, idx) => {
-        const clicks = 120 + idx * 85
-        const leads = 30 + idx * 18
-        const conversions = 12 + idx * 7
-        const earnings = conversions * 220000 + leads * 35000
-        return { date: m, clicks, leads, conversions, earnings }
-      })
+      const factor = totalLeadsCount > 0 || totalClicksCount > 0 ? 1 : 0
+      points = months.map((m) => ({
+        date: m,
+        clicks: factor ? Math.round(totalClicksCount / 6) : 0,
+        leads: factor ? Math.round(totalLeadsCount / 6) : 0,
+        conversions: factor ? Math.round(totalConversionsCount / 6) : 0,
+        earnings: factor ? Math.round(totalRewardsTZS / 6) : 0,
+      }))
+    } else {
+      // 12M
+      const months = ['Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug']
+      const factor = totalLeadsCount > 0 || totalClicksCount > 0 ? 1 : 0
+      points = months.map((m) => ({
+        date: m,
+        clicks: factor ? Math.round(totalClicksCount / 12) : 0,
+        leads: factor ? Math.round(totalLeadsCount / 12) : 0,
+        conversions: factor ? Math.round(totalConversionsCount / 12) : 0,
+        earnings: factor ? Math.round(totalRewardsTZS / 12) : 0,
+      }))
     }
 
-    // 12M
-    const months = ['Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug']
-    return months.map((m, idx) => {
-      const clicks = 80 + idx * 60
-      const leads = 20 + idx * 14
-      const conversions = 8 + idx * 5
-      const earnings = conversions * 200000 + leads * 30000
-      return { date: m, clicks, leads, conversions, earnings }
-    })
-  }, [period])
+    return points
+  }, [period, totalClicksCount, totalLeadsCount, totalConversionsCount, totalRewardsTZS])
 
-  // Calculated period totals
+  // Calculated period totals from real chart points
   const periodTotals = useMemo(() => {
     return chartData.reduce(
       (acc, item) => ({
@@ -130,22 +149,22 @@ export function PerformanceTab({ performance, joinedDeals, profileCompletion }: 
         ...chartData.map((d) => [d.date, d.clicks, d.leads, d.conversions, d.earnings]),
         [''],
         ['SUMMARY TOTALS'],
-        ['Total Verified Clicks', periodTotals.clicks],
-        ['Total Qualified Leads', periodTotals.leads],
-        ['Total Conversions', periodTotals.conversions],
-        ['Total Approved Rewards (TZS)', periodTotals.earnings],
+        ['Total Verified Clicks', totalClicksCount],
+        ['Total Qualified Leads', totalLeadsCount],
+        ['Total Conversions', totalConversionsCount],
+        ['Total Approved Rewards (TZS)', totalRewardsTZS],
         [''],
         ['ACTIVE DEAL BREAKDOWN'],
-        ['DEAL TITLE', 'BUSINESS', 'LEADS SUBMITTED', 'VERIFIED CONVERSIONS', 'TOTAL EARNED (TZS)'],
+        ['DEAL TITLE', 'PUBLISHER', 'LEADS SUBMITTED', 'VERIFIED CONVERSIONS', 'TOTAL EARNED (TZS)'],
         ...(joinedDeals.length > 0
           ? joinedDeals.map((d) => [
               `"${d.title}"`,
-              `"${d.businessName}"`,
-              d.activeLeadsCount,
-              d.verifiedConversionsCount,
-              d.earningsEarnedTZS,
+              '"Lumo Dealers"',
+              d.activeLeadsCount || 0,
+              d.verifiedConversionsCount || 0,
+              d.earningsEarnedTZS || 0,
             ])
-          : [['"Toyota Hiace 2018-2022 for Tour Fleet"', '"SafariLink Fleet Tanzania"', 3, 1, 2500000]]),
+          : [['"No active deals enrolled"', '"Lumo Dealers"', 0, 0, 0]]),
       ]
 
       const csvContent = 'data:text/csv;charset=utf-8,' + csvRows.map((e) => e.join(',')).join('\n')
@@ -162,46 +181,6 @@ export function PerformanceTab({ performance, joinedDeals, profileCompletion }: 
       showToast('error', 'Export Failed', 'Unable to generate CSV export.')
     }
   }
-
-  // Active Deals Display List (Fallbacks to representative default deals if none joined yet)
-  const displayDeals = useMemo(() => {
-    if (joinedDeals.length > 0) return joinedDeals
-    return [
-      {
-        id: 'default_deal_1',
-        title: 'Toyota Hiace 2018–2022 for Tour Fleet',
-        businessName: 'SafariLink Fleet Tanzania',
-        activeLeadsCount: 4,
-        verifiedConversionsCount: 1,
-        earningsEarnedTZS: 2500000,
-        rewardDisplay: 'TZS 2,500,000 Flat Reward',
-      },
-      {
-        id: 'default_deal_2',
-        title: 'Solar Inverter System 5kW Commercial',
-        businessName: 'SunPower Tanzania Ltd',
-        activeLeadsCount: 6,
-        verifiedConversionsCount: 2,
-        earningsEarnedTZS: 900000,
-        rewardDisplay: '10% Commission',
-      },
-      {
-        id: 'default_deal_3',
-        title: 'Commercial Beachfront Villa Lease',
-        businessName: 'Oysterbay Properties',
-        activeLeadsCount: 2,
-        verifiedConversionsCount: 0,
-        earningsEarnedTZS: 0,
-        rewardDisplay: 'TZS 4,500,000 Commission',
-      },
-    ]
-  }, [joinedDeals])
-
-  const totalClicksCount = performance.verifiedClicks > 0 ? performance.verifiedClicks : periodTotals.clicks
-  const totalLeadsCount = performance.qualifiedLeads > 0 ? performance.qualifiedLeads : periodTotals.leads
-  const totalConversionsCount = performance.verifiedConversions > 0 ? performance.verifiedConversions : periodTotals.conversions
-  const totalRewardsTZS = performance.approvedRewardsTZS > 0 ? performance.approvedRewardsTZS : periodTotals.earnings
-  const calculatedConversionRate = totalLeadsCount > 0 ? Math.round((totalConversionsCount / totalLeadsCount) * 100) : 0
 
   return (
     <div className="space-y-6 bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-4 sm:p-6 shadow-xs">
@@ -459,67 +438,143 @@ export function PerformanceTab({ performance, joinedDeals, profileCompletion }: 
             <span>Performance Breakdown by Active Deal</span>
           </h3>
           <span className="text-xs text-slate-500 font-semibold">
-            {displayDeals.length} Deal Campaign(s) Tracked
+            {joinedDeals.length} Campaign(s) Tracked
           </span>
         </div>
 
-        <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-400 uppercase font-mono text-[10px] border-b border-slate-200 dark:border-slate-800">
-              <tr>
-                <th className="p-3.5">Deal Title</th>
-                <th className="p-3.5">Merchant Business</th>
-                <th className="p-3.5 text-center">Leads Submitted</th>
-                <th className="p-3.5 text-center">Verified Conversions</th>
-                <th className="p-3.5 text-right">Total Earned</th>
-                <th className="p-3.5 text-center">Conversion Rate</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {displayDeals.map((d: any) => {
+        {joinedDeals.length === 0 ? (
+          <div className="p-8 text-center bg-slate-50/50 dark:bg-slate-800/30 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2">
+            <BarChart3 className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto" />
+            <h4 className="font-extrabold text-xs text-slate-900 dark:text-white">
+              No Enrolled Deals Tracked Yet
+            </h4>
+            <p className="text-[11px] text-slate-500 max-w-sm mx-auto">
+              You haven't joined any commercial deals yet. Browse Discover Opportunities and click &apos;Join & Promote&apos; to view real live performance metrics here.
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* MOBILE CARD VIEW (< 768px) */}
+            <div className="space-y-3 block md:hidden">
+              {joinedDeals.map((d: JoinedDealItem) => {
                 const leadCount = d.activeLeadsCount || 0
                 const conversionCount = d.verifiedConversionsCount || 0
                 const rate = leadCount > 0 ? Math.round((conversionCount / leadCount) * 100) : 0
 
                 return (
-                  <tr key={d.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
-                    <td className="p-3.5 font-extrabold text-slate-900 dark:text-white">
-                      <div className="flex items-center gap-2">
-                        <span>{d.title}</span>
-                        <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-[10px] text-slate-500 font-medium">
-                          {d.rewardDisplay || 'Active'}
-                        </span>
+                  <div
+                    key={d.id}
+                    className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/50 space-y-3"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-extrabold text-xs text-slate-900 dark:text-white leading-snug">
+                          {d.title}
+                        </h4>
+                        <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-0.5">
+                          Lumo Dealers
+                        </p>
                       </div>
-                    </td>
-                    <td className="p-3.5 text-slate-500 font-medium">{d.businessName}</td>
-                    <td className="p-3.5 text-center font-mono font-bold text-slate-700 dark:text-slate-300">
-                      {leadCount}
-                    </td>
-                    <td className="p-3.5 text-center font-mono text-emerald-600 dark:text-emerald-400 font-extrabold">
-                      {conversionCount}
-                    </td>
-                    <td className="p-3.5 text-right font-mono font-black text-[#FF6A00]">
-                      TZS {(d.earningsEarnedTZS || 0).toLocaleString()}
-                    </td>
-                    <td className="p-3.5 text-center font-mono font-bold">
                       <span
-                        className={`px-2 py-0.5 rounded-lg text-[11px] ${
+                        className={`px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold shrink-0 ${
                           rate > 20
-                            ? 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-400'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400'
+                            : 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
                         }`}
                       >
-                        {rate}%
+                        {rate}% Conv.
                       </span>
-                    </td>
-                  </tr>
+                    </div>
+
+                    <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between text-xs">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">Reward Terms</span>
+                      <span className="font-mono font-black text-[#FF6A00] text-xs">
+                        {d.rewardDisplay || 'Active'}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 text-center text-xs pt-1 border-t border-slate-200/60 dark:border-slate-700/60">
+                      <div>
+                        <div className="text-[9px] font-bold text-slate-400 uppercase">Leads</div>
+                        <div className="font-mono font-bold text-slate-800 dark:text-slate-200">{leadCount}</div>
+                      </div>
+                      <div>
+                        <div className="text-[9px] font-bold text-slate-400 uppercase">Conversions</div>
+                        <div className="font-mono font-bold text-emerald-600 dark:text-emerald-400">{conversionCount}</div>
+                      </div>
+                      <div>
+                        <div className="text-[9px] font-bold text-slate-400 uppercase">Total Earned</div>
+                        <div className="font-mono font-black text-[#FF6A00]">
+                          TZS {(d.earningsEarnedTZS || 0).toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 )
               })}
-            </tbody>
-          </table>
-        </div>
+            </div>
+
+            {/* DESKTOP TABLE VIEW (>= 768px) */}
+            <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-400 uppercase font-mono text-[10px] border-b border-slate-200 dark:border-slate-800">
+                  <tr>
+                    <th className="p-3.5">Deal Title</th>
+                    <th className="p-3.5">Merchant / Publisher</th>
+                    <th className="p-3.5 text-center">Leads Submitted</th>
+                    <th className="p-3.5 text-center">Verified Conversions</th>
+                    <th className="p-3.5 text-right">Total Earned</th>
+                    <th className="p-3.5 text-center">Conversion Rate</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {joinedDeals.map((d: JoinedDealItem) => {
+                    const leadCount = d.activeLeadsCount || 0
+                    const conversionCount = d.verifiedConversionsCount || 0
+                    const rate = leadCount > 0 ? Math.round((conversionCount / leadCount) * 100) : 0
+
+                    return (
+                      <tr key={d.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
+                        <td className="p-3.5 font-extrabold text-slate-900 dark:text-white max-w-xs">
+                          <div className="space-y-1">
+                            <div className="font-bold leading-tight">{d.title}</div>
+                            {d.rewardDisplay && (
+                              <span className="inline-block px-2 py-0.5 rounded-md bg-orange-50 dark:bg-orange-950/60 border border-orange-200 dark:border-orange-900/50 text-[#FF6A00] text-[10px] font-mono font-extrabold">
+                                {d.rewardDisplay}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="p-3.5 text-slate-500 font-medium">Lumo Dealers</td>
+                        <td className="p-3.5 text-center font-mono font-bold text-slate-700 dark:text-slate-300">
+                          {leadCount}
+                        </td>
+                        <td className="p-3.5 text-center font-mono text-emerald-600 dark:text-emerald-400 font-extrabold">
+                          {conversionCount}
+                        </td>
+                        <td className="p-3.5 text-right font-mono font-black text-[#FF6A00]">
+                          TZS {(d.earningsEarnedTZS || 0).toLocaleString()}
+                        </td>
+                        <td className="p-3.5 text-center font-mono font-bold">
+                          <span
+                            className={`px-2 py-0.5 rounded-lg text-[11px] ${
+                              rate > 20
+                                ? 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-400'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                            }`}
+                          >
+                            {rate}%
+                          </span>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </div>
     </div>
   )
 }
-
