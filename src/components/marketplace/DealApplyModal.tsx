@@ -1,18 +1,32 @@
 'use client'
 
 import React, { useState } from 'react'
-import { X, CheckCircle, ArrowRight, ShieldCheck, Sparkles } from 'lucide-react'
+import { X, CheckCircle, ArrowRight, ShieldCheck, Sparkles, AlertCircle } from 'lucide-react'
 import type { OpportunityItem } from '@/modules/deals/types'
 import { createTrackingLink } from '@/modules/tracking/service'
+import { isUserEnrolledInDeal, joinOpportunityDeal } from '@/modules/deals/service'
+import { useLanguage } from '@/lib/i18n'
 
 interface DealApplyModalProps {
   deal: OpportunityItem | null
   isOpen: boolean
   onClose: () => void
   onSuccess: (code: string) => void
+  currentUserId?: string
+  userRole?: string
+  userOrgId?: string
 }
 
-export function DealApplyModal({ deal, isOpen, onClose, onSuccess }: DealApplyModalProps) {
+export function DealApplyModal({
+  deal,
+  isOpen,
+  onClose,
+  onSuccess,
+  currentUserId,
+  userRole,
+  userOrgId,
+}: DealApplyModalProps) {
+  const { t, locale } = useLanguage()
   const [proposal, setProposal] = useState('')
   const [channel, setChannel] = useState('WHATSAPP')
   const [customCode, setCustomCode] = useState('')
@@ -22,18 +36,36 @@ export function DealApplyModal({ deal, isOpen, onClose, onSuccess }: DealApplyMo
 
   if (!isOpen || !deal) return null
 
+  const isAlreadyEnrolled = isUserEnrolledInDeal(deal.id, currentUserId)
+  const existingCode = `LUMO-${currentUserId ? currentUserId.slice(-4).toUpperCase() : 'MEMBER'}-${deal.slug.slice(0, 6).toUpperCase()}`
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (isAlreadyEnrolled) {
+      onClose()
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
+      // Record official enrollment in deals service
+      const joinResult = joinOpportunityDeal(deal.id, {
+        userId: currentUserId,
+        userRole,
+        userOrgId,
+        proposalNotes: proposal,
+      })
+
+      const trackingCodeToUse = customCode || joinResult.trackingCode || undefined
+
       const link = await createTrackingLink({
         opportunityId: deal.id,
         dealId: `deal_${deal.id}`,
-        partnerId: 'partner_alex',
+        partnerId: currentUserId || 'partner_alex',
         campaignName: `${deal.companyName} Promotion`,
         destinationUrl: `https://lumo.co.tz/d/${deal.slug}`,
-        customCode: customCode || undefined,
+        customCode: trackingCodeToUse,
       })
 
       setCreatedLink({
@@ -41,6 +73,12 @@ export function DealApplyModal({ deal, isOpen, onClose, onSuccess }: DealApplyMo
         qrCode: link.qrCodeDataUrl,
         url: link.destinationUrl,
       })
+
+      // Dispatch event to update cards everywhere
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('lumo:joined-deals-updated'))
+      }
+
       onSuccess(link.code)
     } finally {
       setIsSubmitting(false)
@@ -57,13 +95,48 @@ export function DealApplyModal({ deal, isOpen, onClose, onSuccess }: DealApplyMo
           <X className="w-5 h-5" />
         </button>
 
-        {createdLink ? (
+        {isAlreadyEnrolled && !createdLink ? (
+          <div className="text-center py-4">
+            <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-3 ring-4 ring-emerald-500/20">
+              <CheckCircle className="w-6 h-6" />
+            </div>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">
+              {t('Already Enrolled')}
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-5">
+              {locale === 'sw'
+                ? 'Tayari umejiunga na fursa hii ya biashara. Hakuna haja ya kujiunga mara mbili.'
+                : 'You are already an active enrolled partner in this deal. There is no need to join multiple times.'}
+            </p>
+
+            <div className="bg-slate-50 dark:bg-slate-800/80 p-4 rounded-xl border border-slate-200 dark:border-slate-700 mb-5 text-left">
+              <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                {t('Your Tracking Code')}
+              </div>
+              <div className="font-mono text-base font-bold text-emerald-600 dark:text-emerald-400 mb-2">
+                {existingCode}
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {locale === 'sw'
+                  ? 'Fursa hii iko tayari kwenye Dashibodi yako ya Washirika (My Deals).'
+                  : 'This deal is active and trackable under your Partner Dashboard (My Deals).'}
+              </p>
+            </div>
+
+            <button
+              onClick={onClose}
+              className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs rounded-xl transition-colors shadow-sm"
+            >
+              {t('View in My Deals')}
+            </button>
+          </div>
+        ) : createdLink ? (
           <div className="text-center py-4">
             <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-3">
               <CheckCircle className="w-6 h-6" />
             </div>
             <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">
-              You are now enrolled in this Deal!
+              {locale === 'sw' ? 'Umejiunga Kikamilifu na Dili Hii!' : 'You are now enrolled in this Deal!'}
             </h3>
             <p className="text-xs text-slate-500 mb-5">
               Your unique tracking link and QR code have been created. Money follows genuine and verified transactions.
@@ -71,7 +144,7 @@ export function DealApplyModal({ deal, isOpen, onClose, onSuccess }: DealApplyMo
 
             <div className="bg-slate-50 dark:bg-slate-800/80 p-4 rounded-xl border border-slate-200 dark:border-slate-700 mb-5 text-left">
               <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
-                Your Tracking Code
+                {t('Your Tracking Code')}
               </div>
               <div className="font-mono text-base font-bold text-orange-600 dark:text-orange-400 mb-3">
                 {createdLink.code}

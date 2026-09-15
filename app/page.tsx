@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useMemo, useEffect } from 'react'
-import { listOpportunities, getProtectedOpportunityDetails } from '@/modules/deals/service'
+import { listOpportunities, getProtectedOpportunityDetails, isUserEnrolledInDeal } from '@/modules/deals/service'
 import type { OpportunityItem } from '@/modules/deals/types'
 import type { ProtectedDealDetails } from '@/modules/deals/service'
 import { requireActiveDealSubscription } from '@/modules/subscriptions/authorization'
@@ -338,6 +338,35 @@ export default function LumoApp() {
   useEffect(() => {
     setMounted(true)
     try {
+      const sessionStr = localStorage.getItem('lumo_user_session')
+      if (sessionStr) {
+        const session = JSON.parse(sessionStr)
+        if (session.id) {
+          setCurrentUserId(session.id)
+          // When launched as PWA standalone (?source=pwa) at root, direct signed-in users to their workspace dashboard
+          if (typeof window !== 'undefined' && window.location.search.includes('source=pwa') && window.location.pathname === '/') {
+            if (session.role === 'BUSINESS' || session.activeWorkspaceType === 'BUSINESS') {
+              setActiveView('business')
+            } else if (session.role === 'ADMIN' || session.activeWorkspaceType === 'ADMIN') {
+              setActiveView('admin')
+            } else {
+              setActiveView('partner')
+            }
+          }
+        }
+        if (session.name || session.email || session.phone) {
+          setUserDetails((prev) => ({
+            ...prev,
+            name: session.name || prev.name,
+            email: session.email || prev.email,
+            phone: session.phone || prev.phone,
+            profilePhotoUrl: session.profilePhotoUrl || prev.profilePhotoUrl,
+          }))
+        }
+      }
+    } catch (e) {}
+
+    try {
       const saved = localStorage.getItem('lumo_saved_deals')
       if (saved) {
         setSavedDeals(JSON.parse(saved))
@@ -484,6 +513,7 @@ export default function LumoApp() {
         localStorage.removeItem('lumo_auth_session')
         localStorage.removeItem('lumo_active_workspace')
         localStorage.removeItem('lumo_available_workspaces')
+        localStorage.removeItem('lumo_user_session')
       } catch (e) {}
       window.history.pushState({}, '', '/')
     }
@@ -566,7 +596,11 @@ export default function LumoApp() {
 
     if (protectedResult.success && protectedResult.data) {
       if (intent === 'join') {
-        setSelectedDealForApply(deal)
+        if (isUserEnrolledInDeal(deal.id, currentUserId)) {
+          setSelectedProtectedDeal(protectedResult.data)
+        } else {
+          setSelectedDealForApply(deal)
+        }
       } else {
         setSelectedProtectedDeal(protectedResult.data)
       }
@@ -696,6 +730,7 @@ export default function LumoApp() {
             onMinRewardChange={setMinReward}
             currentUserRole={currentUserRole}
             currentUserOrgId={currentUserOrgId}
+            currentUserId={currentUserId}
             hasActiveSubscription={hasActiveSubscription}
             isGoldenVipUser={isGoldenVipUser}
             savedDeals={savedDeals}
@@ -931,7 +966,22 @@ export default function LumoApp() {
                   }
 
                   setRegisteredPassword('')
-                  if (typeof window !== 'undefined') sessionStorage.removeItem('lumo_reg_pwd')
+                  if (typeof window !== 'undefined') {
+                    sessionStorage.removeItem('lumo_reg_pwd')
+                    try {
+                      localStorage.setItem(
+                        'lumo_user_session',
+                        JSON.stringify({
+                          id: registrationData.user.id,
+                          name: userName,
+                          email: profileData?.email || userDetails.email,
+                          phone: profileData?.phone || userDetails.phone,
+                          role: finalRole,
+                          profilePhotoUrl: profileData?.profilePhotoUrl,
+                        })
+                      )
+                    } catch {}
+                  }
                   setCurrentUserId(registrationData.user.id)
 
                   if (subscriptionRedirectContext.returnTo) {
@@ -981,6 +1031,21 @@ export default function LumoApp() {
                   }))
                   if (authUser?.id) {
                     setCurrentUserId(authUser.id)
+                  }
+                  if (typeof window !== 'undefined') {
+                    try {
+                      localStorage.setItem(
+                        'lumo_user_session',
+                        JSON.stringify({
+                          id: authUser?.id,
+                          name: effectiveRole === 'ADMIN' ? 'Platform Administrator' : displayName,
+                          email,
+                          phone: authUser?.phone || userDetails.phone,
+                          role: effectiveRole,
+                          profilePhotoUrl: authUser?.image,
+                        })
+                      )
+                    } catch {}
                   }
 
                   // Synchronize subscription from PostgreSQL database on login
@@ -1121,6 +1186,9 @@ export default function LumoApp() {
         deal={selectedDealForApply}
         isOpen={Boolean(selectedDealForApply)}
         onClose={() => setSelectedDealForApply(null)}
+        currentUserId={currentUserId}
+        userRole={currentUserRole}
+        userOrgId={currentUserOrgId}
         onSuccess={() => {
           // enrolled
         }}
@@ -1132,6 +1200,8 @@ export default function LumoApp() {
         isOpen={Boolean(selectedProtectedDeal)}
         onClose={() => setSelectedProtectedDeal(null)}
         currentUserId={currentUserId}
+        partnerName={userDetails.name || undefined}
+        partnerPhone={userDetails.phone || undefined}
         userRole={currentUserRole}
         userOrgId={currentUserOrgId}
         onConnectWhatsApp={() => {

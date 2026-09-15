@@ -405,38 +405,43 @@ export function joinOpportunityDeal(
   item.activePartnerCount += 1
   syncToStorage()
 
-  if (typeof window !== 'undefined') {
+  if (typeof window !== 'undefined' || typeof localStorage !== 'undefined') {
     try {
-      const existingJoined: any[] = JSON.parse(localStorage.getItem('lumo_partner_joined_deals') || '[]')
-      const isAlready = existingJoined.some((d) => d.opportunityId === item.id || d.id === item.id)
-      if (!isAlready) {
-        const partnerCode = (authContext?.userId || 'alex').toLowerCase().replace(/[^a-z0-9]/g, '_')
-        const newJoined = {
-          id: `joined_${Date.now()}_${item.id.slice(-4)}`,
-          opportunityId: item.id,
-          title: item.title,
-          businessName: item.companyName,
-          category: item.category,
-          status: 'ACTIVE',
-          joinedDate: new Date().toLocaleDateString(),
-          rewardDisplay: item.rewardDisplay,
-          rewardValueTZS: Number((item as any).baseRewardValue || (item as any).rewardValue || 50000),
-          trackingLink: `https://lumo.co.tz/d/${item.slug}?ref=${trackingCode}`,
-          referralId: trackingCode,
-          promoCode: `${partnerCode.slice(0, 4).toUpperCase()}${item.slug.slice(0, 4).toUpperCase()}`,
-          qrCodeUrl: `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://lumo.co.tz/d/${item.slug}?ref=${trackingCode}`,
-          activeLeadsCount: 0,
-          verifiedConversionsCount: 0,
-          earningsEarnedTZS: 0,
-          deliverablesSummary: item.description,
-          evidenceRequired: item.termsAndConditions || 'Verified transaction matching.',
-          milestoneProgressPercent: 0,
-          canExit: true,
-          coverImageUrl: item.featuredImageUrl,
-          promoVideoUrl: item.promoVideoUrl,
+      const storage = typeof window !== 'undefined' ? window.localStorage : (typeof localStorage !== 'undefined' ? localStorage : null)
+      if (storage) {
+        const existingJoined: any[] = JSON.parse(storage.getItem('lumo_partner_joined_deals') || '[]')
+        const isAlready = existingJoined.some((d) => d.opportunityId === item.id || d.id === item.id)
+        if (!isAlready) {
+          const partnerCode = (authContext?.userId || 'alex').toLowerCase().replace(/[^a-z0-9]/g, '_')
+          const newJoined = {
+            id: `joined_${Date.now()}_${item.id.slice(-4)}`,
+            opportunityId: item.id,
+            title: item.title,
+            businessName: item.companyName,
+            category: item.category,
+            status: 'ACTIVE',
+            joinedDate: new Date().toLocaleDateString(),
+            rewardDisplay: item.rewardDisplay,
+            rewardValueTZS: Number((item as any).baseRewardValue || (item as any).rewardValue || 50000),
+            trackingLink: `https://lumo.co.tz/d/${item.slug}?ref=${trackingCode}`,
+            referralId: trackingCode,
+            promoCode: `${partnerCode.slice(0, 4).toUpperCase()}${item.slug.slice(0, 4).toUpperCase()}`,
+            qrCodeUrl: `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://lumo.co.tz/d/${item.slug}?ref=${trackingCode}`,
+            activeLeadsCount: 0,
+            verifiedConversionsCount: 0,
+            earningsEarnedTZS: 0,
+            deliverablesSummary: item.description,
+            evidenceRequired: item.termsAndConditions || 'Verified transaction matching.',
+            milestoneProgressPercent: 0,
+            canExit: true,
+            coverImageUrl: item.featuredImageUrl,
+            promoVideoUrl: item.promoVideoUrl,
+          }
+          storage.setItem('lumo_partner_joined_deals', JSON.stringify([newJoined, ...existingJoined]))
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new Event('lumo:joined-deals-updated'))
+          }
         }
-        localStorage.setItem('lumo_partner_joined_deals', JSON.stringify([newJoined, ...existingJoined]))
-        window.dispatchEvent(new Event('lumo:joined-deals-updated'))
       }
     } catch (e) {
       console.warn('Could not persist joined deal to storage', e)
@@ -453,6 +458,71 @@ export function joinOpportunityDeal(
 }
 
 export const joinDeal = joinOpportunityDeal
+
+/**
+ * Checks whether a user has already enrolled in / joined an opportunity deal.
+ */
+export function isUserEnrolledInDeal(dealIdOrSlug: string, userId?: string): boolean {
+  loadFromStorage()
+  const opp = inMemoryOpportunities.find((o) => o.id === dealIdOrSlug || o.slug === dealIdOrSlug)
+  const oppId = opp?.id || dealIdOrSlug
+
+  // 1. Check inMemoryEnrollments
+  if (userId) {
+    const enrolled = inMemoryEnrollments.get(oppId)
+    if (enrolled?.has(userId)) return true
+  }
+
+  // 2. Check localStorage 'lumo_partner_joined_deals'
+  if (typeof window !== 'undefined' || typeof localStorage !== 'undefined') {
+    try {
+      const storage = typeof window !== 'undefined' ? window.localStorage : (typeof localStorage !== 'undefined' ? localStorage : null)
+      if (storage) {
+        const existingJoined: any[] = JSON.parse(storage.getItem('lumo_partner_joined_deals') || '[]')
+        return existingJoined.some(
+          (d) =>
+            d.opportunityId === oppId ||
+            d.id === oppId ||
+            (opp && (d.opportunityId === opp.slug || d.slug === opp.slug))
+        )
+      }
+    } catch {
+      return false
+    }
+  }
+
+  return false
+}
+
+/**
+ * Returns a Set of all deal IDs and slugs the partner is enrolled in.
+ */
+export function getUserEnrolledDealIds(userId?: string): Set<string> {
+  const ids = new Set<string>()
+  if (typeof window !== 'undefined' || typeof localStorage !== 'undefined') {
+    try {
+      const storage = typeof window !== 'undefined' ? window.localStorage : (typeof localStorage !== 'undefined' ? localStorage : null)
+      if (storage) {
+        const existingJoined: any[] = JSON.parse(storage.getItem('lumo_partner_joined_deals') || '[]')
+        existingJoined.forEach((d) => {
+          if (d.opportunityId) ids.add(d.opportunityId)
+          if (d.id) ids.add(d.id)
+          if (d.slug) ids.add(d.slug)
+        })
+      }
+    } catch {}
+  }
+  if (userId) {
+    inMemoryEnrollments.forEach((users, oppId) => {
+      if (users.has(userId)) {
+        ids.add(oppId)
+        const opp = inMemoryOpportunities.find((o) => o.id === oppId)
+        if (opp?.slug) ids.add(opp.slug)
+      }
+    })
+  }
+  return ids
+}
 
 /**
  * Creates a new Deal Opportunity in memory and persists to storage.

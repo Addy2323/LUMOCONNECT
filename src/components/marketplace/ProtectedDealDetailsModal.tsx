@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   X,
   CheckCircle2,
@@ -24,7 +24,7 @@ import {
 } from 'lucide-react'
 import type { ProtectedDealDetails } from '@/modules/deals/service'
 import { DealMediaViewer } from '@/components/common/DealMediaViewer'
-import { joinOpportunityDeal, getVideoEmbedInfo } from '@/modules/deals/service'
+import { joinOpportunityDeal, getVideoEmbedInfo, isUserEnrolledInDeal } from '@/modules/deals/service'
 import { CustomerReferralModal } from '@/components/marketplace/CustomerReferralModal'
 import { PromotionalToolkitModal } from '@/components/marketplace/PromotionalToolkitModal'
 import { useLanguage } from '@/lib/i18n'
@@ -39,7 +39,7 @@ interface ProtectedDealDetailsModalProps {
   partnerPhone?: string
   userRole?: string
   userOrgId?: string
-  onDealJoined?: (code: string) => void
+  onDealJoined?: (trackingCode: string) => void
   onConnectWhatsApp?: () => void
 }
 
@@ -48,21 +48,60 @@ export function ProtectedDealDetailsModal({
   isOpen,
   onClose,
   currentUserId,
-  partnerName = 'Alex Mwakasege',
-  partnerPhone = '+255712345678',
+  partnerName,
+  partnerPhone,
   userRole = 'PARTNER',
   userOrgId,
   onDealJoined,
   onConnectWhatsApp,
 }: ProtectedDealDetailsModalProps) {
   const { t, locale } = useLanguage()
+
+  // Dynamically resolve the logged-in/registered partner's name and phone
+  const effectivePartnerName = partnerName || (() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('lumo_user_session')
+        if (stored) {
+          const parsed = JSON.parse(stored)
+          if (parsed.name) return parsed.name
+        }
+      } catch {}
+    }
+    return locale === 'sw' ? 'Mshirika Aliyesajiliwa' : 'Registered Partner'
+  })()
+
+  const effectivePartnerPhone = partnerPhone || (() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('lumo_user_session')
+        if (stored) {
+          const parsed = JSON.parse(stored)
+          if (parsed.phone) return parsed.phone
+        }
+      } catch {}
+    }
+    return ''
+  })()
   const [isJoining, setIsJoining] = useState(false)
-  const [joinedCode, setJoinedCode] = useState<string | null>(null)
+  const [joinedCode, setJoinedCode] = useState<string | null>(() => {
+    if (!deal) return null
+    if (isUserEnrolledInDeal(deal.id, currentUserId)) {
+      return `LUMO-${currentUserId ? currentUserId.slice(-4).toUpperCase() : 'MEMBER'}-${deal.slug.slice(0, 6).toUpperCase()}`
+    }
+    return null
+  })
   const [copied, setCopied] = useState(false)
   const [mediaMode, setMediaMode] = useState<'PHOTO' | 'VIDEO'>('PHOTO')
   const [termsAccepted, setTermsAccepted] = useState(false)
   const [showReferralModal, setShowReferralModal] = useState(false)
   const [showPromoModal, setShowPromoModal] = useState(false)
+
+  useEffect(() => {
+    if (deal && isUserEnrolledInDeal(deal.id, currentUserId)) {
+      setJoinedCode((prev) => prev || `LUMO-${currentUserId ? currentUserId.slice(-4).toUpperCase() : 'MEMBER'}-${deal.slug.slice(0, 6).toUpperCase()}`)
+    }
+  }, [deal, currentUserId])
 
   if (!isOpen || !deal) return null
 
@@ -76,6 +115,9 @@ export function ProtectedDealDetailsModal({
     setIsJoining(false)
     if (res.success && res.trackingCode) {
       setJoinedCode(res.trackingCode)
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('lumo:joined-deals-updated'))
+      }
       onDealJoined?.(res.trackingCode)
     }
   }
@@ -445,8 +487,8 @@ export function ProtectedDealDetailsModal({
           isOpen={showReferralModal}
           onClose={() => setShowReferralModal(false)}
           currentUserId={currentUserId}
-          partnerName={partnerName}
-          partnerPhone={partnerPhone}
+          partnerName={effectivePartnerName}
+          partnerPhone={effectivePartnerPhone}
           userRole={userRole}
           userOrgId={userOrgId}
           onReferralSubmitted={() => {

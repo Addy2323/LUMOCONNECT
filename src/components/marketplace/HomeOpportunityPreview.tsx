@@ -1,13 +1,16 @@
 'use client'
 
+import React, { useState, useEffect } from 'react'
 import { ArrowRight } from 'lucide-react'
 import type { OpportunityItem } from '@/modules/deals/types'
+import { getUserEnrolledDealIds } from '@/modules/deals/service'
 import { OpportunityCard } from './OpportunityCard'
 
 interface HomeOpportunityPreviewProps {
   opportunities: OpportunityItem[]
   currentUserRole: string
   currentUserOrgId?: string
+  currentUserId?: string
   hasActiveSubscription: boolean
   savedDeals: string[]
   onToggleSave: (dealId: string) => void
@@ -19,12 +22,32 @@ export function HomeOpportunityPreview({
   opportunities,
   currentUserRole,
   currentUserOrgId,
+  currentUserId,
   hasActiveSubscription,
   savedDeals,
   onToggleSave,
   onDealAction,
   onViewMore,
 }: HomeOpportunityPreviewProps) {
+  const [enrolledIds, setEnrolledIds] = useState<Set<string>>(() => getUserEnrolledDealIds(currentUserId))
+
+  useEffect(() => {
+    const syncEnrolled = () => {
+      setEnrolledIds(getUserEnrolledDealIds(currentUserId))
+    }
+    syncEnrolled()
+
+    window.addEventListener('lumo:joined-deals-updated', syncEnrolled)
+    window.addEventListener('lumo:deals-updated', syncEnrolled)
+    window.addEventListener('storage', syncEnrolled)
+
+    return () => {
+      window.removeEventListener('lumo:joined-deals-updated', syncEnrolled)
+      window.removeEventListener('lumo:deals-updated', syncEnrolled)
+      window.removeEventListener('storage', syncEnrolled)
+    }
+  }, [currentUserId])
+
   const previewOpportunities = opportunities.slice(0, 3)
 
   if (previewOpportunities.length === 0) return null
@@ -49,6 +72,7 @@ export function HomeOpportunityPreview({
           const isOwner = Boolean(currentUserOrgId && currentUserOrgId === item.organizationId)
           const isAdmin = currentUserRole === 'ADMIN' || currentUserRole === 'SUPER_ADMIN'
           const isAuthorizedForThisDeal = hasActiveSubscription || isOwner || isAdmin
+          const isEnrolled = enrolledIds.has(item.id) || (item.slug ? enrolledIds.has(item.slug) : false)
 
           return (
             <OpportunityCard
@@ -56,9 +80,11 @@ export function HomeOpportunityPreview({
               item={item}
               isSubscribed={isAuthorizedForThisDeal}
               isSaved={savedDeals.includes(item.id)}
+              isEnrolled={isEnrolled}
               onToggleSave={() => onToggleSave(item.id)}
               onApply={() => onDealAction(item, 'join')}
               onViewDetails={() => onDealAction(item, 'view')}
+              onOpenEnrolled={() => onDealAction(item, 'view')}
             />
           )
         })}

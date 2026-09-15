@@ -20,9 +20,11 @@ interface OpportunityCardProps {
   isSaved?: boolean
   isSubscribed?: boolean
   isGoldenVipUser?: boolean
+  isEnrolled?: boolean
   onToggleSave?: () => void
   onApply?: () => void
   onViewDetails?: () => void
+  onOpenEnrolled?: () => void
   onConnectWhatsApp?: () => void
 }
 
@@ -31,9 +33,11 @@ export function OpportunityCard({
   isSaved = false,
   isSubscribed = false,
   isGoldenVipUser = false,
+  isEnrolled = false,
   onToggleSave,
   onApply,
   onViewDetails,
+  onOpenEnrolled,
   onConnectWhatsApp,
 }: OpportunityCardProps) {
   const { t, locale } = useLanguage()
@@ -114,9 +118,16 @@ export function OpportunityCard({
             </div>
           )}
 
-          {/* Golden VIP 24h Priority Badge */}
-          {isVipDeal && (
-            <div className="absolute top-2.5 left-2.5 z-10 flex flex-col gap-1">
+          {/* Badges container top-left */}
+          <div className="absolute top-2.5 left-2.5 z-20 flex flex-wrap items-center gap-1.5 max-w-[calc(100%-3rem)]">
+            {isEnrolled && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-600 text-white text-[10px] font-black uppercase shadow-md border border-emerald-400/40 backdrop-blur-md">
+                <Check className="w-3 h-3 text-white" />
+                <span>{t('Enrolled')}</span>
+              </span>
+            )}
+
+            {isVipDeal && (
               <span className={`text-[10px] font-black px-2.5 py-1 rounded-full backdrop-blur-md shadow-sm flex items-center gap-1 ${
                 isWithin24hVipWindow
                   ? 'bg-amber-500 text-slate-950 border border-amber-300'
@@ -129,11 +140,9 @@ export function OpportunityCard({
                     : (locale === 'sw' ? 'Imetolewa kwa Washirika' : 'Partner Released')}
                 </span>
               </span>
-            </div>
-          )}
+            )}
 
-          {!isVipDeal && (
-            <div className="absolute top-2.5 left-2.5 z-10">
+            {!isVipDeal && !isEnrolled && (
               <span
                 className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full backdrop-blur-md shadow-xs ${getCategoryPill(
                   item.category
@@ -141,8 +150,8 @@ export function OpportunityCard({
               >
                 {formatCategoryBadgeLabel(item.category, item.subcategory, locale)}
               </span>
-            </div>
-          )}
+            )}
+          </div>
 
           <div className="absolute top-2.5 right-2.5 z-10">
             <button
@@ -247,10 +256,14 @@ export function OpportunityCard({
 
           <button
             type="button"
-            onClick={onApply}
+            onClick={isEnrolled ? (onOpenEnrolled || onViewDetails) : onApply}
             disabled={isExpired}
             className={`flex w-full items-center justify-center gap-1 rounded-xl px-2 py-2.5 text-center text-[11px] sm:text-xs font-extrabold text-white shadow-xs transition-colors active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-slate-300 dark:disabled:bg-slate-700 cursor-pointer ${
-              isVipLockedForUser
+              isExpired
+                ? 'bg-slate-400'
+                : isEnrolled
+                ? 'bg-emerald-600 hover:bg-emerald-700 ring-1 ring-emerald-400/40 shadow-emerald-500/20 shadow-sm'
+                : isVipLockedForUser
                 ? 'bg-amber-600 hover:bg-amber-500'
                 : 'bg-[#FF6A00] hover:bg-[#EA580C]'
             }`}
@@ -258,6 +271,11 @@ export function OpportunityCard({
             {isExpired ? (
               <span key="expired" className="inline-flex items-center justify-center gap-1 truncate">
                 <span className="truncate">{t('Deal Expired')}</span>
+              </span>
+            ) : isEnrolled ? (
+              <span key="enrolled" className="inline-flex items-center justify-center gap-1 truncate">
+                <CheckCircle className="h-3.5 w-3.5 text-white shrink-0" />
+                <span className="truncate">{t('Enrolled ✓')}</span>
               </span>
             ) : isVipLockedForUser ? (
               <span key="unlock-vip" className="inline-flex items-center justify-center gap-1 truncate">
