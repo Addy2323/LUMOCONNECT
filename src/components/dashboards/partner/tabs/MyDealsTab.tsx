@@ -23,6 +23,12 @@ import { JoinedDealItem, JoinedDealStatus } from '../types'
 import { usePartnerToast } from '../PartnerToast'
 import { CustomerReferralModal } from '@/components/marketplace/CustomerReferralModal'
 import { PromotionalToolkitModal } from '@/components/marketplace/PromotionalToolkitModal'
+import { getOpportunityById } from '@/modules/deals/service'
+import { buildPublicDealUrl } from '@/modules/promotional-toolkit/links'
+import { ReferralQr } from '@/components/promotional-toolkit/ReferralQr'
+import { DealDetailsModal } from '@/components/promotional-toolkit/DealDetailsModal'
+
+const publicUrl = (deal: JoinedDealItem) => buildPublicDealUrl(deal.opportunityId, deal.referralId || deal.promoCode)
 
 interface MyDealsTabProps {
   joinedDeals: JoinedDealItem[]
@@ -43,6 +49,8 @@ export function MyDealsTab({
   const [showQrModal, setShowQrModal] = useState<JoinedDealItem | null>(null)
   const [promoModalDeal, setPromoModalDeal] = useState<JoinedDealItem | null>(null)
   const [referralModalDeal, setReferralModalDeal] = useState<JoinedDealItem | null>(null)
+  const [detailsDeal, setDetailsDeal] = useState<JoinedDealItem | null>(null)
+  const promoOpportunity = promoModalDeal ? getOpportunityById(promoModalDeal.opportunityId) : null
 
   const subTabs: { id: JoinedDealStatus; label: string; count: number }[] = [
     { id: 'ACTIVE', label: 'Active Deals', count: joinedDeals.filter((d) => d.status === 'ACTIVE').length },
@@ -190,9 +198,9 @@ export function MyDealsTab({
                 <div className="space-y-1">
                   <span className="text-[10px] text-slate-400 font-bold uppercase block">Your Tracking URL</span>
                   <div className="flex items-center justify-between gap-2 p-2 bg-slate-50 dark:bg-slate-800 rounded-xl font-mono text-[11px] min-w-0">
-                    <span className="truncate">{deal.trackingLink}</span>
+                    <a href={publicUrl(deal)} target="_blank" rel="noopener noreferrer" className="truncate hover:underline" title="Open this deal">{publicUrl(deal)}</a>
                     <button
-                      onClick={() => handleCopy(deal.trackingLink, 'Tracking Link')}
+                      onClick={() => handleCopy(publicUrl(deal), 'Tracking Link')}
                       className="text-[#FF6A00] hover:underline shrink-0 font-bold"
                     >
                       Copy
@@ -229,7 +237,10 @@ export function MyDealsTab({
               </div>
 
               {/* Responsive Action Buttons Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2 w-full">
+                <button onClick={() => setDetailsDeal(deal)} className="w-full py-2.5 px-3 rounded-xl border border-orange-200 bg-orange-50 text-orange-700 text-xs font-bold flex items-center justify-center gap-1.5">
+                  <ExternalLink className="w-3.5 h-3.5" /> View Deal Details
+                </button>
                 {deal.status === 'ACTIVE' && (
                   <>
                     <button
@@ -304,11 +315,11 @@ export function MyDealsTab({
               <div>
                 <span className="font-bold block mb-1">Approved Marketing Collateral</span>
                 <button
-                  onClick={() => showToast('success', 'Assets Downloaded', 'Product brochures and promotional flyers ZIP downloaded.')}
+                  onClick={() => { setPromoModalDeal(selectedDealTools); setSelectedDealTools(null) }}
                   className="w-full py-2.5 border rounded-xl font-bold flex items-center justify-center gap-1.5 hover:bg-slate-50 dark:hover:bg-slate-800"
                 >
                   <Download className="w-4 h-4 text-[#FF6A00]" />
-                  <span>Download Partner Media Kit & Specs (ZIP)</span>
+                  <span>Open Promotional Materials</span>
                 </button>
               </div>
 
@@ -333,13 +344,10 @@ export function MyDealsTab({
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-xs">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-xs w-full p-5 shadow-2xl text-center space-y-3">
             <h3 className="font-black text-sm text-slate-900 dark:text-white">
-              Dynamic Referral QR Code
+              Deal Referral QR Code
             </h3>
-            <img
-              src={showQrModal.qrCodeUrl}
-              alt="QR Code"
-              className="w-48 h-48 mx-auto rounded-2xl border p-2 bg-white"
-            />
+            <ReferralQr url={publicUrl(showQrModal)} />
+            <a href={publicUrl(showQrModal)} target="_blank" rel="noopener noreferrer" className="block text-xs text-orange-600 underline">Open this deal</a>
             <p className="text-[11px] text-slate-500">
               Promo Code: <strong>{showQrModal.promoCode}</strong>
             </p>
@@ -356,12 +364,7 @@ export function MyDealsTab({
       {/* Customer Referral Modal */}
       {referralModalDeal && (
         <CustomerReferralModal
-          deal={{
-            id: referralModalDeal.opportunityId || referralModalDeal.id,
-            title: referralModalDeal.title,
-            slug: referralModalDeal.opportunityId || referralModalDeal.id,
-            rewardDisplay: referralModalDeal.rewardDisplay,
-          } as any}
+          deal={getOpportunityById(referralModalDeal.opportunityId)}
           isOpen={Boolean(referralModalDeal)}
           onClose={() => setReferralModalDeal(null)}
           onReferralSubmitted={(ref) => {
@@ -381,10 +384,18 @@ export function MyDealsTab({
           dealTitle={promoModalDeal.title}
           companyName="Lumo Dealers"
           trackingCode={promoModalDeal.referralId || promoModalDeal.promoCode}
+          dealIdentifier={promoModalDeal.opportunityId}
+          category={promoOpportunity?.category || promoModalDeal.category}
+          region={promoOpportunity?.region}
+          priceDisplay={promoOpportunity?.principalPriceDisplay}
+          summary={promoOpportunity?.summary || promoModalDeal.deliverablesSummary}
+          imageUrl={promoOpportunity?.featuredImageUrl || promoModalDeal.coverImageUrl}
+          opportunityType={promoOpportunity?.type}
           rewardDisplay={promoModalDeal.rewardDisplay}
           onClose={() => setPromoModalDeal(null)}
         />
       )}
+      {detailsDeal && <DealDetailsModal deal={detailsDeal} onClose={() => setDetailsDeal(null)} />}
     </div>
   )
 }

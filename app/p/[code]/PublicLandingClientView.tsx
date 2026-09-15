@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import Link from 'next/link'
 import {
   ShieldCheck,
   MapPin,
@@ -21,6 +22,7 @@ import {
 import type { PromoCodeResolution } from '@/modules/promotional-toolkit/public-allowlist'
 import { recordPromoInteraction } from '@/modules/promotional-toolkit/analytics'
 import { submitCustomerReferralEnquiry } from '@/modules/deals/referral-cases'
+import { DealMediaViewer } from '@/components/common/DealMediaViewer'
 
 interface PublicLandingClientViewProps {
   code: string
@@ -45,9 +47,6 @@ export function PublicLandingClientView({ code, initialLang, resolution }: Publi
   const deal = resolution.dealData
 
   useEffect(() => {
-    if (deal?.featuredImageUrl) {
-      setSelectedImage(deal.featuredImageUrl)
-    }
     // Record page visit analytics (filters crawlers)
     if (typeof navigator !== 'undefined') {
       recordPromoInteraction(code, 'PAGE_VISIT', navigator.userAgent, document.referrer)
@@ -63,13 +62,13 @@ export function PublicLandingClientView({ code, initialLang, resolution }: Publi
           <p className="text-xs text-slate-400">
             {resolution.errorReason || 'The requested opportunity link is invalid or no longer available.'}
           </p>
-          <a
+          <Link
             href="/"
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#FF6A00] text-white text-xs font-bold hover:bg-[#EA580C] transition-colors"
           >
             <Store className="w-4 h-4" />
             <span>Visit Lumo Dealers</span>
-          </a>
+          </Link>
         </div>
       </div>
     )
@@ -196,9 +195,8 @@ export function PublicLandingClientView({ code, initialLang, resolution }: Publi
               <div className="relative rounded-3xl overflow-hidden bg-slate-900 border border-slate-800 aspect-4/3 shadow-2xl">
                 <img
                   src={
-                    selectedImage ||
-                    deal.featuredImageUrl ||
-                    'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=1200&h=800&q=90'
+                    (deal.galleryImageUrls?.includes(selectedImage) ? selectedImage : '') ||
+                    deal.featuredImageUrl || deal.galleryImageUrls?.[0] || '/logo/lumodealers-white.png'
                   }
                   alt={titleText}
                   className="w-full h-full object-cover"
@@ -233,6 +231,14 @@ export function PublicLandingClientView({ code, initialLang, resolution }: Publi
                 </div>
               )}
             </div>
+
+            {deal.promoVideoUrl && <section className="space-y-3">
+              <h2 className="font-bold">{isSwahili ? 'Video ya bidhaa' : 'Product video'}</h2>
+              <div className="aspect-video overflow-hidden rounded-2xl bg-black">
+                <DealMediaViewer mediaUrl={deal.promoVideoUrl} posterUrl={deal.featuredImageUrl} altTitle={titleText} />
+              </div>
+              {/^(https?:\/\/)/i.test(deal.promoVideoUrl) && <a href={deal.promoVideoUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-orange-400 underline">{isSwahili ? 'Fungua video asili' : 'Open original video'}</a>}
+            </section>}
 
             {/* Title & Overview */}
             <div className="space-y-3">
@@ -466,9 +472,9 @@ export function PublicLandingClientView({ code, initialLang, resolution }: Publi
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
           <div>© {new Date().getFullYear()} Lumo Dealers Tanzania. All rights reserved.</div>
           <div className="flex items-center gap-4 text-slate-400">
-            <a href="/" className="hover:text-white transition-colors">Marketplace</a>
-            <a href="/terms" className="hover:text-white transition-colors">Terms of Service</a>
-            <a href="/privacy" className="hover:text-white transition-colors">Merchant Privacy Policy</a>
+            <Link href="/" className="hover:text-white transition-colors">Marketplace</Link>
+            <Link href="/terms" className="hover:text-white transition-colors">Terms of Service</Link>
+            <Link href="/privacy" className="hover:text-white transition-colors">Merchant Privacy Policy</Link>
           </div>
         </div>
       </footer>

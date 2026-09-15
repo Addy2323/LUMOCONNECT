@@ -13,7 +13,8 @@ export async function GET(
     return NextResponse.json({ success: false, message: 'Code parameter is required.' }, { status: 400 })
   }
 
-  const resolution = resolvePromoCode(code)
+  const search = new URL(request.url).searchParams
+  const resolution = resolvePromoCode(code, search.get('ref') || search.get('partner') || undefined)
 
   if (!resolution.isValid || !resolution.dealData) {
     return NextResponse.json(
