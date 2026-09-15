@@ -46,7 +46,7 @@ export function LanguageSwitch() {
   const { locale, setLocale } = useLanguage()
   const running = useRef(false)
   const [lowData, setLowData] = useState(false)
-  const [mobileExpanded, setMobileExpanded] = useState(false)
+  const [expanded, setExpanded] = useState(false)
 
   useEffect(() => {
     const connection = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection
@@ -80,119 +80,83 @@ export function LanguageSwitch() {
   }, [locale])
 
   return (
-    <>
-      {/* 1. Mobile Compact Floating Button (Does NOT cover cards or buttons) */}
-      <div data-no-auto-translate className="sm:hidden fixed bottom-[72px] right-3 z-[60]">
-        {!mobileExpanded ? (
+    <div data-no-auto-translate className="fixed bottom-4 right-4 z-[70]">
+      {!expanded ? (
+        <button
+          type="button"
+          onClick={() => setExpanded(true)}
+          aria-label="Change language / Badili lugha"
+          title={locale === 'sw' ? 'Badili lugha / Hali ya Data' : 'Change Language / Data Mode'}
+          className="flex items-center gap-2 px-3 py-2 rounded-full border border-slate-200/90 dark:border-slate-700/90 bg-white/95 dark:bg-slate-900/95 shadow-xl backdrop-blur-md text-xs font-extrabold text-slate-800 dark:text-slate-100 hover:scale-105 active:scale-95 transition-all cursor-pointer group"
+        >
+          <Languages className="h-4 w-4 text-[#FF6A00] transition-transform group-hover:rotate-12" />
+          <span className="uppercase tracking-wider font-mono text-[11px]">{locale === 'sw' ? 'SW' : 'EN'}</span>
+          {lowData && <WifiOff className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />}
+        </button>
+      ) : (
+        <div
+          className="flex items-center gap-1.5 rounded-full border border-slate-200/90 bg-white/95 p-1.5 shadow-2xl backdrop-blur-md dark:border-slate-700/90 dark:bg-slate-900/95 animate-in fade-in zoom-in-95 duration-150"
+          role="group"
+          aria-label="Language & Data settings"
+        >
+          <Languages className="ml-2 h-4 w-4 text-[#FF6A00] shrink-0" aria-hidden="true" />
+
           <button
             type="button"
-            onClick={() => setMobileExpanded(true)}
-            aria-label="Change language / Badili lugha"
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-900/95 shadow-md backdrop-blur-sm text-[11px] font-bold text-slate-800 dark:text-white cursor-pointer active:scale-95 transition-all"
+            onClick={() => { setLocale('sw'); setExpanded(false); }}
+            aria-pressed={locale === 'sw'}
+            className={`min-h-8 rounded-full px-3 text-[11px] font-extrabold transition-all cursor-pointer ${
+              locale === 'sw'
+                ? 'bg-[#0B132B] text-white dark:bg-[#FF6A00] shadow-2xs'
+                : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
+            }`}
           >
-            <Languages className="h-3.5 w-3.5 text-[#FF6A00]" />
-            <span className="uppercase">{locale}</span>
+            Kiswahili
           </button>
-        ) : (
-          <div
-            className="flex items-center gap-1.5 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-2xl dark:border-slate-700 dark:bg-slate-900 animate-in fade-in zoom-in-95 duration-150"
-            role="group"
-            aria-label="Language / Lugha"
-          >
-            <button
-              type="button"
-              onClick={() => { setLocale('sw'); setMobileExpanded(false); }}
-              className={`rounded-xl px-2.5 py-1.5 text-xs font-extrabold transition-colors ${
-                locale === 'sw'
-                  ? 'bg-[#0B132B] dark:bg-[#FF6A00] text-white'
-                  : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300'
-              }`}
-            >
-              Kiswahili
-            </button>
-            <button
-              type="button"
-              onClick={() => { setLocale('en'); setMobileExpanded(false); }}
-              className={`rounded-xl px-2.5 py-1.5 text-xs font-extrabold transition-colors ${
-                locale === 'en'
-                  ? 'bg-[#0B132B] dark:bg-[#FF6A00] text-white'
-                  : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300'
-              }`}
-            >
-              English
-            </button>
-            <button
-              type="button"
-              onClick={toggleLowData}
-              title={locale === 'sw' ? 'Hali ya data kidogo' : 'Low data mode'}
-              className={`rounded-xl p-1.5 text-xs font-extrabold transition-colors ${
-                lowData
-                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                  : 'text-slate-500 hover:bg-slate-100 dark:text-slate-300'
-              }`}
-            >
-              <WifiOff className="h-3.5 w-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setMobileExpanded(false)}
-              className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-lg"
-              aria-label="Close"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        )}
-      </div>
 
-      {/* 2. Desktop Full Floating Pill */}
-      <div
-        data-no-auto-translate
-        className="hidden sm:flex fixed bottom-5 right-5 z-[70] items-center gap-1 rounded-full border border-slate-200 bg-white/95 p-1 shadow-lg backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900/95"
-        role="group"
-        aria-label="Language / Lugha"
-      >
-        <Languages className="ml-1.5 h-3.5 w-3.5 text-[#FF6A00]" aria-hidden="true" />
-        <button
-          type="button"
-          onClick={() => setLocale('sw')}
-          aria-pressed={locale === 'sw'}
-          className={`min-h-9 rounded-full px-3 text-[11px] font-extrabold transition-colors ${
-            locale === 'sw'
-              ? 'bg-[#0B132B] text-white dark:bg-[#FF6A00]'
-              : 'text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
-          }`}
-        >
-          Kiswahili
-        </button>
-        <span className="text-xs text-slate-300 dark:text-slate-600" aria-hidden="true">|</span>
-        <button
-          type="button"
-          onClick={() => setLocale('en')}
-          aria-pressed={locale === 'en'}
-          className={`min-h-9 rounded-full px-3 text-[11px] font-extrabold transition-colors ${
-            locale === 'en'
-              ? 'bg-[#0B132B] text-white dark:bg-[#FF6A00]'
-              : 'text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
-          }`}
-        >
-          English
-        </button>
-        <button
-          type="button"
-          onClick={toggleLowData}
-          aria-pressed={lowData}
-          title={locale === 'sw' ? 'Hali ya data kidogo' : 'Low data mode'}
-          className={`min-h-9 rounded-full px-2.5 text-[11px] font-extrabold transition-colors ${
-            lowData
-              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-              : 'text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
-          }`}
-        >
-          <WifiOff className="inline h-3.5 w-3.5 mr-1" aria-hidden="true" />
-          <span>{locale === 'sw' ? 'Data kidogo' : 'Low Data'}</span>
-        </button>
-      </div>
-    </>
+          <span className="text-xs text-slate-300 dark:text-slate-700" aria-hidden="true">|</span>
+
+          <button
+            type="button"
+            onClick={() => { setLocale('en'); setExpanded(false); }}
+            aria-pressed={locale === 'en'}
+            className={`min-h-8 rounded-full px-3 text-[11px] font-extrabold transition-all cursor-pointer ${
+              locale === 'en'
+                ? 'bg-[#0B132B] text-white dark:bg-[#FF6A00] shadow-2xs'
+                : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
+            }`}
+          >
+            English
+          </button>
+
+          <span className="text-xs text-slate-300 dark:text-slate-700" aria-hidden="true">|</span>
+
+          <button
+            type="button"
+            onClick={toggleLowData}
+            aria-pressed={lowData}
+            title={locale === 'sw' ? 'Hali ya data kidogo' : 'Low data mode'}
+            className={`min-h-8 rounded-full px-2.5 text-[11px] font-extrabold transition-all cursor-pointer flex items-center gap-1 ${
+              lowData
+                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                : 'text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
+            }`}
+          >
+            <WifiOff className="h-3.5 w-3.5" aria-hidden="true" />
+            <span className="hidden sm:inline">{locale === 'sw' ? 'Data kidogo' : 'Low Data'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setExpanded(false)}
+            className="ml-1 p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
+            aria-label="Close language menu"
+            title="Close / Funga"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+    </div>
   )
 }

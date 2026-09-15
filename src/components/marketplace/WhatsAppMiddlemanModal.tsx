@@ -128,12 +128,9 @@ export function WhatsAppMiddlemanModal({
           <span>Lumo Dealers Referral Coordination</span>
         </div>
 
-        <h3 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white leading-snug mb-1">
+        <h3 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white leading-snug mb-4">
           WhatsApp Referral Coordination Desk
         </h3>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
-          Lumo reviews listings and coordinates referrals through WhatsApp. Customers pay merchants directly, and merchants pay agreed referral rewards directly to partners.
-        </p>
 
         {/* Deal Quick Summary Strip */}
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 mb-5 dark:border-slate-800 dark:bg-slate-800/60">
@@ -249,7 +246,7 @@ export function WhatsAppMiddlemanModal({
                   className="mt-0.5 h-4 w-4 accent-emerald-600 rounded"
                 />
                 <span className="text-[11px] text-emerald-900 dark:text-emerald-300 font-medium">
-                  <strong>Lumo Referral Coordination:</strong> Lumo coordinates introductions and verifies listing authenticity. Customers transact directly with merchants, and agreed rewards are paid directly to partners upon purchase completion.
+                  I understand that Lumo coordinates referrals and merchants pay rewards directly upon completed customer purchase.
                 </span>
               </label>
             </div>

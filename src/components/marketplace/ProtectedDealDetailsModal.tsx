@@ -346,15 +346,6 @@ export function ProtectedDealDetailsModal({
           )}
         </div>
 
-        {/* Lumo Dealers Operating Model Disclaimer */}
-        <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-800 dark:text-amber-200 leading-relaxed">
-          <strong className="block mb-0.5 text-amber-900 dark:text-amber-100 font-bold">
-            {locale === 'sw' ? 'Mipaka ya Kibiashara ya Lumo Dealers:' : 'Lumo Dealers Commercial Boundaries:'}
-          </strong>
-          {locale === 'sw'
-            ? 'Lumo Dealers inatoza ada ya usajili kwa ajili ya kufikia fursa na kutoa uratibu wa rufaa. Wateja wanalipa wafanyabiashara moja kwa moja, na wafanyabiashara wanalipa zawadi zilizokubaliwa moja kwa moja kwa washirika. Lumo haikusanyi, haishiki wala haisambazi malipo ya miamala hii au zawadi.'
-            : 'Lumo Dealers charges subscription fees for access to opportunities and provides referral coordination. Customers pay merchants directly, and merchants pay agreed referral rewards directly to partners. Lumo does not collect, hold or disburse these transaction payments or rewards.'}
-        </div>
 
         {/* Join / Active Tracking Action Area */}
         <div className="p-4 rounded-2xl bg-slate-900 text-white space-y-3">
