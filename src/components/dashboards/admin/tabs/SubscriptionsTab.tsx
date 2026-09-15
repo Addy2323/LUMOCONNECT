@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
   CreditCard,
   Search,
@@ -20,6 +20,12 @@ import {
   Check,
   Tag,
   Gift,
+  Crown,
+  RefreshCw,
+  User,
+  AlertTriangle,
+  ArrowUpRight,
+  ChevronDown,
 } from 'lucide-react'
 import {
   listSubscriptionPlans,
@@ -47,6 +53,11 @@ export function SubscriptionsTab() {
     return MOCK_SUBSCRIPTION_LEDGER
   })
 
+  const [isLoadingSubs, setIsLoadingSubs] = useState(false)
+  const [registeredUsers, setRegisteredUsers] = useState<
+    { id: string; name: string; email: string; phone?: string; role?: string }[]
+  >([])
+
   const [searchQuery, setSearchQuery] = useState('')
   const [planFilter, setPlanFilter] = useState('ALL')
   const [statusFilter, setStatusFilter] = useState('ALL')
@@ -55,24 +66,70 @@ export function SubscriptionsTab() {
   // Modals
   const [editingPlan, setEditingPlan] = useState<SubscriptionPlanItem | null>(null)
   const [showGrantModal, setShowGrantModal] = useState(false)
+  const [isSubmittingGrant, setIsSubmittingGrant] = useState(false)
+
   const [grantForm, setGrantForm] = useState({
     userEmail: '',
     userName: '',
-    planCode: 'MONTHLY' as SubscriptionPlanCode,
+    userPhone: '',
+    planCode: 'GOLDEN_VIP' as SubscriptionPlanCode,
     days: 30,
-    amountPaidTZS: 0,
+    amountPaidTZS: 50000,
+    reason: 'Payment Gateway Failure Bypass / USSD Retry',
   })
 
   const reloadPlans = () => {
     setPlans(listSubscriptionPlans())
   }
 
+  const loadDatabaseSubscriptions = useCallback(async () => {
+    setIsLoadingSubs(true)
+    try {
+      const res = await fetch('/api/admin/subscriptions')
+      if (res.ok) {
+        const data = await res.json()
+        if (data.subscriptions && Array.isArray(data.subscriptions) && data.subscriptions.length > 0) {
+          setLedger(data.subscriptions)
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('lumo_admin_sub_ledger', JSON.stringify(data.subscriptions))
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Could not fetch database subscriptions:', e)
+    } finally {
+      setIsLoadingSubs(false)
+    }
+  }, [])
+
+  const loadRegisteredUsers = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/users?limit=100')
+      if (res.ok) {
+        const data = await res.json()
+        if (data.users && Array.isArray(data.users)) {
+          setRegisteredUsers(data.users)
+        }
+      }
+    } catch (e) {}
+  }, [])
+
   useEffect(() => {
     reloadPlans()
-    const handleUpdate = () => reloadPlans()
+    loadDatabaseSubscriptions()
+    loadRegisteredUsers()
+
+    const handleUpdate = () => {
+      reloadPlans()
+      loadDatabaseSubscriptions()
+    }
     window.addEventListener('lumo:plans-updated', handleUpdate)
-    return () => window.removeEventListener('lumo:plans-updated', handleUpdate)
-  }, [])
+    window.addEventListener('lumo:subscription-updated', handleUpdate)
+    return () => {
+      window.removeEventListener('lumo:plans-updated', handleUpdate)
+      window.removeEventListener('lumo:subscription-updated', handleUpdate)
+    }
+  }, [loadDatabaseSubscriptions, loadRegisteredUsers])
 
   const saveLedger = (newLedger: SubscriptionTransaction[]) => {
     setLedger(newLedger)
@@ -84,15 +141,91 @@ export function SubscriptionsTab() {
   const filteredLedger = ledger.filter((item) => {
     const matchesSearch =
       item.userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (item.userEmail && item.userEmail.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (item.userPhone && item.userPhone.toLowerCase().includes(searchQuery.toLowerCase())) ||
       item.providerRef.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesPlan = planFilter === 'ALL' || item.planCode === planFilter
     const matchesStatus = statusFilter === 'ALL' || item.status === statusFilter
     return matchesSearch && matchesPlan && matchesStatus
   })
 
-  const handleExtendSubscription = (id: string, additionalDays: number) => {
+  const handlePlanSelect = (code: SubscriptionPlanCode) => {
+    const selected = plans.find((p) => p.code === code)
+    const defaultDays =
+      code === 'SEMI_ANNUAL'
+        ? 180
+        : code === 'ANNUAL' || code === 'ENTERPRISE'
+        ? 365
+        : 30
+
+    const defaultPrice =
+      selected?.priceTZS ??
+      (code === 'GOLDEN_VIP'
+        ? 50000
+        : code === 'ANNUAL'
+        ? 180000
+        : code === 'SEMI_ANNUAL'
+        ? 100000
+        : code === 'ENTERPRISE'
+        ? 1500000
+        : 25000)
+
+    setGrantForm((prev) => ({
+      ...prev,
+      planCode: code,
+      days: defaultDays,
+      amountPaidTZS: defaultPrice,
+    }))
+  }
+
+  const handleSelectExistingUser = (u: { id: string; name: string; email: string; phone?: string }) => {
+    setGrantForm((prev) => ({
+      ...prev,
+      userEmail: u.email,
+      userName: u.name,
+      userPhone: u.phone || '',
+    }))
+  }
+
+  const handleOpenUpgradeForUser = (sub: SubscriptionTransaction) => {
+    setGrantForm({
+      userEmail: sub.userEmail && sub.userEmail !== '—' ? sub.userEmail : sub.userId,
+      userName: sub.userName,
+      userPhone: sub.userPhone && sub.userPhone !== '—' ? sub.userPhone : '',
+      planCode: sub.isGoldenVip ? 'GOLDEN_VIP' : 'MONTHLY',
+      days: 30,
+      amountPaidTZS: sub.isGoldenVip ? 50000 : 25000,
+      reason: 'Manual Admin Upgrade / Plan Renewal',
+    })
+    setShowGrantModal(true)
+  }
+
+  const handleExtendSubscription = async (subId: string, additionalDays: number) => {
+    const target = ledger.find((s) => s.id === subId)
+    if (target) {
+      try {
+        const res = await fetch('/api/admin/subscriptions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userIdentifier: target.userEmail && target.userEmail !== '—' ? target.userEmail : target.userId,
+            planCode: target.planCode,
+            daysToAdd: additionalDays,
+            amountPaidTZS: 0,
+            reason: `Admin Extension (+${additionalDays} days)`,
+          }),
+        })
+        if (res.ok) {
+          showToast('success', 'Subscription Extended', `Access extended by ${additionalDays} days in database.`)
+          await loadDatabaseSubscriptions()
+          return
+        }
+      } catch (err) {}
+    }
+
+    // Local fallback update
     const updated = ledger.map((sub) => {
-      if (sub.id === id) {
+      if (sub.id === subId) {
         return {
           ...sub,
           status: 'ACTIVE' as const,
@@ -102,7 +235,7 @@ export function SubscriptionsTab() {
       return sub
     })
     saveLedger(updated)
-    showToast('success', 'Subscription Extended', `Access extended by ${additionalDays} days. Audit ledger updated.`)
+    showToast('success', 'Subscription Extended', `Access extended by ${additionalDays} days.`)
   }
 
   const handleCancelSubscription = (id: string) => {
@@ -123,76 +256,69 @@ export function SubscriptionsTab() {
     showToast('success', 'Plan Configuration Saved', `Updated pricing and terms published live for ${editingPlan.name}.`)
   }
 
-  const handleGrantSubscription = (e: React.FormEvent) => {
+  const handleGrantSubscription = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!grantForm.userEmail.trim()) {
-      showToast('error', 'Validation Error', 'User email is required.')
+    const targetInput = grantForm.userEmail.trim()
+    if (!targetInput) {
+      showToast('error', 'Validation Error', 'User email or phone is required.')
       return
     }
 
-    const selectedPlan = plans.find((p) => p.code === grantForm.planCode)
-    grantUserSubscription(
-      grantForm.userEmail.trim(),
-      grantForm.planCode,
-      Number(grantForm.days),
-      grantForm.amountPaidTZS
-    )
+    setIsSubmittingGrant(true)
 
-    const newTx: SubscriptionTransaction = {
-      id: `sub_grant_${Date.now()}`,
-      userId: grantForm.userEmail.trim(),
-      userName: grantForm.userName.trim() || grantForm.userEmail.split('@')[0],
-      planCode: grantForm.planCode,
-      planName: selectedPlan?.name || grantForm.planCode,
-      providerRef: `ADMIN-GRANT-${Date.now().toString().slice(-6)}`,
-      amountTZS: Number(grantForm.amountPaidTZS) || (selectedPlan ? selectedPlan.priceTZS : 0),
-      startsAt: new Date().toISOString().slice(0, 10),
-      expiresAt: new Date(Date.now() + grantForm.days * 86400000).toISOString().slice(0, 10),
-      status: 'ACTIVE',
-      createdAt: new Date().toISOString().slice(0, 10),
+    try {
+      const res = await fetch('/api/admin/subscriptions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userIdentifier: targetInput,
+          email: targetInput.includes('@') ? targetInput : undefined,
+          phone: !targetInput.includes('@') ? targetInput : grantForm.userPhone || undefined,
+          planCode: grantForm.planCode,
+          daysToAdd: Number(grantForm.days),
+          amountPaidTZS: Number(grantForm.amountPaidTZS),
+          reason: grantForm.reason || 'Admin manual upgrade / payment bypass',
+        }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || data.error || 'Failed to upgrade user subscription')
+      }
+
+      // Synchronize in runtime memory for immediate local session consistency
+      grantUserSubscription(
+        targetInput,
+        grantForm.planCode,
+        Number(grantForm.days),
+        grantForm.amountPaidTZS
+      )
+
+      await loadDatabaseSubscriptions()
+      window.dispatchEvent(new Event('lumo:subscription-updated'))
+
+      setShowGrantModal(false)
+      showToast(
+        'success',
+        'User Subscription Upgraded!',
+        `Successfully activated ${grantForm.planCode} for ${targetInput} (${grantForm.days} days). VIP deal access is now permanently saved in PostgreSQL.`
+      )
+
+      setGrantForm({
+        userEmail: '',
+        userName: '',
+        userPhone: '',
+        planCode: 'GOLDEN_VIP',
+        days: 30,
+        amountPaidTZS: 50000,
+        reason: 'Payment Gateway Failure Bypass / USSD Retry',
+      })
+    } catch (err: any) {
+      showToast('error', 'Upgrade Failed', err.message || 'Could not upgrade subscription.')
+    } finally {
+      setIsSubmittingGrant(false)
     }
-
-    saveLedger([newTx, ...ledger])
-    setShowGrantModal(false)
-    setGrantForm({
-      userEmail: '',
-      userName: '',
-      planCode: 'MONTHLY',
-      days: 30,
-      amountPaidTZS: 0,
-    })
-
-    showToast(
-      'success',
-      'Subscription Granted',
-      `Active membership granted to ${grantForm.userEmail} for ${grantForm.days} days.`
-    )
-  }
-
-  const handleAddFeature = () => {
-    if (!editingPlan) return
-    setEditingPlan({
-      ...editingPlan,
-      features: [...editingPlan.features, 'New premium benefit item'],
-    })
-  }
-
-  const handleRemoveFeature = (idx: number) => {
-    if (!editingPlan) return
-    setEditingPlan({
-      ...editingPlan,
-      features: editingPlan.features.filter((_, i) => i !== idx),
-    })
-  }
-
-  const handleFeatureChange = (idx: number, val: string) => {
-    if (!editingPlan) return
-    const updatedFeatures = [...editingPlan.features]
-    updatedFeatures[idx] = val
-    setEditingPlan({
-      ...editingPlan,
-      features: updatedFeatures,
-    })
   }
 
   return (
@@ -207,113 +333,182 @@ export function SubscriptionsTab() {
             </span>
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Configure live membership pricing, validity days, and features. Granted plans immediately synchronize across the public platform.
+            Configure live membership pricing, validity days, and features. Admin can directly upgrade any user to normal or Golden VIP subscription when payments fail.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setShowGrantModal(true)}
-            className="py-2 px-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+            onClick={() => {
+              setGrantForm({
+                userEmail: '',
+                userName: '',
+                userPhone: '',
+                planCode: 'GOLDEN_VIP',
+                days: 30,
+                amountPaidTZS: 50000,
+                reason: 'Payment Gateway Failure Bypass / USSD Retry',
+              })
+              setShowGrantModal(true)
+            }}
+            className="py-2.5 px-4 bg-gradient-to-r from-amber-500 via-[#FF6A00] to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer active:scale-95"
           >
-            <Gift className="w-3.5 h-3.5" />
-            <span>Grant Access to User</span>
+            <Crown className="w-4 h-4 text-amber-100" />
+            <span>+ Upgrade User Subscription</span>
           </button>
         </div>
       </div>
 
-      {/* 3 Interactive Plan Definition Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {plans.map((p) => (
-          <div
-            key={p.code}
-            className={`p-4 sm:p-5 rounded-3xl border flex flex-col justify-between space-y-3 transition-all relative ${
-              p.isBestValue
-                ? 'border-[#FF6A00] bg-orange-50/20 dark:bg-slate-800/80 shadow-md ring-1 ring-[#FF6A00]/20'
-                : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50'
-            }`}
-          >
-            {p.isBestValue && (
-              <span className="absolute -top-2.5 right-4 bg-[#FF6A00] text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-full shadow-xs">
-                Recommended
-              </span>
-            )}
-
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="font-black text-xs sm:text-sm text-slate-900 dark:text-white">
-                  {p.name}
-                </span>
-                <span className="text-[10px] font-mono bg-white dark:bg-slate-900 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-700 font-bold">
-                  {p.billingPeriod}
-                </span>
+      {/* Interactive Plan Definition Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {plans.map((p) => {
+          const isGolden = p.isGoldenVip || p.code === 'GOLDEN_VIP' || p.code === 'ANNUAL' || p.code === 'ENTERPRISE'
+          return (
+            <div
+              key={p.code}
+              className={`p-4 sm:p-5 rounded-3xl border flex flex-col justify-between space-y-3 transition-all relative ${
+                isGolden
+                  ? 'border-amber-400/60 bg-amber-50/30 dark:bg-amber-950/20 shadow-sm ring-1 ring-amber-400/20'
+                  : p.isBestValue
+                  ? 'border-[#FF6A00] bg-orange-50/20 dark:bg-slate-800/80 shadow-md ring-1 ring-[#FF6A00]/20'
+                  : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50'
+              }`}
+            >
+              <div className="flex items-center gap-2 absolute -top-2.5 right-4">
+                {isGolden && (
+                  <span className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full shadow-xs flex items-center gap-1">
+                    <Crown className="w-3 h-3" /> VIP Early Access
+                  </span>
+                )}
+                {p.isBestValue && !isGolden && (
+                  <span className="bg-[#FF6A00] text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-full shadow-xs">
+                    Recommended
+                  </span>
+                )}
               </div>
 
-              <div className="text-xl font-black text-[#FF6A00] font-mono mt-1.5">
-                {p.priceDisplay}
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="font-black text-xs sm:text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
+                    {p.name}
+                  </span>
+                  <span className="text-[10px] font-mono bg-white dark:bg-slate-900 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-700 font-bold">
+                    {p.billingPeriod}
+                  </span>
+                </div>
+
+                <div className="text-xl font-black text-[#FF6A00] font-mono mt-1.5">
+                  {p.priceDisplay}
+                </div>
+
+                <p className="text-[11px] text-slate-500 mt-1 leading-snug line-clamp-2">
+                  {p.description}
+                </p>
               </div>
 
-              <p className="text-[11px] text-slate-500 mt-1 leading-snug line-clamp-2">
-                {p.description}
-              </p>
+              <div className="space-y-2 pt-2 border-t border-slate-200/80 dark:border-slate-700/80">
+                <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                  {p.features.length} Features Included
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setEditingPlan(p)}
+                    className="py-1.5 px-2.5 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[11px] font-bold text-slate-800 dark:text-slate-200 flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                  >
+                    <Edit className="w-3 h-3 text-[#FF6A00]" />
+                    <span>Edit Pricing</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      handlePlanSelect(p.code)
+                      setShowGrantModal(true)
+                    }}
+                    className="py-1.5 px-2.5 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                  >
+                    <Gift className="w-3 h-3 text-emerald-600" />
+                    <span>Grant Plan</span>
+                  </button>
+                </div>
+              </div>
             </div>
-
-            <div className="space-y-2 pt-2 border-t border-slate-200/80 dark:border-slate-700/80">
-              <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
-                {p.features.length} Features Included
-              </div>
-
-              <button
-                onClick={() => setEditingPlan(p)}
-                className="w-full py-2 px-3 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-              >
-                <Edit className="w-3.5 h-3.5 text-[#FF6A00]" />
-                <span>Edit Plan & Pricing</span>
-              </button>
-            </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
-      {/* Filter Bar */}
-      <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 pt-2">
-        <div className="sm:col-span-6 relative">
+      {/* Filter & Action Bar */}
+      <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 pt-2 items-center">
+        <div className="sm:col-span-4 relative">
           <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
           <input
             type="text"
-            placeholder="Search by subscriber name or provider reference (MPESA-VOD...)"
+            placeholder="Search by name, email, phone, or reference..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-9 pr-4 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
           />
         </div>
 
-        <div className="sm:col-span-3">
+        <div className="sm:col-span-2">
           <select
             value={planFilter}
             onChange={(e) => setPlanFilter(e.target.value)}
-            className="w-full py-2 px-3 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+            className="w-full py-2 px-3 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-medium"
           >
             <option value="ALL">All Plans</option>
+            <option value="GOLDEN_VIP">👑 Golden VIP</option>
+            <option value="ANNUAL">👑 Annual Elite (VIP)</option>
             <option value="MONTHLY">Monthly Starter</option>
             <option value="SEMI_ANNUAL">Semi-Annual Pro</option>
             <option value="ENTERPRISE">Enterprise AI</option>
           </select>
         </div>
 
-        <div className="sm:col-span-3">
+        <div className="sm:col-span-2">
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="w-full py-2 px-3 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+            className="w-full py-2 px-3 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-medium"
           >
             <option value="ALL">All Statuses</option>
             <option value="ACTIVE">Active</option>
-            <option value="PENDING">Pending</option>
-            <option value="PAST_DUE">Past Due</option>
-            <option value="CANCELLED">Cancelled</option>
             <option value="EXPIRED">Expired</option>
+            <option value="CANCELLED">Cancelled</option>
+            <option value="PENDING">Pending</option>
           </select>
+        </div>
+
+        <div className="sm:col-span-1 flex justify-center">
+          <button
+            onClick={loadDatabaseSubscriptions}
+            disabled={isLoadingSubs}
+            title="Refresh from Database"
+            className="p-2 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-600 dark:text-slate-300 cursor-pointer disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${isLoadingSubs ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
+
+        <div className="sm:col-span-3">
+          <button
+            onClick={() => {
+              setGrantForm({
+                userEmail: '',
+                userName: '',
+                userPhone: '',
+                planCode: 'GOLDEN_VIP',
+                days: 30,
+                amountPaidTZS: 50000,
+                reason: 'Payment Gateway Failure Bypass / USSD Retry',
+              })
+              setShowGrantModal(true)
+            }}
+            className="w-full py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+          >
+            <Gift className="w-3.5 h-3.5" />
+            <span>+ Upgrade User</span>
+          </button>
         </div>
       </div>
 
@@ -323,7 +518,7 @@ export function SubscriptionsTab() {
           <thead className="bg-slate-50 dark:bg-slate-800/80 text-[10px] text-slate-500 uppercase font-bold border-b border-slate-200 dark:border-slate-700">
             <tr>
               <th className="p-3">Subscriber</th>
-              <th className="p-3">Plan Name</th>
+              <th className="p-3">Plan / VIP Tier</th>
               <th className="p-3">Provider Reference</th>
               <th className="p-3">Amount</th>
               <th className="p-3">Validity Period</th>
@@ -335,19 +530,47 @@ export function SubscriptionsTab() {
             {filteredLedger.length === 0 ? (
               <tr>
                 <td colSpan={7} className="text-center py-12 text-slate-400">
-                  No subscription transactions recorded in the billing ledger yet.
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <AlertCircle className="w-6 h-6 text-slate-300" />
+                    <span>No subscription records found.</span>
+                    <button
+                      onClick={() => setShowGrantModal(true)}
+                      className="mt-2 text-xs font-bold text-[#FF6A00] hover:underline"
+                    >
+                      + Upgrade or grant a subscription now
+                    </button>
+                  </div>
                 </td>
               </tr>
             ) : (
               filteredLedger.map((sub) => (
                 <tr key={sub.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
                   <td className="p-3">
-                    <div className="font-extrabold text-slate-900 dark:text-white">{sub.userName}</div>
-                    <div className="text-[10px] text-slate-400 font-mono">User: {sub.userId}</div>
+                    <div className="font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5">
+                      <span>{sub.userName}</span>
+                      {sub.isGoldenVip && (
+                        <Crown className="w-3 h-3 text-amber-500 fill-amber-400 inline" />
+                      )}
+                    </div>
+                    {sub.userEmail && sub.userEmail !== '—' && (
+                      <div className="text-[10px] text-slate-500">{sub.userEmail}</div>
+                    )}
+                    <div className="text-[10px] text-slate-400 font-mono">User ID: {sub.userId.slice(0, 18)}...</div>
                   </td>
 
                   <td className="p-3">
-                    <span className="font-bold text-slate-800 dark:text-slate-200">{sub.planName}</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-bold text-slate-800 dark:text-slate-200">{sub.planName}</span>
+                    </div>
+                    {sub.isGoldenVip ? (
+                      <span className="inline-block mt-0.5 text-[9px] bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 font-extrabold px-1.5 py-0.2 rounded">
+                        VIP Hot Deals Pass
+                      </span>
+                    ) : (
+                      <span className="inline-block mt-0.5 text-[9px] bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 font-semibold px-1.5 py-0.2 rounded">
+                        Standard Pass
+                      </span>
+                    )}
                   </td>
 
                   <td className="p-3 font-mono text-[11px] text-slate-600 dark:text-slate-300">
@@ -359,7 +582,12 @@ export function SubscriptionsTab() {
                   </td>
 
                   <td className="p-3 text-[11px] text-slate-500">
-                    {sub.startsAt} → {sub.expiresAt}
+                    <div>{sub.startsAt} → {sub.expiresAt}</div>
+                    {sub.daysRemaining !== undefined && sub.status === 'ACTIVE' && (
+                      <div className="text-[10px] font-bold text-emerald-600">
+                        {sub.daysRemaining} days remaining
+                      </div>
+                    )}
                   </td>
 
                   <td className="p-3">
@@ -379,17 +607,26 @@ export function SubscriptionsTab() {
                   <td className="p-3 text-right">
                     <div className="inline-flex items-center gap-1.5">
                       <button
+                        onClick={() => handleOpenUpgradeForUser(sub)}
+                        className="py-1 px-2.5 bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 rounded-lg text-xs font-bold hover:bg-amber-100 cursor-pointer flex items-center gap-1"
+                        title="Upgrade user plan"
+                      >
+                        <Crown className="w-3 h-3 text-amber-500" />
+                        <span>Upgrade</span>
+                      </button>
+
+                      <button
                         onClick={() => handleExtendSubscription(sub.id, 30)}
                         className="py-1 px-2.5 bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 rounded-lg text-xs font-bold hover:bg-blue-100 cursor-pointer"
                         title="Extend +30 Days"
                       >
-                        +30 Days
+                        +30d
                       </button>
 
                       {sub.status === 'ACTIVE' && (
                         <button
                           onClick={() => handleCancelSubscription(sub.id)}
-                          className="py-1 px-2.5 bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-300 border border-red-200 dark:border-red-800 rounded-lg text-xs font-bold hover:bg-red-100 cursor-pointer"
+                          className="py-1 px-2 text-red-500 hover:text-red-700 dark:hover:text-red-400 text-xs font-bold cursor-pointer"
                           title="Cancel Subscription"
                         >
                           Cancel
@@ -425,24 +662,25 @@ export function SubscriptionsTab() {
               </button>
             </div>
 
-            <form onSubmit={handleSavePlanEdit} className="space-y-3.5 text-xs">
-              <div>
-                <label className="font-bold block mb-1 text-slate-700 dark:text-slate-300">Plan Display Name</label>
-                <input
-                  type="text"
-                  required
-                  value={editingPlan.name}
-                  onChange={(e) => setEditingPlan({ ...editingPlan, name: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-bold text-slate-900 dark:text-white"
-                />
-              </div>
-
+            <form onSubmit={handleSavePlanEdit} className="space-y-4 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="font-bold block mb-1 text-slate-700 dark:text-slate-300">Price in TZS</label>
+                  <label className="font-bold block mb-1 text-slate-700 dark:text-slate-300">Plan Display Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={editingPlan.name}
+                    onChange={(e) => setEditingPlan({ ...editingPlan, name: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-bold block mb-1 text-slate-700 dark:text-slate-300">Price (TZS)</label>
                   <input
                     type="number"
                     required
+                    min={0}
                     value={editingPlan.priceTZS}
                     onChange={(e) =>
                       setEditingPlan({
@@ -454,77 +692,16 @@ export function SubscriptionsTab() {
                     className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-mono font-bold text-slate-900 dark:text-white"
                   />
                 </div>
-
-                <div>
-                  <label className="font-bold block mb-1 text-slate-700 dark:text-slate-300">Billing Period Label</label>
-                  <input
-                    type="text"
-                    required
-                    value={editingPlan.periodDisplay}
-                    onChange={(e) => setEditingPlan({ ...editingPlan, periodDisplay: e.target.value })}
-                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-medium text-slate-900 dark:text-white"
-                    placeholder="/month, /6 months"
-                  />
-                </div>
               </div>
 
               <div>
-                <label className="font-bold block mb-1 text-slate-700 dark:text-slate-300">Plan Summary Description</label>
+                <label className="font-bold block mb-1 text-slate-700 dark:text-slate-300">Description</label>
                 <textarea
-                  required
                   rows={2}
                   value={editingPlan.description}
                   onChange={(e) => setEditingPlan({ ...editingPlan, description: e.target.value })}
                   className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
                 />
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="font-bold text-slate-700 dark:text-slate-300">Included Features & Bullet Points</label>
-                  <button
-                    type="button"
-                    onClick={handleAddFeature}
-                    className="text-[11px] font-bold text-[#FF6A00] hover:underline flex items-center gap-1 cursor-pointer"
-                  >
-                    <Plus className="w-3 h-3" />
-                    <span>Add Item</span>
-                  </button>
-                </div>
-
-                <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
-                  {editingPlan.features.map((feat, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={feat}
-                        onChange={(e) => handleFeatureChange(idx, e.target.value)}
-                        className="flex-1 p-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveFeature(idx)}
-                        className="p-1 text-slate-400 hover:text-red-500 cursor-pointer"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 pt-2">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={editingPlan.isBestValue || false}
-                    onChange={(e) => setEditingPlan({ ...editingPlan, isBestValue: e.target.checked })}
-                    className="w-4 h-4 text-[#FF6A00] rounded focus:ring-0"
-                  />
-                  <span className="font-bold text-slate-800 dark:text-slate-200 text-xs">
-                    Highlight as "Best Value / Recommended"
-                  </span>
-                </label>
               </div>
 
               <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
@@ -548,17 +725,24 @@ export function SubscriptionsTab() {
       )}
 
       {/* ======================================================================= */}
-      {/* GRANT SUBSCRIPTION MODAL                                                */}
+      {/* UPGRADE / GRANT SUBSCRIPTION MODAL                                      */}
       {/* ======================================================================= */}
       {showGrantModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl space-y-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2">
-                <Gift className="w-5 h-5 text-emerald-600" />
-                <h3 className="text-base font-black text-slate-900 dark:text-white">
-                  Grant Access to User
-                </h3>
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-500 to-[#FF6A00] flex items-center justify-center shadow-xs">
+                  <Crown className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900 dark:text-white">
+                    Upgrade User Subscription
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Bypass failed payment and immediately activate normal or Golden VIP pass.
+                  </p>
+                </div>
               </div>
               <button
                 onClick={() => setShowGrantModal(false)}
@@ -568,46 +752,188 @@ export function SubscriptionsTab() {
               </button>
             </div>
 
-            <form onSubmit={handleGrantSubscription} className="space-y-3 text-xs">
-              <div>
-                <label className="font-bold block mb-1 text-slate-700 dark:text-slate-300">User Email or Phone</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. daudi.marketing@lumopartner.tz"
-                  value={grantForm.userEmail}
-                  onChange={(e) => setGrantForm({ ...grantForm, userEmail: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
-                />
+            <form onSubmit={handleGrantSubscription} className="space-y-4 text-xs">
+              {/* Target User Section */}
+              <div className="space-y-2 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+                <label className="font-bold block text-slate-800 dark:text-slate-200">
+                  Target User Account (Email or Phone Number)
+                </label>
+
+                {registeredUsers.length > 0 && (
+                  <div>
+                    <span className="text-[10px] text-slate-400 block mb-1">
+                      Quick Pick from Registered Database Users:
+                    </span>
+                    <select
+                      onChange={(e) => {
+                        const picked = registeredUsers.find((u) => u.email === e.target.value)
+                        if (picked) handleSelectExistingUser(picked)
+                      }}
+                      className="w-full p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 text-xs mb-2"
+                    >
+                      <option value="">-- Select Registered User --</option>
+                      {registeredUsers.map((u) => (
+                        <option key={u.id} value={u.email}>
+                          {u.name} ({u.email}) {u.phone ? `· ${u.phone}` : ''} [{u.role || 'USER'}]
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <input
+                      type="text"
+                      required
+                      placeholder="User Email or Phone Number *"
+                      value={grantForm.userEmail}
+                      onChange={(e) => setGrantForm({ ...grantForm, userEmail: e.target.value })}
+                      className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-medium"
+                    />
+                  </div>
+                  <div>
+                    <input
+                      type="text"
+                      placeholder="User Display Name (Optional)"
+                      value={grantForm.userName}
+                      onChange={(e) => setGrantForm({ ...grantForm, userName: e.target.value })}
+                      className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                    />
+                  </div>
+                </div>
               </div>
 
+              {/* Plan Tier Selector */}
               <div>
-                <label className="font-bold block mb-1 text-slate-700 dark:text-slate-300">User Display Name (Optional)</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Daudi Mzava"
-                  value={grantForm.userName}
-                  onChange={(e) => setGrantForm({ ...grantForm, userName: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
-                />
+                <label className="font-bold block mb-1.5 text-slate-800 dark:text-slate-200">
+                  Select Subscription Plan Tier
+                </label>
+
+                <div className="space-y-2">
+                  {/* Golden VIP Tier */}
+                  <div className="text-[10px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1 pt-1">
+                    <Crown className="w-3 h-3" />
+                    <span>Golden VIP Access Tiers</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handlePlanSelect('GOLDEN_VIP')}
+                      className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                        grantForm.planCode === 'GOLDEN_VIP'
+                          ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/40 ring-2 ring-amber-400/40'
+                          : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-amber-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-extrabold text-slate-900 dark:text-white">Golden VIP</span>
+                        <span className="text-[10px] font-mono text-amber-600 font-bold">TZS 50,000</span>
+                      </div>
+                      <p className="text-[10px] text-slate-500 mt-0.5">30 Days · 24h Hot Deals Early Access</p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handlePlanSelect('ANNUAL')}
+                      className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                        grantForm.planCode === 'ANNUAL'
+                          ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/40 ring-2 ring-amber-400/40'
+                          : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-amber-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-extrabold text-slate-900 dark:text-white">Annual Elite</span>
+                        <span className="text-[10px] font-mono text-amber-600 font-bold">TZS 180,000</span>
+                      </div>
+                      <p className="text-[10px] text-slate-500 mt-0.5">365 Days · Full Year + 1 Mo Free VIP</p>
+                    </button>
+                  </div>
+
+                  {/* Standard Subscriptions Tier */}
+                  <div className="text-[10px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400 flex items-center gap-1 pt-1.5">
+                    <CreditCard className="w-3 h-3" />
+                    <span>Standard Partner Tiers</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handlePlanSelect('MONTHLY')}
+                      className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                        grantForm.planCode === 'MONTHLY'
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40 ring-2 ring-blue-400/40'
+                          : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-blue-300'
+                      }`}
+                    >
+                      <span className="font-extrabold text-slate-900 dark:text-white block">Monthly</span>
+                      <span className="text-[10px] font-mono text-blue-600 font-bold">TZS 25,000</span>
+                      <p className="text-[9px] text-slate-500 mt-0.5">30 Days Pass</p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handlePlanSelect('SEMI_ANNUAL')}
+                      className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                        grantForm.planCode === 'SEMI_ANNUAL'
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40 ring-2 ring-blue-400/40'
+                          : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-blue-300'
+                      }`}
+                    >
+                      <span className="font-extrabold text-slate-900 dark:text-white block">Semi-Annual</span>
+                      <span className="text-[10px] font-mono text-blue-600 font-bold">TZS 100,000</span>
+                      <p className="text-[9px] text-slate-500 mt-0.5">180 Days (6 Mos)</p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handlePlanSelect('ENTERPRISE')}
+                      className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                        grantForm.planCode === 'ENTERPRISE'
+                          ? 'border-purple-500 bg-purple-50 dark:bg-purple-950/40 ring-2 ring-purple-400/40'
+                          : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-purple-300'
+                      }`}
+                    >
+                      <span className="font-extrabold text-slate-900 dark:text-white block">Enterprise</span>
+                      <span className="text-[10px] font-mono text-purple-600 font-bold">TZS 1.5M</span>
+                      <p className="text-[9px] text-slate-500 mt-0.5">365 Days AI VIP</p>
+                    </button>
+                  </div>
+                </div>
               </div>
 
+              {/* Validity Days & Amount Paid */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="font-bold block mb-1 text-slate-700 dark:text-slate-300">Select Plan Tier</label>
-                  <select
-                    value={grantForm.planCode}
-                    onChange={(e) => setGrantForm({ ...grantForm, planCode: e.target.value as SubscriptionPlanCode })}
-                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
-                  >
-                    <option value="MONTHLY">Monthly Starter</option>
-                    <option value="SEMI_ANNUAL">Semi-Annual Pro</option>
-                    <option value="ENTERPRISE">Enterprise AI</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="font-bold block mb-1 text-slate-700 dark:text-slate-300">Validity Days</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="font-bold text-slate-700 dark:text-slate-300">Validity Days</label>
+                    <div className="flex gap-1 text-[10px]">
+                      <button
+                        type="button"
+                        onClick={() => setGrantForm({ ...grantForm, days: 30 })}
+                        className="text-blue-600 font-bold hover:underline"
+                      >
+                        30d
+                      </button>
+                      <span>·</span>
+                      <button
+                        type="button"
+                        onClick={() => setGrantForm({ ...grantForm, days: 180 })}
+                        className="text-blue-600 font-bold hover:underline"
+                      >
+                        180d
+                      </button>
+                      <span>·</span>
+                      <button
+                        type="button"
+                        onClick={() => setGrantForm({ ...grantForm, days: 365 })}
+                        className="text-blue-600 font-bold hover:underline"
+                      >
+                        365d
+                      </button>
+                    </div>
+                  </div>
                   <input
                     type="number"
                     required
@@ -616,6 +942,59 @@ export function SubscriptionsTab() {
                     onChange={(e) => setGrantForm({ ...grantForm, days: Number(e.target.value) })}
                     className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-mono font-bold text-slate-900 dark:text-white"
                   />
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="font-bold text-slate-700 dark:text-slate-300">Amount Paid (TZS)</label>
+                    <button
+                      type="button"
+                      onClick={() => setGrantForm({ ...grantForm, amountPaidTZS: 0 })}
+                      className="text-[10px] text-amber-600 font-bold hover:underline"
+                    >
+                      Set 0 (Bypass)
+                    </button>
+                  </div>
+                  <input
+                    type="number"
+                    required
+                    min={0}
+                    value={grantForm.amountPaidTZS}
+                    onChange={(e) => setGrantForm({ ...grantForm, amountPaidTZS: Number(e.target.value) })}
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-mono font-bold text-slate-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              {/* Upgrade Reason / Failure Bypass Note */}
+              <div>
+                <label className="font-bold block mb-1 text-slate-700 dark:text-slate-300">
+                  Reason / Operational Bypass Note
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Snippe USSD timeout / Mobile money network failed"
+                  value={grantForm.reason}
+                  onChange={(e) => setGrantForm({ ...grantForm, reason: e.target.value })}
+                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+                />
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                  {[
+                    'Mobile Money Failed / USSD Retry',
+                    'Direct Bank Transfer Settlement',
+                    'Cash Paid at Office / Merchant Pay',
+                    'Promotional VIP Upgrade',
+                  ].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setGrantForm({ ...grantForm, reason: preset })}
+                      className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700"
+                    >
+                      {preset}
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -629,9 +1008,20 @@ export function SubscriptionsTab() {
                 </button>
                 <button
                   type="submit"
-                  className="py-2 px-5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl text-xs shadow-xs cursor-pointer"
+                  disabled={isSubmittingGrant}
+                  className="py-2 px-5 bg-gradient-to-r from-amber-500 to-[#FF6A00] hover:from-amber-600 hover:to-[#EA580C] text-white font-extrabold rounded-xl text-xs shadow-md cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
                 >
-                  Grant Active Membership
+                  {isSubmittingGrant ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Activating in Database...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Crown className="w-3.5 h-3.5" />
+                      <span>Upgrade & Activate Pass Now</span>
+                    </>
+                  )}
                 </button>
               </div>
             </form>

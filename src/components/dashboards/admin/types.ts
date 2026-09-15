@@ -118,6 +118,8 @@ export interface SubscriptionTransaction {
   id: string
   userId: string
   userName: string
+  userEmail?: string
+  userPhone?: string
   planCode: SubscriptionPlanCode
   planName: string
   amountTZS: number
@@ -125,6 +127,8 @@ export interface SubscriptionTransaction {
   providerRef: string
   startsAt: string
   expiresAt: string
+  daysRemaining?: number
+  isGoldenVip?: boolean
   autoRenew?: boolean
   createdAt?: string
 }

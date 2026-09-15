@@ -22,7 +22,11 @@ import { MOCK_PAYMENTS } from '../mockData'
 import { PaymentLedgerItem } from '../types'
 import { useAdminToast } from '../AdminToast'
 
-export function PaymentsTab() {
+interface PaymentsTabProps {
+  onNavigateToSubscriptions?: () => void
+}
+
+export function PaymentsTab({ onNavigateToSubscriptions }: PaymentsTabProps = {}) {
   const { showToast } = useAdminToast()
 
   const [payments, setPayments] = useState<PaymentLedgerItem[]>(MOCK_PAYMENTS)
@@ -125,13 +129,25 @@ export function PaymentsTab() {
           </p>
         </div>
 
-        <button
-          onClick={() => setShowExportModal(true)}
-          className="py-2 px-3.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold hover:bg-slate-50 flex items-center gap-1.5 self-start sm:self-auto transition-colors"
-        >
-          <Download className="w-3.5 h-3.5" />
-          <span>Export Ledger</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          {onNavigateToSubscriptions && (
+            <button
+              onClick={onNavigateToSubscriptions}
+              className="py-2 px-3.5 bg-gradient-to-r from-amber-500 via-[#FF6A00] to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-extrabold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition-all cursor-pointer"
+            >
+              <Crown className="w-3.5 h-3.5 text-amber-100" />
+              <span>Manual Upgrade User</span>
+            </button>
+          )}
+
+          <button
+            onClick={() => setShowExportModal(true)}
+            className="py-2 px-3.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-1.5 transition-colors"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Export Ledger</span>
+          </button>
+        </div>
       </div>
 
       {/* Executive Subscription & Settlement Metrics */}

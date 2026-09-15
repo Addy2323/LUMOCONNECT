@@ -18,16 +18,21 @@ export async function activateSubscriptionInDatabase(params: {
   planCode: string
   amountTZS?: number
   providerReference?: string
+  days?: number
+  reason?: string
+  actorUserId?: string
 }): Promise<UserSubscriptionItem | null> {
-  const { userId, email, phone, planCode, amountTZS, providerReference } = params
+  const { userId, email, phone, planCode, amountTZS, providerReference, reason, actorUserId } = params
 
   const normalizedCode = (planCode || 'MONTHLY').toUpperCase() as SubscriptionPlanCode
-  const days =
+  const defaultDays =
     normalizedCode === 'SEMI_ANNUAL'
       ? 180
-      : normalizedCode === 'ANNUAL'
+      : normalizedCode === 'ANNUAL' || normalizedCode === 'ENTERPRISE'
       ? 365
       : 30
+
+  const days = params.days && params.days > 0 ? params.days : defaultDays
 
   const startsAt = new Date()
   const expiresAt = new Date()
@@ -111,7 +116,7 @@ export async function activateSubscriptionInDatabase(params: {
         })
 
         // Create new active subscription
-        await db.userSubscription.create({
+        const newSub = await db.userSubscription.create({
           data: {
             userId: targetUser.id,
             planId: dbPlan.id,
@@ -121,6 +126,30 @@ export async function activateSubscriptionInDatabase(params: {
             autoRenew: true,
           },
         })
+
+        if (actorUserId) {
+          try {
+            await db.auditLog.create({
+              data: {
+                actorUserId,
+                action: 'ADMIN_SUBSCRIPTION_UPGRADE',
+                entityType: 'USER_SUBSCRIPTION',
+                entityId: newSub.id,
+                afterData: {
+                  userId: targetUser.id,
+                  userEmail: targetUser.email,
+                  planCode: normalizedCode,
+                  days,
+                  amountTZS,
+                  reason: reason || 'Admin manual upgrade',
+                  providerReference,
+                },
+              },
+            })
+          } catch (auditErr) {
+            console.warn('[SUBSCRIPTION FULFILLMENT] Audit log recording failed:', auditErr)
+          }
+        }
 
         console.log(`[SUBSCRIPTION FULFILLMENT] Activated plan ${normalizedCode} for user ${targetUser.email} (ID: ${targetUser.id})`)
       }

@@ -202,7 +202,7 @@ export function AdminDashboardView({
 
         {/* GROUP 2: FINANCIAL OPERATIONS */}
         {activeTab === 'subscriptions' && <SubscriptionsTab />}
-        {activeTab === 'payments' && <PaymentsTab />}
+        {activeTab === 'payments' && <PaymentsTab onNavigateToSubscriptions={() => setActiveTab('subscriptions')} />}
         {activeTab === 'payouts' && <RewardsPayoutsTab />}
         {activeTab === 'reconciliation' && <ReconciliationTab />}
         {activeTab === 'tax' && <TaxStatementsTab />}
