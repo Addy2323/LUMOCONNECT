@@ -109,7 +109,7 @@ export function NotificationsTab({ onNavigateTab }: NotificationsTabProps) {
   const [activeFilter, setActiveFilter] = useState<'ALL' | 'UNREAD' | 'PAYOUT' | 'REFERRAL' | 'DEAL' | 'SYSTEM'>('ALL')
   const [searchQuery, setSearchQuery] = useState('')
 
-  // Load state from localStorage on mount
+  // Load state from localStorage on mount and fetch real server notifications
   useEffect(() => {
     if (typeof window !== 'undefined') {
       try {
@@ -123,7 +123,6 @@ export function NotificationsTab({ onNavigateTab }: NotificationsTabProps) {
           }
         } else {
           setNotifications(SEED_NOTIFICATIONS)
-          localStorage.setItem('lumo_partner_notifications', JSON.stringify(SEED_NOTIFICATIONS))
         }
 
         const storedSettings = localStorage.getItem('lumo_partner_notification_settings')
@@ -136,6 +135,30 @@ export function NotificationsTab({ onNavigateTab }: NotificationsTabProps) {
         console.warn('Could not load notifications from storage', e)
         setNotifications(SEED_NOTIFICATIONS)
       }
+
+      // Fetch live notifications from server
+      fetch('/api/notifications', { credentials: 'include' })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && Array.isArray(data.notifications) && data.notifications.length > 0) {
+            const apiNotifs: PartnerNotificationItem[] = data.notifications.map((n: any) => ({
+              id: n.id,
+              title: n.title,
+              description: n.description,
+              time: new Date(n.time).toLocaleDateString() + ' ' + new Date(n.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              type: 'REFERRAL',
+              isRead: Boolean(n.isRead),
+              actionTab: 'leads_referrals',
+              actionLabel: 'Track Referral Status',
+              actionLabelSw: 'Fuatilia Hali ya Rufaa',
+            }))
+            setNotifications((prev) => {
+              const existingIds = new Set(apiNotifs.map((x) => x.id))
+              return [...apiNotifs, ...prev.filter((p) => !existingIds.has(p.id))]
+            })
+          }
+        })
+        .catch(() => {})
     }
   }, [])
 

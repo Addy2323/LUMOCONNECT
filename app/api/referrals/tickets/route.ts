@@ -171,7 +171,7 @@ export async function GET(req: Request) {
     }
 
     // Partner view: only their tickets, merchant-stripped
-    const tickets = await listPartnerReferralTickets(user.id)
+    const tickets = await listPartnerReferralTickets(user.id, user.phone)
     return NextResponse.json({ success: true, tickets, total: tickets.length })
   } catch (error: any) {
     console.error('Referral tickets list error:', error)

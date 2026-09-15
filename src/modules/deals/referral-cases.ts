@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import { providers } from '@/lib/providers'
 import {
   ReferralCase,
   ReferralCaseStage,
@@ -569,17 +570,22 @@ export async function getReferralTicket(
 /**
  * Lists all tickets belonging to an authenticated partner, with merchant data strictly stripped.
  */
-export async function listPartnerReferralTickets(partnerUserId: string): Promise<ReferralTicketDTO[]> {
+export async function listPartnerReferralTickets(partnerUserId: string, partnerPhone?: string): Promise<ReferralTicketDTO[]> {
   try {
+    const normalizedPhone = partnerPhone ? normalizeTanzanianPhone(partnerPhone) : undefined
     const records = await db.referralTicket.findMany({
-      where: { partnerUserId },
+      where: {
+        OR: [
+          { partnerUserId },
+          ...(normalizedPhone ? [{ partnerPhone: normalizedPhone }, { partnerWhatsApp: normalizedPhone }] : []),
+          ...(partnerPhone ? [{ partnerPhone }, { partnerWhatsApp: partnerPhone }] : []),
+        ],
+      },
       orderBy: { createdAt: 'desc' },
     })
-    if (records.length > 0) {
-      return records.map((r) => sanitizeTicketForPartner(mapPrismaTicketToDTO(r)))
-    }
-  } catch {
-    // Fallback
+    return records.map((r) => sanitizeTicketForPartner(mapPrismaTicketToDTO(r)))
+  } catch (err) {
+    console.error('listPartnerReferralTickets DB error:', err)
   }
 
   return inMemoryTickets
@@ -666,24 +672,94 @@ export async function updateReferralTicketStage(
   const stageUpdatedAt = new Date()
 
   try {
-    await db.referralTicket.updateMany({
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrRef)
+    const existingTicket = await db.referralTicket.findFirst({
       where: {
-        OR: [{ id: idOrRef.length === 36 ? idOrRef : undefined }, { ticketReference: idOrRef }].filter(Boolean) as any,
-      },
-      data: {
-        stage,
-        stageUpdatedAt,
-        ...(details?.assignedCoordinator ? { assignedCoordinator: details.assignedCoordinator } : {}),
-        ...(details?.nextAction ? { nextAction: details.nextAction } : {}),
-        ...(details?.nextActionDueDate ? { nextActionDueDate: details.nextActionDueDate } : {}),
-        ...(details?.coordinatorNotes ? { coordinatorNotes: details.coordinatorNotes } : {}),
-        ...(details?.partnerVisibleUpdate ? { partnerVisibleUpdate: details.partnerVisibleUpdate } : {}),
-        ...(details?.closureReason ? { closureReason: details.closureReason } : {}),
-        ...(details?.rewardStatus ? { rewardStatus: details.rewardStatus } : {}),
+        OR: [
+          ...(isUuid ? [{ id: idOrRef }] : []),
+          { ticketReference: idOrRef },
+          { id: idOrRef },
+        ],
       },
     })
-  } catch {
-    // Continue to sync in-memory
+
+    if (existingTicket) {
+      await db.referralTicket.update({
+        where: { id: existingTicket.id },
+        data: {
+          stage,
+          stageUpdatedAt,
+          ...(details?.assignedCoordinator !== undefined ? { assignedCoordinator: details.assignedCoordinator } : {}),
+          ...(details?.nextAction !== undefined ? { nextAction: details.nextAction } : {}),
+          ...(details?.nextActionDueDate !== undefined ? { nextActionDueDate: details.nextActionDueDate } : {}),
+          ...(details?.coordinatorNotes !== undefined ? { coordinatorNotes: details.coordinatorNotes } : {}),
+          ...(details?.partnerVisibleUpdate !== undefined ? { partnerVisibleUpdate: details.partnerVisibleUpdate } : {}),
+          ...(details?.closureReason !== undefined ? { closureReason: details.closureReason } : {}),
+          ...(details?.rewardStatus !== undefined ? { rewardStatus: details.rewardStatus } : {}),
+        },
+      })
+
+      // Send In-App notification to the partner user
+      if (existingTicket.partnerUserId) {
+        try {
+          const stageNames: Record<string, string> = {
+            SUBMITTED: 'Submitted',
+            UNDER_REVIEW: 'Under Review',
+            AVAILABILITY_CONFIRMED: 'Availability Confirmed',
+            IN_PROGRESS: 'In Progress',
+            COMPLETED: 'Completed',
+            CLOSED: 'Closed',
+          }
+          const stageLabel = stageNames[stage] || stage
+          const updateText =
+            details?.partnerVisibleUpdate ||
+            `Your referral (${existingTicket.ticketReference}) for "${existingTicket.dealTitle}" is now: ${stageLabel}. Next Action: ${details?.nextAction || 'Under review'}.`
+
+          await db.notification.create({
+            data: {
+              userId: existingTicket.partnerUserId,
+              channel: 'IN_APP',
+              title: `Referral Updated: ${stageLabel}`,
+              body: updateText,
+              linkUrl: '/partner?tab=leads_referrals',
+            },
+          })
+        } catch (notifError) {
+          console.warn('Could not create notification for partner:', notifError)
+        }
+      }
+
+      // If partner phone exists, optionally dispatch SMS notification
+      if (existingTicket.partnerPhone) {
+        try {
+          await providers.sms.sendSms({
+            recipientPhone: existingTicket.partnerPhone,
+            messageText: `[LUMO] Rufaa #${existingTicket.ticketReference} imeboreshwa: ${details?.partnerVisibleUpdate || stage}. Ingia kwenye Lumo kufuatilia hatua inayofuata.`,
+          })
+        } catch (smsError) {
+          console.warn('SMS alert failed (non-blocking):', smsError)
+        }
+      }
+    } else {
+      await db.referralTicket.updateMany({
+        where: {
+          OR: [{ id: idOrRef.length === 36 ? idOrRef : undefined }, { ticketReference: idOrRef }].filter(Boolean) as any,
+        },
+        data: {
+          stage,
+          stageUpdatedAt,
+          ...(details?.assignedCoordinator ? { assignedCoordinator: details.assignedCoordinator } : {}),
+          ...(details?.nextAction ? { nextAction: details.nextAction } : {}),
+          ...(details?.nextActionDueDate ? { nextActionDueDate: details.nextActionDueDate } : {}),
+          ...(details?.coordinatorNotes ? { coordinatorNotes: details.coordinatorNotes } : {}),
+          ...(details?.partnerVisibleUpdate ? { partnerVisibleUpdate: details.partnerVisibleUpdate } : {}),
+          ...(details?.closureReason ? { closureReason: details.closureReason } : {}),
+          ...(details?.rewardStatus ? { rewardStatus: details.rewardStatus } : {}),
+        },
+      })
+    }
+  } catch (err) {
+    console.error('updateReferralTicketStage db error:', err)
   }
 
   const target = inMemoryTickets.find(

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
   Users,
   Search,
@@ -17,6 +17,8 @@ import {
   ExternalLink,
   Receipt,
   AlertCircle,
+  RefreshCw,
+  Loader2,
 } from 'lucide-react'
 import { PartnerLeadItem, JoinedDealItem } from '../types'
 import { usePartnerToast } from '../PartnerToast'
@@ -51,21 +53,74 @@ export function LeadsReferralsTab({
   const [searchQuery, setSearchQuery] = useState('')
   const [stageFilter, setStageFilter] = useState('ALL')
   const [referralCases, setReferralCases] = useState<ReferralCase[]>([])
+  const [loading, setLoading] = useState(true)
   const [selectedCaseForDispute, setSelectedCaseForDispute] = useState<ReferralCase | null>(null)
   const [disputeReason, setDisputeReason] = useState('')
   const [showReferralModal, setShowReferralModal] = useState(false)
   const [selectedDealForReferral, setSelectedDealForReferral] = useState<JoinedDealItem | null>(null)
 
-  const reloadCases = () => {
-    setReferralCases(listPartnerReferralCases('alex'))
-  }
+  const reloadCases = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/referrals/tickets', {
+        credentials: 'include',
+      })
+      const data = await res.json()
+      if (data.success && Array.isArray(data.tickets)) {
+        const mappedCases: ReferralCase[] = data.tickets.map((t: any) => ({
+          id: t.id,
+          reference: t.ticketReference,
+          dealId: t.dealId,
+          dealTitle: t.dealTitle,
+          dealSlug: t.dealSlug,
+          partnerUserId: t.partnerUserId,
+          partnerName: t.partnerName,
+          partnerPhone: t.partnerPhone || '',
+          partnerPhoneMasked: t.partnerPhoneMasked || t.partnerPhone,
+          customerFirstName: t.customerFirstName || '',
+          customerLastName: t.customerLastName || '',
+          customerPhone: t.customerPhone || '',
+          customerPhoneMasked: t.customerPhoneMasked || t.customerPhone,
+          contactPermissionConfirmed: Boolean(t.contactPermissionConfirmed),
+          additionalNotes: t.additionalNotes || undefined,
+          assignedCoordinator: t.assignedCoordinator || undefined,
+          stage: t.stage,
+          stageUpdatedAt: t.stageUpdatedAt,
+          nextAction: t.nextAction || undefined,
+          nextActionDueDate: t.nextActionDueDate || undefined,
+          partnerVisibleUpdate: t.partnerVisibleUpdate || undefined,
+          rewardAmountTZS: t.rewardAmountTZS || 0,
+          rewardDisplay: t.rewardDisplay || 'Commercial Reward Direct from Merchant',
+          rewardStatus: (t.rewardStatus as DirectRewardStatus) || 'NOT_YET_EARNED',
+          merchantPaymentReportedAt: t.merchantPaymentReportedAt || undefined,
+          merchantPaymentReference: t.merchantPaymentReference || undefined,
+          merchantPaymentNotes: t.merchantPaymentNotes || undefined,
+          partnerReceiptConfirmedAt: t.partnerReceiptConfirmedAt || undefined,
+          disputeReason: t.disputeReason || undefined,
+          disputedAt: t.disputedAt || undefined,
+          createdAt: t.createdAt,
+          updatedAt: t.updatedAt,
+        }))
+        setReferralCases(mappedCases)
+        setLoading(false)
+        return
+      }
+    } catch (err) {
+      console.error('Failed to fetch partner referral cases:', err)
+    }
+
+    try {
+      setReferralCases(listPartnerReferralCases('all'))
+    } catch {}
+    setLoading(false)
+  }, [])
 
   useEffect(() => {
     reloadCases()
     const handleUpdate = () => reloadCases()
     window.addEventListener('lumo:referral-cases-updated', handleUpdate)
     return () => window.removeEventListener('lumo:referral-cases-updated', handleUpdate)
-  }, [])
+  }, [reloadCases])
 
   const filteredCases = referralCases.filter((c) => {
     const matchesSearch =
@@ -184,7 +239,7 @@ export function LeadsReferralsTab({
           />
         </div>
 
-        <div className="sm:col-span-4">
+        <div className="sm:col-span-3">
           <select
             value={stageFilter}
             onChange={(e) => setStageFilter(e.target.value)}
@@ -198,6 +253,17 @@ export function LeadsReferralsTab({
             <option value="COMPLETED">Completed</option>
             <option value="CLOSED">Closed</option>
           </select>
+        </div>
+
+        <div className="sm:col-span-1 flex items-center justify-end">
+          <button
+            onClick={() => reloadCases()}
+            disabled={loading}
+            title="Refresh referrals"
+            className="p-2 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 disabled:opacity-50 transition-all cursor-pointer"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-[#FF6A00]' : ''}`} />
+          </button>
         </div>
       </div>
 
@@ -215,7 +281,40 @@ export function LeadsReferralsTab({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-            {filteredCases.map((caseItem) => {
+            {loading ? (
+              <tr>
+                <td colSpan={6} className="text-center py-12 text-slate-400">
+                  <div className="inline-flex items-center gap-2">
+                    <Loader2 className="w-5 h-5 animate-spin text-[#FF6A00]" />
+                    <span>Loading your referral cases...</span>
+                  </div>
+                </td>
+              </tr>
+            ) : filteredCases.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="text-center py-12 text-slate-500">
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <FileText className="w-8 h-8 text-slate-400 opacity-60" />
+                    <p className="font-bold text-slate-700 dark:text-slate-200">No referral cases found</p>
+                    <p className="text-xs text-slate-400 max-w-sm text-center">
+                      When you submit customer referrals via &quot;I Have a Customer&quot;, your cases will appear here so you can track coordination progress, merchant availability, and direct reward settlements.
+                    </p>
+                    <button
+                      onClick={() => {
+                        const firstDeal = joinedDeals.find((d) => d.status === 'ACTIVE') || joinedDeals[0]
+                        setSelectedDealForReferral(firstDeal || null)
+                        setShowReferralModal(true)
+                      }}
+                      className="mt-2 px-4 py-2 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>I Have a Customer</span>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ) : (
+              filteredCases.map((caseItem) => {
               const waLink = getWhatsAppCoordinationUrl(caseItem.reference, caseItem.dealTitle)
 
               return (
@@ -303,7 +402,7 @@ export function LeadsReferralsTab({
                   </td>
                 </tr>
               )
-            })}
+            }))}
           </tbody>
         </table>
       </div>

@@ -27,6 +27,7 @@ import {
   Save,
 } from 'lucide-react'
 import type { ReferralTicketDTO, ReferralTicketStage, ReferralSubmissionType, ReferralClosureReason } from '@/modules/deals/types'
+import { useAdminToast } from '../AdminToast'
 
 const STAGE_LABELS: Record<ReferralTicketStage, string> = {
   SUBMITTED: 'Submitted',
@@ -55,6 +56,7 @@ const CLOSURE_REASONS: { value: ReferralClosureReason; label: string }[] = [
 ]
 
 export function ReferralsCoordinationTab() {
+  const { showToast } = useAdminToast()
   const [tickets, setTickets] = useState<ReferralTicketDTO[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -116,7 +118,7 @@ export function ReferralsCoordinationTab() {
   const handleUpdateTicket = async (ticketId: string) => {
     setUpdating(ticketId)
     try {
-      await fetch(`/api/referrals/tickets/${ticketId}`, {
+      const res = await fetch(`/api/referrals/tickets/${ticketId}`, {
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -130,10 +132,16 @@ export function ReferralsCoordinationTab() {
           closureReason: editStage === 'CLOSED' ? editClosureReason || 'OTHER' : undefined,
         }),
       })
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to update ticket')
+      }
+      showToast('success', 'Changes Saved', 'Ticket updated successfully. The partner has received the update.')
       await fetchTickets()
       setExpandedTicket(null)
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to update ticket:', err)
+      showToast('error', 'Update Failed', err.message || 'Could not update ticket.')
     } finally {
       setUpdating(null)
     }
