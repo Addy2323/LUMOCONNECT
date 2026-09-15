@@ -88,7 +88,30 @@ export function CustomerReferralModal({
     setProfileLoading(true)
     setErrorMessage(null)
 
-    fetch('/api/referrals/partner-profile', { credentials: 'include' })
+    const storedUser = (() => {
+      try {
+        const s = localStorage.getItem('lumo_auth_session') || localStorage.getItem('lumo_user_session')
+        return s ? JSON.parse(s) : null
+      } catch { return null }
+    })()
+
+    const effectiveId = currentUserId || storedUser?.id || ''
+    const effectiveName = partnerName || storedUser?.name || ''
+    const effectivePhone = partnerPhone || storedUser?.phone || ''
+
+    const query = new URLSearchParams()
+    if (effectiveId) query.set('userId', effectiveId)
+    if (effectivePhone) query.set('phone', effectivePhone)
+    if (effectiveName) query.set('name', effectiveName)
+
+    fetch(`/api/referrals/partner-profile?${query.toString()}`, {
+      credentials: 'include',
+      headers: {
+        ...(effectiveId ? { 'X-User-Id': effectiveId } : {}),
+        ...(effectiveName ? { 'X-User-Name': effectiveName } : {}),
+        ...(effectivePhone ? { 'X-User-Phone': effectivePhone } : {}),
+      },
+    })
       .then((res) => res.json())
       .then((data) => {
         if (data.success && data.profile) {
@@ -100,24 +123,12 @@ export function CustomerReferralModal({
           }
         } else {
           // Fallback from props / localStorage
-          const fallbackName = partnerName || (() => {
-            try {
-              const stored = localStorage.getItem('lumo_user_session')
-              if (stored) return JSON.parse(stored).name || 'Partner'
-            } catch {}
-            return 'Partner'
-          })()
-          const fallbackPhone = partnerPhone || (() => {
-            try {
-              const stored = localStorage.getItem('lumo_user_session')
-              if (stored) return JSON.parse(stored).phone || ''
-            } catch {}
-            return ''
-          })()
+          const fallbackName = effectiveName || 'Partner'
+          const fallbackPhone = effectivePhone || ''
           setPartnerProfile({
-            id: currentUserId || 'partner',
+            id: effectiveId || 'partner',
             name: fallbackName,
-            email: '',
+            email: storedUser?.email || '',
             phone: fallbackPhone,
             whatsapp: fallbackPhone,
             hasWhatsApp: false,
@@ -129,11 +140,11 @@ export function CustomerReferralModal({
       .catch(() => {
         // Complete fallback
         setPartnerProfile({
-          id: currentUserId || 'partner',
-          name: partnerName || 'Partner',
-          email: '',
-          phone: partnerPhone || null,
-          whatsapp: partnerPhone || null,
+          id: effectiveId || 'partner',
+          name: effectiveName || 'Partner',
+          email: storedUser?.email || '',
+          phone: effectivePhone || null,
+          whatsapp: effectivePhone || null,
           hasWhatsApp: false,
           isPhoneVerified: false,
         })
@@ -181,7 +192,7 @@ export function CustomerReferralModal({
 
     // Client-side validation
     if (!customerFirstName.trim() || !customerLastName.trim()) {
-      setErrorMessage(isSw ? 'Tafadhali jaza jina la kwanza na la mwisho la mteja.' : 'Please provide the customer first and last name.')
+      setErrorMessage(isSw ? 'Tafadhali jaza jina la kwanza na la mwisko la mteja.' : 'Please provide the customer first and last name.')
       return
     }
 
@@ -218,22 +229,40 @@ export function CustomerReferralModal({
       userOrgId,
     })
 
-    const partnerWhatsApp = partnerProfile?.whatsapp || whatsAppInput.trim() || partnerProfile?.phone || ''
+    const storedUser = (() => {
+      try {
+        const s = localStorage.getItem('lumo_auth_session') || localStorage.getItem('lumo_user_session')
+        return s ? JSON.parse(s) : null
+      } catch { return null }
+    })()
+
+    const resolvedPartnerId = currentUserId || partnerProfile?.id || storedUser?.id || 'usr_partner_001'
+    const resolvedPartnerName = partnerProfile?.name || partnerName || storedUser?.name || 'Promoting Partner'
+    const resolvedPartnerPhone = partnerProfile?.phone || partnerPhone || storedUser?.phone || ''
+    const partnerWhatsApp = partnerProfile?.whatsapp || whatsAppInput.trim() || resolvedPartnerPhone || ''
 
     try {
-      const idempotencyKey = `CREF_${deal.id}_${customerPhone.replace(/\D/g, '')}_${partnerProfile?.id || 'anon'}`
+      const idempotencyKey = `CREF_${deal.id}_${customerPhone.replace(/\D/g, '')}_${resolvedPartnerId}`
 
       const res = await fetch('/api/referrals/tickets', {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-Id': resolvedPartnerId,
+          'X-User-Name': resolvedPartnerName,
+          'X-User-Phone': resolvedPartnerPhone || partnerWhatsApp,
+          'X-User-Role': userRole || 'PARTNER',
+        },
         body: JSON.stringify({
           dealId: deal.id,
           dealTitle: deal.title,
           dealSlug: deal.slug,
           submissionType: 'CUSTOMER_REFERRAL',
+          partnerUserId: resolvedPartnerId,
+          partnerName: resolvedPartnerName,
+          partnerPhone: resolvedPartnerPhone || partnerWhatsApp,
           partnerWhatsApp,
-          partnerPhone: partnerProfile?.phone || partnerWhatsApp,
           customerFirstName: customerFirstName.trim(),
           customerLastName: customerLastName.trim(),
           customerPhone: customerPhone.trim(),

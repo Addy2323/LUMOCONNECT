@@ -46,50 +46,8 @@ interface PartnerPayoutRecord {
   status: 'COMPLETED' | 'PROCESSING'
 }
 
-const DEFAULT_PARTNER_REWARDS: PartnerRewardItem[] = [
-  {
-    id: 'pr_1',
-    opportunityTitle: 'SaaS SME Lead Generation & Customer Referral',
-    merchantName: 'Zanzi Solar Ltd',
-    category: 'IT & Software Services',
-    completionsCount: 7,
-    grossAmountTZS: 517000,
-    status: 'PAYABLE',
-  },
-  {
-    id: 'pr_2',
-    opportunityTitle: 'Toyota Land Cruiser V8 High-Ticket Acquisition',
-    merchantName: 'Bingwa Wa Magari Co.',
-    category: 'Automotive & Transportation',
-    completionsCount: 1,
-    grossAmountTZS: 2000000,
-    status: 'PAYABLE',
-  },
-  {
-    id: 'pr_3',
-    opportunityTitle: 'Mwanza Regional Solar Distributors Match',
-    merchantName: 'Lake Renewables Ltd',
-    category: 'Sourcing & Supply Chain',
-    completionsCount: 1,
-    grossAmountTZS: 3000000,
-    status: 'PENDING',
-  },
-]
-
-const DEFAULT_PARTNER_PAYOUTS: PartnerPayoutRecord[] = [
-  {
-    id: 'po_prev_1',
-    reference: 'LUMO-PAY-992140',
-    date: '20 Aug 2026, 14:15',
-    payoutMethod: 'Vodacom M-Pesa',
-    accountNumberMasked: '+255 754 *** 123',
-    grossAmountTZS: 1200000,
-    platformFeeTZS: 36000,
-    taxWithheldTZS: 60000,
-    netPaidTZS: 1104000,
-    status: 'COMPLETED',
-  },
-]
+const DEFAULT_PARTNER_REWARDS: PartnerRewardItem[] = []
+const DEFAULT_PARTNER_PAYOUTS: PartnerPayoutRecord[] = []
 
 export function EarningsPayoutsTab() {
   const { showToast } = usePartnerToast()
@@ -126,6 +84,73 @@ export function EarningsPayoutsTab() {
     }
     return DEFAULT_PARTNER_PAYOUTS
   })
+
+  // Synchronize live partner payouts and earned rewards from server
+  useEffect(() => {
+    const storedUser = (() => {
+      try {
+        const s = localStorage.getItem('lumo_auth_session') || localStorage.getItem('lumo_user_session')
+        return s ? JSON.parse(s) : null
+      } catch { return null }
+    })()
+
+    const partnerId = storedUser?.id || ''
+    const partnerPhone = storedUser?.phone || ''
+
+    fetch(`/api/payouts?userId=${encodeURIComponent(partnerId)}&phone=${encodeURIComponent(partnerPhone)}`, {
+      credentials: 'include',
+      headers: {
+        ...(partnerId ? { 'X-User-Id': partnerId } : {}),
+        ...(partnerPhone ? { 'X-User-Phone': partnerPhone } : {}),
+      },
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.success && Array.isArray(data.payouts) && data.payouts.length > 0) {
+          const mapped: PartnerPayoutRecord[] = data.payouts.map((p: any) => ({
+            id: p.id,
+            reference: p.reference,
+            date: new Date(p.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+            payoutMethod: (p.payoutChannel || 'MOBILE_MONEY').replace(/_/g, ' '),
+            accountNumberMasked: p.accountNumber,
+            grossAmountTZS: p.grossAmountTZS,
+            platformFeeTZS: p.platformFeeTZS,
+            taxWithheldTZS: p.taxWithheldTZS,
+            netPaidTZS: p.netAmountTZS,
+            status: p.status === 'PAID' ? 'COMPLETED' : 'PROCESSING',
+          }))
+          setPayouts(mapped)
+        }
+      })
+      .catch(() => {})
+
+    fetch(`/api/referrals/tickets?partnerUserId=${encodeURIComponent(partnerId)}&partnerPhone=${encodeURIComponent(partnerPhone)}`, {
+      credentials: 'include',
+      headers: {
+        ...(partnerId ? { 'X-User-Id': partnerId } : {}),
+        ...(partnerPhone ? { 'X-User-Phone': partnerPhone } : {}),
+      },
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.success && Array.isArray(data.tickets) && data.tickets.length > 0) {
+          const eligibleTickets = data.tickets.filter((t: any) => t.rewardAmountTZS && t.rewardAmountTZS > 0)
+          if (eligibleTickets.length > 0) {
+            const mappedRewards: PartnerRewardItem[] = eligibleTickets.map((t: any) => ({
+              id: t.id,
+              opportunityTitle: t.dealTitle,
+              merchantName: t.merchantName || 'Lumo Commercial Partner',
+              category: 'Commercial Deal',
+              completionsCount: 1,
+              grossAmountTZS: t.rewardAmountTZS,
+              status: t.rewardStatus === 'PARTNER_CONFIRMS_RECEIPT' || t.stage === 'COMPLETED' ? 'PAYABLE' : 'PENDING',
+            }))
+            setRewards(mappedRewards)
+          }
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   const [showRequestModal, setShowRequestModal] = useState(false)
   const [requestTargetReward, setRequestTargetReward] = useState<PartnerRewardItem | null>(null)
@@ -186,6 +211,17 @@ export function EarningsPayoutsTab() {
     const taxWithheld = Math.round(requestAmount * taxRate)
     const net = requestAmount - platformFee - taxWithheld
 
+    const storedUser = (() => {
+      try {
+        const s = localStorage.getItem('lumo_auth_session') || localStorage.getItem('lumo_user_session')
+        return s ? JSON.parse(s) : null
+      } catch { return null }
+    })()
+
+    const partnerId = storedUser?.id || 'usr_partner_001'
+    const partnerName = storedUser?.name || 'Promoting Partner'
+    const partnerPhone = storedUser?.phone || payoutPhone
+
     const newPayout: PartnerPayoutRecord = {
       id: `po_req_${Date.now()}`,
       reference: `LUMO-PAY-${Date.now().toString().slice(-6)}`,
@@ -198,6 +234,39 @@ export function EarningsPayoutsTab() {
       netPaidTZS: net,
       status: 'PROCESSING',
     }
+
+    // Call server API so Admin sees this request immediately
+    fetch('/api/payouts/request', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-User-Id': partnerId,
+        'X-User-Name': partnerName,
+        'X-User-Phone': partnerPhone,
+      },
+      body: JSON.stringify({
+        amountTZS: requestAmount,
+        payoutChannel,
+        accountNumber: payoutPhone,
+        accountName: partnerName,
+        partnerUserId: partnerId,
+        partnerName,
+        partnerPhone,
+        notes: requestTargetReward ? `Reward withdrawal for: ${requestTargetReward.opportunityTitle}` : 'Partner balance withdrawal',
+      }),
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.success && data.payout) {
+          newPayout.reference = data.payout.reference
+          newPayout.id = data.payout.id
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new Event('lumo:payouts-updated'))
+          }
+        }
+      })
+      .catch((err) => console.warn('Could not post payout to server:', err))
 
     // Update rewards if specific or general
     if (requestTargetReward) {
@@ -214,7 +283,7 @@ export function EarningsPayoutsTab() {
     showToast(
       'success',
       'Payout Request Submitted',
-      `Payout request for TZS ${requestAmount.toLocaleString()} (Net TZS ${net.toLocaleString()}) submitted. Queued for mobile money settlement.`
+      `Payout request for TZS ${requestAmount.toLocaleString()} (Net TZS ${net.toLocaleString()}) submitted. Queued for admin review & mobile money disbursal.`
     )
   }
 

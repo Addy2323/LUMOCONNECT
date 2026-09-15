@@ -45,6 +45,7 @@ const registerSchema = z.object({
 })
 
 import { registerInMemoryUser } from '@/lib/userRegistry'
+import { DATABASE_SESSION_COOKIE, sessionTokenHash } from '@/lib/database-session'
 
 export async function POST(req: Request) {
   try {
@@ -72,17 +73,29 @@ export async function POST(req: Request) {
         bizDetails,
       })
 
-      return NextResponse.json({
+      const token = crypto.randomBytes(32).toString('hex')
+      const response = NextResponse.json({
         success: true,
         message: 'Account created successfully in local workspace.',
         user: {
           id: user.id,
           email: user.email,
           name: user.name,
+          phone: user.phone,
           role: user.role,
           orgId: user.organizationId,
         },
       })
+
+      response.cookies.set(DATABASE_SESSION_COOKIE, token, {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+        path: '/',
+        maxAge: 8 * 60 * 60,
+      })
+
+      return response
     }
     const salt = crypto.randomBytes(16).toString('hex')
     const hashedPassword = crypto.scryptSync(password, salt, 64).toString('hex') + ':' + salt
@@ -238,20 +251,41 @@ export async function POST(req: Request) {
         },
       })
 
-      return { user, orgId }
+      // Create active session
+      const sessionToken = crypto.randomBytes(32).toString('hex')
+      await tx.session.create({
+        data: {
+          userId: user.id,
+          token: sessionTokenHash(sessionToken),
+          expiresAt: new Date(Date.now() + 8 * 60 * 60 * 1000),
+        },
+      })
+
+      return { user, orgId, sessionToken }
     })
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       message: 'Account created successfully with full PostgreSQL transaction.',
       user: {
         id: result.user.id,
         email: result.user.email,
         name: result.user.name,
+        phone: result.user.phone,
         role,
         orgId: result.orgId,
       },
     })
+
+    response.cookies.set(DATABASE_SESSION_COOKIE, result.sessionToken, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+      maxAge: 8 * 60 * 60,
+    })
+
+    return response
   } catch (error: unknown) {
     console.error('Registration transaction error:', error)
     return NextResponse.json(

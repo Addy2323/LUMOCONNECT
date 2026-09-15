@@ -62,8 +62,27 @@ export function LeadsReferralsTab({
   const reloadCases = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch('/api/referrals/tickets', {
+      const storedUser = (() => {
+        try {
+          const s = localStorage.getItem('lumo_auth_session') || localStorage.getItem('lumo_user_session')
+          return s ? JSON.parse(s) : null
+        } catch { return null }
+      })()
+
+      const partnerId = storedUser?.id || ''
+      const partnerPhone = storedUser?.phone || ''
+      const query = new URLSearchParams()
+      if (partnerId) query.set('partnerUserId', partnerId)
+      if (partnerPhone) query.set('partnerPhone', partnerPhone)
+
+      const url = `/api/referrals/tickets${query.toString() ? '?' + query.toString() : ''}`
+      const res = await fetch(url, {
         credentials: 'include',
+        headers: {
+          ...(partnerId ? { 'X-User-Id': partnerId } : {}),
+          ...(partnerPhone ? { 'X-User-Phone': partnerPhone } : {}),
+          ...(storedUser?.name ? { 'X-User-Name': storedUser.name } : {}),
+        },
       })
       const data = await res.json()
       if (data.success && Array.isArray(data.tickets)) {
