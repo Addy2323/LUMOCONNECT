@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useRef, useState } from 'react'
 import {
   Search,
   Filter,
@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   X,
   ExternalLink,
+  ChevronLeft,
   ChevronRight,
   CreditCard,
   Image as ImageIcon,
@@ -66,6 +67,7 @@ export function DiscoverOpportunitiesTab({
   onNavigateToSubscriptions,
 }: DiscoverOpportunitiesTabProps) {
   const { showToast } = usePartnerToast()
+  const filterScrollRef = useRef<HTMLDivElement>(null)
 
   const [activeFilter, setActiveFilter] = useState('All Deals')
   const [searchQuery, setSearchQuery] = useState('')
@@ -229,21 +231,64 @@ export function DiscoverOpportunitiesTab({
         </div>
       </div>
 
-      {/* 17 Interactive Filter Tags Scroller */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
-        {FILTER_TAGS.map((tag) => (
+      {/* Interactive Filter Tags Scroller with Smooth Controls & Hidden Scrollbar */}
+      <div className="relative flex items-center gap-1 sm:gap-2 group">
+        <button
+          type="button"
+          onClick={() => {
+            if (filterScrollRef.current) {
+              filterScrollRef.current.scrollBy({ left: -260, behavior: 'smooth' })
+            }
+          }}
+          className="h-8 w-8 shrink-0 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 flex items-center justify-center shadow-2xs transition-all cursor-pointer z-10"
+          aria-label="Scroll filters left"
+          title="Previous filters"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+
+        <div
+          ref={filterScrollRef}
+          className="flex-1 flex items-center gap-1.5 overflow-x-auto scroll-smooth py-1 px-0.5 no-scrollbar"
+        >
+          {FILTER_TAGS.map((tag) => (
+            <button
+              key={tag}
+              onClick={() => setActiveFilter(tag)}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all shrink-0 cursor-pointer ${
+                activeFilter === tag
+                  ? 'bg-[#0B132B] dark:bg-[#FF6A00] text-white shadow-xs font-extrabold scale-102'
+                  : 'bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+              }`}
+            >
+              {tag}
+            </button>
+          ))}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            if (filterScrollRef.current) {
+              filterScrollRef.current.scrollBy({ left: 260, behavior: 'smooth' })
+            }
+          }}
+          className="h-8 w-8 shrink-0 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 flex items-center justify-center shadow-2xs transition-all cursor-pointer z-10"
+          aria-label="Scroll filters right"
+          title="More filters"
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
+
+        {activeFilter !== 'All Deals' && (
           <button
-            key={tag}
-            onClick={() => setActiveFilter(tag)}
-            className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all shrink-0 cursor-pointer ${
-              activeFilter === tag
-                ? 'bg-[#0B132B] text-white shadow-2xs font-extrabold'
-                : 'bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 hover:bg-slate-100'
-            }`}
+            type="button"
+            onClick={() => setActiveFilter('All Deals')}
+            className="ml-1 text-[11px] font-bold text-orange-600 hover:text-orange-700 dark:text-orange-400 underline whitespace-nowrap cursor-pointer shrink-0"
           >
-            {tag}
+            Reset filter
           </button>
-        ))}
+        )}
       </div>
 
       {/* DEDICATED PRICE / REWARD RANGE FILTER BAR */}

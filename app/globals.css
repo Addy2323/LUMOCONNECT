@@ -283,15 +283,19 @@ html, body {
   letter-spacing: -0.01em;
 }
 
-/* Keep dashboard sidebars scrollable without showing the browser scrollbar. */
+/* Keep dashboard sidebars and horizontal scrollers clean without showing native browser scrollbars. */
 .dashboard-sidebar,
-.dashboard-sidebar * {
+.dashboard-sidebar *,
+.no-scrollbar,
+.no-scrollbar * {
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
 
 .dashboard-sidebar::-webkit-scrollbar,
-.dashboard-sidebar *::-webkit-scrollbar {
+.dashboard-sidebar *::-webkit-scrollbar,
+.no-scrollbar::-webkit-scrollbar,
+.no-scrollbar *::-webkit-scrollbar {
   display: none;
 }
 
