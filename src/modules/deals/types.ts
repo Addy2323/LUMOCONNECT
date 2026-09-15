@@ -118,13 +118,24 @@ export interface OpportunityItem {
   termsVersion?: number
 }
 
-export type ReferralCaseStage =
+export type ReferralSubmissionType = 'CUSTOMER_REFERRAL' | 'COORDINATION_ENQUIRY'
+
+export type ReferralTicketStage =
   | 'SUBMITTED'
   | 'UNDER_REVIEW'
   | 'AVAILABILITY_CONFIRMED'
   | 'IN_PROGRESS'
   | 'COMPLETED'
   | 'CLOSED'
+
+export type ReferralClosureReason =
+  | 'UNAVAILABLE'
+  | 'DUPLICATE'
+  | 'CANCELLED'
+  | 'UNSUCCESSFUL'
+  | 'OTHER'
+
+export type ReferralCaseStage = ReferralTicketStage
 
 export type DirectRewardStatus =
   | 'NOT_YET_EARNED'
@@ -133,9 +144,60 @@ export type DirectRewardStatus =
   | 'PARTNER_CONFIRMS_RECEIPT'
   | 'DISPUTED'
 
+export interface ReferralTicketDTO {
+  id: string
+  ticketReference: string
+  dealId: string
+  opportunityId?: string | null
+  dealTitle: string
+  dealSlug: string
+  submissionType: ReferralSubmissionType
+  partnerUserId: string
+  promotionalCode?: string | null
+  partnerName: string
+  partnerPhoneMasked: string
+  partnerWhatsAppMasked?: string
+  partnerPhone?: string
+  partnerWhatsApp?: string
+  customerFirstName?: string | null
+  customerLastName?: string | null
+  customerPhoneMasked?: string | null
+  customerPhone?: string | null
+  contactPermissionConfirmed: boolean
+  quantity: number
+  deliveryDestination?: string | null
+  specifications?: string | null
+  terminalOption?: string | null
+  additionalNotes?: string | null
+  acceptedTermsVersion: number
+  stage: ReferralTicketStage
+  stageUpdatedAt: string
+  assignedCoordinator?: string | null
+  nextAction?: string | null
+  nextActionDueDate?: string | null
+  partnerVisibleUpdate?: string | null
+  closureReason?: ReferralClosureReason | null
+  rewardAmountTZS?: number | null
+  rewardDisplay?: string | null
+  rewardStatus?: string | null
+  merchantPaymentReportedAt?: string | null
+  merchantPaymentReference?: string | null
+  merchantPaymentNotes?: string | null
+  partnerReceiptConfirmedAt?: string | null
+  disputeReason?: string | null
+  disputedAt?: string | null
+  createdAt: string
+  updatedAt: string
+
+  // Admin-only fields (omitted in partner responses)
+  merchantOrgId?: string | null
+  merchantName?: string | null
+  coordinatorNotes?: string | null
+}
+
 export interface ReferralCase {
   id: string
-  reference: string // e.g. LUMO-REF-000123
+  reference: string // e.g. LUMO-REF-000123 or REF-XXXX-XXXX
   dealId: string
   dealTitle: string
   dealSlug: string
@@ -169,3 +231,4 @@ export interface ReferralCase {
   createdAt: string
   updatedAt: string
 }
+

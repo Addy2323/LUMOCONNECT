@@ -299,6 +299,7 @@ model User {
   hotDealSaves          HotDealSave[]
   hotDealVerifications  HotDeal[]              @relation("HotDealVerifier")
   hotDealFraudReviews   HotDealClaim[]         @relation("HotDealFraudReviewer")
+  referralTickets       ReferralTicket[]       @relation("PartnerReferralTickets")
 
   @@index([email])
   @@index([phone])
@@ -522,6 +523,7 @@ model Opportunity {
   participations   DealParticipation[]
   conversions      Conversion[]
   hotDeal          HotDeal?
+  referralTickets  ReferralTicket[]     @relation("OpportunityReferralTickets")
 
   @@index([organizationId])
   @@index([categoryId])
@@ -1613,4 +1615,103 @@ model SmsCampaign {
 
   @@index([status])
   @@map("sms_campaigns")
+}
+
+// ============================================================================
+// 15. REFERRAL & COORDINATION TICKETS
+// ============================================================================
+
+enum ReferralSubmissionType {
+  CUSTOMER_REFERRAL
+  COORDINATION_ENQUIRY
+}
+
+enum ReferralTicketStage {
+  SUBMITTED
+  UNDER_REVIEW
+  AVAILABILITY_CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CLOSED
+}
+
+enum ReferralClosureReason {
+  UNAVAILABLE
+  DUPLICATE
+  CANCELLED
+  UNSUCCESSFUL
+  OTHER
+}
+
+model ReferralTicket {
+  id                         String                  @id @default(uuid()) @db.Uuid
+  ticketReference            String                  @unique // Non-sequential unique ref e.g. REF-7K9M-4281
+  dealId                     String                  // Deal ID or slug
+  opportunityId              String?                 @db.Uuid
+  dealTitle                  String
+  dealSlug                   String
+  submissionType             ReferralSubmissionType  @default(CUSTOMER_REFERRAL)
+  partnerUserId              String                  @db.Uuid
+  promotionalCode            String?                 // Optional linked promo code e.g. LUMO-ALEX-SOLAR
+
+  // Partner Contact Snapshot
+  partnerName                String
+  partnerPhone               String
+  partnerWhatsApp            String
+  partnerPhoneMasked         String
+
+  // Customer details (only for CUSTOMER_REFERRAL)
+  customerFirstName          String?
+  customerLastName           String?
+  customerPhone              String?
+  customerPhoneMasked        String?
+  contactPermissionConfirmed Boolean                 @default(false)
+
+  // Deal Requirement Details
+  quantity                   Int                     @default(1)
+  deliveryDestination        String?
+  specifications             String?                 @db.Text
+  terminalOption             String?
+  additionalNotes            String?                 @db.Text
+
+  // Accepted terms record
+  acceptedTermsVersion       Int                     @default(1)
+  acceptedTermsHash          String?
+
+  // Internal merchant association (Visible to Admin only)
+  merchantOrgId              String?
+  merchantName               String?
+
+  // Coordination & Status
+  stage                      ReferralTicketStage     @default(SUBMITTED)
+  stageUpdatedAt             DateTime                @default(now())
+  assignedCoordinator        String?                 @default("Sarah (Lumo Coordination Desk)")
+  nextAction                 String?                 @default("Lumo Coordinator to verify details and confirm availability")
+  nextActionDueDate          String?                 @default("Within 1 business day")
+  coordinatorNotes           String?                 @db.Text
+  partnerVisibleUpdate       String?                 @default("Referral ticket submitted. Lumo coordinator reviewing availability.")
+  closureReason              ReferralClosureReason?
+
+  // Commercial Reward tracking (direct from merchant, no Lumo wallet)
+  rewardAmountTZS            Decimal?                @db.Decimal(15, 2)
+  rewardDisplay              String?
+  rewardStatus               String?                 @default("NOT_YET_EARNED")
+
+  // Idempotency / Deduplication
+  idempotencyKey             String?                 @unique
+
+  createdAt                  DateTime                @default(now())
+  updatedAt                  DateTime                @updatedAt
+
+  partnerUser                User                    @relation("PartnerReferralTickets", fields: [partnerUserId], references: [id], onDelete: Cascade)
+  opportunity                Opportunity?            @relation("OpportunityReferralTickets", fields: [opportunityId], references: [id], onDelete: SetNull)
+
+  @@index([partnerUserId])
+  @@index([dealId])
+  @@index([ticketReference])
+  @@index([promotionalCode])
+  @@index([submissionType])
+  @@index([stage])
+  @@index([customerPhone])
+  @@map("referral_tickets")
 }

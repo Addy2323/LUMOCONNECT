@@ -32,6 +32,7 @@ import {
   X,
   Store,
   LogOut,
+  Ticket,
 } from 'lucide-react'
 import { BrandMark } from '@/components/shared/BrandMark'
 import { AdminSidebarSection } from './types'
@@ -98,6 +99,7 @@ function getNavGroups({
         { id: 'deals', label: 'Deals & Opportunities', icon: Briefcase, opType: 'C/R/U/Archive' },
         { id: 'approvals', label: 'Deal Approvals', icon: CheckCircle, badge: pendingDealsCount > 0 ? pendingDealsCount : undefined, badgeColor: 'bg-orange-100 text-[#FF6A00]', opType: 'Approval Workflow' },
         { id: 'conversions', label: 'Conversions & Attribution', icon: BarChart3, opType: 'Platform Evidence' },
+        { id: 'referrals', label: 'Referrals & Coordination', icon: Ticket, opType: 'Ticket Workflow' },
       ],
     },
     {

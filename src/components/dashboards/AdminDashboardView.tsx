@@ -43,6 +43,7 @@ import { AdminPromotionalTemplatesTab } from './admin/tabs/AdminPromotionalTempl
 import { RolesPermissionsTab } from './admin/tabs/RolesPermissionsTab'
 import { IntegrationsWebhooksTab } from './admin/tabs/IntegrationsWebhooksTab'
 import { SystemSettingsTab } from './admin/tabs/SystemSettingsTab'
+import { ReferralsCoordinationTab } from './admin/tabs/ReferralsCoordinationTab'
 
 interface AdminDashboardViewProps {
   adminName?: string
@@ -143,6 +144,7 @@ export function AdminDashboardView({
               {activeTab === 'deals' && 'Deals & Opportunities Repository'}
               {activeTab === 'approvals' && 'Pending Deal Approvals (Dual Control)'}
               {activeTab === 'conversions' && 'Conversions & Attribution Engine'}
+              {activeTab === 'referrals' && 'Referrals & Coordination Desk'}
               {activeTab === 'subscriptions' && 'Partner Subscriptions & Plans'}
               {activeTab === 'payments' && 'Incoming Payments & Settlement Ledger'}
               {activeTab === 'payouts' && 'Rewards & Partner Payout Batches'}
@@ -200,6 +202,7 @@ export function AdminDashboardView({
         {activeTab === 'deals' && <DealsRegistryTab />}
         {activeTab === 'approvals' && <DealApprovalsTab />}
         {activeTab === 'conversions' && <ConversionsAttributionTab />}
+        {activeTab === 'referrals' && <ReferralsCoordinationTab />}
 
         {/* GROUP 2: FINANCIAL OPERATIONS */}
         {activeTab === 'subscriptions' && <SubscriptionsTab />}

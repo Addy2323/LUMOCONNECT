@@ -8,6 +8,7 @@ export type AdminSidebarSection =
   | 'deals'
   | 'approvals'
   | 'conversions'
+  | 'referrals'
   // Group 2: Financial Operations
   | 'subscriptions'
   | 'payments'

@@ -166,6 +166,11 @@ export function LeadsReferralsTab({
         </button>
       </div>
 
+      {/* Business Model Disclaimer */}
+      <div className="rounded-xl border border-amber-200 bg-amber-50/60 dark:border-amber-900 dark:bg-amber-950/30 p-3 text-[11px] text-amber-900 dark:text-amber-200 leading-relaxed">
+        <strong>Lumo Dealers Operating Model:</strong> Lumo collects subscription fees only. Customers pay merchants directly for goods and services. Merchants pay partner referral rewards directly upon completed purchase. Lumo does not collect, hold, or disburse customer payments or commercial rewards.
+      </div>
+
       {/* Filter Bar */}
       <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
         <div className="sm:col-span-8 relative">
