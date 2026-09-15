@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="sw" class="notranslate">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Offline — Lumo Dealers</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+  <meta name="theme-color" content="#FF6A00" />
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+    body {
+      background-color: #0B132B;
+      color: #F8FAFC;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+    }
+    .card {
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(255, 106, 0, 0.25);
+      border-radius: 28px;
+      padding: 40px 28px;
+      max-width: 480px;
+      width: 100%;
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.6), 0 0 40px -10px rgba(255, 106, 0, 0.15);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .logo-container {
+      width: 64px;
+      height: 64px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.35);
+      color: #FCA5A5;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+    }
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #EF4444;
+      animation: pulse 1.8s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+    h1 {
+      font-size: 22px;
+      font-weight: 800;
+      color: #FFFFFF;
+      margin-bottom: 12px;
+      line-height: 1.3;
+    }
+    .text-swahili {
+      font-size: 15px;
+      line-height: 1.5;
+      color: #E2E8F0;
+      margin-bottom: 16px;
+      font-weight: 500;
+    }
+    .divider {
+      width: 40px;
+      height: 2px;
+      background: rgba(255, 255, 255, 0.12);
+      margin: 12px 0 16px;
+    }
+    .text-english {
+      font-size: 14px;
+      line-height: 1.5;
+      color: #94A3B8;
+      margin-bottom: 28px;
+    }
+    .notice {
+      font-size: 12px;
+      color: #F59E0B;
+      background: rgba(245, 158, 11, 0.1);
+      border: 1px dashed rgba(245, 158, 11, 0.3);
+      padding: 10px 14px;
+      border-radius: 12px;
+      margin-bottom: 28px;
+      width: 100%;
+      line-height: 1.4;
+    }
+    .btn-retry {
+      background: linear-gradient(135deg, #FF6A00 0%, #EA580C 100%);
+      color: #FFFFFF;
+      border: none;
+      padding: 14px 32px;
+      border-radius: 16px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(255, 106, 0, 0.4);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      width: 100%;
+    }
+    .btn-retry:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(255, 106, 0, 0.5);
+    }
+    .btn-retry:active {
+      transform: translateY(1px);
+    }
+    .footer-text {
+      margin-top: 24px;
+      font-size: 11px;
+      color: #64748B;
+      letter-spacing: 0.05em;
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div class="logo-container" aria-hidden="true">
+      <!-- Lumo 4-Diamond Emblem -->
+      <svg width="56" height="56" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <g transform="translate(28, 28)">
+          <!-- Top Diamond -->
+          <rect x="-5" y="-15" width="10" height="10" rx="2.5" transform="rotate(45 0 -10)" fill="#FF6A00" />
+          <!-- Left Diamond -->
+          <rect x="-15" y="-5" width="10" height="10" rx="2.5" transform="rotate(45 -10 0)" fill="#FF6A00" />
+          <!-- Bottom Diamond -->
+          <rect x="-5" y="5" width="10" height="10" rx="2.5" transform="rotate(45 0 10)" fill="#FF6A00" />
+          <!-- Right Diamond -->
+          <rect x="5" y="-5" width="10" height="10" rx="2.5" transform="rotate(45 10 0)" fill="#3B4F7D" stroke="#60A5FA" stroke-width="0.8" />
+        </g>
+      </svg>
+    </div>
+
+    <div class="badge">
+      <span class="pulse-dot"></span>
+      <span>Nje ya Mtandao • Offline</span>
+    </div>
+
+    <h1>Lumo Dealers</h1>
+
+    <p class="text-swahili">
+      Huna mtandao. Unganisha tena ili kuona fursa za sasa na kusasisha rufaa zako.
+    </p>
+
+    <div class="divider"></div>
+
+    <p class="text-english">
+      You are offline. Reconnect to view current opportunities and update referrals.
+    </p>
+
+    <div class="notice">
+      Dili mpya, malipo na usajili wa rufaa unahitaji mtandao uliounganishwa.<br>
+      New deals, payments and referral submissions require active connectivity.
+    </div>
+
+    <button type="button" class="btn-retry" onclick="window.location.reload()">
+      Jaribu Tena • Retry Connection
+    </button>
+
+    <div class="footer-text">
+      LUMO DEALERS • PERFORMANCE COMMERCE
+    </div>
+  </main>
+
+  <script>
+    // Auto-reload as soon as internet connection is restored
+    window.addEventListener('online', function() {
+      window.location.reload();
+    });
+  </script>
+</body>
+</html>

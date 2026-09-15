@@ -1,7 +1,8 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import type { OpportunityItem } from '@/modules/deals/types'
+import { getUserEnrolledDealIds } from '@/modules/deals/service'
 import { MarketplaceSectionHeader } from './MarketplaceSectionHeader'
 import { MarketplaceFilters } from './MarketplaceFilters'
 import { MarketplaceEmptyState } from './MarketplaceStates'
@@ -52,6 +53,7 @@ interface MarketplaceCatalogProps {
   onMinRewardChange: (value: number) => void
   currentUserRole: string
   currentUserOrgId?: string
+  currentUserId?: string
   hasActiveSubscription: boolean
   isGoldenVipUser?: boolean
   savedDeals: string[]
@@ -80,6 +82,7 @@ export function MarketplaceCatalog({
   onMinRewardChange,
   currentUserRole,
   currentUserOrgId,
+  currentUserId,
   hasActiveSubscription,
   isGoldenVipUser = false,
   savedDeals,
@@ -92,6 +95,24 @@ export function MarketplaceCatalog({
   const { t, locale } = useLanguage()
   const categoryIcons = [House, CarFront, Package, Sprout, BriefcaseBusiness, Wrench]
   const [vipTab, setVipTab] = useState<'ALL' | 'VIP' | 'STANDARD'>('ALL')
+  const [enrolledIds, setEnrolledIds] = useState<Set<string>>(() => getUserEnrolledDealIds(currentUserId))
+
+  useEffect(() => {
+    const syncEnrolled = () => {
+      setEnrolledIds(getUserEnrolledDealIds(currentUserId))
+    }
+    syncEnrolled()
+
+    window.addEventListener('lumo:joined-deals-updated', syncEnrolled)
+    window.addEventListener('lumo:deals-updated', syncEnrolled)
+    window.addEventListener('storage', syncEnrolled)
+
+    return () => {
+      window.removeEventListener('lumo:joined-deals-updated', syncEnrolled)
+      window.removeEventListener('lumo:deals-updated', syncEnrolled)
+      window.removeEventListener('storage', syncEnrolled)
+    }
+  }, [currentUserId])
 
   const vipCount = opportunities.filter((item) => Boolean(item.isGoldenVip)).length
   const standardCount = opportunities.filter((item) => !item.isGoldenVip).length
@@ -385,6 +406,7 @@ export function MarketplaceCatalog({
                 const isOwner = Boolean(currentUserOrgId && currentUserOrgId === item.organizationId)
                 const isAdmin = currentUserRole === 'ADMIN'
                 const isAuthorizedForThisDeal = hasActiveSubscription || isOwner || isAdmin
+                const isEnrolled = enrolledIds.has(item.id) || (item.slug ? enrolledIds.has(item.slug) : false)
 
                 return (
                   <OpportunityCard
@@ -393,9 +415,11 @@ export function MarketplaceCatalog({
                     isSubscribed={isAuthorizedForThisDeal}
                     isGoldenVipUser={isGoldenVipUser}
                     isSaved={savedDeals.includes(item.id)}
+                    isEnrolled={isEnrolled}
                     onToggleSave={() => onToggleSave(item.id)}
                     onApply={() => onDealAction(item, 'join')}
                     onViewDetails={() => onDealAction(item, 'view')}
+                    onOpenEnrolled={() => onDealAction(item, 'view')}
                     onConnectWhatsApp={() => onConnectWhatsApp?.(item)}
                   />
                 )

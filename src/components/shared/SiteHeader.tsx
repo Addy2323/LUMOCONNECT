@@ -23,9 +23,11 @@ import {
   LayoutDashboard,
   Search,
   Languages,
+  Download,
 } from 'lucide-react'
 import { BrandMark } from './BrandMark'
 import { useLanguage } from '@/lib/i18n'
+import { usePwa } from '@/lib/pwa/PwaContext'
 import type { UserWorkspaceInfo, WorkspaceType } from '@/lib/session'
 
 interface SiteHeaderProps {
@@ -71,6 +73,7 @@ export function SiteHeader({
   isAdminModeActive = false,
 }: SiteHeaderProps) {
   const { locale, setLocale } = useLanguage()
+  const { isInstalled, openInstallFlow } = usePwa()
   const [mounted, setMounted] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
@@ -223,6 +226,17 @@ export function SiteHeader({
               {/* Sign In Button if not authenticated */}
               {!isAuthenticated ? (
                 <>
+                  {!isInstalled && (
+                    <button
+                      type="button"
+                      onClick={openInstallFlow}
+                      className="hidden sm:inline-flex items-center gap-1.5 py-1.5 px-2.5 sm:px-3 text-[#FF6A00] hover:bg-orange-50 dark:hover:bg-orange-950/40 text-[11px] sm:text-xs font-bold rounded-lg border border-orange-500/30 transition-all cursor-pointer whitespace-nowrap shadow-xs"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>{locale === 'sw' ? 'Sakinisha App' : 'Install App'}</span>
+                    </button>
+                  )}
+
                   <button
                     onClick={onOpenSignIn}
                     className="py-1.5 sm:py-2 px-2.5 sm:px-3.5 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-[#0F172A] dark:text-white text-[11px] sm:text-xs font-semibold rounded-lg transition-colors cursor-pointer whitespace-nowrap"
@@ -312,6 +326,20 @@ export function SiteHeader({
 
                       {/* Footer Actions */}
                       <div className="pt-1.5 border-t border-slate-100 dark:border-slate-800 space-y-1">
+                        {!isInstalled && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              openInstallFlow()
+                              setUserMenuOpen(false)
+                            }}
+                            className="w-full px-2.5 py-1.5 text-left rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2 font-bold text-[#FF6A00] cursor-pointer"
+                          >
+                            <Download className="w-3.5 h-3.5 text-[#FF6A00]" />
+                            <span>{locale === 'sw' ? 'Sakinisha Programu' : 'Install App'}</span>
+                          </button>
+                        )}
+
                         <button
                           onClick={() => {
                             const dashboardView = isAdminModeActive
@@ -396,6 +424,23 @@ export function SiteHeader({
               )
             })}
           </div>
+
+          {/* Mobile Install App Button */}
+          {!isInstalled && (
+            <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => {
+                  openInstallFlow()
+                  setMobileMenuOpen(false)
+                }}
+                className="w-full p-3 rounded-xl text-sm font-bold text-left flex items-center gap-3 bg-orange-50 dark:bg-orange-950/40 text-[#FF6A00] border border-orange-500/20 cursor-pointer shadow-xs"
+              >
+                <Download className="w-4 h-4 text-[#FF6A00]" />
+                <span>{locale === 'sw' ? 'Sakinisha Programu' : 'Install App'}</span>
+              </button>
+            </div>
+          )}
 
           {/* Mobile Language Switcher */}
           <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">

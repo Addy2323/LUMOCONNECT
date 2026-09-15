@@ -8,11 +8,18 @@ import {
   Lock,
   Bell,
   LogOut,
+  CheckCircle2,
+  Download,
 } from 'lucide-react'
 import { usePartnerToast } from '../PartnerToast'
+import { usePwa } from '@/lib/pwa/PwaContext'
+import { useLanguage } from '@/lib/i18n'
 
 export function SettingsSecurityTab() {
   const { showToast } = usePartnerToast()
+  const { isInstalled, openInstallFlow } = usePwa()
+  const { locale } = useLanguage()
+  const isSw = locale === 'sw'
 
   const [mfaEnabled, setMfaEnabled] = useState(true)
   const [smsPayoutAlerts, setSmsPayoutAlerts] = useState(true)
@@ -106,6 +113,41 @@ export function SettingsSecurityTab() {
               className="w-4 h-4 text-[#FF6A00] rounded"
             />
           </label>
+        </div>
+
+        {/* PWA & Mobile Installation */}
+        <div className="p-5 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 space-y-3 md:col-span-2">
+          <div className="flex items-center justify-between">
+            <h3 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+              <Smartphone className="w-4 h-4 text-[#FF6A00]" />
+              <span>{isSw ? 'Programu ya Lumo Dealers (PWA)' : 'Lumo Dealers Mobile App (PWA)'}</span>
+            </h3>
+            {isInstalled ? (
+              <span className="text-[11px] bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 font-bold px-2.5 py-1 rounded-full border border-emerald-500/30 flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>{isSw ? 'Imesakinishwa' : 'Installed'}</span>
+              </span>
+            ) : (
+              <span className="text-[11px] bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 font-bold px-2.5 py-1 rounded-full border border-amber-500/30">
+                {isSw ? 'Inapatikana' : 'Available'}
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-slate-600 dark:text-slate-400">
+            {isSw
+              ? 'Sakinisha tovuti kama programu kwenye simu au kompyuta yako ili kufuatilia rufaa na fursa za dili haraka zaidi moja kwa moja kutoka kwenye skrini ya mwanzo.'
+              : 'Install the website as a standalone progressive app on your phone or computer to track referrals and opportunities faster directly from your home screen.'}
+          </p>
+          {!isInstalled && (
+            <button
+              type="button"
+              onClick={openInstallFlow}
+              className="mt-2 py-2 px-4 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-bold rounded-xl text-xs flex items-center gap-2 cursor-pointer shadow-xs transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>{isSw ? 'Sakinisha Programu Sasa' : 'Install App Now'}</span>
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   X,
   Send,
@@ -38,15 +38,51 @@ export function CustomerReferralModal({
   deal,
   isOpen,
   onClose,
-  currentUserId = 'alex',
-  partnerName = 'Alex Mwakasege',
-  partnerPhone = '+255712345678',
+  currentUserId,
+  partnerName,
+  partnerPhone,
   userRole = 'PARTNER',
   userOrgId,
   onReferralSubmitted,
   onViewProgress,
 }: CustomerReferralModalProps) {
   const { t, locale } = useLanguage()
+
+  // Dynamically resolve registered partner name and phone from props or local storage
+  const effectivePartnerName = partnerName || (() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('lumo_user_session')
+        if (stored) {
+          const parsed = JSON.parse(stored)
+          if (parsed.name) return parsed.name
+        }
+      } catch {}
+    }
+    return locale === 'sw' ? 'Mshirika Aliyesajiliwa' : 'Registered Partner'
+  })()
+
+  const effectivePartnerPhone = partnerPhone || (() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('lumo_user_session')
+        if (stored) {
+          const parsed = JSON.parse(stored)
+          if (parsed.phone) return parsed.phone
+        }
+      } catch {}
+    }
+    return ''
+  })()
+
+  const [partnerPhoneInput, setPartnerPhoneInput] = useState(effectivePartnerPhone)
+
+  useEffect(() => {
+    if (effectivePartnerPhone) {
+      setPartnerPhoneInput(effectivePartnerPhone)
+    }
+  }, [effectivePartnerPhone])
+
   const [customerFirstName, setCustomerFirstName] = useState('')
   const [customerLastName, setCustomerLastName] = useState('')
   const [customerPhone, setCustomerPhone] = useState('')
@@ -104,13 +140,15 @@ export function CustomerReferralModal({
       userOrgId,
     })
 
+    const finalPartnerPhone = partnerPhoneInput.trim() || effectivePartnerPhone || ''
+
     const result = submitCustomerReferral({
       dealId: deal.id,
       dealTitle: deal.title,
       dealSlug: deal.slug,
-      partnerUserId: currentUserId,
-      partnerName,
-      partnerPhone,
+      partnerUserId: currentUserId || 'partner',
+      partnerName: effectivePartnerName,
+      partnerPhone: finalPartnerPhone,
       customerFirstName,
       customerLastName,
       customerPhone,
@@ -277,23 +315,33 @@ export function CustomerReferralModal({
               </span>
             </div>
 
-            {/* Submitting Partner Info (Prefilled) */}
-            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 grid grid-cols-2 gap-2 text-xs">
+            {/* Submitting Partner Info (Prefilled from Registered Profile) */}
+            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
               <div>
                 <span className="text-[10px] text-slate-400 uppercase font-bold block">
-                  Promoting Partner
+                  {locale === 'sw' ? 'Mshirika Anayetangaza' : 'Promoting Partner'}
                 </span>
                 <span className="font-semibold text-slate-800 dark:text-slate-200 truncate block">
-                  {partnerName}
+                  {effectivePartnerName}
                 </span>
               </div>
               <div>
                 <span className="text-[10px] text-slate-400 uppercase font-bold block">
-                  Partner Phone
+                  {locale === 'sw' ? 'Namba ya Mshirika' : 'Partner Phone'}
                 </span>
-                <span className="font-mono text-slate-800 dark:text-slate-200 block">
-                  {partnerPhone}
-                </span>
+                {effectivePartnerPhone ? (
+                  <span className="font-mono text-slate-800 dark:text-slate-200 block">
+                    {effectivePartnerPhone}
+                  </span>
+                ) : (
+                  <input
+                    type="tel"
+                    placeholder="07XXXXXXXX or +255..."
+                    value={partnerPhoneInput}
+                    onChange={(e) => setPartnerPhoneInput(e.target.value)}
+                    className="w-full px-2 py-1 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-mono text-slate-800 dark:text-slate-200 focus:outline-hidden focus:ring-1 focus:ring-[#FF6A00]"
+                  />
+                )}
               </div>
             </div>
 
