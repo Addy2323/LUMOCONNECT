@@ -144,11 +144,11 @@ export function StartupAnimation({ onComplete }: StartupAnimationProps) {
           onEnded={handleComplete}
           onError={handleComplete}
           style={{
-            width: '100%',
-            height: '100%',
-            maxWidth: '100vw',
-            maxHeight: '100vh',
-            objectFit: 'contain',
+            position: 'absolute',
+            inset: 0,
+            width: '100vw',
+            height: '100vh',
+            objectFit: 'cover',
           }}
         />
       )}
