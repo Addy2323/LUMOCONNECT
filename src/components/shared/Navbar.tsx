@@ -34,7 +34,6 @@ export function Navbar({
     { id: 'marketplace', label: 'Discover Deals', icon: Compass },
     { id: 'partner', label: 'Partner Portal', icon: Sparkles },
     { id: 'business', label: 'Business Hub', icon: Briefcase },
-    { id: 'dealroom', label: 'Deal Room', icon: Layers },
     { id: 'admin', label: 'Operations & Audit', icon: Shield },
   ]
 

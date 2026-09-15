@@ -990,7 +990,7 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
         promoVideoUrl: formData.promoVideoUrl,
       },
       'org_current',
-      formData.title ? 'Verified Business Ltd' : 'My Business Ltd',
+      'Lumo Deals',
       'PENDING_REVIEW'
     )
 

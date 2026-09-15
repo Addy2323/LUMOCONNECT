@@ -362,7 +362,7 @@ export function OverviewTab({
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                      {deal.businessName} · {deal.category}
+                      Lumo Deals · {deal.category}
                     </span>
                     <h4 className="font-black text-sm text-slate-900 dark:text-white leading-snug mt-0.5">
                       {deal.title}
@@ -472,8 +472,8 @@ export function OverviewTab({
 
                 <div className="p-4 space-y-2">
                   <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                    <span className="font-bold text-slate-800 dark:text-slate-200">{opp.businessName}</span>
-                    {opp.isBusinessVerified && <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />}
+                    <span className="font-bold text-slate-800 dark:text-slate-200">Lumo Deals</span>
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
                   </div>
 
                   <h4 className="font-black text-sm text-slate-900 dark:text-white line-clamp-2 leading-snug">

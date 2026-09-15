@@ -159,7 +159,6 @@ export function Footer({ onNavigate, variant = 'default' }: { onNavigate?: (view
             <ul className="space-y-2">
               <li><button onClick={() => onNavigate?.('partner')} className="hover:text-white">Partner Portal</button></li>
               <li><button onClick={() => onNavigate?.('business')} className="hover:text-white">Business Hub</button></li>
-              <li><button onClick={() => onNavigate?.('dealroom')} className="hover:text-white">B2B Deal Room</button></li>
               <li><button onClick={() => onNavigate?.('admin')} className="hover:text-white">Maker-Checker Operations</button></li>
               <li><button onClick={() => onNavigate?.('onboarding')} className="hover:text-white">Partner Registration</button></li>
             </ul>

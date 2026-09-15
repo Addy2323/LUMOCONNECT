@@ -103,7 +103,6 @@ export function SiteHeader({
       : []),
     ...(isAuthenticated
       ? [
-          { id: 'dealroom', label: 'Deal Room', icon: Handshake },
           { id: 'customer_checkout', label: 'Customer Area', icon: Sparkles },
         ]
       : []),

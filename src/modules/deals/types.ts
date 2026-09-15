@@ -97,6 +97,7 @@ export interface OpportunityItem {
   termsAndConditions?: string
   status: 'DRAFT' | 'PENDING_REVIEW' | 'PUBLISHED' | 'PAUSED' | 'COMPLETED'
   createdAt: Date
+  completedAt?: Date
   expiryDate?: Date
   // Golden VIP & 24h Early Access
   isGoldenVip?: boolean

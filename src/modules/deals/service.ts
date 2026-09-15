@@ -63,6 +63,7 @@ function loadFromStorage() {
           inMemoryOpportunities = combined.map((item) => ({
             ...item,
             createdAt: new Date(item.createdAt),
+            completedAt: item.completedAt ? new Date(item.completedAt) : undefined,
             expiryDate: item.expiryDate ? new Date(item.expiryDate) : undefined,
             vipAccessStartAt: item.vipAccessStartAt ? new Date(item.vipAccessStartAt) : undefined,
             vipReleaseAt: item.vipReleaseAt ? new Date(item.vipReleaseAt) : undefined,
@@ -148,9 +149,20 @@ export function listOpportunities(filters?: OpportunityFilterParams): Opportunit
   loadFromStorage()
   let items = [...inMemoryOpportunities]
 
-  // Strictly enforce Maker-Checker segregation: Only PUBLISHED deals appear on public marketplace
+  // Show PUBLISHED deals & COMPLETED deals (for up to 2 hours after completion)
   if (!filters?.includeAllStatuses) {
-    items = items.filter((item) => item.status === 'PUBLISHED')
+    const nowMs = Date.now()
+    const TWO_HOURS_MS = 2 * 60 * 60 * 1000 // 2 hours = 7,200,000 ms
+
+    items = items.filter((item) => {
+      if (item.status === 'PUBLISHED') return true
+      if (item.status === 'COMPLETED') {
+        const completedTime = item.completedAt ? new Date(item.completedAt).getTime() : item.createdAt.getTime()
+        const elapsed = nowMs - completedTime
+        return elapsed >= 0 && elapsed < TWO_HOURS_MS
+      }
+      return false
+    })
   }
 
   if (filters?.query && filters.query.trim()) {
@@ -233,8 +245,8 @@ export function getPublicDealSummary(slugOrId: string): PublicDealSummary | null
     category: item.category,
     countryCode: item.countryCode,
     region: item.region,
-    companyName: item.companyName,
-    companyLogo: item.companyLogo,
+    companyName: 'Lumo Deals',
+    companyLogo: item.companyLogo || 'LD',
     isVerified: item.isVerified,
     indicativeRewardDisplay: item.rewardDisplay,
     activePartnerCount: item.activePartnerCount,
@@ -530,7 +542,7 @@ export function getUserEnrolledDealIds(userId?: string): Set<string> {
 export function createDealOpportunity(
   input: DealCreateInput,
   organizationId = 'org_kijani_solar',
-  companyName = 'Verified Business Ltd',
+  companyName = 'Lumo Deals',
   initialStatus: 'PENDING_REVIEW' | 'PUBLISHED' | 'DRAFT' = 'PUBLISHED'
 ): OpportunityItem {
   const expiryDays = Math.min(365, Math.max(1, input.expiryDays ?? 30))

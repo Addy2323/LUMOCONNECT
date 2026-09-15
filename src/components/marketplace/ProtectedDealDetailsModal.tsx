@@ -21,6 +21,7 @@ import {
   MessageSquare,
   BadgeCheck,
   Clock,
+  Users,
 } from 'lucide-react'
 import type { ProtectedDealDetails } from '@/modules/deals/service'
 import { DealMediaViewer } from '@/components/common/DealMediaViewer'
@@ -265,6 +266,17 @@ export function ProtectedDealDetailsModal({
           </div>
         </div>
 
+        {/* Enrolled Partners Count */}
+        <div className="flex items-center justify-between rounded-xl border border-orange-200 dark:border-orange-800/60 bg-orange-50/70 dark:bg-orange-950/20 px-4 py-3">
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300">
+            <Users className="w-4 h-4 text-orange-500" />
+            <span>{locale === 'sw' ? 'Washirika Waliojisajili' : 'Partners Enrolled'}</span>
+          </div>
+          <div className="text-sm font-black text-orange-600 dark:text-orange-400">
+            {deal.activePartnerCount}{deal.maxPartners ? ` / ${deal.maxPartners}` : ''}
+          </div>
+        </div>
+
         {/* Deliverables & Full Description */}
         <div className="space-y-4">
           <div>
@@ -374,18 +386,16 @@ export function ProtectedDealDetailsModal({
           </div>
 
           {/* WhatsApp Coordination Trigger */}
-          {onConnectWhatsApp && (
-            <div className="pt-1">
-              <button
-                type="button"
-                onClick={onConnectWhatsApp}
-                className="w-full py-3 px-4 bg-[#25D366] hover:bg-[#1EBE5D] text-slate-950 font-black text-xs rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
-              >
-                <MessageSquare className="w-4 h-4 fill-slate-950" />
-                <span>{locale === 'sw' ? 'Wasiliana na Dawati la Uratibu la Lumo kupitia WhatsApp' : 'Connect with Lumo Coordination Desk via WhatsApp'}</span>
-              </button>
-            </div>
-          )}
+          <div className="pt-1">
+            <button
+              type="button"
+              onClick={onConnectWhatsApp || (() => setShowReferralModal(true))}
+              className="w-full py-3 px-4 bg-[#25D366] hover:bg-[#1EBE5D] text-slate-950 font-black text-xs rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
+            >
+              <MessageSquare className="w-4 h-4 fill-slate-950" />
+              <span>{locale === 'sw' ? 'Wasiliana na Dawati la Uratibu la Lumo kupitia WhatsApp' : 'Connect with Lumo Coordination Desk via WhatsApp'}</span>
+            </button>
+          </div>
         </div>
 
 

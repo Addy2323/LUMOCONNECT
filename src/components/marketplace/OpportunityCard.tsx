@@ -9,6 +9,7 @@ import {
   Lock,
   Clock3,
   Crown,
+  Users,
 } from 'lucide-react'
 import type { OpportunityItem } from '@/modules/deals/types'
 import { DealMediaViewer } from '@/components/common/DealMediaViewer'
@@ -65,6 +66,17 @@ export function OpportunityCard({
   // A deal in its 24h window is locked for normal non-VIP partners
   const isVipLockedForUser = isWithin24hVipWindow && !isGoldenVipUser
 
+  // Completed deal detection & disappear countdown
+  const isCompleted = item.status === 'COMPLETED'
+  const completedTime = isCompleted
+    ? (item.completedAt ? new Date(item.completedAt).getTime() : item.createdAt.getTime())
+    : 0
+  const msUntilDisappear = isCompleted ? Math.max(0, (completedTime + 2 * 60 * 60 * 1000) - now) : 0
+  const minsUntilDisappear = Math.ceil(msUntilDisappear / (1000 * 60))
+  const disappearLabel = minsUntilDisappear >= 60
+    ? `${Math.floor(minsUntilDisappear / 60)}h ${minsUntilDisappear % 60}m`
+    : `${minsUntilDisappear}m`
+
   const getCategoryPill = (category: string) => {
     switch (category) {
       case 'Renewable Energy':
@@ -85,12 +97,24 @@ export function OpportunityCard({
   }
 
   return (
-    <article className={`group flex flex-col justify-between overflow-hidden rounded-2xl border bg-white p-3 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-xl dark:bg-slate-900 ${
-      isVipDeal
+    <article className={`group relative flex flex-col justify-between overflow-hidden rounded-2xl border bg-white p-3 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-xl dark:bg-slate-900 ${
+      isCompleted
+        ? 'border-emerald-300 dark:border-emerald-700/60 opacity-75'
+        : isVipDeal
         ? 'border-amber-300 dark:border-amber-700/60 ring-1 ring-amber-400/20'
         : 'border-[#E2E8F0] dark:border-slate-800 hover:border-orange-200'
     }`}>
-      <div>
+      {/* Completed deal ribbon */}
+      {isCompleted && (
+        <div className="absolute top-0 left-0 right-0 z-30 bg-emerald-600 text-white text-center py-1.5 px-2 text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5">
+          <CheckCircle className="w-3.5 h-3.5" />
+          <span>{locale === 'sw' ? 'Imekamilika' : 'Deal Completed'}</span>
+          <span className="ml-1 px-1.5 py-0.5 bg-emerald-800/60 rounded text-[9px]">
+            {locale === 'sw' ? `Itatoweka ${disappearLabel}` : `Disappears in ${disappearLabel}`}
+          </span>
+        </div>
+      )}
+      <div className={isCompleted ? 'pt-6' : ''}>
         <div className="relative mb-3.5 h-56 w-full overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800 sm:h-60">
           {item.promoVideoUrl ? (
             <DealMediaViewer
@@ -226,6 +250,12 @@ export function OpportunityCard({
           <div className="flex items-center justify-between gap-3">
             <dt className="font-semibold text-slate-500">{t('Location')}</dt>
             <dd className="flex max-w-[65%] items-center gap-1 truncate text-right font-bold text-slate-700 dark:text-slate-300"><MapPin className="h-3 w-3 shrink-0 text-orange-500" /><span className="truncate">{t(item.region)}</span></dd>
+          </div>
+          <div className="flex items-center justify-between gap-3 rounded-lg bg-orange-50/70 dark:bg-orange-950/20 px-2.5 py-2">
+            <dt className="font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1"><Users className="h-3 w-3 text-orange-500 shrink-0" />{locale === 'sw' ? 'Washirika' : 'Partners Enrolled'}</dt>
+            <dd className="font-black text-orange-600 dark:text-orange-400">
+              {item.activePartnerCount}{item.maxPartners ? ` / ${item.maxPartners}` : ''}
+            </dd>
           </div>
         </dl>
       </div>
