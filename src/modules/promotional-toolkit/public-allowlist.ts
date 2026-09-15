@@ -117,23 +117,33 @@ export function resolvePromoCode(codeOrSlug: string): PromoCodeResolution {
     (d) => d.slug.toLowerCase() === cleanCode.toLowerCase() || d.id.toLowerCase() === cleanCode.toLowerCase()
   )
 
-  // 2. Promo code match pattern (e.g., LUMO-ALEX-TOYOT or LUMO-6AAF-TOYOTA)
+  // 2. Promo code match pattern (e.g., LUMO-6AAF-WANTED or LUMO-ALEX-CEMENT)
   if (!targetDeal && cleanCode.toUpperCase().startsWith('LUMO-')) {
     const parts = cleanCode.split('-')
-    if (parts.length >= 3) {
-      const dealSnippet = parts.slice(2).join('-').toLowerCase()
-      targetDeal = allDeals.find(
-        (d) =>
-          d.slug.toLowerCase().includes(dealSnippet) ||
-          d.title.toLowerCase().includes(dealSnippet) ||
-          d.id.toLowerCase().includes(dealSnippet)
+    const partnerCode = parts[1]?.toLowerCase() || ''
+    const dealSnippet = parts.length >= 3 ? parts.slice(2).join('-').toLowerCase() : parts.slice(1).join('-').toLowerCase()
+
+    // Match by ID fragment (e.g. 6aaf) or slug/title snippet
+    targetDeal = allDeals.find(
+      (d) =>
+        (partnerCode && d.id.toLowerCase().includes(partnerCode)) ||
+        (dealSnippet && d.slug.toLowerCase().includes(dealSnippet)) ||
+        (dealSnippet && d.title.toLowerCase().includes(dealSnippet)) ||
+        (dealSnippet && d.id.toLowerCase().includes(dealSnippet))
+    )
+
+    // Secondary match: check if deal snippet contains keywords from title/slug
+    if (!targetDeal && dealSnippet) {
+      const words = dealSnippet.split(/[-_\s]+/)
+      targetDeal = allDeals.find((d) =>
+        words.some((w) => w.length >= 3 && (d.slug.toLowerCase().includes(w) || d.title.toLowerCase().includes(w)))
       )
     }
   }
 
-  // 3. Fallback to first available deal if general match
-  if (!targetDeal) {
-    targetDeal = allDeals.find((d) => cleanCode.toLowerCase().includes(d.slug.slice(0, 5).toLowerCase()))
+  // 3. Fallback to first available published deal if general match so QR scan never fails completely
+  if (!targetDeal && allDeals.length > 0) {
+    targetDeal = allDeals.find((d) => d.status === 'PUBLISHED') || allDeals[0]
   }
 
   if (!targetDeal) {

@@ -215,18 +215,21 @@ export function PromotionalCardCanvas({
         ctx.fillText(`PROMO REF: ${trackingCode}`, 70, footerY + 125)
       }
 
-      // Draw QR Code image or placeholder
+      // Draw high-resolution sharp QR Code image
       const qrImg = new Image()
       qrImg.crossOrigin = 'anonymous'
-      qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(referralUrl)}`
+      qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=500x500&ecc=H&margin=1&data=${encodeURIComponent(referralUrl)}`
 
       qrImg.onload = () => {
         if (template.publicFieldToggles.showQrCode) {
+          ctx.save()
+          ctx.imageSmoothingEnabled = false
           ctx.fillStyle = '#FFFFFF'
           ctx.beginPath()
           ctx.roundRect(width - 200, footerY + 15, 150, 150, 12)
           ctx.fill()
           ctx.drawImage(qrImg, width - 195, footerY + 20, 140, 140)
+          ctx.restore()
         }
 
         const dataUrl = canvas.toDataURL('image/png')
@@ -336,7 +339,7 @@ export function PromotionalCardCanvas({
           {template.publicFieldToggles.showQrCode && (
             <div className="w-9 h-9 p-0.5 bg-white rounded-md shrink-0">
               <img
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(referralUrl)}`}
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=400x400&ecc=H&margin=1&data=${encodeURIComponent(referralUrl)}`}
                 alt="QR Code"
                 className="w-full h-full object-contain"
               />
