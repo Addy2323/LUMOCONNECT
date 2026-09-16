@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { DATABASE_SESSION_COOKIE, getDatabaseSession } from './database-session'
 
+import { isValidRequestOrigin } from './origin'
+
 /** Database sessions only: client role headers and legacy demo tokens are never authority. */
 export async function checkAdminSession(request: NextRequest) {
   try {
@@ -10,8 +12,7 @@ export async function checkAdminSession(request: NextRequest) {
       !assignment.organizationId && ['ADMIN', 'SUPER_ADMIN'].includes(assignment.role.code))
     if (!allowed) return NextResponse.json({ error: 'Platform administrator access required.' }, { status: 403 })
     if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method)) {
-      const origin = request.headers.get('origin')
-      if (request.headers.get('sec-fetch-site') === 'cross-site' || (origin && origin !== request.nextUrl.origin)) {
+      if (request.headers.get('sec-fetch-site') === 'cross-site' || !isValidRequestOrigin(request)) {
         return NextResponse.json({ error: 'Cross-origin mutation denied.' }, { status: 403 })
       }
     }

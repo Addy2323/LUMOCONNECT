@@ -6,12 +6,13 @@ export class PaymentError extends Error {
   constructor(message: string, public status = 400, public code = 'INVALID_PAYMENT') { super(message) }
 }
 
+import { isValidRequestOrigin } from '@/lib/origin'
+
 export async function paymentSession(request: NextRequest) {
   const session = await getDatabaseSession(request.cookies.get(DATABASE_SESSION_COOKIE)?.value)
   if (!session) throw new PaymentError('Sign in to continue with payment.', 401, 'UNAUTHENTICATED')
   if (request.method !== 'GET') {
-    const origin = request.headers.get('origin')
-    if ((origin && origin !== request.nextUrl.origin) || request.headers.get('sec-fetch-site') === 'cross-site') {
+    if (request.headers.get('sec-fetch-site') === 'cross-site' || !isValidRequestOrigin(request)) {
       throw new PaymentError('Cross-origin payment request denied.', 403)
     }
   }
