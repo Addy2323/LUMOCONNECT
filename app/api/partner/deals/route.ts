@@ -34,17 +34,11 @@ export async function GET(request: NextRequest) {
       orderBy: { joinedAt: 'desc' },
     })
 
-    // Also get ticket counts for each deal
-    const ticketCounts = await db.referralTicket.groupBy({
-      by: ['dealId'],
+    // Also get all tickets for this user to correlate stages accurately
+    const userTickets = await db.referralTicket.findMany({
       where: { partnerUserId: userId },
-      _count: { id: true },
+      orderBy: { createdAt: 'desc' },
     }).catch(() => [] as any[])
-
-    const countsMap = new Map<string, number>()
-    ticketCounts.forEach((tc: any) => {
-      countsMap.set(tc.dealId, tc._count.id)
-    })
 
     const partnerCode = (session.user.name || 'partner').toLowerCase().replace(/[^a-z0-9]/g, '_')
 
@@ -64,11 +58,20 @@ export async function GET(request: NextRequest) {
       const rewardDisplay = catalogMatch?.rewardDisplay || 'Commercial Partner Commission'
       const rewardValueTZS = catalogMatch ? Number((catalogMatch as any).baseRewardValue || (catalogMatch as any).rewardValue || 50000) : 50000
 
-      const activeLeads = countsMap.get(opp.id) || countsMap.get(slug) || 0
+      const matchingTickets = userTickets.filter((t: any) =>
+        t.opportunityId === opp.id ||
+        t.dealId === opp.id ||
+        t.dealId === slug ||
+        t.dealSlug === slug ||
+        (catalogMatch && (t.dealId === catalogMatch.id || t.dealId === catalogMatch.slug))
+      )
+      const latestTicket = matchingTickets[0] || null
+      const activeLeads = matchingTickets.length
 
       return {
         id: p.id,
         opportunityId: opp.id,
+        slug,
         title,
         businessName,
         category,
@@ -81,6 +84,12 @@ export async function GET(request: NextRequest) {
         promoCode: `${partnerCode.slice(0, 4).toUpperCase()}${slug.slice(0, 4).toUpperCase()}`,
         qrCodeUrl: `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://lumo.co.tz/d/${slug}?partner=${partnerCode}`,
         activeLeadsCount: activeLeads,
+        latestReferralStage: latestTicket?.stage || undefined,
+        latestReferralTicketRef: latestTicket?.ticketReference || undefined,
+        latestReferralCustomerName: latestTicket?.customerFirstName
+          ? `${latestTicket.customerFirstName} ${latestTicket.customerLastName || ''}`.trim()
+          : undefined,
+        latestReferralDate: latestTicket?.createdAt ? new Date(latestTicket.createdAt).toISOString() : undefined,
         verifiedConversionsCount: 0,
         earningsEarnedTZS: 0,
         deliverablesSummary: opp.description || catalogMatch?.description || 'Commercial lead and referral acquisition',
@@ -248,6 +257,7 @@ export async function POST(request: NextRequest) {
         const newJoined: JoinedDealItem = {
           id: participation.id,
           opportunityId: dbOpp.id,
+          slug: dbOpp.slug,
           title: dbOpp.title,
           businessName: dbOpp.organization?.tradingName || dbOpp.organization?.legalName || 'Lumo Commercial',
           category: catalogMatch?.category || 'General',
@@ -262,8 +272,8 @@ export async function POST(request: NextRequest) {
           activeLeadsCount: 0,
           verifiedConversionsCount: 0,
           earningsEarnedTZS: 0,
-          deliverablesSummary: dbOpp.description || 'Promotional outreach and customer referral',
-          evidenceRequired: catalogMatch?.termsAndConditions || 'Verified transaction matching.',
+          deliverablesSummary: (catalogMatch as any)?.deliverablesSummary || dbOpp.description || 'Commercial lead and referral acquisition',
+          evidenceRequired: catalogMatch?.termsAndConditions || 'Verified customer proof and merchant sign-off.',
           milestoneProgressPercent: 0,
           canExit: true,
           coverImageUrl: catalogMatch?.featuredImageUrl,
@@ -276,9 +286,11 @@ export async function POST(request: NextRequest) {
 
     // Fallback if DB is unavailable
     const partnerCode = (session.user.name || 'partner').toLowerCase().replace(/[^a-z0-9]/g, '_')
+    const fallbackSlug = catalogMatch?.slug || slug || opportunityId || 'deal'
     const fallbackItem: JoinedDealItem = {
       id: `joined_${Date.now()}`,
       opportunityId: opportunityId || dealId || 'opp_default',
+      slug: fallbackSlug,
       title: catalogMatch?.title || body.title || 'Opportunity',
       businessName: catalogMatch?.companyName || 'Lumo Commercial',
       category: catalogMatch?.category || 'General',

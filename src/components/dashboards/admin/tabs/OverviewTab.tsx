@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import {
   Users,
   ShieldCheck,
@@ -31,7 +31,9 @@ import {
 } from 'recharts'
 
 import { useAdminToast } from '../AdminToast'
-import { generateDateBuckets, TimeSeriesPoint } from '@/lib/dynamicDateRange'
+import { useAdminResource } from '../useAdminResource'
+import { ResourceStatus } from '../ResourceStatus'
+import { TimeSeriesPoint } from '@/lib/dynamicDateRange'
 
 interface OverviewTabProps {
   adminName: string
@@ -45,7 +47,7 @@ export function OverviewTab({ adminName, onOpenReviewQueue, onNavigateTab }: Ove
   const [regionFilter, setRegionFilter] = useState('ALL')
   const [opportunityTypeFilter, setOpportunityTypeFilter] = useState('ALL')
 
-  const [metrics, setMetrics] = useState({
+  const emptyMetrics = {
     totalUsers: 0,
     verifiedBusinesses: 0,
     liveOpportunities: 0,
@@ -54,9 +56,10 @@ export function OverviewTab({ adminName, onOpenReviewQueue, onNavigateTab }: Ove
     pendingDeals: 0,
     pendingPayouts: 0,
     flaggedFraud: 0,
-  })
-
-  const [chartData, setChartData] = useState<TimeSeriesPoint[]>(() => generateDateBuckets('30D'))
+  }
+  const resource = useAdminResource<{ metrics: typeof emptyMetrics; series: TimeSeriesPoint[] }>(`/api/admin/overview?period=${timeRange}&region=${regionFilter}&type=${opportunityTypeFilter}`)
+  const metrics = resource.data?.metrics ?? emptyMetrics
+  const chartData = resource.data?.series ?? []
 
   const {
     totalUsers,
@@ -69,22 +72,6 @@ export function OverviewTab({ adminName, onOpenReviewQueue, onNavigateTab }: Ove
     flaggedFraud,
   } = metrics
   const totalReviewItems = pendingVerifications + pendingDeals + pendingPayouts + flaggedFraud
-
-  useEffect(() => {
-    fetch(`/api/admin/overview?period=${timeRange}&region=${regionFilter}&type=${opportunityTypeFilter}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.metrics) {
-          setMetrics(data.metrics)
-        }
-        if (Array.isArray(data.series) && data.series.length > 0) {
-          setChartData(data.series)
-        } else {
-          setChartData(generateDateBuckets(timeRange))
-        }
-      })
-      .catch((err) => console.warn('Failed to load admin metrics:', err))
-  }, [timeRange, regionFilter, opportunityTypeFilter])
 
   const handleExportAdminReport = () => {
     try {
@@ -104,7 +91,7 @@ export function OverviewTab({ adminName, onOpenReviewQueue, onNavigateTab }: Ove
         ['"Total Registered Users"', totalUsers],
         ['"Verified Corporate Businesses"', verifiedBusinesses],
         ['"Live Published Opportunities"', liveOpportunities],
-        ['"Gross Platform Revenue (TZS)"', platformRevenueTZS],
+        ['"Gross Collections (TZS)"', platformRevenueTZS],
         [''],
         ['"OPERATIONAL REVIEW QUEUE"', '"PENDING ITEMS"'],
         ['"Pending KYC Verifications"', pendingVerifications],
@@ -114,7 +101,7 @@ export function OverviewTab({ adminName, onOpenReviewQueue, onNavigateTab }: Ove
         ['"Total Review Queue Backlog"', totalReviewItems],
         [''],
         ['"ROLLING TIME-SERIES PERFORMANCE DATA"'],
-        ['"Date Key"', '"Label"', '"Gross Volume (TZS M)"', '"Active Users"', '"Registrations/Actions"'],
+        ['"Date Key"', '"Label"', '"Gross Volume (TZS M)"', '"New Registrations"', '"Registrations/Actions"'],
         ...chartData.map((pt) => [
           `"${pt.date}"`,
           `"${pt.label}"`,
@@ -139,8 +126,11 @@ export function OverviewTab({ adminName, onOpenReviewQueue, onNavigateTab }: Ove
     }
   }
 
+  if (!resource.data) return <ResourceStatus {...resource} />
+
   return (
     <div className="space-y-5 sm:space-y-6">
+      <ResourceStatus {...resource} />
       {/* Top Greeting & Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
@@ -206,7 +196,7 @@ export function OverviewTab({ adminName, onOpenReviewQueue, onNavigateTab }: Ove
         </div>
 
         <div className="text-[11px] text-slate-400">
-          Last sync: Real-time PostgreSQL Read Replica
+          Database records ? refreshes every 5 seconds
         </div>
       </div>
 
@@ -281,7 +271,7 @@ export function OverviewTab({ adminName, onOpenReviewQueue, onNavigateTab }: Ove
           </div>
         </div>
 
-        {/* CARD 4: Platform Revenue */}
+        {/* CARD 4: Gross Collections */}
         <div
           onClick={() => onNavigateTab('payments')}
           className="bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-4 sm:p-5 shadow-xs flex flex-col justify-between space-y-3 col-span-2 sm:col-span-1 cursor-pointer hover:border-purple-400 transition-colors"
@@ -289,7 +279,7 @@ export function OverviewTab({ adminName, onOpenReviewQueue, onNavigateTab }: Ove
           <div className="flex items-start justify-between">
             <div className="space-y-1">
               <span className="text-[11px] sm:text-xs font-bold text-slate-500 dark:text-slate-400">
-                Platform Revenue
+                Gross Collections
               </span>
               <div className="text-xl sm:text-2xl lg:text-3xl font-black text-[#0F172A] dark:text-white font-mono">
                 TZS {(platformRevenueTZS / 1000000).toFixed(1)}M
@@ -300,7 +290,7 @@ export function OverviewTab({ adminName, onOpenReviewQueue, onNavigateTab }: Ove
             </div>
           </div>
           <div className="text-[11px] sm:text-xs font-bold text-slate-400 flex items-center gap-1">
-            <span>Collected fees & subscriptions</span>
+            <span>Successful TZS payments, all purposes</span>
           </div>
         </div>
       </div>
@@ -312,10 +302,10 @@ export function OverviewTab({ adminName, onOpenReviewQueue, onNavigateTab }: Ove
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h3 className="text-sm sm:text-base font-extrabold text-[#0F172A] dark:text-white">
-                Marketplace Transaction Volume & Active Users
+                Marketplace Transaction Volume & New Registrations
               </h3>
               <p className="text-xs text-slate-400 mt-0.5">
-                Real-time gross secured funding (funds are secured) and active user sessions across Tanzania
+                Recorded successful TZS payment amounts and new user registrations
               </p>
             </div>
 
@@ -413,7 +403,7 @@ export function OverviewTab({ adminName, onOpenReviewQueue, onNavigateTab }: Ove
                       yAxisId="right"
                       type="monotone"
                       dataKey="activeUsers"
-                      name="Active Users"
+                      name="New Registrations"
                       stroke="#0B132B"
                       strokeWidth={3}
                       dot={{ r: 3, fill: '#0B132B', strokeWidth: 2, stroke: '#fff' }}
@@ -431,7 +421,7 @@ export function OverviewTab({ adminName, onOpenReviewQueue, onNavigateTab }: Ove
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-[#0B132B] dark:bg-slate-400" />
-              <span>Active Monthly Users</span>
+              <span>New Registrations</span>
             </div>
           </div>
         </div>

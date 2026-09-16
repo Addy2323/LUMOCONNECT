@@ -288,6 +288,10 @@ export function CustomerReferralModal({
       }
 
       setSubmittedTicket(data.ticket)
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('lumo:referral-cases-updated'))
+        window.dispatchEvent(new Event('lumo:joined-deals-updated'))
+      }
       onReferralSubmitted?.(data.ticket?.ticketReference || '')
     } catch (err) {
       setIsSubmitting(false)

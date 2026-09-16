@@ -1,9 +1,12 @@
-import { NextResponse } from 'next/server'
+import { checkAdminSession } from '@/lib/admin-session'
+import { NextRequest, NextResponse } from 'next/server'
 import { SnippePaymentAdapter } from '@/lib/providers/snippe'
 
 const snippe = new SnippePaymentAdapter()
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const denied = await checkAdminSession(request)
+  if (denied) return denied
   try {
     const balance = await snippe.getAccountBalance()
     return NextResponse.json({

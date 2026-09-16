@@ -23,61 +23,30 @@ import {
   FileText,
   ShieldCheck,
 } from 'lucide-react'
-import { listAdminDeals, createDealOpportunity, updateDealStatus, getVideoEmbedInfo } from '@/modules/deals/service'
+import { getVideoEmbedInfo } from '@/modules/deals/service'
 import { DealMediaViewer } from '@/components/common/DealMediaViewer'
+import { useAdminResource } from '../useAdminResource'
+import { ResourceStatus } from '../ResourceStatus'
 import { AdminDealItem } from '../types'
 import { useAdminToast } from '../AdminToast'
 
 export function DealsRegistryTab() {
   const { showToast } = useAdminToast()
-  const [deals, setDeals] = useState<AdminDealItem[]>([])
+  const resource = useAdminResource<{ deals: AdminDealItem[] }>('/api/admin/deals')
+  const deals = resource.data?.deals ?? []
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('ALL')
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL')
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [selectedDeal, setSelectedDeal] = useState<AdminDealItem | null>(null)
 
-  const reloadDeals = () => {
-    fetch('/api/admin/deals')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.deals && data.deals.length > 0) {
-          setDeals(
-            data.deals.map((d: any) => ({
-              id: d.id,
-              title: d.title,
-              businessName: d.businessName,
-              category: d.category,
-              type: d.type,
-              rewardValueTZS: Number(d.rewardDisplay?.replace(/[^0-9]/g, '') || 50000),
-              budgetTZS: d.budgetTZS || 20000000,
-              spentTZS: Math.round((d.budgetTZS || 20000000) * 0.15),
-              activePartners: d.activePartnersCount || 0,
-              version: 1,
-              status: d.status,
-            }))
-          )
-        } else {
-          setDeals(listAdminDeals() as AdminDealItem[])
-        }
-      })
-      .catch(() => setDeals(listAdminDeals() as AdminDealItem[]))
-  }
-
-  useEffect(() => {
-    reloadDeals()
-    const handleUpdate = () => reloadDeals()
-    window.addEventListener('lumo:deals-updated', handleUpdate)
-    return () => window.removeEventListener('lumo:deals-updated', handleUpdate)
-  }, [])
-
   const [newDealForm, setNewDealForm] = useState({
     title: '',
-    businessName: 'Kijani Solar Tech Ltd',
+    businessName: '',
     category: 'Renewable Energy',
     type: 'CUSTOMER_ACQUISITION' as AdminDealItem['type'],
-    rewardValueTZS: 50000,
-    budgetTZS: 20000000,
+    rewardValueTZS: 0,
+    budgetTZS: 0,
   })
 
   const filteredDeals = deals.filter((d) => {
@@ -89,72 +58,31 @@ export function DealsRegistryTab() {
     return matchesSearch && matchesStatus && matchesCategory
   })
 
-  const handleTogglePause = async (id: string) => {
-    const target = deals.find((d) => d.id === id)
-    if (!target) return
-    const nextStatus = target.status === 'PUBLISHED' ? 'PAUSED' : 'PUBLISHED'
-    
+  const updateStatus = async (id: string, status: string) => {
     try {
-      await fetch('/api/admin/deals', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dealId: id, status: nextStatus }),
-      })
-    } catch (e) {}
-
-    updateDealStatus(id, nextStatus as any)
-    reloadDeals()
-    showToast(
-      'info',
-      `Campaign ${nextStatus === 'PUBLISHED' ? 'Resumed' : 'Paused'}`,
-      `"${target.title}" status updated.`
-    )
+      const response = await fetch('/api/admin/deals', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dealId: id, status }) })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Unable to update this deal.')
+      resource.retry()
+      showToast('success', 'Deal updated', 'The database status has been updated.')
+    } catch (error) {
+      showToast('error', 'Update failed', error instanceof Error ? error.message : 'Please retry.')
+    }
   }
-
-  const handleArchiveDeal = (id: string) => {
-    updateDealStatus(id, 'ARCHIVED')
-    reloadDeals()
-    showToast('info', 'Opportunity Archived', 'Deal archived. Record retained in immutable platform ledger.')
+  const handleTogglePause = (id: string) => {
+    const target = deals.find(deal => deal.id === id)
+    if (target) void updateStatus(id, target.status === 'PUBLISHED' ? 'PAUSED' : 'PUBLISHED')
   }
-
+  const handleArchiveDeal = (id: string) => { void updateStatus(id, 'ARCHIVED') }
   const handleCreateDraft = () => {
-    if (!newDealForm.title.trim()) return
-
-    createDealOpportunity(
-      {
-        title: newDealForm.title,
-        summary: `Performance commercial campaign for ${newDealForm.title}.`,
-        description: `Verified commercial opportunity. Complete the required deliverables to earn competitive milestone commissions.`,
-        category: newDealForm.category,
-        opportunityType: newDealForm.type as any,
-        rewardType: 'FIXED_COMMISSION',
-        baseRewardValue: Number(newDealForm.rewardValueTZS) || 50000,
-        currency: 'TZS',
-        totalBudgetTZS: Number(newDealForm.budgetTZS) || 20000000,
-        region: 'Dar es Salaam, Tanzania',
-        attributionWindowDays: 30,
-        termsAndConditions: 'Standard platform verified attribution and conversion terms apply.',
-        requiresApproval: true,
-      },
-      'org_admin_draft',
-      newDealForm.businessName
-    )
-
-    reloadDeals()
-    setShowCreateModal(false)
-    setNewDealForm({
-      title: '',
-      businessName: 'Kijani Solar Tech Ltd',
-      category: 'Renewable Energy',
-      type: 'CUSTOMER_ACQUISITION',
-      rewardValueTZS: 50000,
-      budgetTZS: 20000000,
-    })
-    showToast('success', 'Opportunity Created', 'Opportunity saved to central repository. Visible in Maker-Checker queue.')
+    showToast('error', 'Draft creation unavailable', 'The administrator draft workflow is not connected to persistent business records yet. No draft was created.')
   }
+
+  if (!resource.data) return <ResourceStatus {...resource} />
 
   return (
     <div className="space-y-5 bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-4 sm:p-6 shadow-xs">
+      <ResourceStatus {...resource} />
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
         <div>
@@ -165,7 +93,7 @@ export function DealsRegistryTab() {
             </span>
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Central repository for all Deals, campaigns, affiliate programs, leads, and B2B opportunities with strict versioning.
+            Database opportunities. Shows up to 100 recent records; refreshes every five seconds.
           </p>
         </div>
 
@@ -265,14 +193,14 @@ export function DealsRegistryTab() {
 
                 <td className="p-3 font-mono">
                   <span className="text-[#FF6A00] font-black text-xs">
-                    TZS {deal.rewardValueTZS.toLocaleString()}
+                    {deal.rewardDisplay ?? 'Terms not recorded'}
                   </span>
                   <div className="text-[10px] text-slate-400">per verified outcome</div>
                 </td>
 
                 <td className="p-3 font-mono">
                   <div className="text-slate-900 dark:text-white font-bold">
-                    TZS {deal.budgetTZS.toLocaleString()}
+                    {deal.budgetRecorded ? `TZS ${deal.budgetTZS.toLocaleString()}` : 'Not recorded'}
                   </div>
                   <div className="text-[10px] text-emerald-600">
                     Spent: TZS {deal.spentTZS.toLocaleString()}
@@ -287,7 +215,7 @@ export function DealsRegistryTab() {
                 <td className="p-3">
                   <div className="flex items-center gap-1.5">
                     <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded font-mono text-[10px] font-bold">
-                      v{deal.version}
+                      {deal.version ? `v${deal.version}` : 'Unpublished'}
                     </span>
                     <span
                       className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
@@ -377,14 +305,14 @@ export function DealsRegistryTab() {
               <div className="p-3 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-200/80 dark:border-slate-700">
                 <div className="text-[10px] text-slate-400 font-bold uppercase">Partner Reward</div>
                 <div className="text-sm font-black text-[#FF6A00] font-mono mt-0.5">
-                  TZS {selectedDeal.rewardValueTZS.toLocaleString()}
+                  {selectedDeal.rewardDisplay ?? 'Terms not recorded'}
                 </div>
               </div>
 
               <div className="p-3 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-200/80 dark:border-slate-700">
                 <div className="text-[10px] text-slate-400 font-bold uppercase">Secured Budget</div>
                 <div className="text-sm font-black text-slate-900 dark:text-white font-mono mt-0.5">
-                  TZS {selectedDeal.budgetTZS.toLocaleString()}
+                  {selectedDeal.budgetRecorded ? `TZS ${selectedDeal.budgetTZS.toLocaleString()}` : 'Not recorded'}
                 </div>
               </div>
 
@@ -503,9 +431,7 @@ export function DealsRegistryTab() {
                   onChange={(e) => setNewDealForm({ ...newDealForm, businessName: e.target.value })}
                   className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-medium"
                 >
-                  <option value="Kijani Solar Tech Ltd">Kijani Solar Tech Ltd (BRELA Verified)</option>
-                  <option value="MobiPay Africa Ltd">MobiPay Africa Ltd (BRELA Verified)</option>
-                  <option value="Kilimo Bora Agrotech">Kilimo Bora Agrotech (BRELA Verified)</option>
+                  <option value="">Business selection is not connected</option>
                 </select>
               </div>
 

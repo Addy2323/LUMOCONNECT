@@ -78,6 +78,12 @@ export async function POST(request: NextRequest) {
     }
 
     if (method === 'ZENOPAY') {
+      if (!phone || !isValidTanzaniaPhone(phone)) {
+        return NextResponse.json(
+          { error: 'Valid Tanzanian phone number is required.' },
+          { status: 400 }
+        )
+      }
       const origin = request.headers.get('origin') || 'https://lumo.co.tz'
       const webhookUrl = `${origin}/api/webhooks/zenopay`
 
@@ -85,7 +91,7 @@ export async function POST(request: NextRequest) {
         amount: numericAmount,
         buyerEmail: buyerEmail || 'admin@lumo.co.tz',
         buyerName: buyerName || 'LUMO Platform Admin',
-        buyerPhone: phone ? normalizeTanzaniaPhone(phone) : '255712345678',
+        buyerPhone: normalizeTanzaniaPhone(phone),
         webhookUrl,
       })
 

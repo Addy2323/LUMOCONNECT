@@ -17,7 +17,6 @@ import {
   RefreshCw,
 } from 'lucide-react'
 import {
-  createSubscriptionCheckout,
   grantUserSubscription,
   submitEnterpriseInquiry,
   listSubscriptionPlans,
@@ -242,29 +241,31 @@ export function SubscriptionsView({
     setPollSecondsElapsed(0)
 
     try {
+      const mappedPaymentMethod =
+        paymentMethod === 'AIRTEL'
+          ? 'AIRTEL_MONEY'
+          : paymentMethod === 'TIGO'
+          ? 'TIGO_PESA'
+          : paymentMethod === 'HALOPESA'
+          ? 'HALOPESA'
+          : 'MPESA'
+
+      const requestId = typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+            const r = (Math.random() * 16) | 0
+            return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16)
+          })
+
       const res = await fetch('/api/payments/initiate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          amountTZS,
+          action: 'PAY_NOW',
+          requestId,
+          planCode: selectedPlanCode,
           phoneNumber: cleanedPhone,
-          paymentMethod:
-            paymentMethod === 'AIRTEL'
-              ? 'AIRTEL_MONEY'
-              : paymentMethod === 'TIGO'
-              ? 'TIGO_PESA'
-              : paymentMethod === 'HALOPESA'
-              ? 'HALOPESA'
-              : 'MPESA',
-          orderId: `SUB-${Date.now()}-${(currentUserId || 'guest').slice(0, 8)}`,
-          customerName: 'LUMO Subscriber',
-          customerEmail: currentUserId ? `${currentUserId}@lumo.co.tz` : undefined,
-          metadata: {
-            planCode: selectedPlanCode,
-            userId: currentUserId || 'guest_subscriber',
-            planName: currentPlan.name,
-            source: 'SUBSCRIPTION_CHECKOUT',
-          },
+          paymentMethod: mappedPaymentMethod,
         }),
       })
 

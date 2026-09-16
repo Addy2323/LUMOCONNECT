@@ -24,6 +24,7 @@ import { recordPromoInteraction } from '@/modules/promotional-toolkit/analytics'
 import { submitCustomerReferralEnquiry } from '@/modules/deals/referral-cases'
 import { DealMediaViewer } from '@/components/common/DealMediaViewer'
 
+
 interface PublicLandingClientViewProps {
   code: string
   initialLang: 'EN' | 'SW'
@@ -32,6 +33,8 @@ interface PublicLandingClientViewProps {
 
 export function PublicLandingClientView({ code, initialLang, resolution }: PublicLandingClientViewProps) {
   const [lang, setLang] = useState<'EN' | 'SW'>(initialLang)
+  const [currentResolution, setCurrentResolution] = useState<PromoCodeResolution>(resolution)
+  const [loadingDynamic, setLoadingDynamic] = useState(!resolution.isValid || !resolution.dealData)
   const [selectedImage, setSelectedImage] = useState<string>('')
   const [submittedEnquiryRef, setSubmittedEnquiryRef] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -44,23 +47,56 @@ export function PublicLandingClientView({ code, initialLang, resolution }: Publi
   const [quantityNeeded, setQuantityNeeded] = useState('1')
   const [notes, setNotes] = useState('')
 
-  const deal = resolution.dealData
+  const deal = currentResolution.dealData
 
   useEffect(() => {
     // Record page visit analytics (filters crawlers)
-    if (typeof navigator !== 'undefined') {
+    if (typeof navigator !== 'undefined' && deal) {
       recordPromoInteraction(code, 'PAGE_VISIT', navigator.userAgent, document.referrer)
     }
   }, [code, deal])
 
-  if (!resolution.isValid || !deal) {
+  useEffect(() => {
+    if (!currentResolution.isValid || !currentResolution.dealData) {
+      fetch(`/api/p/${encodeURIComponent(code)}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && data.data) {
+            setCurrentResolution({
+              isValid: true,
+              promoCode: data.promoCode || code,
+              dealId: data.dealId,
+              dealSlug: data.dealSlug,
+              partnerUserId: 'partner',
+              partnerName: 'Partner',
+              dealData: data.data,
+            })
+          }
+        })
+        .catch(() => {})
+        .finally(() => setLoadingDynamic(false))
+    }
+  }, [code, currentResolution.isValid, currentResolution.dealData])
+
+  if (loadingDynamic) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-4">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-[#FF6A00] border-t-transparent rounded-full animate-spin" />
+          <span className="text-xs text-slate-400 font-bold">Loading deal details...</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (!currentResolution.isValid || !deal) {
     return (
       <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-4">
         <div className="max-w-md w-full p-8 rounded-3xl bg-slate-900 border border-slate-800 text-center space-y-4 shadow-2xl">
           <AlertCircle className="w-12 h-12 text-[#FF6A00] mx-auto animate-bounce" />
           <h1 className="text-xl font-black">Opportunity Not Found</h1>
           <p className="text-xs text-slate-400">
-            {resolution.errorReason || 'The requested opportunity link is invalid or no longer available.'}
+            {currentResolution.errorReason || 'The requested opportunity link is invalid or no longer available.'}
           </p>
           <Link
             href="/"

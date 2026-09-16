@@ -240,29 +240,7 @@ export function PaymentsFundingTab({
   // Execute Top Up
   const handleExecuteTopUp = async () => {
     const added = Number(topUpAmount)
-    try {
-      if (payerPhone && payerPhone.length >= 9) {
-        await fetch('/api/payments/initiate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            amountTZS: added,
-            phoneNumber: payerPhone,
-            paymentMethod:
-              topUpMethod === 'VODACOM_MPESA'
-                ? 'MPESA'
-                : topUpMethod === 'AIRTEL_MONEY'
-                ? 'AIRTEL_MONEY'
-                : topUpMethod === 'TIGO_PESA'
-                ? 'TIGO_PESA'
-                : 'MPESA',
-            metadata: { purpose: 'BUSINESS_ESCROW_TOPUP' },
-          }),
-        })
-      }
-    } catch (e) {
-      console.warn('Snippe topup call:', e)
-    }
+    // Top-up simulation for business escrow wallet balance (real production top-ups are processed via registered funding orders)
 
     const newBalance = walletBalanceTZS + added
 

@@ -18,8 +18,10 @@ import {
   X,
   FileText,
   AlertTriangle,
+  Eye,
+  Plus,
 } from 'lucide-react'
-import { JoinedDealItem, JoinedDealStatus } from '../types'
+import { JoinedDealItem, JoinedDealStatus, PartnerSidebarSection } from '../types'
 import { usePartnerToast } from '../PartnerToast'
 import { CustomerReferralModal } from '@/components/marketplace/CustomerReferralModal'
 import { PromotionalToolkitModal } from '@/components/marketplace/PromotionalToolkitModal'
@@ -28,18 +30,80 @@ import { buildPublicDealUrl } from '@/modules/promotional-toolkit/links'
 import { ReferralQr } from '@/components/promotional-toolkit/ReferralQr'
 import { DealDetailsModal } from '@/components/promotional-toolkit/DealDetailsModal'
 
-const publicUrl = (deal: JoinedDealItem) => buildPublicDealUrl(deal.opportunityId, deal.referralId || deal.promoCode)
+const publicUrl = (deal: JoinedDealItem) => {
+  if (deal.trackingLink && (deal.trackingLink.startsWith('http://') || deal.trackingLink.startsWith('https://'))) {
+    return deal.trackingLink
+  }
+  return buildPublicDealUrl(deal.slug || deal.opportunityId, deal.referralId || deal.promoCode)
+}
+
+const getReferralStageConfig = (stage?: string) => {
+  switch (stage) {
+    case 'SUBMITTED':
+      return {
+        label: 'Submitted',
+        fullLabel: 'Referral Submitted',
+        badgeBg: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800',
+        btnBg: 'bg-blue-600 hover:bg-blue-700 text-white',
+        icon: Clock,
+      }
+    case 'UNDER_REVIEW':
+      return {
+        label: 'Under Review',
+        fullLabel: 'Desk Under Review',
+        badgeBg: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800',
+        btnBg: 'bg-amber-600 hover:bg-amber-700 text-white',
+        icon: Eye,
+      }
+    case 'AVAILABILITY_CONFIRMED':
+      return {
+        label: 'Availability Confirmed',
+        fullLabel: 'Merchant Available',
+        badgeBg: 'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/40 dark:text-teal-300 dark:border-teal-800',
+        btnBg: 'bg-teal-600 hover:bg-teal-700 text-white',
+        icon: CheckCircle2,
+      }
+    case 'IN_PROGRESS':
+      return {
+        label: 'In Progress',
+        fullLabel: 'Deal In Progress',
+        badgeBg: 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-800',
+        btnBg: 'bg-orange-600 hover:bg-orange-700 text-white',
+        icon: Clock,
+      }
+    case 'COMPLETED':
+      return {
+        label: 'Completed',
+        fullLabel: 'Deal Completed',
+        badgeBg: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800',
+        btnBg: 'bg-emerald-600 hover:bg-emerald-700 text-white',
+        icon: CheckCircle2,
+      }
+    case 'CLOSED':
+      return {
+        label: 'Closed',
+        fullLabel: 'Referral Closed',
+        badgeBg: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
+        btnBg: 'bg-slate-700 hover:bg-slate-800 text-white',
+        icon: AlertTriangle,
+      }
+    default:
+      return null
+  }
+}
 
 interface MyDealsTabProps {
   joinedDeals: JoinedDealItem[]
   setJoinedDeals: React.Dispatch<React.SetStateAction<JoinedDealItem[]>>
   onOpenSubmitLeadModal: (deal: JoinedDealItem) => void
+  onNavigateToTab?: (tab: PartnerSidebarSection) => void
 }
 
 export function MyDealsTab({
   joinedDeals,
   setJoinedDeals,
   onOpenSubmitLeadModal,
+  onNavigateToTab,
 }: MyDealsTabProps) {
   const { showToast } = usePartnerToast()
 
@@ -151,7 +215,12 @@ export function MyDealsTab({
 
       {/* Deals Cards List */}
       <div className="space-y-4">
-        {filteredDeals.map((deal) => (
+        {filteredDeals.map((deal) => {
+          const hasActiveReferral = Boolean(deal.latestReferralStage || deal.activeLeadsCount > 0)
+          const stageConfig = getReferralStageConfig(deal.latestReferralStage || (deal.activeLeadsCount > 0 ? 'SUBMITTED' : undefined))
+          const StageIcon = stageConfig?.icon
+
+          return (
           <div
             key={deal.id}
             className="p-5 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 space-y-4"
@@ -173,6 +242,17 @@ export function MyDealsTab({
                   >
                     {deal.status.replace(/_/g, ' ')}
                   </span>
+                  {deal.latestReferralStage && (
+                    <span
+                      onClick={() => onNavigateToTab?.('leads_referrals')}
+                      className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full border cursor-pointer hover:opacity-80 transition-opacity ${
+                        stageConfig?.badgeBg || 'bg-blue-50 text-blue-700 border-blue-200'
+                      }`}
+                      title="Click to track in Leads & Referrals"
+                    >
+                      Stage: {stageConfig?.label}
+                    </span>
+                  )}
                 </div>
 
                 <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white leading-snug">
@@ -230,9 +310,27 @@ export function MyDealsTab({
                 <div className="flex items-center gap-4">
                   <span>Leads: <strong className="text-slate-900 dark:text-white font-mono">{deal.activeLeadsCount}</strong></span>
                   <span>Conversions: <strong className="text-emerald-600 dark:text-emerald-400 font-mono">{deal.verifiedConversionsCount}</strong></span>
+                  {deal.latestReferralTicketRef && (
+                    <span className="hidden sm:inline text-slate-500 font-mono text-[11px]">
+                      Ticket: <strong>{deal.latestReferralTicketRef}</strong>
+                    </span>
+                  )}
                 </div>
-                {deal.milestoneProgressPercent > 0 && (
-                  <span>Milestone: <strong className="text-purple-600 dark:text-purple-400 font-mono">{deal.milestoneProgressPercent}%</strong></span>
+                {hasActiveReferral ? (
+                  <button
+                    onClick={() => onNavigateToTab?.('leads_referrals')}
+                    className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full border transition-all cursor-pointer ${
+                      stageConfig?.badgeBg || 'bg-blue-50 text-blue-700 border-blue-200'
+                    }`}
+                    title="Click to track in Leads & Referrals"
+                  >
+                    <span>Stage: {stageConfig?.label || 'Submitted'}</span>
+                    <ExternalLink className="w-3 h-3 ml-0.5" />
+                  </button>
+                ) : (
+                  deal.milestoneProgressPercent > 0 && (
+                    <span>Milestone: <strong className="text-purple-600 dark:text-purple-400 font-mono">{deal.milestoneProgressPercent}%</strong></span>
+                  )
                 )}
               </div>
 
@@ -251,13 +349,46 @@ export function MyDealsTab({
                       <span>Get Promotional Materials</span>
                     </button>
 
-                    <button
-                      onClick={() => setReferralModalDeal(deal)}
-                      className="w-full py-2.5 px-3 bg-gradient-to-r from-[#FF6A00] to-orange-500 hover:from-[#EA580C] hover:to-orange-600 text-white rounded-xl text-xs font-bold shadow-2xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-                    >
-                      <Send className="w-3.5 h-3.5" />
-                      <span>{deal.activeLeadsCount > 0 ? `Referral Submitted (${deal.activeLeadsCount})` : 'I Have a Customer'}</span>
-                    </button>
+                    {/* Dynamic Referral Stage or 'I Have a Customer' */}
+                    {hasActiveReferral ? (
+                      <div className="flex items-center gap-1.5 w-full">
+                        <button
+                          onClick={() => {
+                            if (onNavigateToTab) {
+                              onNavigateToTab('leads_referrals')
+                            } else {
+                              showToast(
+                                'info',
+                                `Referral ${stageConfig?.label || 'Active'}`,
+                                `Referral is currently ${stageConfig?.label || 'in progress'}. Coordination notes available in Leads & Referrals.`
+                              )
+                            }
+                          }}
+                          className={`flex-1 py-2.5 px-2.5 ${stageConfig?.btnBg || 'bg-blue-600 hover:bg-blue-700 text-white'} rounded-xl text-xs font-bold shadow-2xs flex items-center justify-center gap-1.5 transition-all cursor-pointer`}
+                          title="Click to track referral in Leads & Referrals"
+                        >
+                          {StageIcon && <StageIcon className="w-3.5 h-3.5" />}
+                          <span className="truncate">{stageConfig?.label || 'Submitted'}</span>
+                        </button>
+
+                        <button
+                          onClick={() => setReferralModalDeal(deal)}
+                          className="py-2.5 px-2.5 bg-orange-50 dark:bg-orange-950/40 hover:bg-orange-100 text-[#FF6A00] border border-orange-200 dark:border-orange-800 rounded-xl text-xs font-bold shadow-2xs flex items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap"
+                          title="Submit another customer referral for this deal"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span className="hidden xl:inline">+ Customer</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setReferralModalDeal(deal)}
+                        className="w-full py-2.5 px-3 bg-gradient-to-r from-[#FF6A00] to-orange-500 hover:from-[#EA580C] hover:to-orange-600 text-white rounded-xl text-xs font-bold shadow-2xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                        <span>I Have a Customer</span>
+                      </button>
+                    )}
                   </>
                 )}
 
@@ -271,7 +402,8 @@ export function MyDealsTab({
               </div>
             </div>
           </div>
-        ))}
+        )
+      })}
       </div>
 
       {/* DEAL TOOLS & DELIVERABLES DRAWER MODAL */}
@@ -364,7 +496,33 @@ export function MyDealsTab({
       {/* Customer Referral Modal */}
       {referralModalDeal && (
         <CustomerReferralModal
-          deal={getOpportunityById(referralModalDeal.opportunityId)}
+          deal={
+            getOpportunityById(referralModalDeal.opportunityId) ||
+            ({
+              id: referralModalDeal.opportunityId || referralModalDeal.id,
+              organizationId: (referralModalDeal as any).organizationId || 'org-lumo',
+              companyName: referralModalDeal.businessName || 'Lumo Commercial',
+              isVerified: true,
+              type: 'PRODUCT_SALES',
+              title: referralModalDeal.title,
+              slug: (referralModalDeal as any).slug || referralModalDeal.opportunityId || referralModalDeal.id,
+              summary: referralModalDeal.deliverablesSummary || referralModalDeal.title,
+              description: referralModalDeal.deliverablesSummary || referralModalDeal.title,
+              category: referralModalDeal.category || 'General',
+              countryCode: 'TZ',
+              region: 'Dar es Salaam',
+              currency: 'TZS',
+              rewardType: 'FIXED_COMMISSION',
+              rewardDisplay: referralModalDeal.rewardDisplay,
+              rewardDetail: referralModalDeal.rewardDisplay,
+              spentBudgetTZS: BigInt(0),
+              activePartnerCount: 1,
+              isFeatured: false,
+              status: 'PUBLISHED',
+              createdAt: new Date(),
+              baseRewardValue: referralModalDeal.rewardValueTZS || 50000,
+            } as any)
+          }
           isOpen={Boolean(referralModalDeal)}
           onClose={() => setReferralModalDeal(null)}
           onReferralSubmitted={(ref) => {
@@ -374,9 +532,24 @@ export function MyDealsTab({
               `Customer referral ${ref} submitted. Lumo coordinator is checking availability with the merchant.`
             )
             if (referralModalDeal) {
-              setJoinedDeals(prev => prev.map(d => d.id === referralModalDeal.id ? { ...d, activeLeadsCount: (d.activeLeadsCount || 0) + 1 } : d))
+              setJoinedDeals((prev) =>
+                prev.map((d) =>
+                  d.id === referralModalDeal.id
+                    ? {
+                        ...d,
+                        activeLeadsCount: (d.activeLeadsCount || 0) + 1,
+                        latestReferralStage: 'SUBMITTED',
+                        latestReferralTicketRef: ref,
+                      }
+                    : d
+                )
+              )
             }
             setReferralModalDeal(null)
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new Event('lumo:referral-cases-updated'))
+              window.dispatchEvent(new Event('lumo:joined-deals-updated'))
+            }
           }}
         />
       )}

@@ -161,6 +161,7 @@ enum RewardStatus {
 }
 
 enum PaymentPurpose {
+  ORDER_PAYMENT
   SUBSCRIPTION
   WALLET_TOPUP
   REWARD_FUNDING
@@ -745,6 +746,7 @@ model SubscriptionPlan {
   updatedAt     DateTime @updatedAt
 
   subscriptions UserSubscription[]
+  paymentAttempts PaymentAttempt[]
   entitlements  SubscriptionEntitlement[]
 
   @@map("subscription_plans")
@@ -783,10 +785,18 @@ model PaymentAttempt {
   idempotencyKey    String         @unique
   status            PaymentStatus  @default(CREATED)
   errorMessage      String?
+  checkoutKey       String?
+  phoneHash         String?
+  ipHash            String?
+  planId            String?        @db.Uuid
+  planDays          Int?
+  fulfilledSubscriptionId String?  @db.Uuid
+  sourceRoute       String?
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
 
   user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan           SubscriptionPlan? @relation(fields: [planId], references: [id], onDelete: Restrict)
   orders         Order[]
   hotDealFunding HotDealFunding?
 
@@ -794,7 +804,23 @@ model PaymentAttempt {
   @@index([idempotencyKey])
   @@index([providerReference])
   @@index([status])
+  @@index([checkoutKey, createdAt])
+  @@index([phoneHash, createdAt])
+  @@index([ipHash, createdAt])
   @@map("payment_attempts")
+}
+
+model PaymentWebhookEvent {
+  id             String   @id @default(uuid()) @db.Uuid
+  provider       String
+  externalId     String
+  eventType      String
+  paymentAttemptId String @db.Uuid
+  processedAt    DateTime @default(now())
+
+  @@unique([provider, externalId])
+  @@index([paymentAttemptId])
+  @@map("payment_webhook_events")
 }
 
 model EnterpriseInquiry {

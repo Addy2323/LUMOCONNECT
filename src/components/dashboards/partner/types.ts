@@ -71,6 +71,7 @@ export type JoinedDealStatus =
 export interface JoinedDealItem {
   id: string
   opportunityId: string
+  slug?: string
   title: string
   businessName: string
   category: string
@@ -92,6 +93,10 @@ export interface JoinedDealItem {
   rejectionReason?: string
   coverImageUrl?: string
   promoVideoUrl?: string
+  latestReferralStage?: string
+  latestReferralTicketRef?: string
+  latestReferralCustomerName?: string
+  latestReferralDate?: string
 }
 
 export type LeadLifecycleStatus =

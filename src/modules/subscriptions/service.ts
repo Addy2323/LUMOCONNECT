@@ -7,8 +7,6 @@ import type {
   SubscriptionCheckoutResult,
   SubscriptionPlanCode,
 } from './types'
-import { SnippePaymentAdapter } from '@/lib/providers/snippe'
-import { MongikePaymentAdapter } from '@/lib/providers/mongike'
 
 export const DEFAULT_SUBSCRIPTION_PLANS: SubscriptionPlanItem[] = [
   {
@@ -431,17 +429,8 @@ export async function createSubscriptionCheckout(
       ? 'HALOPESA'
       : 'MPESA'
 
-  const snippe = new SnippePaymentAdapter()
-  const initResult = await snippe.initiatePayment({
-    orderId: paymentAttemptId,
-    idempotencyKey: `idemp_${paymentAttemptId}`.slice(0, 30),
-    amountMinorUnits: BigInt(amountTZS * 100),
-    currency: 'TZS',
-    paymentMethod: mappedPaymentMethod as any,
-    customerPhone: req.phoneNumber,
-    customerEmail: `${req.userId}@lumo.co.tz`,
-    callbackUrl: 'https://lumo.co.tz/api/webhooks/snippe',
-  })
+  // In-memory simulation / test checkout helper: Never calls external payment gateways or Snippe network
+  const providerRef = `sub_mock_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
 
   // Calculate durations on server
   const startsAt = new Date()
@@ -485,9 +474,9 @@ export async function createSubscriptionCheckout(
     success: true,
     subscriptionId,
     paymentAttemptId,
-    providerRef: (initResult as any).providerRef || (initResult as any).providerReference || 'MPESA-DEMO',
+    providerRef,
     status: 'ACTIVE',
-    instructions: initResult.instructions || 'Check your mobile device for the M-Pesa PIN prompt.',
+    instructions: 'Subscription activated via local in-memory simulation.',
     amountTZS,
     planName: plan.name,
     expiresAt,

@@ -276,6 +276,7 @@ export function PartnerDashboardView({
     window.addEventListener('lumo:subscription-updated', handleSubUpdate)
     window.addEventListener('lumo:plans-updated', handleSubUpdate)
     window.addEventListener('lumo:joined-deals-updated', handleJoinedUpdate)
+    window.addEventListener('lumo:referral-cases-updated', handleJoinedUpdate)
     window.addEventListener('lumo:leads-updated', handleOverviewUpdate)
     window.addEventListener('lumo:payouts-updated', handleOverviewUpdate)
 
@@ -285,6 +286,7 @@ export function PartnerDashboardView({
       window.removeEventListener('lumo:subscription-updated', handleSubUpdate)
       window.removeEventListener('lumo:plans-updated', handleSubUpdate)
       window.removeEventListener('lumo:joined-deals-updated', handleJoinedUpdate)
+      window.removeEventListener('lumo:referral-cases-updated', handleJoinedUpdate)
       window.removeEventListener('lumo:leads-updated', handleOverviewUpdate)
       window.removeEventListener('lumo:payouts-updated', handleOverviewUpdate)
     }
@@ -506,6 +508,7 @@ export function PartnerDashboardView({
               joinedDeals={joinedDeals}
               setJoinedDeals={setJoinedDeals}
               onOpenSubmitLeadModal={handleOpenSubmitLeadFromDeal}
+              onNavigateToTab={setActiveTab}
             />
           )}
 

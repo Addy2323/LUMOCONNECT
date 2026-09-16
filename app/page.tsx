@@ -657,7 +657,7 @@ export default function LumoApp() {
   }
 
   return (
-    <div id="lumo-localized-app" className={`${isAuthView ? 'auth-page-root' : ''} min-h-screen flex flex-col bg-[#F8FAFC] dark:bg-[#0B1220] text-[#0F172A] dark:text-slate-100 transition-colors`}>
+    <div id="lumo-localized-app" className={`${isAuthView ? 'auth-page-root' : ''} ${activeView === 'marketplace_catalog' ? 'marketplace-page-root' : ''} min-h-screen flex flex-col bg-[#F8FAFC] dark:bg-[#0B1220] text-[#0F172A] dark:text-slate-100 transition-colors`}>
       <NavigationLoader key={activeView} />
       <LanguageSwitch />
       {/* Persistent Admin Mode Security Warning Banner */}
@@ -722,6 +722,7 @@ export default function LumoApp() {
         {/* DEDICATED MARKETPLACE: COMPLETE DEAL CATALOGUE */}
         {activeView === 'marketplace_catalog' && (
           <MarketplaceCatalog
+            footer={<Footer onNavigate={navigateToView} />}
             opportunities={opportunities}
             query={searchQuery}
             onQueryChange={setSearchQuery}
@@ -1261,7 +1262,7 @@ export default function LumoApp() {
       {!isDashboardView && <MobileNav activeView={activeView} onNavigate={handleMobileNavigation} />}
 
       {/* Footer ONLY on non-auth views */}
-      {!isAuthView && !isDashboardView && <Footer onNavigate={navigateToView} variant={activeView === 'marketplace' ? 'landing' : 'default'} />}
+      {!isAuthView && !isDashboardView && activeView !== 'marketplace_catalog' && <Footer onNavigate={navigateToView} variant={activeView === 'marketplace' ? 'landing' : 'default'} />}
     </div>
   )
 }

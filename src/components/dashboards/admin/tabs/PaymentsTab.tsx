@@ -18,7 +18,9 @@ import {
   Crown,
   Smartphone,
 } from 'lucide-react'
-import { MOCK_PAYMENTS } from '../mockData'
+import { useAdminResource } from '../useAdminResource'
+import { ResourceStatus } from '../ResourceStatus'
+import { downloadRecords } from '@/lib/download-records'
 import { PaymentLedgerItem } from '../types'
 import { useAdminToast } from '../AdminToast'
 
@@ -29,7 +31,8 @@ interface PaymentsTabProps {
 export function PaymentsTab({ onNavigateToSubscriptions }: PaymentsTabProps = {}) {
   const { showToast } = useAdminToast()
 
-  const [payments, setPayments] = useState<PaymentLedgerItem[]>(MOCK_PAYMENTS)
+  const resource = useAdminResource<{ payments: PaymentLedgerItem[] }>('/api/admin/payments')
+  const payments = resource.data?.payments ?? []
   const [searchQuery, setSearchQuery] = useState('')
   const [channelFilter, setChannelFilter] = useState('ALL')
   const [statusFilter, setStatusFilter] = useState('ALL')
@@ -55,19 +58,11 @@ export function PaymentsTab({ onNavigateToSubscriptions }: PaymentsTabProps = {}
 
   // Executive subscription metrics calculation
   const totalSubRevenue = payments
-    .filter((p) => p.purpose === 'SUBSCRIPTION' && p.status === 'SUCCESSFUL')
-    .reduce((acc, p) => acc + p.grossAmountTZS, 0)
-
-  const vipSubRevenue = payments
-    .filter((p) => p.purpose === 'SUBSCRIPTION' && p.subscriptionType === 'GOLDEN_VIP_PRIVATE' && p.status === 'SUCCESSFUL')
-    .reduce((acc, p) => acc + p.grossAmountTZS, 0)
-
-  const normalSubRevenue = payments
-    .filter((p) => p.purpose === 'SUBSCRIPTION' && p.subscriptionType === 'NORMAL' && p.status === 'SUCCESSFUL')
+    .filter((p) => p.purpose === 'SUBSCRIPTION' && p.status === 'SUCCESSFUL' && p.currency === 'TZS')
     .reduce((acc, p) => acc + p.grossAmountTZS, 0)
 
   const totalSecuredDealFunds = payments
-    .filter((p) => p.purpose === 'DEAL_ESCROW_FUNDING' && p.status === 'SUCCESSFUL')
+    .filter((p) => p.purpose === 'DEAL_ESCROW_FUNDING' && p.status === 'SUCCESSFUL' && p.currency === 'TZS')
     .reduce((acc, p) => acc + p.grossAmountTZS, 0)
 
   const filtered = payments.filter((p) => {
@@ -83,49 +78,30 @@ export function PaymentsTab({ onNavigateToSubscriptions }: PaymentsTabProps = {}
     return matchesSearch && matchesChannel && matchesStatus && matchesPurpose && matchesSubType
   })
 
-  const handleRetryVerification = (ref: string) => {
-    setPayments((prev) =>
-      prev.map((p) =>
-        p.reference === ref
-          ? {
-              ...p,
-              status: 'SUCCESSFUL',
-              verifiedAt: 'Just now (Gateway callback matched)',
-            }
-          : p
-      )
-    )
-    showToast('success', 'Telco Payment Verified', `Verification callback confirmed for ${ref}. Amount credited.`)
+  const handleRetryVerification = () => {
+    resource.retry()
+    showToast('info', 'Refreshing payment status', 'Only confirmed provider updates can change payment status.')
   }
-
   const handleExecuteRefund = () => {
-    if (!refundModal) return
-    setPayments((prev) =>
-      prev.map((p) => (p.reference === refundModal.reference ? { ...p, status: 'REFUNDED' } : p))
-    )
-
-    showToast(
-      'info',
-      'Refund Dispatched',
-      `Controlled reversal initiated for ${refundModal.reference} (TZS ${refundModal.grossAmountTZS.toLocaleString()}).`
-    )
-    setRefundModal(null)
-    setCustomReasonNote('')
+    showToast('error', 'Refund unavailable', 'Provider refund processing is not connected. No payment has been changed.')
   }
+
+  if (!resource.data) return <ResourceStatus {...resource} />
 
   return (
     <div className="space-y-5 bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-4 sm:p-6 shadow-xs">
+      <ResourceStatus {...resource} />
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
         <div>
           <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <span>Incoming Payments & Settlement Ledger</span>
             <span className="text-[10px] bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-extrabold px-2 py-0.5 rounded-full">
-              Immutable Ledger
+              Payment Records
             </span>
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Audit-grade double-entry record of all incoming subscription payments, secured deal deposits (funds are secured), and mobile money collections.
+            Recorded payment attempts and their current database status. Fees and settlement verification appear only when recorded.
           </p>
         </div>
 
@@ -158,20 +134,20 @@ export function PaymentsTab({ onNavigateToSubscriptions }: PaymentsTabProps = {}
             <Crown className="w-4 h-4 text-amber-500" />
           </div>
           <div className="text-xl font-black text-slate-900 dark:text-white font-mono">
-            TZS {(vipSubRevenue ?? 0).toLocaleString()}
+            Unavailable
           </div>
-          <p className="text-[10px] text-amber-800 dark:text-amber-400">VIP & Annual memberships</p>
+          <p className="text-[10px] text-amber-800 dark:text-amber-400">Payment-to-plan attribution is not recorded</p>
         </div>
 
         <div className="p-4 rounded-2xl bg-blue-50/70 border border-blue-200 dark:bg-blue-950/30 dark:border-blue-800 space-y-1">
           <div className="flex items-center justify-between text-xs font-bold text-blue-900 dark:text-blue-300">
-            <span>Standard Subscriptions</span>
+            <span>Subscription Collections</span>
             <Wallet className="w-4 h-4 text-blue-500" />
           </div>
           <div className="text-xl font-black text-slate-900 dark:text-white font-mono">
-            TZS {(normalSubRevenue ?? 0).toLocaleString()}
+            TZS {totalSubRevenue.toLocaleString()}
           </div>
-          <p className="text-[10px] text-blue-800 dark:text-blue-400">Regular partner recurring</p>
+          <p className="text-[10px] text-blue-800 dark:text-blue-400">Successful subscription payments in TZS</p>
         </div>
 
         <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800 space-y-1">
@@ -194,7 +170,7 @@ export function PaymentsTab({ onNavigateToSubscriptions }: PaymentsTabProps = {}
             <Smartphone className="w-4 h-4 text-orange-500" />
           </div>
           <div className="text-xl font-black text-slate-900 dark:text-white font-mono">
-            TZS {(snippeBalance?.available ?? 4875).toLocaleString()}
+            {snippeBalance ? `${snippeBalance.currency} ${snippeBalance.available.toLocaleString()}` : 'Unavailable'}
           </div>
           <p className="text-[10px] text-orange-800 dark:text-orange-400">Mobile Money Gateway Balance</p>
         </div>
@@ -316,7 +292,7 @@ export function PaymentsTab({ onNavigateToSubscriptions }: PaymentsTabProps = {}
             {filtered.length === 0 ? (
               <tr>
                 <td colSpan={7} className="text-center py-12 text-slate-400">
-                  No payment transactions recorded in the payment ledger yet.
+                  {resource.loading ? 'Loading payment records?' : resource.error ? 'Payment records are unavailable.' : 'No payment transactions match these filters.'}
                 </td>
               </tr>
             ) : (
@@ -355,11 +331,11 @@ export function PaymentsTab({ onNavigateToSubscriptions }: PaymentsTabProps = {}
 
                 <td className="p-3 font-mono">
                   <div className="text-slate-900 dark:text-white font-bold">
-                    TZS {(pay.grossAmountTZS ?? 0).toLocaleString()}
+                    {pay.currency} {(pay.grossAmountTZS ?? 0).toLocaleString()}
                   </div>
-                  {Number(pay.processingFeeTZS || 0) > 0 && (
+                  {(
                     <div className="text-[10px] text-slate-400">
-                      Fee: TZS {(pay.processingFeeTZS ?? 0).toLocaleString()}
+                      Fee: {pay.processingFeeTZS == null ? 'Not recorded' : `TZS ${pay.processingFeeTZS.toLocaleString()}`}
                     </div>
                   )}
                 </td>
@@ -397,7 +373,7 @@ export function PaymentsTab({ onNavigateToSubscriptions }: PaymentsTabProps = {}
                   <div className="inline-flex items-center gap-1.5">
                     {pay.status === 'FAILED' && (
                       <button
-                        onClick={() => handleRetryVerification(pay.reference)}
+                        onClick={() => handleRetryVerification()}
                         className="py-1 px-2 bg-orange-50 text-[#FF6A00] border border-orange-200 rounded-lg text-xs font-bold hover:bg-orange-100 flex items-center gap-1"
                         title="Retry Telco Verification"
                       >
@@ -519,7 +495,7 @@ export function PaymentsTab({ onNavigateToSubscriptions }: PaymentsTabProps = {}
               <div className="flex items-center gap-2">
                 <FileSpreadsheet className="w-5 h-5 text-emerald-600" />
                 <h3 className="text-base font-black text-slate-900 dark:text-white">
-                  Export Encrypted Payment Ledger
+                  Export Payment Records
                 </h3>
               </div>
               <button onClick={() => setShowExportModal(false)} className="p-1 text-slate-400">
@@ -529,15 +505,13 @@ export function PaymentsTab({ onNavigateToSubscriptions }: PaymentsTabProps = {}
 
             <div className="space-y-3 text-xs">
               <p className="text-slate-500">
-                Export complete statutory audit ledger formatted for electronic fiscal and tax accounting filing.
+                Download the currently filtered database records as JSON.
               </p>
 
               <div>
                 <label className="font-bold block mb-1">Export Format</label>
                 <select className="w-full p-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800">
-                  <option>CSV (Excel & Spreadsheet Compatible)</option>
-                  <option>JSON (Tamper-evident cryptographically signed)</option>
-                  <option>PDF (Formatted Official Ledger Statement)</option>
+                  <option>JSON records</option>
                 </select>
               </div>
             </div>
@@ -546,7 +520,7 @@ export function PaymentsTab({ onNavigateToSubscriptions }: PaymentsTabProps = {}
               <button
                 onClick={() => {
                   setShowExportModal(false)
-                  showToast('success', 'Ledger Exported', 'Statutory payment ledger downloaded.')
+                  downloadRecords('lumo-payments.json', filtered)
                 }}
                 className="flex-1 py-2.5 bg-[#FF6A00] text-white font-extrabold rounded-xl text-xs"
               >

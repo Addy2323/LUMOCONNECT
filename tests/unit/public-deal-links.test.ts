@@ -10,7 +10,8 @@ vi.mock('@/modules/deals/service', () => ({
   ],
 }))
 
-import { resolvePromoCode } from '@/modules/promotional-toolkit/public-allowlist'
+import { resolvePromoCode, resolvePromoCodeAsync } from '@/modules/promotional-toolkit/public-allowlist'
+import { db } from '@/lib/db'
 
 describe('Public deal links', () => {
   it('resolves the exact product and retains referral attribution and media', () => {
@@ -40,4 +41,63 @@ describe('Public deal links', () => {
     const url = new URL(buildPublicDealUrl('vehicle-1', 'partner+a&b'))
     expect(url.searchParams.get('ref')).toBe('partner+a&b')
   })
+
+  it('asynchronously resolves database deals by UUID and prefix match when scanned on different devices', async () => {
+    process.env.DATABASE_URL = 'postgresql://mock:5432/lumo'
+    
+    // Mock db.opportunity.findFirst
+    const mockDbOpp = {
+      id: 'bb8f4a21-1234-4567-89ab-cdef01234567',
+      slug: 'heavy-duty-generator',
+      title: 'Heavy Duty Industrial Generator',
+      description: 'Industrial 50kVA diesel generator with auto-transfer switch',
+      status: 'PUBLISHED',
+      category: { name: 'Industrial' },
+      publishedVersion: {
+        title: 'Heavy Duty Industrial Generator',
+        summary: '50kVA diesel generator',
+        description: 'Detailed specs',
+        category: 'Industrial',
+        region: 'Dar es Salaam',
+        countryCode: 'TZ',
+        currency: 'TZS',
+        opportunityType: 'STANDARD_COMMERCIAL',
+        principalPriceDisplay: 'TZS 18,500,000',
+        featuredImageUrl: '/gen.jpg',
+        galleryImageUrls: ['/gen1.jpg'],
+        promoVideoUrl: null,
+        termsAndConditions: 'Warranty included',
+        wholesalePriceTZS: 15000000,
+        minOrderQuantity: 1,
+        productCondition: 'BRAND_NEW',
+        warrantyPeriod: '12 Months',
+        qualityScore: 95,
+      },
+      organization: { tradingName: 'PowerTech TZ' },
+    }
+
+    vi.spyOn(db.opportunity, 'findFirst').mockResolvedValue(mockDbOpp as any)
+
+    // Test UUID match
+    const uuidRes = await resolvePromoCodeAsync('bb8f4a21-1234-4567-89ab-cdef01234567', 'LUMO-P123-GEN')
+    expect(uuidRes.isValid).toBe(true)
+    expect(uuidRes.dealId).toBe('bb8f4a21-1234-4567-89ab-cdef01234567')
+    expect(uuidRes.dealSlug).toBe('heavy-duty-generator')
+    expect(uuidRes.dealData?.title).toBe('Heavy Duty Industrial Generator')
+    // Ensure sensitive organization name is replaced with public brand
+    expect(uuidRes.dealData?.publisherName).toBe('Lumo Dealers')
+
+    // Test prefix match (e.g., mobile scan showing 'bb8')
+    vi.spyOn(db, '$queryRaw').mockResolvedValue([{ id: 'bb8f4a21-1234-4567-89ab-cdef01234567' }] as any)
+    vi.spyOn(db.opportunity, 'findUnique').mockResolvedValue(mockDbOpp as any)
+
+    // Clear findFirst mock so it tests prefix path
+    vi.spyOn(db.opportunity, 'findFirst').mockResolvedValue(null)
+
+    const prefixRes = await resolvePromoCodeAsync('bb8')
+    expect(prefixRes.isValid).toBe(true)
+    expect(prefixRes.dealId).toBe('bb8f4a21-1234-4567-89ab-cdef01234567')
+    expect(prefixRes.dealSlug).toBe('heavy-duty-generator')
+  })
 })
+

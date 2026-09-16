@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { checkAdminSession } from '@/lib/admin-session'
 import { db } from '@/lib/db'
 import { generateDateBuckets, mergeEventSeries, AnalyticsPeriod, RawEventItem } from '@/lib/dynamicDateRange'
 
 export async function GET(request: NextRequest) {
+  const denied = await checkAdminSession(request)
+  if (denied) return denied
   try {
     const { searchParams } = new URL(request.url)
     const region = searchParams.get('region') || 'ALL'
@@ -35,7 +38,7 @@ export async function GET(request: NextRequest) {
           status: 'PUBLISHED',
           deletedAt: null,
           ...(region !== 'ALL' ? { region } : {}),
-          ...(opportunityType !== 'ALL' ? { opportunityType: opportunityType as any } : {}),
+          ...(opportunityType !== 'ALL' ? { opportunityType: opportunityType as import("@prisma/client").OpportunityType } : {}),
         },
       }),
       db.verificationCase.count({ where: { status: 'PENDING' } }),
@@ -44,7 +47,7 @@ export async function GET(request: NextRequest) {
       db.dispute.count({ where: { status: { in: ['OPENED', 'UNDER_REVIEW', 'EVIDENCE_SUBMITTED'] } } }),
       db.riskAlert.count({ where: { status: { in: ['OPEN', 'INVESTIGATING'] } } }),
       db.paymentAttempt.aggregate({
-        where: { status: 'SUCCESSFUL' },
+        where: { status: 'SUCCESSFUL', currency: 'TZS' },
         _sum: { amountMinor: true },
       }),
       db.reward.aggregate({
@@ -117,7 +120,7 @@ export async function GET(request: NextRequest) {
     const grossPaymentMinor = paymentAggregate._sum.amountMinor ? Number(paymentAggregate._sum.amountMinor) : 0
     const platformRevenueTZS = Math.round(grossPaymentMinor / 100)
     const paidRewardsMinor = rewardAggregate._sum.netAmountMinor ? Number(rewardAggregate._sum.netAmountMinor) : 0
-    const netVolumeTZS = Math.round((grossPaymentMinor + paidRewardsMinor) / 100)
+    const netVolumeTZS = grossPaymentMinor / 100
 
     // Handle CSV Export
     if (exportFormat === 'csv') {
@@ -127,7 +130,7 @@ export async function GET(request: NextRequest) {
         `Total Organizations,${totalOrgs}`,
         `Verified Businesses,${verifiedOrgs}`,
         `Live Opportunities,${liveOpportunities}`,
-        `Platform Revenue TZS,${platformRevenueTZS}`,
+        `Gross Collections TZS,${platformRevenueTZS}`,
         `Pending Verifications,${pendingVerifications}`,
         `Pending Deal Approvals,${pendingDeals}`,
         `Pending Payout Batches,${pendingPayouts}`,
@@ -171,7 +174,7 @@ export async function GET(request: NextRequest) {
         role: roleMapped,
         status: u.accountStatus,
         mfaEnabled: u.twoFactorEnabled,
-        lastActive: 'Active',
+        lastActive: 'Not recorded',
         joinedDate: u.createdAt.toISOString().slice(0, 10),
         totalTransactions: 0,
         balanceTZS: 0,
@@ -197,16 +200,16 @@ export async function GET(request: NextRequest) {
       contactPerson: vc.user?.name || 'Representative',
       email: vc.user?.email || '—',
       phone: vc.user?.phone || '—',
-      category: 'Renewable Energy & Trade',
-      industry: 'Renewable Energy & Commercial Trade',
+      category: 'Not recorded',
+      industry: 'Not recorded',
       status: (vc.status === 'IN_REVIEW' ? 'PENDING' : vc.status) as 'PENDING' | 'APPROVED' | 'REJECTED',
       submittedAt: vc.createdAt.toISOString().slice(0, 10),
       documents: vc.documents.map((d) => ({
         id: d.id,
-        type: d.documentType as any,
+        type: d.documentType,
         name: d.fileAsset.fileName,
         fileName: d.fileAsset.fileName,
-        fileSize: '1.2 MB',
+        fileSize: `${d.fileAsset.fileSizeBytes} bytes`,
         fileUrl: '#',
         status: (vc.status === 'IN_REVIEW' ? 'PENDING' : vc.status) as 'PENDING' | 'APPROVED' | 'REJECTED',
         uploadedAt: d.createdAt.toISOString().slice(0, 10),
@@ -218,19 +221,19 @@ export async function GET(request: NextRequest) {
       timestamp: log.createdAt.toISOString().replace('T', ' ').slice(0, 19),
       actorId: log.actorUserId || 'SYSTEM',
       actorName: log.actor?.name || 'System / Automated Registration',
-      actorRole: log.actorUserId ? 'SUPER_ADMIN' : 'SYSTEM',
+      actorRole: log.actorUserId ? 'Not recorded at event time' : 'SYSTEM',
       action: log.action,
       module: (['AUTH', 'BUSINESS', 'DEALS', 'PAYMENTS', 'PAYOUTS', 'RISK', 'SETTINGS', 'SYSTEM'].includes(
         log.entityType?.toUpperCase() || ''
       )
         ? log.entityType?.toUpperCase()
-        : 'BUSINESS') as any,
+        : 'BUSINESS'),
       resourceId: log.entityId || log.id,
-      ipAddress: log.ipAddress || '127.0.0.1 (Localhost)',
-      userAgent: log.userAgent || 'Mozilla/5.0 (Lumo Platform Auth)',
-      beforeState: (log.beforeData as any) || undefined,
-      afterState: (log.afterData as any) || undefined,
-      hashSignature: 'sha256:' + log.id.replace(/-/g, '').slice(0, 16),
+      ipAddress: log.ipAddress || 'Not recorded',
+      userAgent: log.userAgent || 'Not recorded',
+      beforeState: log.beforeData || undefined,
+      afterState: log.afterData || undefined,
+      hashSignature: 'Not recorded',
     }))
 
     // Dynamic Rolling Time-Series Engine for Admin Chart
@@ -239,17 +242,16 @@ export async function GET(request: NextRequest) {
 
     const rawEvents: RawEventItem[] = []
     if (process.env.DATABASE_URL?.trim()) {
-      try {
         const [recentPayments, recentUsers] = await Promise.all([
           db.paymentAttempt.findMany({
-            where: { status: 'SUCCESSFUL' },
+            where: { status: 'SUCCESSFUL', currency: 'TZS' },
             select: { createdAt: true, amountMinor: true },
-            take: 500,
+
           }),
           db.user.findMany({
             where: { deletedAt: null },
             select: { createdAt: true },
-            take: 500,
+
           }),
         ])
 
@@ -268,9 +270,7 @@ export async function GET(request: NextRequest) {
             activeUsers: 1,
           })
         })
-      } catch (e) {
-        console.warn('Could not aggregate admin time series from database:', e)
-      }
+
     }
 
     const populatedSeries = mergeEventSeries(buckets, rawEvents, validPeriod).map((pt) => ({
@@ -298,14 +298,14 @@ export async function GET(request: NextRequest) {
         databaseConnected: true,
         uptimeSeconds: Math.floor(process.uptime()),
         lastSync: new Date().toISOString(),
-        version: '1.0.0-PROD',
+        version: process.env.npm_package_version ?? null,
       },
       users: formattedUsers,
       verifications: formattedVerifications,
       auditLogs: formattedLogs,
       series: populatedSeries,
     })
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  } catch {
+    return NextResponse.json({ error: 'Unable to load overview. Please retry.' }, { status: 500 })
   }
 }

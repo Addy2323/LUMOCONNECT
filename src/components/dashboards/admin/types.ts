@@ -75,6 +75,8 @@ export interface BusinessVerificationItem {
 }
 
 export interface AdminDealItem {
+  rewardDisplay?: string
+  budgetRecorded?: boolean
   merchantTIN?: string
   makerOperator?: string
   id: string
@@ -141,6 +143,7 @@ export interface SubscriptionTransaction {
 }
 
 export interface PaymentLedgerItem {
+  currency?: string
   id: string
   reference: string
   payerName: string
@@ -150,8 +153,8 @@ export interface PaymentLedgerItem {
   subscriptionType?: 'NORMAL' | 'GOLDEN_VIP_PRIVATE'
   subscriptionTier?: 'STARTER' | 'STANDARD' | 'GOLDEN_VIP' | 'ANNUAL' | 'ENTERPRISE'
   grossAmountTZS: number
-  processingFeeTZS: number
-  netAmountTZS: number
+  processingFeeTZS: number | null
+  netAmountTZS: number | null
   status: 'CREATED' | 'PENDING' | 'PROCESSING' | 'SUCCESSFUL' | 'FAILED' | 'EXPIRED' | 'REFUNDED'
   createdAt: string
   verifiedAt?: string

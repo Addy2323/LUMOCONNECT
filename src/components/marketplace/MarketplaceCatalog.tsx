@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import type { OpportunityItem } from '@/modules/deals/types'
 import { getUserEnrolledDealIds } from '@/modules/deals/service'
 import { MarketplaceSectionHeader } from './MarketplaceSectionHeader'
@@ -62,6 +62,7 @@ interface MarketplaceCatalogProps {
   onPostOpportunity: () => void
   onConnectWhatsApp?: (opportunity: OpportunityItem) => void
   onUpgradeToVip?: () => void
+  footer?: React.ReactNode
 }
 
 export function MarketplaceCatalog({
@@ -91,11 +92,17 @@ export function MarketplaceCatalog({
   onPostOpportunity,
   onConnectWhatsApp,
   onUpgradeToVip,
+  footer,
 }: MarketplaceCatalogProps) {
   const { t, locale } = useLanguage()
   const categoryIcons = [House, CarFront, Package, Sprout, BriefcaseBusiness, Wrench]
   const [vipTab, setVipTab] = useState<'ALL' | 'VIP' | 'STANDARD'>('ALL')
+  const resultsRef = useRef<HTMLDivElement>(null)
   const [enrolledIds, setEnrolledIds] = useState<Set<string>>(() => getUserEnrolledDealIds(currentUserId))
+
+  useEffect(() => {
+    resultsRef.current?.scrollTo({ top: 0, behavior: 'instant' })
+  }, [query, selectedCategory, selectedType, selectedRegion, sortBy, minReward, vipTab])
 
   useEffect(() => {
     const syncEnrolled = () => {
@@ -132,7 +139,7 @@ export function MarketplaceCatalog({
   })
 
   return (
-    <section id="marketplace" aria-labelledby="marketplace-title" className="scroll-mt-24">
+    <section id="marketplace" aria-labelledby="marketplace-title" className="marketplace-workspace scroll-mt-24">
       <div id="marketplace-filters-section" className="scroll-mt-24 pt-2">
         <MarketplaceSectionHeader
           onPostOpportunity={onPostOpportunity}
@@ -161,8 +168,8 @@ export function MarketplaceCatalog({
         />
       </div>
 
-      <div className="items-start gap-6 lg:grid lg:grid-cols-[250px_minmax(0,1fr)]">
-        <aside className="sticky top-24 hidden overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 lg:block">
+      <div className="marketplace-columns items-start gap-6 lg:grid lg:grid-cols-[250px_minmax(0,1fr)]">
+        <aside aria-label={locale === 'sw' ? 'Vichujio vya soko' : 'Marketplace filters'} className="marketplace-sidebar hidden overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 lg:block">
           <div className="border-b border-slate-200 px-5 py-4 dark:border-slate-800">
             <h3 className="flex items-center gap-2 text-base font-black text-slate-900 dark:text-white">
               <SlidersHorizontal className="h-4 w-4 text-orange-500" /> {t('Categories')}
@@ -226,7 +233,7 @@ export function MarketplaceCatalog({
           </div>
         </aside>
 
-        <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50/70 p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950/30 sm:p-5">
+        <div ref={resultsRef} role="region" aria-label={locale === 'sw' ? 'Orodha ya fursa' : 'Marketplace results'} tabIndex={0} className="marketplace-results min-w-0 rounded-2xl border border-slate-200 bg-slate-50/70 p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950/30 sm:p-5">
           {/* Golden VIP 24h Early Access Promo Banner */}
           <div className="mb-4 rounded-2xl border border-amber-300 bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-amber-500/5 p-4 dark:border-amber-700/60 dark:bg-amber-950/20">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
@@ -428,6 +435,7 @@ export function MarketplaceCatalog({
           ) : vipTab === 'VIP' && !canSeeVipProducts ? null : (
             <MarketplaceEmptyState onReset={onClearFilters} />
           )}
+          {footer}
         </div>
       </div>
     </section>

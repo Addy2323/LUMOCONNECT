@@ -1,19 +1,24 @@
+import { OpportunityStatus, OpportunityType } from '@prisma/client'
 import { NextRequest, NextResponse } from 'next/server'
+import { checkAdminSession } from '@/lib/admin-session'
 import { db } from '@/lib/db'
 import { getDatabaseSession, DATABASE_SESSION_COOKIE } from '@/lib/database-session'
 
 export async function GET(request: NextRequest) {
+  const denied = await checkAdminSession(request)
+  if (denied) return denied
   try {
     const { searchParams } = new URL(request.url)
     const statusFilter = searchParams.get('status') || 'ALL'
     const typeFilter = searchParams.get('type') || 'ALL'
     const query = searchParams.get('q') || ''
+    if ((statusFilter !== 'ALL' && !Object.values(OpportunityStatus).includes(statusFilter as OpportunityStatus)) || (typeFilter !== 'ALL' && !Object.values(OpportunityType).includes(typeFilter as OpportunityType))) return NextResponse.json({ error: 'Invalid deal filter.' }, { status: 400 })
 
     const opportunities = await db.opportunity.findMany({
       where: {
         deletedAt: null,
-        ...(statusFilter !== 'ALL' ? { status: statusFilter as any } : {}),
-        ...(typeFilter !== 'ALL' ? { opportunityType: typeFilter as any } : {}),
+        ...(statusFilter !== 'ALL' ? { status: statusFilter as OpportunityStatus } : {}),
+        ...(typeFilter !== 'ALL' ? { opportunityType: typeFilter as OpportunityType } : {}),
         ...(query
           ? {
               OR: [
@@ -29,10 +34,10 @@ export async function GET(request: NextRequest) {
       include: {
         organization: true,
         category: true,
-        publishedVersion: true,
+        publishedVersion: { include: { rewardRules: true } },
         _count: {
           select: {
-            participations: true,
+            participations: { where: { status: 'ACTIVE' } },
             conversions: true,
           },
         },
@@ -46,9 +51,20 @@ export async function GET(request: NextRequest) {
       type: opp.opportunityType,
       category: opp.category?.name || 'General',
       region: opp.region,
-      rewardDisplay: opp.publishedVersion?.rewardSummary || 'Standard Reward',
+      rewardDisplay: opp.publishedVersion?.rewardSummary || 'Terms not recorded',
       status: opp.status,
       activePartnersCount: opp._count.participations,
+      activePartners: opp._count.participations,
+      version: opp.publishedVersion?.versionNumber ?? null,
+      slug: opp.slug,
+      summary: opp.summary,
+      description: opp.description,
+      featuredImageUrl: opp.coverImageUrl,
+      promoVideoUrl: opp.promoVideoUrl,
+      galleryImageUrls: opp.galleryImageUrls,
+      termsAndConditions: opp.publishedVersion?.termsAndConditions ?? null,
+      spentTZS: Number(opp.spentBudgetMinor) / 100,
+      budgetRecorded: opp.totalBudgetMinor !== null,
       totalConversionsCount: opp._count.conversions,
       budgetTZS: Number(opp.totalBudgetMinor ? opp.totalBudgetMinor / 100n : 0n),
       createdAt: opp.createdAt.toISOString().slice(0, 10),
@@ -56,20 +72,23 @@ export async function GET(request: NextRequest) {
     }))
 
     return NextResponse.json({ deals: formattedDeals })
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  } catch {
+    return NextResponse.json({ error: 'Unable to process the deal request. Please refresh and retry.' }, { status: 500 })
   }
 }
 
 export async function PATCH(request: NextRequest) {
+  const denied = await checkAdminSession(request)
+  if (denied) return denied
   try {
     const session = await getDatabaseSession(request.cookies.get(DATABASE_SESSION_COOKIE)?.value)
-    const actorId = session?.userId || 'usr_root_admin'
+    if (!session) return NextResponse.json({ error: 'Session expired.' }, { status: 401 })
+    const actorId = session.userId
 
     const body = await request.json().catch(() => ({}))
     const { dealId, status, rejectionReason } = body
 
-    if (!dealId || !status) {
+    if (typeof dealId !== 'string' || !/^[0-9a-f-]{36}$/i.test(dealId) || !['PAUSED', 'PUBLISHED', 'ARCHIVED'].includes(status)) {
       return NextResponse.json({ message: 'Missing dealId or status.' }, { status: 400 })
     }
 
@@ -81,9 +100,12 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ message: 'Opportunity not found.' }, { status: 404 })
     }
 
+    const allowed = status === 'ARCHIVED' ? opportunity.status !== 'ARCHIVED' : (status === 'PAUSED' ? opportunity.status === 'PUBLISHED' : opportunity.status === 'PAUSED' && !!opportunity.publishedVersionId)
+    if (!allowed) return NextResponse.json({ error: 'This status transition is not allowed. Use the approval workflow to publish a draft.' }, { status: 409 })
+
     const updatedOpp = await db.$transaction(async (tx) => {
       const updated = await tx.opportunity.update({
-        where: { id: dealId },
+        where: { id: dealId, status: opportunity.status },
         data: {
           status,
         },
@@ -103,8 +125,8 @@ export async function PATCH(request: NextRequest) {
       return updated
     })
 
-    return NextResponse.json({ success: true, deal: updatedOpp })
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ success: true, deal: { id: updatedOpp.id, status: updatedOpp.status } })
+  } catch {
+    return NextResponse.json({ error: 'Unable to process the deal request. Please refresh and retry.' }, { status: 500 })
   }
 }
