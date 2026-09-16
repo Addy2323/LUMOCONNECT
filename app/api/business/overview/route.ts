@@ -1,14 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { getDatabaseSession, DATABASE_SESSION_COOKIE } from '@/lib/database-session'
-import { listOpportunities } from '@/modules/deals/service'
+import { getAuthenticatedBusiness } from '@/lib/business-guard'
 import { generateDateBuckets, mergeEventSeries, AnalyticsPeriod, RawEventItem } from '@/lib/dynamicDateRange'
 
 export async function GET(request: NextRequest) {
   try {
-    const sessionToken = request.cookies.get(DATABASE_SESSION_COOKIE)?.value
-    const session = await getDatabaseSession(sessionToken)
-    const userId = session?.userId || request.headers.get('x-user-id') || ''
+    let biz: any = null
+    try {
+      biz = await getAuthenticatedBusiness(request)
+    } catch (authErr: any) {
+      // If unauthenticated or no org, return a safe empty 0-state response
+      const period = '7D'
+      const buckets = generateDateBuckets(period)
+      return NextResponse.json({
+        success: true,
+        metrics: {
+          liveOpportunitiesCount: 0,
+          pendingOpportunitiesCount: 0,
+          totalOpportunitiesCount: 0,
+          activePartnersCount: 0,
+          totalConversions: 0,
+          totalSpentTZS: 0,
+          totalDealValueTZS: 0,
+          activeDealValueTZS: 0,
+          pendingDealValueTZS: 0,
+          completedDealValueTZS: 0,
+          pipelineRevenueTZS: 0,
+        },
+        series: buckets.map((b) => ({ ...b, day: b.label, pipelineRevenueTZS: 0 })),
+      })
+    }
 
     const { searchParams } = new URL(request.url)
     const periodParam = searchParams.get('period') || '7D'
@@ -16,95 +37,137 @@ export async function GET(request: NextRequest) {
       ? periodParam
       : '7D') as AnalyticsPeriod
 
-    // 1. Get opportunities from authoritative deals store
-    const allOpps = listOpportunities()
-    const liveOpportunities = allOpps.filter((o) => o.status === 'PUBLISHED')
-    const oppIds = new Set(allOpps.map((o) => o.id))
+    const businessId = biz.businessId
 
-    let activePartnersCount = allOpps.reduce((acc, o) => acc + (o.activePartnerCount || 0), 0)
-    let totalConversions = 0
-    let totalSpentTZS = 0
-
-    // 2. Query database for participations, referral tickets, and payments if available
-    const rawEvents: RawEventItem[] = []
+    // Query exclusively opportunities owned by this business
+    let opportunities: any[] = []
+    let participations: any[] = []
+    let referrals: any[] = []
+    let payments: any[] = []
 
     if (process.env.DATABASE_URL?.trim()) {
       try {
-        const [dealParts, referrals, recentPayments] = await Promise.all([
-          db.dealParticipation.findMany({
-            where: {
-              status: 'ACTIVE',
+        opportunities = await db.opportunity.findMany({
+          where: {
+            organizationId: businessId,
+            deletedAt: null,
+          },
+          include: {
+            versions: {
+              orderBy: { versionNumber: 'desc' },
+              take: 1,
             },
-            select: {
-              id: true,
-              opportunityId: true,
-              joinedAt: true,
-            },
-            take: 200,
-          }),
-          db.referralTicket.findMany({
-            orderBy: { createdAt: 'desc' },
-            take: 500,
-            select: {
-              id: true,
-              opportunityId: true,
-              stage: true,
-              rewardAmountTZS: true,
-              rewardStatus: true,
-              createdAt: true,
-            },
-          }),
-          db.paymentAttempt.findMany({
-            where: { status: 'SUCCESSFUL' },
-            orderBy: { createdAt: 'desc' },
-            take: 100,
-            select: {
-              amountMinor: true,
-              createdAt: true,
-            },
-          }),
-        ])
+          },
+          orderBy: { createdAt: 'desc' },
+        })
 
-        if (dealParts.length > 0) {
-          activePartnersCount = Math.max(activePartnersCount, dealParts.length)
+        const oppIds = opportunities.map((o) => o.id)
+
+        if (oppIds.length > 0) {
+          const [dbParts, dbReferrals] = await Promise.all([
+            db.dealParticipation.findMany({
+              where: {
+                opportunityId: { in: oppIds },
+                status: 'ACTIVE',
+              },
+              select: {
+                id: true,
+                opportunityId: true,
+                partnerUserId: true,
+                joinedAt: true,
+              },
+            }),
+            db.referralTicket.findMany({
+              where: {
+                opportunityId: { in: oppIds },
+              },
+              select: {
+                id: true,
+                opportunityId: true,
+                stage: true,
+                rewardAmountTZS: true,
+                rewardStatus: true,
+                createdAt: true,
+              },
+            }),
+          ])
+
+          participations = dbParts
+          referrals = dbReferrals
         }
 
-        referrals.forEach((r) => {
-          if (r.stage === 'COMPLETED' || r.rewardStatus === 'PARTNER_CONFIRMS_RECEIPT') {
-            totalConversions += 1
-          }
-          if (r.createdAt) {
-            rawEvents.push({
-              timestamp: r.createdAt,
-              type: 'LEAD',
-              amountTZS: Number(r.rewardAmountTZS || 0),
-            })
-            if (r.stage === 'COMPLETED' || r.rewardStatus === 'PARTNER_CONFIRMS_RECEIPT') {
-              rawEvents.push({
-                timestamp: r.createdAt,
-                type: 'CONVERSION',
-                amountTZS: Number(r.rewardAmountTZS || 0),
-              })
-            }
-          }
-        })
-
-        recentPayments.forEach((p) => {
-          if (p.createdAt) {
-            rawEvents.push({
-              timestamp: p.createdAt,
-              type: 'TRANSACTION',
-              amountTZS: Number(p.amountMinor || 0) / 100,
-            })
-          }
+        payments = await db.paymentAttempt.findMany({
+          where: {
+            status: 'SUCCESSFUL',
+            userId: biz.userId,
+          },
+          select: {
+            createdAt: true,
+            amountMinor: true,
+          },
+          take: 50,
         })
       } catch (e) {
-        console.warn('Could not query database for business overview:', e)
+        console.warn('Database query error in business overview:', e)
       }
     }
 
-    // 3. Dynamic Rolling Time-Series Engine
+    // Compute isolated aggregates strictly for this business
+    const liveOpportunities = opportunities.filter((o) => o.status === 'PUBLISHED')
+    const pendingOpportunities = opportunities.filter(
+      (o) => o.status === 'SUBMITTED' || o.status === 'UNDER_REVIEW'
+    )
+    const completedOpportunities = opportunities.filter((o) => o.status === 'CLOSED')
+    const pausedOpportunities = opportunities.filter((o) => o.status === 'PAUSED')
+
+    const activePartnersCount = new Set(participations.map((p) => p.partnerUserId)).size
+    const totalConversions = referrals.filter(
+      (r) => r.stage === 'COMPLETED' || r.rewardStatus === 'PARTNER_CONFIRMS_RECEIPT'
+    ).length
+
+    // Deal Values
+    const getOppValue = (o: any) => Number(o.totalBudgetMinor || 0) / 100
+    const totalDealValueTZS = opportunities.reduce((sum, o) => sum + getOppValue(o), 0)
+    const activeDealValueTZS = liveOpportunities.reduce((sum, o) => sum + getOppValue(o), 0)
+    const pendingDealValueTZS = pendingOpportunities.reduce((sum, o) => sum + getOppValue(o), 0)
+    const completedDealValueTZS = completedOpportunities.reduce((sum, o) => sum + getOppValue(o), 0)
+    const totalSpentTZS = opportunities.reduce(
+      (sum, o) => sum + Number(o.spentBudgetMinor || 0) / 100,
+      0
+    )
+
+    // Dynamic Rolling Series
     const buckets = generateDateBuckets(period)
+    const rawEvents: RawEventItem[] = []
+
+    referrals.forEach((r) => {
+      const ts = r.createdAt
+      if (ts) {
+        rawEvents.push({
+          timestamp: ts,
+          type: 'LEAD',
+          amountTZS: Number(r.rewardAmountTZS || 0),
+        })
+        if (r.stage === 'COMPLETED' || r.rewardStatus === 'PARTNER_CONFIRMS_RECEIPT') {
+          rawEvents.push({
+            timestamp: ts,
+            type: 'CONVERSION',
+            amountTZS: Number(r.rewardAmountTZS || 0),
+          })
+        }
+      }
+    })
+
+    payments.forEach((p) => {
+      if (p.createdAt) {
+        rawEvents.push({
+          timestamp: p.createdAt,
+          type: 'TRANSACTION',
+          amountTZS: Number(p.amountMinor || 0) / 100,
+        })
+      }
+    })
+
     const populatedSeries = mergeEventSeries(buckets, rawEvents, period).map((b) => ({
       ...b,
       day: b.label,
@@ -115,12 +178,23 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      business: {
+        id: biz.businessId,
+        name: biz.organizationName,
+        verificationStatus: biz.verificationStatus,
+        registrationNumber: biz.registrationNumber,
+      },
       metrics: {
         liveOpportunitiesCount: liveOpportunities.length,
-        totalOpportunitiesCount: allOpps.length,
+        pendingOpportunitiesCount: pendingOpportunities.length,
+        totalOpportunitiesCount: opportunities.length,
         activePartnersCount,
         totalConversions,
         totalSpentTZS,
+        totalDealValueTZS,
+        activeDealValueTZS,
+        pendingDealValueTZS,
+        completedDealValueTZS,
         pipelineRevenueTZS: totalPipelineRevenue,
       },
       series: populatedSeries,

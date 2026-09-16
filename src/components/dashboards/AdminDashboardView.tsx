@@ -1,7 +1,7 @@
 'use client'
 
 import { BackToHomeButton } from '@/components/shared/BackToHomeButton'
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
   Search,
   Bell,
@@ -60,6 +60,10 @@ export function AdminDashboardView({
   onSignOut,
 }: AdminDashboardViewProps) {
   const [activeTab, setActiveTab] = useState<AdminSidebarSection>('overview')
+  const contentScrollRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    contentScrollRef.current?.scrollTo({ top: 0, behavior: 'instant' })
+  }, [activeTab])
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [showStatusModal, setShowStatusModal] = useState(false)
   const [showProfileModal, setShowProfileModal] = useState(false)
@@ -86,7 +90,7 @@ export function AdminDashboardView({
 
   return (
     <AdminToastProvider>
-      <div className="dashboard-shell w-full bg-[#F8FAFC] dark:bg-[#0B1220] min-h-screen text-[#0F172A] dark:text-slate-100 flex flex-col lg:flex-row transition-colors">
+      <div className="dashboard-shell dashboard-viewport w-full bg-[#F8FAFC] dark:bg-[#0B1220] text-[#0F172A] dark:text-slate-100 flex flex-col lg:flex-row transition-colors">
       {/* ========================================================================= */}
       {/* DESKTOP 4-GROUP STRUCTURED ADMIN SIDEBAR                                  */}
       {/* ========================================================================= */}
@@ -125,7 +129,7 @@ export function AdminDashboardView({
       {/* ========================================================================= */}
       {/* MAIN DASHBOARD CONTENT AREA                                               */}
       {/* ========================================================================= */}
-      <main className="dashboard-main min-w-0 flex-1 w-full space-y-5 sm:space-y-6">
+      <main className="dashboard-main min-w-0 flex-1 w-full">
         {/* Top Header Bar */}
         <div className="dashboard-topbar bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 flex items-center justify-between gap-3">
           <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -193,6 +197,7 @@ export function AdminDashboardView({
         {/* TAB ROUTING RENDERER                                                      */}
         {/* ========================================================================= */}
         {/* GROUP 1: PLATFORM */}
+        <div ref={contentScrollRef} className="dashboard-content space-y-5 sm:space-y-6" role="region" aria-label="Admin dashboard content" tabIndex={0}>
         {activeTab === 'overview' && (
           <OverviewTab
             adminName={adminName}
@@ -228,6 +233,7 @@ export function AdminDashboardView({
         {activeTab === 'roles' && <RolesPermissionsTab />}
         {activeTab === 'integrations' && <IntegrationsWebhooksTab />}
         {activeTab === 'settings' && <SystemSettingsTab />}
+        </div>
       </main>
 
       {/* ========================================================================= */}

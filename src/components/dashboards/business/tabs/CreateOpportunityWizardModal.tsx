@@ -914,7 +914,9 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
   }
 
 
-  const handleSubmitToLumo = () => {
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const handleSubmitToLumo = async () => {
     if (!formData.confirmAccurate || !formData.confirmNoSilentChanges) {
       showToast('error', 'Declaration Required', 'Please confirm all compliance declarations before submitting to LUMO.')
       return
@@ -956,51 +958,63 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
       createdAt: 'Today',
     }
 
-    createDealOpportunity(
-      {
-        title: formData.title,
-        opportunityType: (formData.type as any) || 'CUSTOMER_ACQUISITION',
-        category: formData.category || 'Renewable Energy',
-        subcategory: formData.subcategory || undefined,
-        summary: formData.publicSummary || formData.title,
-        description: formData.subscriberDescription || formData.publicSummary || formData.title,
-        rewardType:
-          formData.rewardStructure === 'PERCENTAGE_COMMISSION'
-            ? 'PERCENTAGE_COMMISSION'
-            : formData.rewardStructure === 'CUSTOM_DEAL_TERMS'
-            ? 'CUSTOM_DEAL_TERMS'
-            : formData.rewardStructure === 'HYBRID_COMPENSATION'
-            ? 'HYBRID'
-            : formData.rewardStructure === 'MILESTONE_BONUS'
-            ? 'MILESTONE_BONUS'
-            : 'COST_PER_ACQUISITION',
-        baseRewardValue: Number(formData.rewardValueTZS) || 50000,
-        currency: 'TZS',
-        customRewardDisplay: effectiveRewardDisplay,
-        customRewardDetail: effectiveRewardDetail,
-        customFormulaDescription: formData.customFormulaDescription,
-        attributionWindowDays: Number(formData.attributionWindowDays) || 30,
-        percentageBps: Number(formData.rewardPercent) ? Number(formData.rewardPercent) * 100 : undefined,
-        totalBudgetTZS: Number(formData.estimatedBudgetTZS) || 10000000,
-        maxPartners: 50,
-        region: formData.region || 'All Tanzania',
-        termsAndConditions: formData.cancellationTerms || 'Reward is validated upon delivery note and verification.',
-        requiresApproval: true,
-        featuredImageUrl: formData.coverImageUrl,
-        promoVideoUrl: formData.promoVideoUrl,
-      },
-      'org_current',
-      'Lumo Deals',
-      'PENDING_REVIEW'
-    )
+    try {
+      setIsSubmitting(true)
+      const response = await fetch('/api/business/opportunities', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: formData.title,
+          summary: formData.publicSummary || formData.title,
+          description: formData.subscriberDescription || formData.publicSummary || formData.title,
+          opportunityType: formData.type || 'COMMERCIAL_DEAL',
+          category: formData.category || 'Renewable Energy',
+          region: formData.region || 'All Tanzania',
+          commercialResult: formData.commercialResult,
+          rewardType: formData.rewardStructure === 'PERCENTAGE_COMMISSION' ? 'PERCENTAGE' : 'FIXED',
+          rewardStructure: formData.rewardStructure,
+          rewardValueTZS: Number(formData.rewardValueTZS) || 0,
+          rewardPercent: Number(formData.rewardPercent) || 0,
+          customRewardDisplay: effectiveRewardDisplay,
+          customRewardDetail: effectiveRewardDetail,
+          customFormulaDescription: formData.customFormulaDescription,
+          budgetTZS: Number(formData.estimatedBudgetTZS) || 0,
+          attributionWindowDays: Number(formData.attributionWindowDays) || 30,
+          partnerDeliverables: formData.partnerDeliverables,
+          evidenceRequired: formData.evidenceRequired,
+          cancellationTerms: formData.cancellationTerms,
+          coverImageUrl: formData.coverImageUrl,
+          promoVideoUrl: formData.promoVideoUrl,
+          galleryImageUrls: formData.galleryImageUrls,
+          marketingAssets: formData.marketingAssets,
+          status: 'PENDING_REVIEW',
+        }),
+      })
 
-    onOpportunityCreated(created)
-    onClose()
-    showToast(
-      'success',
-      'Opportunity Submitted to LUMO Review',
-      `"${created.title}" with rich media assets is now in the Admin Maker-Checker review queue.`
-    )
+      const result = await response.json()
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Failed to create opportunity')
+      }
+
+      const createdItem: BusinessOpportunityItem = {
+        ...created,
+        id: result.data.id,
+        slug: result.data.slug || created.slug,
+        status: (result.data.status as any) || 'SUBMITTED',
+      }
+
+      onOpportunityCreated(createdItem)
+      onClose()
+      showToast(
+        'success',
+        'Opportunity Submitted to LUMO Review',
+        `"${created.title}" with rich media assets is now in the Admin Maker-Checker review queue.`
+      )
+    } catch (err: any) {
+      showToast('error', 'Submission Failed', err.message || 'Error creating opportunity')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (

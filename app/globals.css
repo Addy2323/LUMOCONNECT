@@ -353,14 +353,15 @@ html, body {
   }
 }
 
-/* The partner workspace owns its scroll area; navigation and header stay visible. */
-.partner-dashboard-shell {
+/* Dashboard workspaces own their scroll area; navigation and headers stay visible. */
+.partner-dashboard-shell,
+.dashboard-viewport {
   height: 100dvh;
   min-height: 0;
   overflow: hidden;
 }
 
-.partner-dashboard-shell > .dashboard-main {
+:is(.partner-dashboard-shell, .dashboard-viewport) > .dashboard-main {
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -368,19 +369,20 @@ html, body {
   padding: 0;
 }
 
-.partner-dashboard-shell .dashboard-topbar {
+:is(.partner-dashboard-shell, .dashboard-viewport) .dashboard-topbar {
   position: relative;
   flex-shrink: 0;
   margin: 0;
 }
 
-.partner-dashboard-shell > .dashboard-sidebar {
+:is(.partner-dashboard-shell, .dashboard-viewport) > .dashboard-sidebar {
   height: 100%;
   min-height: 0;
   position: relative;
 }
 
-.partner-dashboard-content {
+.partner-dashboard-content,
+.dashboard-content {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -389,19 +391,22 @@ html, body {
   padding: 24px 16px 32px;
 }
 
-.partner-dashboard-content:focus-visible {
+.partner-dashboard-content:focus-visible,
+.dashboard-content:focus-visible {
   outline: 2px solid #ff6a00;
   outline-offset: -2px;
 }
 
 @media (min-width: 640px) {
-  .partner-dashboard-content {
+  .partner-dashboard-content,
+  .dashboard-content {
     padding: 24px 24px 40px;
   }
 }
 
 @media (min-width: 1024px) {
-  .partner-dashboard-content {
+  .partner-dashboard-content,
+  .dashboard-content {
     padding-right: 32px;
     padding-left: 32px;
   }

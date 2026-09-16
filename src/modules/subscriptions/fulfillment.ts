@@ -33,10 +33,24 @@ export async function activateSubscriptionInDatabase(params: {
     normalizedCode === 'ENTERPRISE'
 
   // 1. Find user in PostgreSQL database
-  let targetUser: { id: string; email: string; phone?: string | null; name: string } | null = null
+  let targetUser: any = null
 
   if (process.env.DATABASE_URL?.trim()) {
     try {
+      const userSelect = {
+        id: true,
+        email: true,
+        phone: true,
+        name: true,
+        roleAssignments: {
+          select: {
+            role: {
+              select: { code: true },
+            },
+          },
+        },
+      }
+
       if (userId && !userId.includes('guest') && userId.length >= 10) {
         // Try finding by UUID or cuid
         targetUser = await db.user.findFirst({
@@ -46,14 +60,14 @@ export async function activateSubscriptionInDatabase(params: {
               ...(email ? [{ email: email.toLowerCase().trim() }] : []),
             ],
           },
-          select: { id: true, email: true, phone: true, name: true },
+          select: userSelect,
         })
       }
 
       if (!targetUser && email) {
         targetUser = await db.user.findUnique({
           where: { email: email.toLowerCase().trim() },
-          select: { id: true, email: true, phone: true, name: true },
+          select: userSelect,
         })
       }
 
@@ -63,8 +77,15 @@ export async function activateSubscriptionInDatabase(params: {
           where: {
             OR: [{ phone }, { phone: normPhone }],
           },
-          select: { id: true, email: true, phone: true, name: true },
+          select: userSelect,
         })
+      }
+
+      if (targetUser?.roleAssignments?.length) {
+        const roles = targetUser.roleAssignments.map((ra: any) => ra.role?.code).filter(Boolean)
+        if (roles.length > 0 && !roles.includes('PARTNER')) {
+          throw new Error('Subscriptions are only available for Partner accounts. Business and Admin accounts do not require subscriptions.')
+        }
       }
 
       // 2. Ensure SubscriptionPlan exists in DB

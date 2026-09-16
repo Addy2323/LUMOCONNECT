@@ -21,6 +21,7 @@ export interface VerificationDocument {
 
 export interface VerificationRecord {
   id: string
+  organizationId?: string | null
   userId?: string
   entityType: 'BUSINESS' | 'PARTNER'
   businessName: string

@@ -1,9 +1,8 @@
 'use client'
 
 import { BackToHomeButton } from '@/components/shared/BackToHomeButton'
-
-import React, { useState, useEffect, useCallback } from 'react'
-import { Menu } from 'lucide-react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
+import { Menu, ShieldCheck, Clock, ShieldAlert, Shield } from 'lucide-react'
 import { BusinessSidebarSection, BusinessOpportunityItem, BusinessPartnerItem, RewardFundingBalance } from './business/types'
 import { BusinessToastProvider } from './business/BusinessToast'
 import { BusinessMobileSidebar, BusinessSidebar } from './business/BusinessSidebar'
@@ -25,119 +24,98 @@ import { TeamAccessTab } from './business/tabs/TeamAccessTab'
 import { SettingsSecurityTab } from './business/tabs/SettingsSecurityTab'
 import { HelpSupportTab } from './business/tabs/HelpSupportTab'
 
-// Services & Domain
-import { listOpportunities } from '@/modules/deals/service'
-import type { OpportunityItem } from '@/modules/deals/types'
-
-// Initial Data
-import {
-  MOCK_BUSINESS_OPPORTUNITIES,
-  MOCK_BUSINESS_PARTNERS,
-  MOCK_FUNDING_BALANCE,
-} from './business/mockData'
-
 interface BusinessDashboardViewProps {
   initialTab?: BusinessSidebarSection
   businessName?: string
   profilePhotoUrl?: string
   registrationNumber?: string
+  userId?: string
+  organizationId?: string
+  verificationStatus?: string
   onCreateDeal?: () => void
   onExploreDeals?: () => void
   onSignOut?: () => void
 }
 
-function mapDealToBusinessOpportunity(opp: OpportunityItem): BusinessOpportunityItem {
-  return {
-    id: opp.id,
-    slug: opp.slug,
-    title: opp.title,
-    publicSummary: opp.summary,
-    subscriberDescription: opp.description,
-    type: (opp.type as any) || 'COMMERCIAL_DEAL',
-    category: opp.category,
-    region: opp.region,
-    commercialResult: 'COMPLETED_SALE',
-    rewardStructure: 'FIXED_REWARD',
-    rewardValueTZS: Number((opp as any).baseRewardValue || (opp as any).rewardValue || 50000),
-    budgetTZS: 5000000,
-    spentTZS: 0,
-    status: (opp.status as any) || 'PUBLISHED',
-    version: 1,
-    activePartners: opp.activePartnerCount || 0,
-    totalConversions: 0,
-    trackingMethod: 'PROMO_CODE',
-    startDate: new Date().toISOString().split('T')[0],
-    endDate: 'Open Access',
-    attributionWindowDays: 30,
-    partnerDeliverables: opp.description,
-    evidenceRequired: opp.termsAndConditions || 'Verified customer receipt and merchant sign-off.',
-    cancellationTerms: '7 days written notice with protection for all verified conversions.',
-    coverImageUrl: opp.featuredImageUrl,
-    promoVideoUrl: opp.promoVideoUrl,
-    createdAt: 'Active',
-    marketingAssets: [
-      { id: '1', name: 'Product Banner 1080p', url: opp.featuredImageUrl || '', type: 'IMAGE', size: '1.2 MB' },
-      { id: '2', name: 'Commercial Term Sheet PDF', url: '#', type: 'PDF', size: '240 KB' },
-    ],
-  }
+const CLEAN_FUNDING_BALANCE: RewardFundingBalance = {
+  availableBalanceTZS: 0,
+  committedToActiveDealsTZS: 0,
+  pendingConfirmationTZS: 0,
+  rewardsPayableTZS: 0,
+  rewardsPaidTZS: 0,
+  refundableBalanceTZS: 0,
+  safeguardingProvider: 'CRDB Bank Escrow / Vodacom Trust Account',
+  lastReconciliationDate: 'Never',
 }
 
 export function BusinessDashboardView({
   initialTab = 'overview',
   businessName = 'My Business',
   profilePhotoUrl,
-  registrationNumber,
+  registrationNumber: initialRegNumber,
+  userId,
+  organizationId,
+  verificationStatus: initialVerificationStatus = 'NOT_SUBMITTED',
   onCreateDeal,
   onExploreDeals,
   onSignOut,
 }: BusinessDashboardViewProps) {
   const [activeTab, setActiveTab] = useState<BusinessSidebarSection>(initialTab)
+  const contentScrollRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    contentScrollRef.current?.scrollTo({ top: 0, behavior: 'instant' })
+  }, [activeTab])
+
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [showWizardModal, setShowWizardModal] = useState(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
 
-  // Central state managed across tabs
+  // Real Database State (Starts in clean 0-state)
   const [opportunities, setOpportunities] = useState<BusinessOpportunityItem[]>([])
-  const [partners, setPartners] = useState<BusinessPartnerItem[]>(MOCK_BUSINESS_PARTNERS)
-  const [fundingBalance, setFundingBalance] = useState<RewardFundingBalance>(MOCK_FUNDING_BALANCE)
+  const [partners, setPartners] = useState<BusinessPartnerItem[]>([])
+  const [fundingBalance, setFundingBalance] = useState<RewardFundingBalance>(CLEAN_FUNDING_BALANCE)
+  const [currentVerificationStatus, setCurrentVerificationStatus] = useState<string>(initialVerificationStatus)
+  const [currentRegNumber, setCurrentRegNumber] = useState<string | undefined>(initialRegNumber)
 
-  const reloadData = useCallback(() => {
-    const rawOpps = listOpportunities()
-    const mapped = rawOpps.map(mapDealToBusinessOpportunity)
-    setOpportunities(mapped)
-
-    // Load active partners from joined deals in storage
-    if (typeof window !== 'undefined') {
-      try {
-        const joined = JSON.parse(localStorage.getItem('lumo_partner_joined_deals') || '[]')
-        if (Array.isArray(joined) && joined.length > 0) {
-          const partnerList: BusinessPartnerItem[] = joined.map((j: any, idx: number) => ({
-            id: `p_${idx}_${j.opportunityId}`,
-            partnerName: j.referralId ? `Partner (${j.referralId.slice(0, 8)})` : 'Verified Partner',
-            partnerType: 'SALES_AGENT',
-            avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
-            phoneMasked: '+255 712 *** ***',
-            channels: ['WhatsApp Groups', 'Direct Sales', 'Instagram'],
-            region: 'Dar es Salaam',
-            performanceScore: 94,
-            completedDeals: 12,
-            conversionQuality: '99.2%',
-            cancellationRate: '0.8%',
-            businessRating: 4.9,
-            appliedOpportunityId: j.opportunityId,
-            appliedOpportunityTitle: j.title || 'Commercial Campaign',
-            applicationDate: j.joinedDate || new Date().toLocaleDateString(),
-            applicationPitch: 'Direct distribution network with active corporate & retail client reach.',
-            status: 'ACTIVE',
-            joinedProgramDate: j.joinedDate || new Date().toLocaleDateString(),
-            totalEarnedTZS: j.earningsEarnedTZS || 0,
-            verifiedConversionsCount: j.verifiedConversionsCount || 0,
-          }))
-          setPartners(partnerList)
+  const reloadData = useCallback(async () => {
+    try {
+      // 1. Fetch business-owned opportunities
+      const oppsRes = await fetch('/api/business/opportunities', { credentials: 'include' })
+      if (oppsRes.ok) {
+        const oppsData = await oppsRes.json()
+        if (oppsData.success && Array.isArray(oppsData.data)) {
+          setOpportunities(oppsData.data)
+        } else {
+          setOpportunities([])
         }
-      } catch (e) {
-        console.warn('Could not load joined partners for business', e)
       }
+
+      // 2. Fetch enrolled partners for business deals
+      const partnersRes = await fetch('/api/business/partners', { credentials: 'include' })
+      if (partnersRes.ok) {
+        const partnersData = await partnersRes.json()
+        if (partnersData.success && Array.isArray(partnersData.data)) {
+          setPartners(partnersData.data)
+        } else {
+          setPartners([])
+        }
+      }
+
+      // 3. Fetch real organization profile & verification status
+      const profileRes = await fetch('/api/business/profile', { credentials: 'include' })
+      if (profileRes.ok) {
+        const profileData = await profileRes.json()
+        if (profileData.success && profileData.data) {
+          if (profileData.data.verificationStatus) {
+            setCurrentVerificationStatus(profileData.data.verificationStatus)
+          }
+          if (profileData.data.registrationNumber) {
+            setCurrentRegNumber(profileData.data.registrationNumber)
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Could not reload business data:', err)
     }
   }, [])
 
@@ -153,13 +131,50 @@ export function BusinessDashboardView({
   }, [reloadData])
 
   const handleOpportunityCreated = (newOpp: BusinessOpportunityItem) => {
-    setOpportunities([newOpp, ...opportunities])
+    setOpportunities((prev) => [newOpp, ...prev])
     setActiveTab('my_opportunities')
+    reloadData()
+  }
+
+  const renderTopBarBadge = () => {
+    const norm = (currentVerificationStatus || 'NOT_SUBMITTED').toUpperCase()
+    if (norm === 'VERIFIED') {
+      return (
+        <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-800 dark:text-emerald-300 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="hidden sm:inline-block">
+            {currentRegNumber ? `BRELA #${currentRegNumber}` : 'BRELA · TIN Verified'}
+          </span>
+        </div>
+      )
+    }
+    if (norm === 'PENDING') {
+      return (
+        <div className="flex items-center gap-1.5 text-xs font-bold text-amber-800 dark:text-amber-300 px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60">
+          <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+          <span className="hidden sm:inline-block">Verification In Review</span>
+        </div>
+      )
+    }
+    if (norm === 'REJECTED') {
+      return (
+        <div className="flex items-center gap-1.5 text-xs font-bold text-red-800 dark:text-red-300 px-3 py-1.5 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60">
+          <span className="w-2 h-2 rounded-full bg-red-500" />
+          <span className="hidden sm:inline-block">Verification Rejected</span>
+        </div>
+      )
+    }
+    return (
+      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+        <span className="w-2 h-2 rounded-full bg-slate-400" />
+        <span className="hidden sm:inline-block">Unverified Business</span>
+      </div>
+    )
   }
 
   return (
     <BusinessToastProvider>
-      <div className="dashboard-shell w-full bg-[#F8FAFC] dark:bg-[#0B1220] min-h-screen text-[#0F172A] dark:text-slate-100 flex flex-col lg:flex-row transition-colors">
+      <div className="dashboard-shell dashboard-viewport w-full bg-[#F8FAFC] dark:bg-[#0B1220] text-[#0F172A] dark:text-slate-100 flex flex-col lg:flex-row transition-colors">
         {/* ========================================================================= */}
         {/* DESKTOP 4-GROUP STRUCTURED BUSINESS SIDEBAR                               */}
         {/* ========================================================================= */}
@@ -171,7 +186,8 @@ export function BusinessDashboardView({
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
           businessName={businessName}
           profilePhotoUrl={profilePhotoUrl}
-          registrationNumber={registrationNumber}
+          registrationNumber={currentRegNumber}
+          verificationStatus={currentVerificationStatus}
           pendingApplicationsCount={partners.filter((p) => p.status === 'APPLIED').length}
           activeDealRoomsCount={0}
           myOpportunitiesCount={opportunities.length}
@@ -185,7 +201,8 @@ export function BusinessDashboardView({
           onOpenCreateWizard={() => setShowWizardModal(true)}
           businessName={businessName}
           profilePhotoUrl={profilePhotoUrl}
-          registrationNumber={registrationNumber}
+          registrationNumber={currentRegNumber}
+          verificationStatus={currentVerificationStatus}
           pendingApplicationsCount={partners.filter((p) => p.status === 'APPLIED').length}
           activeDealRoomsCount={0}
           myOpportunitiesCount={opportunities.length}
@@ -196,8 +213,7 @@ export function BusinessDashboardView({
         {/* ========================================================================= */}
         {/* MAIN DASHBOARD CONTENT AREA                                               */}
         {/* ========================================================================= */}
-        <main className="dashboard-main min-w-0 flex-1 w-full space-y-5 sm:space-y-6">
-          <a href="/hot-deals/submit" className="block rounded-2xl border border-orange-200 bg-orange-50 p-4 text-sm font-semibold text-orange-800">Submit a Private Hot Deal · Ownership evidence, capacity & reward terms →</a>
+        <main className="dashboard-main min-w-0 flex-1 w-full">
           {/* Top Header Bar */}
           <div className="dashboard-topbar bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 flex items-center justify-between gap-3">
             <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -215,30 +231,24 @@ export function BusinessDashboardView({
                 {activeTab === 'create_opportunity' && 'Create Commercial Opportunity'}
                 {activeTab === 'my_opportunities' && 'My Opportunities & Terms Registry'}
                 {activeTab === 'partners_applications' && 'Partners & Opportunity Applications'}
-                {activeTab === 'deal_performance' && 'Deal Performance & ROI Analytics'}
-                {activeTab === 'conversions_results' && 'Commercial Outcomes & Conversions'}
-                {activeTab === 'rewards_commissions' && 'Rewards, Commissions & Obligations'}
-                {activeTab === 'payments_funding' && 'Wallet & Payouts'}
-                {activeTab === 'partner_discovery' && 'Verified Partner Talent Directory'}
-                {activeTab === 'reports_exports' && 'Performance Reports & Statutory Exports'}
+                {activeTab === 'deal_performance' && 'Deal Performance & Attribution Analytics'}
+                {activeTab === 'conversions_results' && 'Customer Conversions & Delivery Evidence'}
+                {activeTab === 'rewards_commissions' && 'Partner Rewards & Payout Ledger'}
+                {activeTab === 'payments_funding' && 'Escrow Funding & Commercial Reserve'}
+                {activeTab === 'partner_discovery' && 'Partner Directory & Performance Recruitment'}
+                {activeTab === 'reports_exports' && 'Reports, Audits & Data Exports'}
                 {activeTab === 'business_profile' && 'Business Profile & Verified Legal Credentials'}
-                {activeTab === 'team_access' && 'Team Members & Portal Access Roles'}
-                {activeTab === 'settings_security' && 'Security, MFA & Notification Preferences'}
+                {activeTab === 'team_access' && 'Team Members & Permissions'}
+                {activeTab === 'settings_security' && 'Business Security & Governance'}
                 {activeTab === 'help_support' && 'Help Desk, Disputes & Support Center'}
               </h1>
             </div>
 
             <BackToHomeButton onNavigate={onExploreDeals} />
 
-          <div className="hidden shrink-0 items-center gap-3 sm:flex">
+            <div className="hidden shrink-0 items-center gap-3 sm:flex">
               <ThemeToggle variant="icon" />
-
-              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-200 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="hidden sm:inline-block">
-                  {registrationNumber ? `BRELA #${registrationNumber}` : 'BRELA Verified'}
-                </span>
-              </div>
+              {renderTopBarBadge()}
             </div>
           </div>
 
@@ -246,74 +256,81 @@ export function BusinessDashboardView({
           {/* TAB ROUTING RENDERER                                                      */}
           {/* ========================================================================= */}
           {/* GROUP 1: WORKSPACE */}
-          {activeTab === 'overview' && (
-            <OverviewTab
-              businessName={businessName}
-              fundingBalance={fundingBalance}
-              opportunities={opportunities}
-              partners={partners}
-              onOpenCreateWizard={() => setShowWizardModal(true)}
-              onNavigateTab={setActiveTab}
-            />
-          )}
-          {activeTab === 'create_opportunity' && (
-            <OverviewTab
-              businessName={businessName}
-              fundingBalance={fundingBalance}
-              opportunities={opportunities}
-              partners={partners}
-              onOpenCreateWizard={() => setShowWizardModal(true)}
-              onNavigateTab={setActiveTab}
-            />
-          )}
-          {activeTab === 'my_opportunities' && (
-            <MyOpportunitiesTab
-              opportunities={opportunities}
-              setOpportunities={setOpportunities}
-              onOpenCreateWizard={() => setShowWizardModal(true)}
-            />
-          )}
-          {activeTab === 'partners_applications' && (
-            <PartnersApplicationsTab
-              partners={partners}
-              setPartners={setPartners}
-            />
-          )}
+          <div ref={contentScrollRef} className="dashboard-content space-y-5 sm:space-y-6" role="region" aria-label="Business dashboard content" tabIndex={0}>
+            <a href="/hot-deals/submit" className="block rounded-2xl border border-orange-200 bg-orange-50 p-4 text-sm font-semibold text-orange-800">
+              Submit a Private Hot Deal · Ownership evidence, capacity &amp; reward terms →
+            </a>
 
-          {/* GROUP 2: PERFORMANCE */}
-          {activeTab === 'deal_performance' && (
-            <DealPerformanceTab opportunities={opportunities} />
-          )}
-          {activeTab === 'conversions_results' && <ConversionsResultsTab />}
-          {activeTab === 'rewards_commissions' && <RewardsCommissionsTab />}
-          {activeTab === 'payments_funding' && (
-            <PaymentsFundingTab
-              fundingBalance={fundingBalance}
-              setFundingBalance={setFundingBalance}
-            />
-          )}
+            {activeTab === 'overview' && (
+              <OverviewTab
+                businessName={businessName}
+                fundingBalance={fundingBalance}
+                opportunities={opportunities}
+                partners={partners}
+                onOpenCreateWizard={() => setShowWizardModal(true)}
+                onNavigateTab={setActiveTab}
+              />
+            )}
+            {activeTab === 'create_opportunity' && (
+              <OverviewTab
+                businessName={businessName}
+                fundingBalance={fundingBalance}
+                opportunities={opportunities}
+                partners={partners}
+                onOpenCreateWizard={() => setShowWizardModal(true)}
+                onNavigateTab={setActiveTab}
+              />
+            )}
+            {activeTab === 'my_opportunities' && (
+              <MyOpportunitiesTab
+                opportunities={opportunities}
+                setOpportunities={setOpportunities}
+                onOpenCreateWizard={() => setShowWizardModal(true)}
+              />
+            )}
+            {activeTab === 'partners_applications' && (
+              <PartnersApplicationsTab
+                partners={partners}
+                setPartners={setPartners}
+              />
+            )}
 
-          {/* GROUP 3: GROWTH */}
-          {activeTab === 'partner_discovery' && (
-            <PartnerDiscoveryTab opportunities={opportunities} />
-          )}
-          {activeTab === 'reports_exports' && <ReportsExportsTab />}
+            {/* GROUP 2: PERFORMANCE */}
+            {activeTab === 'deal_performance' && (
+              <DealPerformanceTab opportunities={opportunities} />
+            )}
+            {activeTab === 'conversions_results' && <ConversionsResultsTab />}
+            {activeTab === 'rewards_commissions' && <RewardsCommissionsTab />}
+            {activeTab === 'payments_funding' && (
+              <PaymentsFundingTab
+                fundingBalance={fundingBalance}
+                setFundingBalance={setFundingBalance}
+              />
+            )}
 
-          {/* GROUP 4: ACCOUNT & SYSTEM */}
-          {activeTab === 'business_profile' && (
-            <BusinessProfileTab
-              businessName={businessName}
-              profilePhotoUrl={profilePhotoUrl}
-              registrationNumber={registrationNumber}
-            />
-          )}
-          {activeTab === 'team_access' && <TeamAccessTab />}
-          {activeTab === 'settings_security' && <SettingsSecurityTab />}
-          {activeTab === 'help_support' && <HelpSupportTab />}
+            {/* GROUP 3: GROWTH */}
+            {activeTab === 'partner_discovery' && (
+              <PartnerDiscoveryTab opportunities={opportunities} />
+            )}
+            {activeTab === 'reports_exports' && <ReportsExportsTab />}
+
+            {/* GROUP 4: ACCOUNT & SYSTEM */}
+            {activeTab === 'business_profile' && (
+              <BusinessProfileTab
+                businessName={businessName}
+                profilePhotoUrl={profilePhotoUrl}
+                registrationNumber={currentRegNumber}
+                verificationStatus={currentVerificationStatus}
+              />
+            )}
+            {activeTab === 'team_access' && <TeamAccessTab />}
+            {activeTab === 'settings_security' && <SettingsSecurityTab />}
+            {activeTab === 'help_support' && <HelpSupportTab />}
+          </div>
         </main>
 
         {/* ========================================================================= */}
-        {/* 8-STEP CREATE OPPORTUNITY WIZARD MODAL                                    */}
+        {/* CREATE OPPORTUNITY WIZARD MODAL                                           */}
         {/* ========================================================================= */}
         <CreateOpportunityWizardModal
           isOpen={showWizardModal}

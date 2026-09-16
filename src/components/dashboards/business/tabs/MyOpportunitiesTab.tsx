@@ -61,87 +61,159 @@ export function MyOpportunitiesTab({
     return matchesSearch && matchesStatus && matchesPrice
   })
 
-  const handleTogglePause = (opp: BusinessOpportunityItem) => {
+  const handleTogglePause = async (opp: BusinessOpportunityItem) => {
     const nextStatus = opp.status === 'PUBLISHED' ? 'PAUSED' : 'PUBLISHED'
-    setOpportunities((prev) =>
-      prev.map((o) => (o.id === opp.id ? { ...o, status: nextStatus } : o))
-    )
-    showToast(
-      'info',
-      `Opportunity ${nextStatus === 'PUBLISHED' ? 'Resumed' : 'Paused'}`,
-      `"${opp.title}" is now ${nextStatus.toLowerCase()}.`
-    )
-  }
+    try {
+      const res = await fetch(`/api/business/opportunities/${opp.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: nextStatus }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to update status')
+      }
 
-  const handleArchive = (opp: BusinessOpportunityItem) => {
-    setOpportunities((prev) =>
-      prev.map((o) => (o.id === opp.id ? { ...o, status: 'ARCHIVED' } : o))
-    )
-    showToast('info', 'Opportunity Archived', `"${opp.title}" has been archived. Existing earned rewards remain payable.`)
-  }
-
-  const handleDuplicate = (opp: BusinessOpportunityItem) => {
-    const duplicated: BusinessOpportunityItem = {
-      ...opp,
-      id: `opp_${Date.now()}`,
-      slug: `${opp.slug}-copy`,
-      title: `${opp.title} (Copy)`,
-      status: 'DRAFT',
-      version: 1,
-      activePartners: 0,
-      totalConversions: 0,
-      spentTZS: 0,
-      createdAt: 'Today',
-      versionHistory: [],
+      setOpportunities((prev) =>
+        prev.map((o) => (o.id === opp.id ? { ...o, status: nextStatus } : o))
+      )
+      showToast(
+        'info',
+        `Opportunity ${nextStatus === 'PUBLISHED' ? 'Resumed' : 'Paused'}`,
+        `"${opp.title}" is now ${nextStatus.toLowerCase()}.`
+      )
+    } catch (err: any) {
+      showToast('error', 'Update Failed', err.message || 'Error updating status')
     }
-    setOpportunities([duplicated, ...opportunities])
-    showToast('success', 'Opportunity Duplicated', `Created draft copy: "${duplicated.title}".`)
   }
 
-  const handleDeleteDraft = (opp: BusinessOpportunityItem) => {
+  const handleArchive = async (opp: BusinessOpportunityItem) => {
+    try {
+      const res = await fetch(`/api/business/opportunities/${opp.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'ARCHIVED' }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to archive opportunity')
+      }
+
+      setOpportunities((prev) =>
+        prev.map((o) => (o.id === opp.id ? { ...o, status: 'ARCHIVED' } : o))
+      )
+      showToast('info', 'Opportunity Archived', `"${opp.title}" has been archived. Existing earned rewards remain payable.`)
+    } catch (err: any) {
+      showToast('error', 'Archive Failed', err.message || 'Error archiving opportunity')
+    }
+  }
+
+  const handleDuplicate = async (opp: BusinessOpportunityItem) => {
+    try {
+      const res = await fetch(`/api/business/opportunities/${opp.id}/duplicate`, {
+        method: 'POST',
+      })
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to duplicate opportunity')
+      }
+
+      const duplicated: BusinessOpportunityItem = {
+        ...opp,
+        id: data.data.id,
+        slug: data.data.slug,
+        title: data.data.title,
+        status: 'DRAFT',
+        version: 1,
+        activePartners: 0,
+        totalConversions: 0,
+        spentTZS: 0,
+        createdAt: 'Today',
+        versionHistory: [],
+      }
+      setOpportunities([duplicated, ...opportunities])
+      showToast('success', 'Opportunity Duplicated', `Created draft copy: "${duplicated.title}".`)
+    } catch (err: any) {
+      showToast('error', 'Duplication Failed', err.message || 'Error duplicating opportunity')
+    }
+  }
+
+  const handleDeleteDraft = async (opp: BusinessOpportunityItem) => {
     if (opp.status !== 'DRAFT') {
       showToast('error', 'Immutability Guard', 'Only unpublished Drafts can be deleted. Published opportunities must be paused or archived.')
       return
     }
-    setOpportunities((prev) => prev.filter((o) => o.id !== opp.id))
-    showToast('info', 'Draft Deleted', `Draft "${opp.title}" removed.`)
+    try {
+      const res = await fetch(`/api/business/opportunities/${opp.id}`, {
+        method: 'DELETE',
+      })
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to delete draft')
+      }
+
+      setOpportunities((prev) => prev.filter((o) => o.id !== opp.id))
+      showToast('info', 'Draft Deleted', `Draft "${opp.title}" removed.`)
+    } catch (err: any) {
+      showToast('error', 'Delete Failed', err.message || 'Error deleting draft')
+    }
   }
 
-  const handleCreateNewVersion = () => {
+  const handleCreateNewVersion = async () => {
     if (!versioningModal || !amendmentReason.trim()) {
       showToast('error', 'Validation Error', 'You must document the commercial justification for creating a new version.')
       return
     }
 
-    const nextVer = versioningModal.version + 1
-    const updated: BusinessOpportunityItem = {
-      ...versioningModal,
-      version: nextVer,
-      rewardValueTZS: newRewardValue > 0 ? newRewardValue : versioningModal.rewardValueTZS,
-      status: 'UNDER_REVIEW', // Material changes require LUMO checker re-verification
-      versionHistory: [
-        ...(versioningModal.versionHistory || []),
-        {
-          version: nextVer,
-          amendedAt: 'Today',
-          changesDescription: amendmentReason,
-          partnerConsentRequired: versioningModal.activePartners > 0,
-        },
-      ],
+    try {
+      const nextVer = versioningModal.version + 1
+      const res = await fetch(`/api/business/opportunities/${versioningModal.id}/version`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          changelogReason: amendmentReason,
+          payload: {
+            rewardValueTZS: newRewardValue > 0 ? newRewardValue : versioningModal.rewardValueTZS,
+          },
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to create new version')
+      }
+
+      const updated: BusinessOpportunityItem = {
+        ...versioningModal,
+        version: data.data.versionNumber || nextVer,
+        rewardValueTZS: newRewardValue > 0 ? newRewardValue : versioningModal.rewardValueTZS,
+        status: 'UNDER_REVIEW',
+        versionHistory: [
+          ...(versioningModal.versionHistory || []),
+          {
+            version: data.data.versionNumber || nextVer,
+            amendedAt: 'Today',
+            changesDescription: amendmentReason,
+            partnerConsentRequired: versioningModal.activePartners > 0,
+          },
+        ],
+      }
+
+      setOpportunities((prev) =>
+        prev.map((o) => (o.id === versioningModal.id ? updated : o))
+      )
+
+      showToast(
+        'success',
+        `Version ${updated.version} Submitted for Review`,
+        `Commercial term changes submitted to LUMO Compliance Checkers. Existing enrolled Partners will receive a consent update notification.`
+      )
+      setVersioningModal(null)
+      setAmendmentReason('')
+      setNewRewardValue(0)
+    } catch (err: any) {
+      showToast('error', 'Versioning Failed', err.message || 'Error creating new version')
     }
-
-    setOpportunities((prev) =>
-      prev.map((o) => (o.id === versioningModal.id ? updated : o))
-    )
-
-    showToast(
-      'success',
-      `Version ${nextVer} Submitted for Review`,
-      `Commercial term changes submitted to LUMO Compliance Checkers. Existing enrolled Partners will receive a consent update notification.`
-    )
-    setVersioningModal(null)
-    setAmendmentReason('')
-    setNewRewardValue(0)
   }
 
   return (

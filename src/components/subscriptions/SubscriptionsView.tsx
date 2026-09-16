@@ -29,6 +29,7 @@ interface SubscriptionsViewProps {
   currentUserId?: string
   userEmail?: string
   userPhone?: string
+  userRole?: string
   returnTo?: string
   intent?: 'view' | 'join'
   reasonMessage?: string
@@ -42,6 +43,7 @@ export function SubscriptionsView({
   currentUserId,
   userEmail,
   userPhone,
+  userRole,
   returnTo,
   intent,
   reasonMessage = "Subscribe now to unlock this deal. You'll return automatically after payment.",
@@ -326,6 +328,37 @@ export function SubscriptionsView({
   const activeUserSub = currentUserId ? getUserSubscription(currentUserId) : null
   const isUserProActive = Boolean(activeUserSub && activeUserSub.isActive && activeUserSub.status === 'ACTIVE')
   const [showUpgradePlans, setShowUpgradePlans] = useState(!isUserProActive)
+
+  if (userRole === 'BUSINESS' || userRole === 'ADMIN') {
+    return (
+      <div className="w-full max-w-4xl mx-auto py-12 px-4 space-y-6 text-center">
+        <div className="p-8 sm:p-12 rounded-3xl bg-slate-900 border border-slate-800 text-white shadow-2xl relative overflow-hidden">
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-6">
+            <Building2 className="w-8 h-8" />
+          </div>
+          <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-slate-800 border border-slate-700 text-xs font-semibold text-slate-300 uppercase tracking-wider mb-4">
+            {userRole === 'BUSINESS' ? 'Business Merchant Account' : 'Administrative Account'}
+          </div>
+          <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white mb-3">
+            Subscriptions Are Exclusively for Partners
+          </h2>
+          <p className="text-sm sm:text-base text-slate-400 max-w-xl mx-auto mb-8 leading-relaxed">
+            {userRole === 'BUSINESS'
+              ? 'As a registered Business on LUMO, you do not need a subscription pass. You have direct access to create, publish, and manage verified commercial opportunities and review partner enrollments.'
+              : 'As an Administrator, you have platform-wide governance access and do not require partner subscription passes.'}
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <button
+              onClick={onNavigateHome}
+              className="w-full sm:w-auto px-6 py-3 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-sm transition-colors cursor-pointer"
+            >
+              Return to Marketplace
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="w-full max-w-7xl mx-auto py-2 sm:py-6 px-3 sm:px-6 pb-24 md:pb-12 space-y-6">

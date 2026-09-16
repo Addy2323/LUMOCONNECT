@@ -45,44 +45,6 @@ interface OverviewTabProps {
   onNavigateTab: (tab: any) => void
 }
 
-
-const DEFAULT_MOCK_INQUIRIES: EscrowInquiry[] = [
-  {
-    id: 'inq_vip_solar_01',
-    ticketCode: 'LUMO-REF-793412',
-    dealId: 'opp_vip_solar_hybrid_08',
-    dealTitle: 'VIP: 5kW Commercial Solar Hybrid Inverters (Container Lot)',
-    dealSlug: '5kw-commercial-solar-hybrid-inverter',
-    sellerCompany: 'Kilimanjaro Solar & Power Ltd',
-    sellerPhone: '+255 784 112 233',
-    sellerWhatsApp: '255784112233',
-    buyerName: 'David Moshi',
-    buyerPhone: '+255714902311',
-    quantity: 10,
-    deliveryLocation: 'Arusha Hub',
-    notes: 'Requires fiscalised receipt and delivery verification.',
-    escrowStatus: 'DELIVERY_INSPECTION',
-    createdAt: new Date(Date.now() - 3600000 * 4).toISOString(),
-  },
-  {
-    id: 'inq_vip_macbook_02',
-    ticketCode: 'LUMO-REF-610482',
-    dealId: 'opp_vip_macbook_fleet_09',
-    dealTitle: 'VIP: M3 Pro 16" Enterprise Fleet Lot (Sealed Units)',
-    dealSlug: 'm3-pro-16-inch-enterprise-fleet-sealed',
-    sellerCompany: 'Silicon Zanzibar Hardware Supply',
-    sellerPhone: '+255 768 990 011',
-    sellerWhatsApp: '255768990011',
-    buyerName: 'Amina Kassim',
-    buyerPhone: '+255755123984',
-    quantity: 5,
-    deliveryLocation: 'Dar es Salaam (Posta)',
-    notes: 'Golden VIP buyer requesting same-day direct courier pickup.',
-    escrowStatus: 'FUNDS_HELD_IN_ESCROW',
-    createdAt: new Date(Date.now() - 3600000 * 8).toISOString(),
-  },
-]
-
 export function OverviewTab({
   businessName,
   fundingBalance,
@@ -94,6 +56,8 @@ export function OverviewTab({
   const { showToast } = useBusinessToast()
   const [timeRange, setTimeRange] = useState<'7D' | '30D' | '6M'>('7D')
   const [escrowInquiries, setEscrowInquiries] = useState<EscrowInquiry[]>([])
+  const [serverSeries, setServerSeries] = useState<any[] | null>(null)
+  const [serverMetrics, setServerMetrics] = useState<any | null>(null)
 
   useEffect(() => {
     const loadInquiries = () => {
@@ -101,7 +65,7 @@ export function OverviewTab({
         const stored = localStorage.getItem('lumo_escrow_inquiries')
         if (stored) {
           const parsed: EscrowInquiry[] = JSON.parse(stored)
-          if (Array.isArray(parsed) && parsed.length > 0) {
+          if (Array.isArray(parsed)) {
             setEscrowInquiries(parsed)
             return
           }
@@ -109,7 +73,7 @@ export function OverviewTab({
       } catch (e) {
         console.error('Failed to load escrow inquiries', e)
       }
-      setEscrowInquiries(DEFAULT_MOCK_INQUIRIES)
+      setEscrowInquiries([])
     }
 
     loadInquiries()
@@ -122,14 +86,17 @@ export function OverviewTab({
     }
   }, [])
 
-  const [serverSeries, setServerSeries] = useState<any[] | null>(null)
-
   useEffect(() => {
     fetch(`/api/business/overview?period=${timeRange}`, { credentials: 'include' })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (data?.success && Array.isArray(data.series) && data.series.length > 0) {
-          setServerSeries(data.series)
+        if (data?.success) {
+          if (Array.isArray(data.series)) {
+            setServerSeries(data.series)
+          }
+          if (data.metrics) {
+            setServerMetrics(data.metrics)
+          }
         }
       })
       .catch((err) => console.warn('Could not fetch server business series:', err))
@@ -161,10 +128,10 @@ export function OverviewTab({
 
   const maxPipelineRevenue = Math.max(0, ...chartData.map((d: any) => d.pipelineRevenueTZS || 0))
   const hasRevenueActivity = maxPipelineRevenue > 0
-
   const liveOpportunities = opportunities.filter((o) => o.status === 'PUBLISHED')
-  const totalActivePartners = partners.filter((p) => p.status === 'ACTIVE').length
-  const totalVerifiedConversions = opportunities.reduce((acc, o) => acc + o.totalConversions, 0)
+  const liveCount = serverMetrics?.liveOpportunitiesCount ?? liveOpportunities.length
+  const activePartnersCount = serverMetrics?.activePartnersCount ?? partners.filter((p) => p.status === 'ACTIVE').length
+  const verifiedConversionsCount = serverMetrics?.totalConversions ?? opportunities.reduce((acc, o) => acc + o.totalConversions, 0)
 
   const handleExportBusinessAnalytics = () => {
     try {
@@ -179,19 +146,19 @@ export function OverviewTab({
         [`"Reporting Period"`, `"${timeRange}"`],
         [''],
         ['"COMMERCIAL SUMMARY METRICS"', '"VALUE"'],
-        ['"Live Published Opportunities"', liveOpportunities.length],
-        ['"Active Enrolled Partners"', totalActivePartners],
-        ['"Verified Customer Conversions"', totalVerifiedConversions],
+        ['"Live Published Opportunities"', liveCount],
+        ['"Active Enrolled Partners"', activePartnersCount],
+        ['"Verified Customer Conversions"', verifiedConversionsCount],
         ['"Total Rewards Funded in Escrow (TZS)"', fundingBalance.committedToActiveDealsTZS || fundingBalance.availableBalanceTZS || 0],
         ['"Total Commercial Rewards Disbursed (TZS)"', fundingBalance.rewardsPaidTZS || 0],
         [''],
         ['"ROLLING PIPELINE REVENUE BREAKDOWN"'],
         ['"Date Key"', '"Label"', '"Pipeline Revenue (TZS)"', '"Recorded Transactions"', '"Conversions"'],
         ...chartData.map((pt: any) => [
-          `"${pt.date}"`,
-          `"${pt.day || pt.label}"`,
+          `"${pt.dateKey}"`,
+          `"${pt.label}"`,
           pt.pipelineRevenueTZS || 0,
-          pt.txValue || 0,
+          pt.count || 0,
           pt.conversions || 0,
         ]),
         [''],
@@ -273,7 +240,7 @@ export function OverviewTab({
             <div className="space-y-1">
               <span className="text-[11px] sm:text-xs font-bold text-slate-500">Live Opportunities</span>
               <div className="text-2xl sm:text-3xl font-black text-[#0F172A] dark:text-white">
-                {liveOpportunities.length}
+                {liveCount}
               </div>
             </div>
             <div className="w-10 h-10 rounded-2xl bg-orange-50 dark:bg-orange-950/40 text-[#FF6A00] flex items-center justify-center shrink-0">
@@ -294,7 +261,7 @@ export function OverviewTab({
             <div className="space-y-1">
               <span className="text-[11px] sm:text-xs font-bold text-slate-500">Active Partners</span>
               <div className="text-2xl sm:text-3xl font-black text-[#0F172A] dark:text-white">
-                {totalActivePartners}
+                {activePartnersCount}
               </div>
             </div>
             <div className="w-10 h-10 rounded-2xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 flex items-center justify-center shrink-0">
@@ -315,7 +282,7 @@ export function OverviewTab({
             <div className="space-y-1">
               <span className="text-[11px] sm:text-xs font-bold text-slate-500">Verified Conversions</span>
               <div className="text-2xl sm:text-3xl font-black text-[#0F172A] dark:text-white">
-                {totalVerifiedConversions}
+                {verifiedConversionsCount}
               </div>
             </div>
             <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center shrink-0">

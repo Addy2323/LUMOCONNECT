@@ -757,6 +757,7 @@ export default function LumoApp() {
             currentUserId={currentUserId}
             userEmail={userDetails.email}
             userPhone={userDetails.phone}
+            userRole={activeWorkspace.type}
             returnTo={subscriptionRedirectContext.returnTo}
             intent={subscriptionRedirectContext.intent}
             reasonMessage={subscriptionRedirectContext.reasonMessage}
@@ -801,6 +802,8 @@ export default function LumoApp() {
             initialTab={businessDashboardTab}
             businessName={activeWorkspace.type === 'BUSINESS' ? (activeWorkspace.organizationName || `${userDetails.name}'s Business`) : userDetails.name}
             profilePhotoUrl={userDetails.profilePhotoUrl}
+            userId={currentUserId}
+            organizationId={activeWorkspace.type === 'BUSINESS' ? activeWorkspace.organizationId : undefined}
             onCreateDeal={() => setShowCreateWizard(true)}
             onExploreDeals={() => setActiveView('marketplace')}
             onSignOut={handleSignOut}
