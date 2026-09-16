@@ -27,7 +27,7 @@ import { useBusinessToast } from '../BusinessToast'
 interface MyOpportunitiesTabProps {
   opportunities: BusinessOpportunityItem[]
   setOpportunities: React.Dispatch<React.SetStateAction<BusinessOpportunityItem[]>>
-  onOpenCreateWizard: () => void
+  onOpenCreateWizard: (initialDeal?: any) => void
 }
 
 export function MyOpportunitiesTab({
@@ -368,12 +368,14 @@ export function MyOpportunitiesTab({
                             ? 'bg-emerald-100 text-emerald-700'
                             : opp.status === 'UNDER_REVIEW'
                             ? 'bg-purple-100 text-purple-700'
+                            : opp.status === 'CHANGES_REQUESTED'
+                            ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
                             : opp.status === 'DRAFT'
                             ? 'bg-slate-200 text-slate-700'
-                            : 'bg-amber-100 text-amber-700'
+                            : 'bg-slate-100 text-slate-700'
                         }`}
                       >
-                        {opp.status}
+                        {opp.status.replace('_', ' ')}
                       </span>
                       <span className="text-[10px] font-mono font-bold bg-white dark:bg-slate-900 px-2 py-0.5 rounded border text-slate-500">
                         Version {opp.version}
@@ -399,6 +401,24 @@ export function MyOpportunitiesTab({
               </div>
             </div>
 
+            {/* Checker Feedback Notice for CHANGES_REQUESTED */}
+            {opp.status === 'CHANGES_REQUESTED' && (
+              <div className="p-3.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-2xl text-xs space-y-1.5">
+                <div className="font-extrabold text-amber-900 dark:text-amber-200 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>Compliance Checker Feedback:</span>
+                  </span>
+                  <span className="text-[10px] font-mono uppercase bg-amber-200 dark:bg-amber-900 px-2 py-0.5 rounded text-amber-950 dark:text-amber-100">
+                    Action Required
+                  </span>
+                </div>
+                <p className="text-amber-800 dark:text-amber-300 text-[11px] leading-relaxed">
+                  {(opp as any).reviewerComments || 'Compliance checker requested modifications before approving this opportunity. Please click "Edit & Resubmit" to make amendments.'}
+                </p>
+              </div>
+            )}
+
             {/* Metrics Row */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-700">
               <div>
@@ -423,6 +443,16 @@ export function MyOpportunitiesTab({
             {/* Action Bar */}
             <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
               <div className="flex items-center gap-2">
+                {opp.status === 'CHANGES_REQUESTED' && (
+                  <button
+                    onClick={() => onOpenCreateWizard(opp)}
+                    className="py-1.5 px-3 bg-[#FF6A00] hover:bg-[#e05d00] text-white rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer shadow-xs"
+                  >
+                    <Edit className="w-3.5 h-3.5" />
+                    <span>Edit & Resubmit</span>
+                  </button>
+                )}
+
                 {opp.status === 'PUBLISHED' && (
                   <button
                     onClick={() => {
@@ -438,8 +468,8 @@ export function MyOpportunitiesTab({
 
                 {opp.status === 'DRAFT' && (
                   <button
-                    onClick={() => onOpenCreateWizard()}
-                    className="py-1.5 px-3 bg-[#FF6A00] text-white rounded-xl text-xs font-bold flex items-center gap-1"
+                    onClick={() => onOpenCreateWizard(opp)}
+                    className="py-1.5 px-3 bg-[#FF6A00] text-white rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer shadow-xs"
                   >
                     <Edit className="w-3.5 h-3.5" />
                     <span>Edit Draft</span>
@@ -447,8 +477,17 @@ export function MyOpportunitiesTab({
                 )}
 
                 <button
+                  onClick={() => setSelectedOpp(opp)}
+                  className="py-1.5 px-3 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold hover:bg-white dark:hover:bg-slate-800 flex items-center gap-1 cursor-pointer"
+                  title="View complete opportunity terms and media"
+                >
+                  <Eye className="w-3.5 h-3.5 text-blue-600" />
+                  <span>View Details</span>
+                </button>
+
+                <button
                   onClick={() => handleDuplicate(opp)}
-                  className="py-1.5 px-3 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold hover:bg-white dark:hover:bg-slate-800 flex items-center gap-1"
+                  className="py-1.5 px-3 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold hover:bg-white dark:hover:bg-slate-800 flex items-center gap-1 cursor-pointer"
                 >
                   <Copy className="w-3.5 h-3.5" />
                   <span>Duplicate</span>
@@ -459,7 +498,7 @@ export function MyOpportunitiesTab({
                 {(opp.status === 'PUBLISHED' || opp.status === 'PAUSED') && (
                   <button
                     onClick={() => handleTogglePause(opp)}
-                    className="p-1.5 border rounded-lg hover:bg-white dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300"
+                    className="p-1.5 border rounded-lg hover:bg-white dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer"
                     title={opp.status === 'PUBLISHED' ? 'Pause Campaign' : 'Resume Campaign'}
                   >
                     {opp.status === 'PUBLISHED' ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 text-emerald-600" />}
@@ -469,7 +508,7 @@ export function MyOpportunitiesTab({
                 {opp.status === 'DRAFT' && (
                   <button
                     onClick={() => handleDeleteDraft(opp)}
-                    className="py-1 px-2.5 border border-red-200 text-red-600 rounded-lg text-xs font-bold hover:bg-red-50"
+                    className="py-1 px-2.5 border border-red-200 text-red-600 rounded-lg text-xs font-bold hover:bg-red-50 cursor-pointer"
                   >
                     Delete Draft
                   </button>
@@ -478,7 +517,7 @@ export function MyOpportunitiesTab({
                 {opp.status !== 'ARCHIVED' && opp.status !== 'DRAFT' && (
                   <button
                     onClick={() => handleArchive(opp)}
-                    className="p-1.5 border rounded-lg hover:bg-white dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600"
+                    className="p-1.5 border rounded-lg hover:bg-white dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 cursor-pointer"
                     title="Archive Opportunity"
                   >
                     <Archive className="w-3.5 h-3.5" />
@@ -489,6 +528,106 @@ export function MyOpportunitiesTab({
           </div>
         )))}
       </div>
+
+      {/* INSPECT OPPORTUNITY DETAILS MODAL */}
+      {selectedOpp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-2xl bg-orange-50 dark:bg-orange-950/50 text-[#FF6A00] flex items-center justify-center font-black">
+                  <Briefcase className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900 dark:text-white">
+                    {selectedOpp.title}
+                  </h3>
+                  <div className="text-xs text-slate-500">
+                    Category: {selectedOpp.category} · Status: <span className="font-bold text-[#FF6A00]">{selectedOpp.status}</span>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setSelectedOpp(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Media Banner Preview */}
+            {selectedOpp.coverImageUrl && (
+              <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 aspect-video max-h-56 relative">
+                <img
+                  src={selectedOpp.coverImageUrl}
+                  alt={selectedOpp.title}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            )}
+
+            {/* Commercial terms summary */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-200/80 dark:border-slate-700">
+                <div className="text-[10px] text-slate-400 font-bold uppercase">Partner Reward</div>
+                <div className="text-sm font-black text-[#FF6A00] font-mono mt-0.5">
+                  TZS {selectedOpp.rewardValueTZS.toLocaleString()}
+                </div>
+              </div>
+
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-200/80 dark:border-slate-700">
+                <div className="text-[10px] text-slate-400 font-bold uppercase">Budget Cap</div>
+                <div className="text-sm font-black text-slate-900 dark:text-white font-mono mt-0.5">
+                  TZS {selectedOpp.budgetTZS.toLocaleString()}
+                </div>
+              </div>
+
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-200/80 dark:border-slate-700 col-span-2 sm:col-span-1">
+                <div className="text-[10px] text-slate-400 font-bold uppercase">Attribution Window</div>
+                <div className="text-sm font-black text-slate-900 dark:text-white mt-0.5">
+                  {selectedOpp.attributionWindowDays || 30} Days
+                </div>
+              </div>
+            </div>
+
+            {/* Summary & Description */}
+            <div className="space-y-1.5 text-xs">
+              <div className="font-bold text-slate-800 dark:text-slate-200">Public Commercial Summary:</div>
+              <p className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 leading-relaxed text-[11px]">
+                {selectedOpp.subscriberDescription || selectedOpp.publicSummary}
+              </p>
+            </div>
+
+            {/* Deliverables and Requirements */}
+            {(selectedOpp.partnerDeliverables || selectedOpp.evidenceRequired) && (
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 text-xs space-y-2">
+                {selectedOpp.partnerDeliverables && (
+                  <div>
+                    <span className="font-bold text-slate-800 dark:text-slate-200 block">Deliverables Required:</span>
+                    <span className="text-slate-600 dark:text-slate-400 text-[11px]">{selectedOpp.partnerDeliverables}</span>
+                  </div>
+                )}
+                {selectedOpp.evidenceRequired && (
+                  <div>
+                    <span className="font-bold text-slate-800 dark:text-slate-200 block">Verification Evidence:</span>
+                    <span className="text-slate-600 dark:text-slate-400 text-[11px]">{selectedOpp.evidenceRequired}</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="flex justify-end pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                onClick={() => setSelectedOpp(null)}
+                className="py-2 px-5 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-bold text-xs rounded-xl cursor-pointer"
+              >
+                Close Details
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* CREATE NEW VERSION MODAL */}
       {versioningModal && (

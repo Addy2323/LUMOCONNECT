@@ -19,6 +19,7 @@ import {
 } from '@/modules/promotional-toolkit/analytics'
 import { submitCustomerReferralEnquiry, getReferralCaseByTrackingNumber } from '@/modules/deals/referral-cases'
 import type { OpportunityItem } from '@/modules/deals/types'
+import { seedTestOpportunity } from '@/modules/deals/service'
 
 describe('Lumo Partner Promotional Toolkit', () => {
   const mockPrivateOpportunity: OpportunityItem = {
@@ -53,6 +54,10 @@ describe('Lumo Partner Promotional Toolkit', () => {
     sellerWhatsApp: '+255754999888',
     sellerLocation: 'Dar es Salaam Industrial Area',
   }
+
+  beforeEach(() => {
+    seedTestOpportunity(mockPrivateOpportunity)
+  })
 
   describe('1. Server-Side Public Data Allowlisting', () => {
     it('strips all merchant contact info and private business names', () => {

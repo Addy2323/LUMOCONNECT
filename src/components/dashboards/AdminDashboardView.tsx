@@ -71,6 +71,30 @@ export function AdminDashboardView({
   const [reviewFilter, setReviewFilter] = useState<'ALL' | 'VERIFICATIONS' | 'DEALS' | 'REWARDS' | 'FLAGGED'>('ALL')
   const [currentAdminRole, setCurrentAdminRole] = useState<AdminRole>('SUPER_ADMIN')
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+  const [pendingDealsCount, setPendingDealsCount] = useState(0)
+
+  useEffect(() => {
+    let mounted = true
+    const fetchPendingCount = async () => {
+      try {
+        const res = await fetch('/api/admin/approvals?status=pending')
+        if (res.ok) {
+          const data = await res.json()
+          if (mounted && data?.counts?.pending !== undefined) {
+            setPendingDealsCount(data.counts.pending)
+          }
+        }
+      } catch {
+        // silent fallback
+      }
+    }
+    fetchPendingCount()
+    const interval = setInterval(fetchPendingCount, 15000)
+    return () => {
+      mounted = false
+      clearInterval(interval)
+    }
+  }, [activeTab])
 
   const adminRoleLabel =
     currentAdminRole === 'SUPER_ADMIN'
@@ -104,7 +128,7 @@ export function AdminDashboardView({
         onOpenSystemStatus={() => setShowStatusModal(true)}
         onOpenAdminProfile={() => setShowProfileModal(true)}
         pendingVerificationsCount={0}
-        pendingDealsCount={0}
+        pendingDealsCount={pendingDealsCount}
         flaggedRiskCount={0}
         openDisputesCount={0}
       />
@@ -119,7 +143,7 @@ export function AdminDashboardView({
         onOpenSystemStatus={() => setShowStatusModal(true)}
         onOpenAdminProfile={() => setShowProfileModal(true)}
         pendingVerificationsCount={0}
-        pendingDealsCount={0}
+        pendingDealsCount={pendingDealsCount}
         flaggedRiskCount={0}
         openDisputesCount={0}
         onBrowseMarketplace={onExploreDeals}

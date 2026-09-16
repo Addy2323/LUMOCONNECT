@@ -19,11 +19,11 @@ export async function uploadOpportunityImage(file: File): Promise<string> {
     context.fillStyle = '#ffffff'; context.fillRect(0, 0, canvas.width, canvas.height)
     context.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
     let blob: Blob | null = null
-    for (const quality of [0.85, 0.7, 0.5, 0.3]) {
+    for (const quality of [0.85, 0.7, 0.5]) {
       blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', quality))
-      if (blob && blob.size <= 700 * 1024) break
+      if (blob && blob.size <= 4 * 1024 * 1024) break
     }
-    if (!blob || blob.size > 700 * 1024) throw new Error('This image could not be reduced enough. Choose a smaller image.')
+    if (!blob || blob.size > 5 * 1024 * 1024) throw new Error('This image is too large. Choose a smaller image.')
     const form = new FormData(); form.append('file', blob, 'opportunity.jpg')
     const data = await readApiResponse(await fetch('/api/business/media', { method: 'POST', body: form }))
     return data.url

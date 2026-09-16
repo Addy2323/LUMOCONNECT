@@ -37,10 +37,44 @@ export async function PATCH(
     const biz = await getAuthenticatedBusiness(request)
 
     // Assert ownership
-    await assertOpportunityOwnership(id, biz.businessId)
+    const current = await assertOpportunityOwnership(id, biz.businessId)
 
     const body = await request.json().catch(() => ({}))
-    const { status, title, summary, description, region, coverImageUrl, promoVideoUrl } = body
+    const {
+      status,
+      title,
+      summary,
+      description,
+      region,
+      coverImageUrl,
+      promoVideoUrl,
+      galleryImageUrls,
+      commercialResultType,
+      successCondition,
+      verificationEvidence,
+      verificationWindowDays,
+      cancellationTerms,
+      contactPersonName,
+      contactPersonPhone,
+      contactPersonEmail,
+      closingDate,
+      visibility,
+      accessTier,
+      requirements,
+      documentsRequired,
+      rewardModel,
+      rewardType,
+      rewardPercentage,
+      rewardValueTZS,
+      estimatedBudgetTZS,
+      customRewardDisplay,
+      customRewardDetail,
+      customFormulaDescription,
+      originalCurrency,
+      originalDealValue,
+      referenceCurrency,
+      referenceValue,
+    } = body
 
     const updateData: any = {}
     if (body.commercialValueTZS !== undefined) {
@@ -48,8 +82,8 @@ export async function PATCH(
       if (!value.success) return NextResponse.json({ error: 'Invalid commercial deal value' }, { status: 400 })
       updateData.commercialValueMinor = value.data
     }
-    if (status && ['DRAFT', 'UNDER_REVIEW', 'RETURNED', 'REJECTED', 'PUBLISHED', 'PAUSED', 'COMPLETED', 'CANCELLED', 'ARCHIVED'].includes(status)) {
-      updateData.status = status
+    if (status && ['DRAFT', 'SUBMITTED', 'UNDER_REVIEW', 'CHANGES_REQUESTED', 'RETURNED', 'REJECTED', 'PUBLISHED', 'PAUSED', 'COMPLETED', 'CLOSED', 'CANCELLED', 'ARCHIVED'].includes(status)) {
+      updateData.status = status === 'SUBMITTED' ? 'UNDER_REVIEW' : status
     }
     if (title) updateData.title = title
     if (summary) updateData.summary = summary
@@ -57,10 +91,76 @@ export async function PATCH(
     if (region) updateData.region = region
     if (coverImageUrl !== undefined) updateData.coverImageUrl = coverImageUrl
     if (promoVideoUrl !== undefined) updateData.promoVideoUrl = promoVideoUrl
+    if (galleryImageUrls !== undefined) updateData.galleryImageUrls = Array.isArray(galleryImageUrls) ? galleryImageUrls : []
+    if (commercialResultType) updateData.commercialResultType = commercialResultType
+    if (successCondition !== undefined) updateData.successCondition = successCondition
+    if (verificationEvidence !== undefined) updateData.verificationEvidence = verificationEvidence
+    if (verificationWindowDays !== undefined) updateData.verificationWindowDays = Number(verificationWindowDays)
+    if (cancellationTerms !== undefined) updateData.cancellationTerms = cancellationTerms
+    if (contactPersonName !== undefined) updateData.contactPersonName = contactPersonName
+    if (contactPersonPhone !== undefined) updateData.contactPersonPhone = contactPersonPhone
+    if (contactPersonEmail !== undefined) updateData.contactPersonEmail = contactPersonEmail
+    if (closingDate !== undefined) updateData.closingDate = closingDate ? new Date(closingDate) : null
+    if (visibility) updateData.visibility = visibility
+    if (accessTier) updateData.accessTier = accessTier
+    if (requirements !== undefined) updateData.requirements = requirements
+    if (documentsRequired !== undefined) updateData.documentsRequired = documentsRequired
+    if (rewardModel) updateData.rewardModel = rewardModel
+    if (rewardType) updateData.rewardType = rewardType
+    if (rewardPercentage !== undefined) updateData.rewardPercentage = rewardPercentage ? Number(rewardPercentage) : null
+    if (rewardValueTZS !== undefined) {
+      updateData.fixedRewardAmountMinor = BigInt(Math.round(Number(rewardValueTZS || 0) * 100))
+    }
+    if (estimatedBudgetTZS !== undefined) {
+      updateData.totalBudgetMinor = BigInt(Math.round(Number(estimatedBudgetTZS || 0) * 100))
+      updateData.securedBudgetMinor = updateData.totalBudgetMinor
+    }
+    if (customRewardDisplay) updateData.rewardDisplayLabel = customRewardDisplay
+    if (customRewardDetail) updateData.rewardTrigger = customRewardDetail
+    if (customFormulaDescription) updateData.payoutCondition = customFormulaDescription
+    if (originalCurrency) updateData.originalCurrency = originalCurrency
+    if (originalDealValue !== undefined) {
+      updateData.originalDealValueMinor = originalDealValue ? BigInt(Math.round(Number(originalDealValue) * 100)) : null
+    }
+    if (referenceCurrency) updateData.referenceCurrency = referenceCurrency
+    if (referenceValue !== undefined) {
+      updateData.referenceValueMinor = referenceValue ? BigInt(Math.round(Number(referenceValue) * 100)) : null
+    }
 
-    const updated = await db.opportunity.update({
-      where: { id },
-      data: updateData,
+    const updated = await db.$transaction(async (tx) => {
+      const opp = await tx.opportunity.update({
+        where: { id },
+        data: updateData,
+      })
+
+      // If resubmitting for review (transitioning to UNDER_REVIEW)
+      if (updateData.status === 'UNDER_REVIEW') {
+        const pendingApproval = await tx.approvalRequest.findFirst({
+          where: { opportunityId: id, approvalStatus: 'PENDING_CHECKER' },
+        })
+        if (!pendingApproval) {
+          await tx.approvalRequest.create({
+            data: {
+              opportunityId: id,
+              makerUserId: biz.userId,
+              approvalStatus: 'PENDING_CHECKER',
+              submittedAt: new Date(),
+            },
+          })
+        }
+      }
+
+      await tx.auditLog.create({
+        data: {
+          actorUserId: biz.userId,
+          action: updateData.status === 'UNDER_REVIEW' ? 'OPPORTUNITY_RESUBMITTED' : 'OPPORTUNITY_UPDATED',
+          entityType: 'OPPORTUNITY',
+          entityId: id,
+          afterData: { status: opp.status, title: opp.title },
+        },
+      })
+
+      return opp
     })
 
     return NextResponse.json({
@@ -75,6 +175,7 @@ export async function PATCH(
     )
   }
 }
+
 
 export async function DELETE(
   request: NextRequest,

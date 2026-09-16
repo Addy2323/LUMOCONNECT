@@ -73,6 +73,7 @@ interface CreateOpportunityWizardModalProps {
   isOpen: boolean
   onClose: () => void
   onOpportunityCreated: (opp: BusinessOpportunityItem) => void
+  initialDeal?: any
 }
 
 
@@ -504,10 +505,13 @@ export function CreateOpportunityWizardModal({
   isOpen,
   onClose,
   onOpportunityCreated,
+  initialDeal,
 }: CreateOpportunityWizardModalProps) {
   const { showToast } = useBusinessToast()
 
   const [currentStep, setCurrentStep] = useState<number>(1)
+  const [draftId, setDraftId] = useState<string | null>(initialDeal?.id || null)
+  const [isSavingDraft, setIsSavingDraft] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [uploadsPending, setUploadsPending] = useState(0)
   const [previewDevice, setPreviewDevice] = useState<'DESKTOP' | 'MOBILE'>('DESKTOP')
@@ -763,8 +767,6 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
     confirmNoSilentChanges: false,
   })
 
-  if (!isOpen) return null
-
   const stepsList = [
     { num: 1, title: 'Opportunity Type' },
     { num: 2, title: 'Details & Media' },
@@ -851,6 +853,93 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
   const effectiveRewardDetail = formData.customRewardDetail.trim() || computedAutoRewardDetail
   const videoInfo = getVideoEmbedInfo(formData.promoVideoUrl)
 
+  useEffect(() => {
+    if (initialDeal) {
+      setDraftId(initialDeal.id)
+      setFormData((prev) => ({
+        ...prev,
+        title: initialDeal.title || '',
+        publicSummary: initialDeal.publicSummary || initialDeal.summary || '',
+        subscriberDescription: initialDeal.subscriberDescription || initialDeal.description || '',
+        type: initialDeal.type || 'COMMERCIAL_DEAL',
+        category: initialDeal.category || initialCat,
+        region: initialDeal.region || '',
+        rewardValueTZS: initialDeal.rewardValueTZS || 0,
+        rewardPercent: initialDeal.rewardPercentage || initialDeal.rewardPercent || 0,
+        estimatedBudgetTZS: initialDeal.budgetTZS || 0,
+        coverImageUrl: initialDeal.coverImageUrl || initialDeal.featuredImageUrl || initialDeal.bannerUrl || '',
+        promoVideoUrl: initialDeal.promoVideoUrl || '',
+        galleryImageUrls: initialDeal.galleryImageUrls || initialDeal.mediaUrls || [],
+        commercialValueTZS: initialDeal.commercialValueTZS ? String(initialDeal.commercialValueTZS) : '',
+        partnerDeliverables: initialDeal.deliverables ? (Array.isArray(initialDeal.deliverables) ? initialDeal.deliverables.join(', ') : initialDeal.deliverables) : (initialDeal.partnerDeliverables || ''),
+        evidenceRequired: initialDeal.verificationEvidence || initialDeal.evidenceRequired || '',
+        attributionWindowDays: initialDeal.attributionWindowDays || 30,
+      }))
+    } else if (isOpen) {
+      try {
+        const saved = localStorage.getItem('lumo_business_opportunity_draft')
+        if (saved) {
+          const parsed = JSON.parse(saved)
+          if (parsed && parsed.title && !formData.title) {
+            if (parsed.draftId) setDraftId(parsed.draftId)
+            setFormData((prev) => ({ ...prev, ...parsed }))
+          }
+        }
+      } catch {}
+    }
+  }, [isOpen, initialDeal])
+
+  const autoSaveDraft = async (showUserToast = false) => {
+    if (!formData.title?.trim()) return
+    setIsSavingDraft(true)
+    try {
+      localStorage.setItem('lumo_business_opportunity_draft', JSON.stringify({ ...formData, draftId }))
+      const response = await fetch('/api/business/opportunities', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          draftId: draftId || initialDeal?.id,
+          commercialValueTZS: formData.commercialValueTZS || null,
+          title: formData.title,
+          publicSummary: formData.publicSummary || formData.title,
+          subscriberDescription: formData.subscriberDescription || formData.publicSummary || formData.title,
+          type: formData.type,
+          category: formData.category || 'Renewable Energy',
+          region: formData.region || 'All Tanzania',
+          commercialResult: formData.commercialResult,
+          rewardType: formData.rewardStructure === 'PERCENTAGE_COMMISSION' ? 'PERCENTAGE' : 'FIXED',
+          rewardStructure: formData.rewardStructure,
+          rewardValueTZS: Number(formData.rewardValueTZS) || 0,
+          rewardPercent: Number(formData.rewardPercent) || 0,
+          customRewardDisplay: effectiveRewardDisplay,
+          customRewardDetail: effectiveRewardDetail,
+          customFormulaDescription: formData.customFormulaDescription,
+          estimatedBudgetTZS: Number(formData.estimatedBudgetTZS) || 0,
+          attributionWindowDays: Number(formData.attributionWindowDays) || 30,
+          partnerDeliverables: formData.partnerDeliverables,
+          evidenceRequired: formData.evidenceRequired,
+          cancellationTerms: formData.cancellationTerms,
+          coverImageUrl: formData.coverImageUrl,
+          promoVideoUrl: formData.promoVideoUrl,
+          galleryImageUrls: formData.galleryImageUrls,
+          marketingAssets: formData.marketingAssets,
+          status: 'DRAFT',
+        }),
+      })
+      const result = await readApiResponse(response)
+      if (response.ok && result.success && result.opportunity?.id) {
+        setDraftId(result.opportunity.id)
+        if (showUserToast) {
+          showToast('info', 'Draft Saved', 'Your opportunity draft has been saved.')
+        }
+      }
+    } catch (e) {
+      console.warn('Autosave error:', e)
+    } finally {
+      setIsSavingDraft(false)
+    }
+  }
+
   const handleNext = () => {
     if (currentStep === 2 && !formData.title.trim()) {
       showToast('error', 'Validation Error', 'Opportunity title is required to continue.')
@@ -858,6 +947,7 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
     }
     if (currentStep < stepsList.length) {
       setCurrentStep(currentStep + 1)
+      void autoSaveDraft(false)
     }
   }
 
@@ -939,6 +1029,7 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          draftId: draftId || initialDeal?.id,
           commercialValueTZS: formData.commercialValueTZS || null,
           title: formData.title,
           publicSummary: formData.publicSummary || formData.title,
@@ -979,6 +1070,10 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
         status: result.opportunity.status,
       }
 
+      try {
+        localStorage.removeItem('lumo_business_opportunity_draft')
+      } catch {}
+
       onOpportunityCreated(createdItem)
       onClose()
       showToast(
@@ -992,6 +1087,8 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
       setIsSubmitting(false)
     }
   }
+
+  if (!isOpen) return null
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/75 backdrop-blur-xs animate-in fade-in duration-200">
@@ -3093,11 +3190,20 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
             <span>Back</span>
           </button>
 
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void autoSaveDraft(true)}
+              disabled={isSavingDraft || !formData.title.trim()}
+              className="py-2.5 px-4 rounded-xl text-xs font-bold border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors disabled:opacity-40 cursor-pointer"
+            >
+              <span>{isSavingDraft ? 'Saving Draft…' : 'Save as Draft'}</span>
+            </button>
+
             {currentStep < stepsList.length ? (
               <button
                 onClick={handleNext}
-                className="py-2.5 px-6 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold rounded-xl text-xs shadow-xs flex items-center gap-1.5"
+                className="py-2.5 px-6 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold rounded-xl text-xs shadow-xs flex items-center gap-1.5 cursor-pointer"
               >
                 <span>Continue to Step {currentStep + 1}</span>
                 <ChevronRight className="w-4 h-4" />

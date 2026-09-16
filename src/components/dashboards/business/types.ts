@@ -67,6 +67,7 @@ export type OpportunityLifecycleStatus =
   | 'SUBMITTED'
   | 'UNDER_REVIEW'
   | 'APPROVED'
+  | 'CHANGES_REQUESTED'
   | 'RETURNED'
   | 'REJECTED'
   | 'PUBLISHED'
@@ -106,13 +107,15 @@ export interface BusinessOpportunityItem {
   version: number
   activePartners: number
   totalConversions: number
-  trackingMethod: TrackingMethod
-  startDate: string
-  endDate: string
-  attributionWindowDays: number
-  partnerDeliverables: string
-  evidenceRequired: string
-  cancellationTerms: string
+  trackingMethod?: TrackingMethod
+  startDate?: string
+  endDate?: string
+  attributionWindowDays?: number
+  partnerDeliverables?: string
+  evidenceRequired?: string
+  cancellationTerms?: string
+  reviewerComments?: string
+  rejectionReason?: string
   coverImageUrl?: string
   promoVideoUrl?: string
   galleryImageUrls?: string[]

@@ -82,30 +82,28 @@ function BusinessDashboardContent({
   const [currentRegNumber, setCurrentRegNumber] = useState<string | undefined>(initialRegNumber)
   const requestGeneration = useRef(0)
   const [loadError, setLoadError] = useState('')
+  const [loadState, setLoadState] = useState<'LOADING' | 'ERROR' | 'SUCCESS'>('LOADING')
+  const [editingDeal, setEditingDeal] = useState<any>(null)
 
   const reloadData = useCallback(async () => {
     const generation = ++requestGeneration.current
-    setOpportunities([])
-    setPartners([])
     setLoadError('')
+    setLoadState('LOADING')
     try {
       // 1. Fetch business-owned opportunities
       const oppsRes = await fetch('/api/business/opportunities', { credentials: 'include' })
       if (generation !== requestGeneration.current) return
       if (!oppsRes.ok) throw new Error('Unable to load your business opportunities.')
-      if (oppsRes.ok) {
-        const oppsData = await oppsRes.json()
-        if (oppsData.success && Array.isArray(oppsData.data)) {
-          setOpportunities(oppsData.data)
-        } else {
-          setOpportunities([])
-        }
+      const oppsData = await oppsRes.json()
+      if (oppsData.success && Array.isArray(oppsData.data)) {
+        setOpportunities(oppsData.data)
+      } else {
+        setOpportunities([])
       }
 
       // 2. Fetch enrolled partners for business deals
       const partnersRes = await fetch('/api/business/partners', { credentials: 'include' })
       if (generation !== requestGeneration.current) return
-      if (!partnersRes.ok) throw new Error('Unable to load your business partners.')
       if (partnersRes.ok) {
         const partnersData = await partnersRes.json()
         if (partnersData.success && Array.isArray(partnersData.data)) {
@@ -129,9 +127,11 @@ function BusinessDashboardContent({
           }
         }
       }
-    } catch (err) {
+      setLoadState('SUCCESS')
+    } catch (err: any) {
       if (generation !== requestGeneration.current) return
-      setLoadError('Unable to load your business data. Please refresh or sign in again.')
+      setLoadError(err.message || 'Unable to load your business data. Please check your network and retry.')
+      setLoadState('ERROR')
       console.warn('Could not reload business data:', err)
     }
   }, [userId, organizationId])
@@ -147,6 +147,11 @@ function BusinessDashboardContent({
       window.removeEventListener('lumo:joined-deals-updated', handleUpdate)
     }
   }, [reloadData])
+
+  const handleOpenCreateWizard = (deal?: any) => {
+    setEditingDeal(deal || null)
+    setShowWizardModal(true)
+  }
 
   const handleOpportunityCreated = (newOpp: BusinessOpportunityItem) => {
     setOpportunities((prev) => [newOpp, ...prev])
@@ -192,7 +197,6 @@ function BusinessDashboardContent({
 
   return (
     <BusinessToastProvider key={`${userId ?? ''}:${organizationId ?? ''}`}>
-      {loadError && <p role="alert" className="bg-red-50 p-3 text-red-700">{loadError}</p>}
       <div className="dashboard-shell dashboard-viewport w-full bg-[#F8FAFC] dark:bg-[#0B1220] text-[#0F172A] dark:text-slate-100 flex flex-col lg:flex-row transition-colors">
         {/* ========================================================================= */}
         {/* DESKTOP 4-GROUP STRUCTURED BUSINESS SIDEBAR                               */}
@@ -200,7 +204,7 @@ function BusinessDashboardContent({
         <BusinessSidebar
           activeTab={activeTab}
           onSelectTab={setActiveTab}
-          onOpenCreateWizard={() => setShowWizardModal(true)}
+          onOpenCreateWizard={() => handleOpenCreateWizard()}
           sidebarCollapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
           businessName={businessName}
@@ -217,7 +221,7 @@ function BusinessDashboardContent({
           onClose={() => setMobileSidebarOpen(false)}
           activeTab={activeTab}
           onSelectTab={setActiveTab}
-          onOpenCreateWizard={() => setShowWizardModal(true)}
+          onOpenCreateWizard={() => handleOpenCreateWizard()}
           businessName={businessName}
           profilePhotoUrl={profilePhotoUrl}
           registrationNumber={currentRegNumber}
@@ -274,77 +278,95 @@ function BusinessDashboardContent({
           {/* ========================================================================= */}
           {/* TAB ROUTING RENDERER                                                      */}
           {/* ========================================================================= */}
-          {/* GROUP 1: WORKSPACE */}
           <div ref={contentScrollRef} className="dashboard-content space-y-5 sm:space-y-6" role="region" aria-label="Business dashboard content" tabIndex={0}>
             <a href="/hot-deals/submit" className="block rounded-2xl border border-orange-200 bg-orange-50 p-4 text-sm font-semibold text-orange-800">
               Submit a Private Hot Deal · Ownership evidence, capacity &amp; reward terms →
             </a>
 
-            {activeTab === 'overview' && (
-              <OverviewTab
-                businessName={businessName}
-                fundingBalance={fundingBalance}
-                opportunities={opportunities}
-                partners={partners}
-                onOpenCreateWizard={() => setShowWizardModal(true)}
-                onNavigateTab={setActiveTab}
-              />
-            )}
-            {activeTab === 'create_opportunity' && (
-              <OverviewTab
-                businessName={businessName}
-                fundingBalance={fundingBalance}
-                opportunities={opportunities}
-                partners={partners}
-                onOpenCreateWizard={() => setShowWizardModal(true)}
-                onNavigateTab={setActiveTab}
-              />
-            )}
-            {activeTab === 'my_opportunities' && (
-              <MyOpportunitiesTab
-                opportunities={opportunities}
-                setOpportunities={setOpportunities}
-                onOpenCreateWizard={() => setShowWizardModal(true)}
-              />
-            )}
-            {activeTab === 'partners_applications' && (
-              <PartnersApplicationsTab
-                partners={partners}
-                setPartners={setPartners}
-              />
-            )}
+            {loadState === 'LOADING' ? (
+              <div className="py-20 text-center text-slate-400">
+                <Clock className="w-8 h-8 animate-spin text-[#FF6A00] mx-auto mb-3" />
+                <div className="font-bold text-slate-700 dark:text-slate-200">Loading your business workspace...</div>
+                <div className="text-xs text-slate-400 mt-1">Retrieving opportunities, active partners, and commercial terms.</div>
+              </div>
+            ) : loadState === 'ERROR' ? (
+              <div className="p-8 text-center bg-red-50 dark:bg-red-950/30 rounded-3xl border border-red-200 dark:border-red-900 text-red-900 dark:text-red-200 space-y-3">
+                <ShieldAlert className="w-10 h-10 text-red-500 mx-auto" />
+                <div className="font-extrabold text-base">Unable to load your business data</div>
+                <p className="text-xs max-w-md mx-auto">{loadError || 'A network error occurred while retrieving your business records.'}</p>
+                <button onClick={reloadData} className="py-2 px-5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer">
+                  Retry Connection
+                </button>
+              </div>
+            ) : (
+              <>
+                {activeTab === 'overview' && (
+                  <OverviewTab
+                    businessName={businessName}
+                    fundingBalance={fundingBalance}
+                    opportunities={opportunities}
+                    partners={partners}
+                    onOpenCreateWizard={() => handleOpenCreateWizard()}
+                    onNavigateTab={setActiveTab}
+                  />
+                )}
+                {activeTab === 'create_opportunity' && (
+                  <OverviewTab
+                    businessName={businessName}
+                    fundingBalance={fundingBalance}
+                    opportunities={opportunities}
+                    partners={partners}
+                    onOpenCreateWizard={() => handleOpenCreateWizard()}
+                    onNavigateTab={setActiveTab}
+                  />
+                )}
+                {activeTab === 'my_opportunities' && (
+                  <MyOpportunitiesTab
+                    opportunities={opportunities}
+                    setOpportunities={setOpportunities}
+                    onOpenCreateWizard={(deal) => handleOpenCreateWizard(deal)}
+                  />
+                )}
+                {activeTab === 'partners_applications' && (
+                  <PartnersApplicationsTab
+                    partners={partners}
+                    setPartners={setPartners}
+                  />
+                )}
 
-            {/* GROUP 2: PERFORMANCE */}
-            {activeTab === 'deal_performance' && (
-              <DealPerformanceTab opportunities={opportunities} />
-            )}
-            {activeTab === 'conversions_results' && <ConversionsResultsTab />}
-            {activeTab === 'rewards_commissions' && <RewardsCommissionsTab />}
-            {activeTab === 'payments_funding' && (
-              <PaymentsFundingTab
-                fundingBalance={fundingBalance}
-                setFundingBalance={setFundingBalance}
-              />
-            )}
+                {/* GROUP 2: PERFORMANCE */}
+                {activeTab === 'deal_performance' && (
+                  <DealPerformanceTab opportunities={opportunities} />
+                )}
+                {activeTab === 'conversions_results' && <ConversionsResultsTab />}
+                {activeTab === 'rewards_commissions' && <RewardsCommissionsTab />}
+                {activeTab === 'payments_funding' && (
+                  <PaymentsFundingTab
+                    fundingBalance={fundingBalance}
+                    setFundingBalance={setFundingBalance}
+                  />
+                )}
 
-            {/* GROUP 3: GROWTH */}
-            {activeTab === 'partner_discovery' && (
-              <PartnerDiscoveryTab opportunities={opportunities} />
-            )}
-            {activeTab === 'reports_exports' && <ReportsExportsTab />}
+                {/* GROUP 3: GROWTH */}
+                {activeTab === 'partner_discovery' && (
+                  <PartnerDiscoveryTab opportunities={opportunities} />
+                )}
+                {activeTab === 'reports_exports' && <ReportsExportsTab />}
 
-            {/* GROUP 4: ACCOUNT & SYSTEM */}
-            {activeTab === 'business_profile' && (
-              <BusinessProfileTab
-                businessName={businessName}
-                profilePhotoUrl={profilePhotoUrl}
-                registrationNumber={currentRegNumber}
-                verificationStatus={currentVerificationStatus}
-              />
+                {/* GROUP 4: ACCOUNT & SYSTEM */}
+                {activeTab === 'business_profile' && (
+                  <BusinessProfileTab
+                    businessName={businessName}
+                    profilePhotoUrl={profilePhotoUrl}
+                    registrationNumber={currentRegNumber}
+                    verificationStatus={currentVerificationStatus}
+                  />
+                )}
+                {activeTab === 'team_access' && <TeamAccessTab />}
+                {activeTab === 'settings_security' && <SettingsSecurityTab />}
+                {activeTab === 'help_support' && <HelpSupportTab />}
+              </>
             )}
-            {activeTab === 'team_access' && <TeamAccessTab />}
-            {activeTab === 'settings_security' && <SettingsSecurityTab />}
-            {activeTab === 'help_support' && <HelpSupportTab />}
           </div>
         </main>
 
@@ -353,7 +375,11 @@ function BusinessDashboardContent({
         {/* ========================================================================= */}
         <CreateOpportunityWizardModal
           isOpen={showWizardModal}
-          onClose={() => setShowWizardModal(false)}
+          onClose={() => {
+            setShowWizardModal(false)
+            setEditingDeal(null)
+          }}
+          initialDeal={editingDeal}
           onOpportunityCreated={handleOpportunityCreated}
         />
       </div>

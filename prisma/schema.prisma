@@ -70,14 +70,25 @@ enum OpportunityType {
 
 enum OpportunityStatus {
   DRAFT
+  SUBMITTED
   UNDER_REVIEW
+  CHANGES_REQUESTED
   RETURNED
+  APPROVED
   REJECTED
   PUBLISHED
   PAUSED
   COMPLETED
+  CLOSED
   CANCELLED
   ARCHIVED
+}
+
+enum ApprovalStatus {
+  PENDING_CHECKER
+  APPROVED
+  CHANGES_REQUESTED
+  REJECTED
 }
 
 enum ParticipationStatus {
@@ -301,6 +312,9 @@ model User {
   hotDealVerifications  HotDeal[]              @relation("HotDealVerifier")
   hotDealFraudReviews   HotDealClaim[]         @relation("HotDealFraudReviewer")
   referralTickets       ReferralTicket[]       @relation("PartnerReferralTickets")
+  createdOpportunities  Opportunity[]          @relation("OpportunityCreator")
+  makerApprovals        ApprovalRequest[]      @relation("ApprovalMaker")
+  checkerApprovals      ApprovalRequest[]      @relation("ApprovalChecker")
 
   @@index([email])
   @@index([phone])
@@ -519,6 +533,35 @@ model Opportunity {
   maxPartners        Int?
   startDate          DateTime?
   endDate            DateTime?
+  createdByUserId     String?           @db.Uuid
+  contactPersonName   String?
+  contactPersonPhone  String?
+  contactPersonEmail  String?
+  closingDate         DateTime?
+  visibility          String            @default("PUBLIC") // PUBLIC, PRIVATE, TIERED
+  accessTier          String?           // ALL_PARTNERS, GOLDEN_VIP, VERIFIED_ONLY
+  requirements        Json?
+  documentsRequired   Json?
+  subcategory         String?
+  commercialResultType String?          // COMPLETED_SALE, QUALIFIED_LEAD, SERVICE_BOOKING, APPROVED_CONTENT, PRODUCT_DELIVERY, SIGNED_B2B_CONTRACT
+  successCondition    String?           @db.Text
+  verificationEvidence String?          @db.Text
+  verificationWindowDays Int?           @default(14)
+  cancellationTerms   String?           @db.Text
+  rewardModel         String?           // B2B_SOURCING, CREATOR_AD_DEAL, LEAD_GENERATION, HIGH_TICKET_SALES, FIXED_REWARD, PERCENTAGE_COMMISSION, HYBRID
+  rewardType          String?           // PERCENTAGE, FIXED, HYBRID
+  rewardPercentage    Decimal?          @db.Decimal(5, 2)
+  fixedRewardAmountMinor BigInt?
+  rewardDisplayLabel  String?
+  rewardTrigger       String?
+  payoutCondition     String?
+  securedBudgetMinor  BigInt?
+  originalCurrency    String?           @default("TZS")
+  originalDealValueMinor BigInt?
+  referenceCurrency   String?           @default("TZS")
+  referenceValueMinor BigInt?
+  exchangeRateUsed    Decimal?          @db.Decimal(12, 4)
+  exchangeRateDate    DateTime?
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
   deletedAt          DateTime?
@@ -532,6 +575,8 @@ model Opportunity {
   conversions      Conversion[]
   hotDeal          HotDeal?
   referralTickets  ReferralTicket[]     @relation("OpportunityReferralTickets")
+  createdByUser    User?                @relation("OpportunityCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  approvalRequests ApprovalRequest[]
 
   @@index([organizationId])
   @@index([categoryId])
@@ -539,7 +584,31 @@ model Opportunity {
   @@index([status])
   @@index([slug])
   @@index([publishedVersionId])
+  @@index([createdByUserId])
   @@map("opportunities")
+}
+
+model ApprovalRequest {
+  id               String          @id @default(uuid()) @db.Uuid
+  opportunityId    String          @db.Uuid
+  makerUserId      String          @db.Uuid
+  checkerUserId    String?         @db.Uuid
+  approvalStatus   ApprovalStatus  @default(PENDING_CHECKER)
+  reviewerComments String?         @db.Text
+  submittedAt      DateTime        @default(now())
+  reviewedAt       DateTime?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  makerUser   User        @relation("ApprovalMaker", fields: [makerUserId], references: [id], onDelete: Cascade)
+  checkerUser User?       @relation("ApprovalChecker", fields: [checkerUserId], references: [id], onDelete: SetNull)
+
+  @@index([opportunityId])
+  @@index([makerUserId])
+  @@index([checkerUserId])
+  @@index([approvalStatus])
+  @@map("approval_requests")
 }
 
 model OpportunityVersion {

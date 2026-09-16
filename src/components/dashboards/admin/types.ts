@@ -83,12 +83,24 @@ export interface AdminDealItem {
   slug: string
   title: string
   businessName: string
+  organizationLegalName?: string
+  organizationTradingName?: string
+  organizationTin?: string
   category: string
   type: string
+  currency?: string
   rewardValueTZS: number
   budgetTZS: number
   spentTZS: number
-  status: 'DRAFT' | 'SUBMITTED' | 'UNDER_REVIEW' | 'APPROVED' | 'PUBLISHED' | 'PAUSED' | 'CLOSED' | 'ARCHIVED'
+  totalBudgetMinor?: string
+  originalCurrency?: string
+  originalDealValueMinor?: string
+  referenceCurrency?: string
+  referenceValueMinor?: string
+  exchangeRateUsed?: number
+  commissionModel?: string
+  payoutStructure?: string
+  status: 'DRAFT' | 'SUBMITTED' | 'UNDER_REVIEW' | 'APPROVED' | 'PUBLISHED' | 'PAUSED' | 'CLOSED' | 'ARCHIVED' | 'CHANGES_REQUESTED' | 'REJECTED'
   version: number
   activePartners: number
   createdAt: string
@@ -97,9 +109,24 @@ export interface AdminDealItem {
   featuredImageUrl?: string
   promoVideoUrl?: string
   galleryImageUrls?: string[]
+  mediaUrls?: string[]
   summary?: string
   description?: string
   termsAndConditions?: string
+  requirements?: string[]
+  targetAudience?: string[]
+  deliverables?: string[]
+  contactPersonName?: string
+  contactEmail?: string
+  contactPhone?: string
+  visibility?: string
+  featured?: boolean
+  versions?: any[]
+  makerUser?: { id: string; name: string; email: string } | null
+  checkerUser?: { id: string; name: string; email: string } | null
+  reviewerComments?: string
+  termsHash?: string
+  attributionWindowDays?: number
 }
 
 export interface ConversionRecord {

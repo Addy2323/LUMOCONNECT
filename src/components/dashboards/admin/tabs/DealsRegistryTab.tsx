@@ -39,6 +39,8 @@ export function DealsRegistryTab() {
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL')
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [selectedDeal, setSelectedDeal] = useState<AdminDealItem | null>(null)
+  const [inspectTab, setInspectTab] = useState<'overview' | 'media' | 'operations' | 'governance'>('overview')
+  const [editingDeal, setEditingDeal] = useState<AdminDealItem | null>(null)
   const [removeAllOpen, setRemoveAllOpen] = useState(false)
   const [removalConfirmation, setRemovalConfirmation] = useState('')
   const [removing, setRemoving] = useState(false)
@@ -267,9 +269,17 @@ export function DealsRegistryTab() {
                     <button
                       onClick={() => setSelectedDeal(deal)}
                       className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors cursor-pointer"
-                      title="Inspect Opportunity & Media Assets"
+                      title="Inspect Complete Opportunity & Media Assets"
                     >
                       <Eye className="w-3.5 h-3.5" />
+                    </button>
+
+                    <button
+                      onClick={() => setEditingDeal(deal)}
+                      className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors cursor-pointer"
+                      title="Edit Opportunity Details"
+                    >
+                      <Edit className="w-3.5 h-3.5" />
                     </button>
 
                     {deal.status === 'PUBLISHED' || deal.status === 'PAUSED' ? (
@@ -302,10 +312,10 @@ export function DealsRegistryTab() {
         </table>
       </div>
 
-      {/* INSPECT DEAL & MEDIA MODAL */}
+      {/* INSPECT OPPORTUNITY FULL MODAL */}
       {selectedDeal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto relative">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-3xl w-full p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto relative">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2.5">
                 <div className="w-10 h-10 rounded-2xl bg-orange-50 dark:bg-orange-950/50 text-[#FF6A00] flex items-center justify-center font-black">
@@ -316,7 +326,7 @@ export function DealsRegistryTab() {
                     {selectedDeal.title}
                   </h3>
                   <div className="text-xs text-slate-500">
-                    Publisher: <strong>{selectedDeal.businessName}</strong> · Status: <span className="font-bold text-[#FF6A00]">{selectedDeal.status}</span>
+                    Publisher: <strong>{selectedDeal.businessName}</strong> ({selectedDeal.merchantTIN || 'TIN Verified'}) · Status: <span className="font-bold text-[#FF6A00]">{selectedDeal.status}</span>
                   </div>
                 </div>
               </div>
@@ -329,114 +339,442 @@ export function DealsRegistryTab() {
               </button>
             </div>
 
-            {/* Commercial Terms Summary Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
-              <div className="p-3 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-200/80 dark:border-slate-700">
-                <div className="text-[10px] text-slate-400 font-bold uppercase">Partner Reward</div>
-                <div className="text-sm font-black text-[#FF6A00] font-mono mt-0.5">
-                  {selectedDeal.rewardDisplay ?? 'Terms not recorded'}
-                </div>
-              </div>
-
-              <div className="p-3 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-200/80 dark:border-slate-700">
-                <div className="text-[10px] text-slate-400 font-bold uppercase">Secured Budget</div>
-                <div className="text-sm font-black text-slate-900 dark:text-white font-mono mt-0.5">
-                  {selectedDeal.budgetRecorded ? `TZS ${selectedDeal.budgetTZS.toLocaleString()}` : 'Not recorded'}
-                </div>
-              </div>
-
-              <div className="p-3 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-200/80 dark:border-slate-700 col-span-2 sm:col-span-1">
-                <div className="text-[10px] text-slate-400 font-bold uppercase">Active Partners</div>
-                <div className="text-sm font-black text-slate-900 dark:text-white mt-0.5">
-                  {selectedDeal.activePartners} Enrolled
-                </div>
-              </div>
+            {/* Modal Tabs Header */}
+            <div className="flex gap-2 border-b border-slate-100 dark:border-slate-800 pb-2 text-xs font-bold">
+              {[
+                { key: 'overview', label: 'Overview & Commercials' },
+                { key: 'media', label: 'Media & Pitch' },
+                { key: 'operations', label: 'Operations & Rules' },
+                { key: 'governance', label: 'Governance & Audit' },
+              ].map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setInspectTab(tab.key as any)}
+                  className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
+                    inspectTab === tab.key
+                      ? 'bg-[#FF6A00] text-white'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
             </div>
 
-            {/* Uploaded Media & Promotional Assets Review */}
-            <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Film className="w-4 h-4 text-[#FF6A00]" />
-                  <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">
-                    Uploaded Media & Video Assets
-                  </h4>
-                </div>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-950/40 text-[#FF6A00]">
-                  Verified Media
-                </span>
-              </div>
+            {/* TAB 1: OVERVIEW & COMMERCIALS */}
+            {inspectTab === 'overview' && (
+              <div className="space-y-3 text-xs">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-200/80 dark:border-slate-700">
+                    <div className="text-[10px] text-slate-400 font-bold uppercase">Partner Reward</div>
+                    <div className="text-sm font-black text-[#FF6A00] font-mono mt-0.5">
+                      {selectedDeal.rewardDisplay ?? 'Terms not recorded'}
+                    </div>
+                    <div className="text-[10px] text-slate-400 mt-0.5">
+                      Model: {selectedDeal.commissionModel || 'Fixed'} ({selectedDeal.payoutStructure || 'Escrow'})
+                    </div>
+                  </div>
 
-              {/* Media Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* Video Preview */}
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-200/80 dark:border-slate-700">
+                    <div className="text-[10px] text-slate-400 font-bold uppercase">Secured Budget</div>
+                    <div className="text-sm font-black text-slate-900 dark:text-white font-mono mt-0.5">
+                      {selectedDeal.budgetRecorded ? `TZS ${selectedDeal.budgetTZS.toLocaleString()}` : 'Not recorded'}
+                    </div>
+                    <div className="text-[10px] text-emerald-600 mt-0.5">
+                      Spent: TZS {selectedDeal.spentTZS.toLocaleString()}
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-200/80 dark:border-slate-700 col-span-2 sm:col-span-1">
+                    <div className="text-[10px] text-slate-400 font-bold uppercase">Active Partners</div>
+                    <div className="text-sm font-black text-slate-900 dark:text-white mt-0.5">
+                      {selectedDeal.activePartners} Enrolled
+                    </div>
+                  </div>
+                </div>
+
+                {/* Multi-Currency & Settlement Breakdown */}
+                <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-2">
+                  <div className="font-extrabold text-slate-800 dark:text-slate-200 flex items-center justify-between">
+                    <span>Commercial Multi-Currency Ledger</span>
+                    <span className="text-[10px] font-mono bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded text-slate-700 dark:text-slate-300">
+                      Authoritative: {selectedDeal.currency || 'TZS'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+                    <div>
+                      <span className="text-slate-400 block text-[10px]">Original Currency</span>
+                      <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                        {selectedDeal.originalCurrency || 'TZS'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block text-[10px]">Original Value</span>
+                      <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                        {selectedDeal.originalDealValueMinor ? (Number(selectedDeal.originalDealValueMinor) / 100).toLocaleString() : 'N/A'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block text-[10px]">Reference TZS</span>
+                      <span className="font-mono font-bold text-[#FF6A00]">
+                        TZS {selectedDeal.budgetTZS.toLocaleString()}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block text-[10px]">Exchange Rate</span>
+                      <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                        {selectedDeal.exchangeRateUsed ? `1 = ${selectedDeal.exchangeRateUsed}` : '1.0000'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Description & Summary */}
                 <div className="space-y-1.5">
-                  <div className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                    <Video className="w-3.5 h-3.5 text-purple-600" />
-                    <span>Promotional Pitch Video</span>
-                  </div>
-
-                  {selectedDeal.promoVideoUrl ? (
-                    <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-black aspect-video relative">
-                      <DealMediaViewer
-                        mediaUrl={selectedDeal.promoVideoUrl}
-                        posterUrl={selectedDeal.featuredImageUrl}
-                        altTitle={selectedDeal.title}
-                        className="w-full h-full object-contain"
-                      />
-                    </div>
-                  ) : (
-                    <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-700 p-4 text-center text-xs text-slate-400 aspect-video flex flex-col items-center justify-center gap-1 bg-white dark:bg-slate-900">
-                      <Video className="w-6 h-6 opacity-30 text-slate-400" />
-                      <span className="font-semibold">No Video Attached</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Banner Preview */}
-                <div className="space-y-1.5">
-                  <div className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                    <ImageIcon className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>Featured Cover Banner</span>
-                  </div>
-
-                  {selectedDeal.featuredImageUrl ? (
-                    <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 aspect-video relative">
-                      <img
-                        src={selectedDeal.featuredImageUrl}
-                        alt={selectedDeal.title}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  ) : (
-                    <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-700 p-4 text-center text-xs text-slate-400 aspect-video flex flex-col items-center justify-center gap-1 bg-white dark:bg-slate-900">
-                      <ImageIcon className="w-6 h-6 opacity-30 text-slate-400" />
-                      <span className="font-semibold">Default Banner</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Public Commercial Summary */}
-              {(selectedDeal.summary || selectedDeal.description) && (
-                <div className="pt-2 border-t border-slate-200 dark:border-slate-700 text-xs space-y-1">
-                  <div className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                    <FileText className="w-3.5 h-3.5 text-[#FF6A00]" />
-                    <span>Public Commercial Summary:</span>
-                  </div>
-                  <p className="text-slate-600 dark:text-slate-400 text-[11px] leading-relaxed bg-white dark:bg-slate-900 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700">
-                    {selectedDeal.summary || selectedDeal.description}
+                  <div className="font-bold text-slate-800 dark:text-slate-200">Public Commercial Summary:</div>
+                  <p className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 leading-relaxed text-[11px]">
+                    {selectedDeal.summary || selectedDeal.description || 'No detailed summary provided.'}
                   </p>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
-            <div className="flex justify-end pt-2">
+            {/* TAB 2: MEDIA & PITCH */}
+            {inspectTab === 'media' && (
+              <div className="space-y-3 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <div className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                      <Video className="w-3.5 h-3.5 text-purple-600" />
+                      <span>Promotional Video Pitch</span>
+                    </div>
+                    {selectedDeal.promoVideoUrl ? (
+                      <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-black aspect-video relative">
+                        <DealMediaViewer
+                          mediaUrl={selectedDeal.promoVideoUrl}
+                          posterUrl={selectedDeal.featuredImageUrl}
+                          altTitle={selectedDeal.title}
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
+                    ) : (
+                      <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-700 p-4 text-center text-xs text-slate-400 aspect-video flex flex-col items-center justify-center gap-1 bg-white dark:bg-slate-900">
+                        <Video className="w-6 h-6 opacity-30 text-slate-400" />
+                        <span className="font-semibold">No Video Attached</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <div className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                      <ImageIcon className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Cover Banner Asset</span>
+                    </div>
+                    {selectedDeal.featuredImageUrl ? (
+                      <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 aspect-video relative">
+                        <img
+                          src={selectedDeal.featuredImageUrl}
+                          alt={selectedDeal.title}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    ) : (
+                      <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-700 p-4 text-center text-xs text-slate-400 aspect-video flex flex-col items-center justify-center gap-1 bg-white dark:bg-slate-900">
+                        <ImageIcon className="w-6 h-6 opacity-30 text-slate-400" />
+                        <span className="font-semibold">Default Banner</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Additional Media Gallery */}
+                {((selectedDeal.mediaUrls && selectedDeal.mediaUrls.length > 0) || (selectedDeal.galleryImageUrls && selectedDeal.galleryImageUrls.length > 0)) && (
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2">
+                    <div className="font-bold text-slate-700 dark:text-slate-300">
+                      Additional Media Gallery
+                    </div>
+                    <div className="flex gap-2 overflow-x-auto pb-1">
+                      {(selectedDeal.mediaUrls || selectedDeal.galleryImageUrls || []).map((url, i) => (
+                        <img
+                          key={i}
+                          src={url}
+                          alt={`Asset ${i + 1}`}
+                          className="w-20 h-20 rounded-xl object-cover border border-slate-200 dark:border-slate-700 shrink-0"
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB 3: OPERATIONS & RULES */}
+            {inspectTab === 'operations' && (
+              <div className="space-y-3 text-xs">
+                {/* Requirements & Target Audience */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 space-y-1.5">
+                    <div className="font-bold text-slate-800 dark:text-slate-200">Partner Requirements</div>
+                    {selectedDeal.requirements && selectedDeal.requirements.length > 0 ? (
+                      <ul className="space-y-1">
+                        {selectedDeal.requirements.map((r, i) => (
+                          <li key={i} className="text-[11px] text-slate-600 dark:text-slate-400 flex items-start gap-1.5">
+                            <span className="text-[#FF6A00] font-bold">✓</span> {r}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <div className="text-slate-400 text-[11px]">Standard marketplace requirements apply.</div>
+                    )}
+                  </div>
+
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 space-y-1.5">
+                    <div className="font-bold text-slate-800 dark:text-slate-200">Deliverables Expected</div>
+                    {selectedDeal.deliverables && selectedDeal.deliverables.length > 0 ? (
+                      <ul className="space-y-1">
+                        {selectedDeal.deliverables.map((d, i) => (
+                          <li key={i} className="text-[11px] text-slate-600 dark:text-slate-400 flex items-start gap-1.5">
+                            <span className="text-emerald-600 font-bold">•</span> {d}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <div className="text-slate-400 text-[11px]">Commercial outcome deliverables.</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Contact Information */}
+                <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 space-y-1.5">
+                  <div className="font-bold text-slate-800 dark:text-slate-200">Merchant Contact Details</div>
+                  <div className="grid grid-cols-3 gap-2 text-[11px]">
+                    <div>
+                      <span className="text-slate-400 block text-[10px]">Contact Person</span>
+                      <span className="font-medium text-slate-800 dark:text-slate-200">{selectedDeal.contactPersonName || 'Not specified'}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block text-[10px]">Email</span>
+                      <span className="font-medium text-slate-800 dark:text-slate-200">{selectedDeal.contactEmail || 'Not specified'}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block text-[10px]">Phone</span>
+                      <span className="font-medium text-slate-800 dark:text-slate-200">{selectedDeal.contactPhone || 'Not specified'}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 4: GOVERNANCE & AUDIT */}
+            {inspectTab === 'governance' && (
+              <div className="space-y-3 text-xs">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                    <span className="text-slate-400 block text-[10px] uppercase font-bold">Maker (Internal / Merchant)</span>
+                    <span className="font-bold text-slate-800 dark:text-slate-200 mt-0.5 block">
+                      {selectedDeal.makerOperator || 'Business User'}
+                    </span>
+                  </div>
+
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                    <span className="text-slate-400 block text-[10px] uppercase font-bold">Checker (Compliance Dual-Control)</span>
+                    <span className="font-bold text-slate-800 dark:text-slate-200 mt-0.5 block">
+                      {selectedDeal.checkerNotes ? 'Compliance Checker Signed' : 'Pending Checker Sign-Off'}
+                    </span>
+                  </div>
+                </div>
+
+                {selectedDeal.termsHash && (
+                  <div className="p-3 bg-blue-50 dark:bg-blue-950/40 rounded-xl border border-blue-200 dark:border-blue-900 space-y-1">
+                    <div className="font-bold text-blue-900 dark:text-blue-200 flex items-center justify-between">
+                      <span>Terms SHA-256 Tamper Detection Hash</span>
+                      <span className="font-mono text-[9px] bg-blue-200 dark:bg-blue-900 px-1.5 py-0.5 rounded text-blue-950 dark:text-blue-100">
+                        Protected
+                      </span>
+                    </div>
+                    <div className="font-mono text-[10px] text-blue-800 dark:text-blue-300 break-all select-all">
+                      {selectedDeal.termsHash}
+                    </div>
+                  </div>
+                )}
+
+                {selectedDeal.checkerNotes && (
+                  <div className="p-3 bg-amber-50 dark:bg-amber-950/40 rounded-xl border border-amber-200 dark:border-amber-900 space-y-1">
+                    <div className="font-bold text-amber-900 dark:text-amber-200">Checker Notes & Audit Sign-Off:</div>
+                    <div className="text-[11px] text-amber-800 dark:text-amber-300">{selectedDeal.checkerNotes}</div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="flex justify-between items-center pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                onClick={() => {
+                  const deal = selectedDeal
+                  setSelectedDeal(null)
+                  setEditingDeal(deal)
+                }}
+                className="py-2 px-4 rounded-xl border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 font-bold text-xs flex items-center gap-1.5 cursor-pointer"
+              >
+                <Edit className="w-3.5 h-3.5" />
+                <span>Edit Deal Details</span>
+              </button>
+
               <button
                 onClick={() => setSelectedDeal(null)}
                 className="py-2 px-5 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-bold text-xs rounded-xl shadow-xs cursor-pointer hover:bg-slate-800"
               >
                 Close Inspection
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT DEAL MODAL */}
+      {editingDeal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+            <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+              <Edit className="w-5 h-5 text-[#FF6A00]" />
+              <span>Edit Opportunity Details</span>
+            </h3>
+
+            <div className="space-y-3 text-xs max-h-[60vh] overflow-y-auto pr-1">
+              <div>
+                <label className="font-bold block mb-1">Deal Title</label>
+                <input
+                  type="text"
+                  value={editingDeal.title}
+                  onChange={(e) => setEditingDeal({ ...editingDeal, title: e.target.value })}
+                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-medium"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold block mb-1">Commercial Summary</label>
+                <textarea
+                  value={editingDeal.summary || ''}
+                  onChange={(e) => setEditingDeal({ ...editingDeal, summary: e.target.value })}
+                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+                  rows={2}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold block mb-1">Category</label>
+                  <select
+                    value={editingDeal.category}
+                    onChange={(e) => setEditingDeal({ ...editingDeal, category: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
+                  >
+                    <option value="Renewable Energy">Renewable Energy</option>
+                    <option value="Financial Services">Financial Services</option>
+                    <option value="Agriculture">Agriculture</option>
+                    <option value="Technology">Technology</option>
+                    <option value="General">General</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="font-bold block mb-1">Status</label>
+                  <select
+                    value={editingDeal.status}
+                    onChange={(e) => setEditingDeal({ ...editingDeal, status: e.target.value as any })}
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-bold text-[#FF6A00]"
+                  >
+                    <option value="DRAFT">DRAFT</option>
+                    <option value="UNDER_REVIEW">UNDER REVIEW</option>
+                    <option value="PUBLISHED">PUBLISHED</option>
+                    <option value="PAUSED">PAUSED</option>
+                    <option value="ARCHIVED">ARCHIVED</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold block mb-1">Visibility</label>
+                  <select
+                    value={editingDeal.visibility || 'PUBLIC'}
+                    onChange={(e) => setEditingDeal({ ...editingDeal, visibility: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
+                  >
+                    <option value="PUBLIC">Public</option>
+                    <option value="PRIVATE">Private / Selective</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="font-bold block mb-1">Featured on Marketplace</label>
+                  <select
+                    value={editingDeal.featured ? 'true' : 'false'}
+                    onChange={(e) => setEditingDeal({ ...editingDeal, featured: e.target.value === 'true' })}
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
+                  >
+                    <option value="false">Standard Listing</option>
+                    <option value="true">Featured (Promoted)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="font-bold block mb-1">Contact Person Name</label>
+                <input
+                  type="text"
+                  value={editingDeal.contactPersonName || ''}
+                  onChange={(e) => setEditingDeal({ ...editingDeal, contactPersonName: e.target.value })}
+                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold block mb-1">Contact Email</label>
+                <input
+                  type="email"
+                  value={editingDeal.contactEmail || ''}
+                  onChange={(e) => setEditingDeal({ ...editingDeal, contactEmail: e.target.value })}
+                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                onClick={() => setEditingDeal(null)}
+                className="py-2 px-4 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    const res = await fetch('/api/admin/deals', {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        dealId: editingDeal.id,
+                        title: editingDeal.title,
+                        summary: editingDeal.summary,
+                        status: editingDeal.status,
+                        visibility: editingDeal.visibility,
+                        featured: editingDeal.featured,
+                        contactPersonName: editingDeal.contactPersonName,
+                        contactPersonEmail: editingDeal.contactEmail,
+                      }),
+                    })
+                    if (!res.ok) throw new Error('Update failed')
+                    showToast('success', 'Opportunity Saved', 'The administrative changes have been persisted.')
+                    setEditingDeal(null)
+                    resource.retry()
+                  } catch (err: any) {
+                    showToast('error', 'Update Failed', err.message || 'Could not update deal.')
+                  }
+                }}
+                className="py-2 px-5 bg-[#FF6A00] text-white font-extrabold text-xs rounded-xl shadow-xs hover:bg-[#e05d00] cursor-pointer"
+              >
+                Save Changes
               </button>
             </div>
           </div>

@@ -4,6 +4,8 @@ import {
   joinOpportunityDeal,
   isUserEnrolledInDeal,
   getUserEnrolledDealIds,
+  resetOpportunities,
+  seedTestOpportunity,
 } from '@/modules/deals/service'
 import { setUserSubscription } from '@/modules/subscriptions/service'
 
@@ -11,6 +13,32 @@ describe('Deal Enrollment Status & Duplicate Prevention', () => {
   const testUserId = 'usr_partner_test_enrollment'
 
   beforeEach(() => {
+    resetOpportunities()
+    seedTestOpportunity({
+      id: 'opp_test_deal_01',
+      organizationId: 'org_test_01',
+      companyName: 'Test Solar Energy Ltd',
+      companyLogo: 'TS',
+      isVerified: true,
+      type: 'PRODUCT_SALES',
+      title: 'Solar Inverter System 5kW',
+      slug: 'solar-inverter-system-5kw',
+      summary: 'High efficiency solar inverter system',
+      description: 'Full commercial grade solar system',
+      category: 'Renewable Energy',
+      countryCode: 'TZ',
+      region: 'Dar es Salaam',
+      currency: 'TZS',
+      rewardType: 'FIXED_COMMISSION',
+      rewardDisplay: 'TZS 50,000 per closed deal',
+      rewardDetail: 'Payable on verified customer installation',
+      spentBudgetTZS: BigInt(0),
+      activePartnerCount: 2,
+      isFeatured: true,
+      status: 'PUBLISHED',
+      createdAt: new Date(),
+    })
+
     // Setup active subscription for partner so they are authorized to join deals
     setUserSubscription(testUserId, {
       id: `sub_${testUserId}`,
