@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     const sortBy = (searchParams.get('sortBy') as 'recommended' | 'highest_reward' | 'newest' | 'ending_soon') || 'recommended'
 
     const where: any = {
-      status: 'PUBLISHED',
+      status: { in: ['PUBLISHED', 'APPROVED'] },
       deletedAt: null,
     }
 

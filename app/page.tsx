@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useMemo, useEffect } from 'react'
-import { listOpportunities, getProtectedOpportunityDetails, isUserEnrolledInDeal } from '@/modules/deals/service'
+import { listOpportunities, syncOpportunitiesFromServer, getProtectedOpportunityDetails, isUserEnrolledInDeal } from '@/modules/deals/service'
 import type { OpportunityItem } from '@/modules/deals/types'
 import type { ProtectedDealDetails } from '@/modules/deals/service'
 import { requireActiveDealSubscription } from '@/modules/subscriptions/authorization'
@@ -372,6 +372,9 @@ export default function LumoApp() {
         setSavedDeals(JSON.parse(saved))
       }
     } catch (e) {}
+
+    // Synchronize live database opportunities from PostgreSQL
+    syncOpportunitiesFromServer().catch(() => {})
 
     const handleUpdate = () => setDealsRevision((r) => r + 1)
     const handleSavedUpdate = () => {

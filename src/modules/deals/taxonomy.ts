@@ -91,6 +91,9 @@ const LEGACY_CATEGORY_GROUPS: Record<string, string> = {
   'construction & sourcing': 'Services',
   'healthcare & wellness': 'Services',
   'logistics & transportation': 'Services',
+  'general': 'Services',
+  'cargo & logistics': 'Services',
+  'cargo inspection': 'Services',
 }
 
 export function matchesOpportunityCategory(itemCategory: string, selectedCategory: string, subcategory?: string) {

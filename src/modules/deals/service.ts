@@ -127,7 +127,7 @@ export function listOpportunities(filters?: OpportunityFilterParams): Opportunit
     const TWO_HOURS_MS = 2 * 60 * 60 * 1000 // 2 hours = 7,200,000 ms
 
     items = items.filter((item) => {
-      if (item.status === 'PUBLISHED') return true
+      if (item.status === 'PUBLISHED' || (item.status as any) === 'APPROVED') return true
       if (item.status === 'COMPLETED') {
         const completedTime = item.completedAt ? new Date(item.completedAt).getTime() : item.createdAt.getTime()
         const elapsed = nowMs - completedTime
@@ -645,6 +645,38 @@ export function updateDealStatus(
 }
 
 export const createOpportunity = createDealOpportunity
+
+export function setOpportunitiesInStore(items: OpportunityItem[]): void {
+  inMemoryOpportunities = items.map((item) => ({
+    ...item,
+    createdAt: new Date(item.createdAt),
+    completedAt: item.completedAt ? new Date(item.completedAt) : undefined,
+    expiryDate: item.expiryDate ? new Date(item.expiryDate) : undefined,
+    vipAccessStartAt: item.vipAccessStartAt ? new Date(item.vipAccessStartAt) : undefined,
+    vipReleaseAt: item.vipReleaseAt ? new Date(item.vipReleaseAt) : undefined,
+    totalBudgetTZS: item.totalBudgetTZS ? BigInt(item.totalBudgetTZS) : undefined,
+    spentBudgetTZS: item.spentBudgetTZS ? BigInt(item.spentBudgetTZS) : BigInt(0),
+  }))
+  syncToStorage()
+}
+
+export async function syncOpportunitiesFromServer(): Promise<OpportunityItem[]> {
+  if (typeof window === 'undefined') return inMemoryOpportunities
+  try {
+    const res = await fetch('/api/opportunities')
+    if (res.ok) {
+      const data = await res.json()
+      const opps = data.opportunities || data.data || []
+      if (Array.isArray(opps)) {
+        setOpportunitiesInStore(opps)
+        return inMemoryOpportunities
+      }
+    }
+  } catch (e) {
+    console.warn('Could not sync opportunities from server', e)
+  }
+  return inMemoryOpportunities
+}
 
 export function resetOpportunities(items: OpportunityItem[] = []): void {
   inMemoryOpportunities = [...items]

@@ -35,7 +35,7 @@ import { SettingsSecurityTab } from './partner/tabs/SettingsSecurityTab'
 import { HelpSupportTab } from './partner/tabs/HelpSupportTab'
 
 // Services
-import { listOpportunities } from '@/modules/deals/service'
+import { listOpportunities, setOpportunitiesInStore } from '@/modules/deals/service'
 import { getUserSubscription, setUserSubscription } from '@/modules/subscriptions/service'
 import type { OpportunityItem } from '@/modules/deals/types'
 
@@ -158,7 +158,7 @@ export function PartnerDashboardView({
   const [showSubmitLeadModal, setShowSubmitLeadModal] = useState(false)
   const [selectedDealForLead, setSelectedDealForLead] = useState<JoinedDealItem | null>(null)
 
-  // Reload Opportunities from shared storage
+  // Reload Opportunities from shared storage & live database
   const reloadOpportunities = useCallback(() => {
     let savedIds: string[] = []
     if (typeof window !== 'undefined') {
@@ -169,9 +169,26 @@ export function PartnerDashboardView({
       }
     }
     const savedSet = new Set(savedIds)
+
+    // Immediate render from local/cached opportunities
     const rawOpps = listOpportunities()
-    const mapped = rawOpps.map((opp) => mapOpportunityToPartnerSummary(opp, savedSet))
-    setOpportunities(mapped)
+    if (rawOpps.length > 0) {
+      setOpportunities(rawOpps.map((opp) => mapOpportunityToPartnerSummary(opp, savedSet)))
+    }
+
+    // Always fetch fresh authoritative opportunities from PostgreSQL database
+    fetch('/api/opportunities')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        const oppList = data?.opportunities || data?.data
+        if (Array.isArray(oppList)) {
+          setOpportunitiesInStore(oppList)
+          setOpportunities(oppList.map((opp: any) => mapOpportunityToPartnerSummary(opp, savedSet)))
+        }
+      })
+      .catch((err) => {
+        console.warn('Could not fetch opportunities from server:', err)
+      })
   }, [])
 
   // Reload Subscription Status from local store and database
