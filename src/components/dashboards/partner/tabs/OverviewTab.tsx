@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Briefcase,
   Users,
@@ -35,6 +35,24 @@ import {
   PartnerSidebarSection,
 } from '../types'
 import { usePartnerToast } from '../PartnerToast'
+import { generateDateBuckets, TimeSeriesPoint } from '@/lib/dynamicDateRange'
+
+export interface PartnerOverviewPayoutSummary {
+  nextPayout: {
+    amountTZS: number
+    grossAmountTZS: number
+    scheduledDate: string
+    method: string
+    accountNumber: string
+    status: string
+    reference: string
+  } | null
+  availableEarningsTZS: number
+  agreedMerchantRewardTZS: number
+  settlementMethod: string
+  platformFeeDisplay: string
+  platformFeePercent: number
+}
 
 interface OverviewTabProps {
   partnerName: string
@@ -42,36 +60,11 @@ interface OverviewTabProps {
   opportunities: PartnerOpportunitySummary[]
   joinedDeals: JoinedDealItem[]
   profileCompletion: number
+  payoutSummary?: PartnerOverviewPayoutSummary | null
   onNavigateTab: (tab: PartnerSidebarSection) => void
   onOpenOpportunityDetail: (opp: PartnerOpportunitySummary) => void
   onOpenPayoutRequest: () => void
 }
-
-const PERFORMANCE_DATA_7D = [
-  { date: '18 Aug', value: 0 },
-  { date: '19 Aug', value: 0 },
-  { date: '20 Aug', value: 0 },
-  { date: '21 Aug', value: 0 },
-  { date: '22 Aug', value: 0 },
-  { date: '23 Aug', value: 0 },
-  { date: '24 Aug', value: 0 },
-]
-
-const PERFORMANCE_DATA_30D = [
-  { date: 'W1', value: 0 },
-  { date: 'W2', value: 0 },
-  { date: 'W3', value: 0 },
-  { date: 'W4', value: 0 },
-]
-
-const PERFORMANCE_DATA_6M = [
-  { date: 'Mar', value: 0 },
-  { date: 'Apr', value: 0 },
-  { date: 'May', value: 0 },
-  { date: 'Jun', value: 0 },
-  { date: 'Jul', value: 0 },
-  { date: 'Aug', value: 0 },
-]
 
 export function OverviewTab({
   partnerName,
@@ -79,19 +72,29 @@ export function OverviewTab({
   opportunities,
   joinedDeals,
   profileCompletion,
+  payoutSummary,
   onNavigateTab,
   onOpenOpportunityDetail,
   onOpenPayoutRequest,
 }: OverviewTabProps) {
   const { showToast } = usePartnerToast()
   const [timeRange, setTimeRange] = useState<'7D' | '30D' | '6M'>('7D')
+  const [chartData, setChartData] = useState<TimeSeriesPoint[]>(() => generateDateBuckets('7D'))
 
-  const chartData =
-    timeRange === '7D'
-      ? PERFORMANCE_DATA_7D
-      : timeRange === '30D'
-      ? PERFORMANCE_DATA_30D
-      : PERFORMANCE_DATA_6M
+  useEffect(() => {
+    fetch(`/api/partner/overview?period=${timeRange}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.success && Array.isArray(data.series) && data.series.length > 0) {
+          setChartData(data.series)
+        } else {
+          setChartData(generateDateBuckets(timeRange))
+        }
+      })
+      .catch(() => {
+        setChartData(generateDateBuckets(timeRange))
+      })
+  }, [timeRange])
 
   const activeDeals = joinedDeals.filter((d) => d.status === 'ACTIVE')
 
@@ -243,87 +246,152 @@ export function OverviewTab({
             </div>
           </div>
 
-          <div className="h-64 sm:h-72 w-full pt-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="partnerVelocityGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#FF6A00" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#FF6A00" stopOpacity={0.0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" opacity={0.5} />
-                <XAxis dataKey="date" stroke="#94A3B8" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis stroke="#94A3B8" fontSize={11} tickLine={false} axisLine={false} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#0F172A',
-                    borderRadius: '16px',
-                    color: '#fff',
-                    fontSize: '12px',
-                    border: 'none',
-                  }}
-                  formatter={(value: any) => [`${value} Verified Outcomes`, 'Conversions']}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="value"
-                  stroke="#FF6A00"
-                  strokeWidth={3}
-                  fillOpacity={1}
-                  fill="url(#partnerVelocityGradient)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+          {(() => {
+            const maxVal = Math.max(0, ...chartData.map((d) => d.value || 0))
+            const hasActivity = maxVal > 0
+
+            return (
+              <div className="relative h-64 sm:h-72 w-full pt-2">
+                {!hasActivity && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/75 dark:bg-slate-900/75 backdrop-blur-[1px] pointer-events-none z-10 rounded-2xl">
+                    <p className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                      No performance activity recorded for this period.
+                    </p>
+                    <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+                      Join opportunities and submit qualified customer referrals to build your performance history.
+                    </p>
+                  </div>
+                )}
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="partnerVelocityGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#FF6A00" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#FF6A00" stopOpacity={0.0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" opacity={0.5} />
+                    <XAxis dataKey="label" stroke="#94A3B8" fontSize={11} tickLine={false} axisLine={false} />
+                    <YAxis
+                      stroke="#94A3B8"
+                      fontSize={11}
+                      tickLine={false}
+                      axisLine={false}
+                      domain={[0, maxVal > 0 ? 'auto' : 5]}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: '#0F172A',
+                        borderRadius: '16px',
+                        color: '#fff',
+                        fontSize: '12px',
+                        border: 'none',
+                      }}
+                      formatter={(value: any) => [`${value} Verified Outcomes`, 'Conversions']}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="value"
+                      stroke="#FF6A00"
+                      strokeWidth={3}
+                      fillOpacity={1}
+                      fill="url(#partnerVelocityGradient)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            )
+          })()}
         </div>
 
         {/* Next Scheduled Payout Card (4 Cols) */}
-        <div className="lg:col-span-4 bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-4 sm:p-5 shadow-xs space-y-4 flex flex-col justify-between">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
-              <span className="text-xs font-black uppercase tracking-wider text-slate-400">
-                Next Payout Batch
-              </span>
-              <span className={`w-2 h-2 rounded-full ${performance.approvedRewardsTZS > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
-            </div>
+        {(() => {
+          const hasScheduled = Boolean(payoutSummary?.nextPayout)
+          const currentAvailable = payoutSummary?.availableEarningsTZS !== undefined ? payoutSummary.availableEarningsTZS : performance.approvedRewardsTZS
+          const agreedReward = payoutSummary?.agreedMerchantRewardTZS !== undefined ? payoutSummary.agreedMerchantRewardTZS : performance.approvedRewardsTZS
 
-            <div className={`p-4 rounded-2xl border text-center space-y-1 ${performance.approvedRewardsTZS > 0 ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900/60' : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800'}`}>
-              <Calendar className={`w-6 h-6 mx-auto ${performance.approvedRewardsTZS > 0 ? 'text-emerald-600' : 'text-slate-400'}`} />
-              <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white font-mono pt-1">
-                TZS {Math.max(0, Math.round(performance.approvedRewardsTZS * 0.95)).toLocaleString()}
-              </div>
-              <div className="text-xs text-slate-600 dark:text-slate-300 font-bold">
-                {performance.approvedRewardsTZS > 0 ? 'Next Batch Scheduled on Approval' : 'No Scheduled Payouts'}
-              </div>
-              <div className="text-[10px] text-slate-500">
-                {performance.approvedRewardsTZS > 0 ? 'M-Pesa / Bank account routing' : 'Join deals & earn commissions to schedule payouts'}
-              </div>
-            </div>
+          return (
+            <div className="lg:col-span-4 bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-4 sm:p-5 shadow-xs space-y-4 flex flex-col justify-between">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-xs font-black uppercase tracking-wider text-slate-400">
+                    Next Payout Batch
+                  </span>
+                  <span
+                    className={`w-2 h-2 rounded-full ${
+                      hasScheduled || currentAvailable > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'
+                    }`}
+                  />
+                </div>
 
-            <div className="space-y-2 text-xs bg-slate-50 dark:bg-slate-800/60 p-3 rounded-2xl border">
-              <div className="flex justify-between">
-                <span className="text-slate-500">Agreed Merchant Reward:</span>
-                <span className="font-mono font-bold text-slate-900 dark:text-white">TZS {performance.approvedRewardsTZS.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Settlement Method:</span>
-                <span className="font-mono font-bold text-slate-700 dark:text-slate-300">Direct Merchant Payout</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">LUMO Platform Fee:</span>
-                <span className="font-mono font-bold text-emerald-600">FREE (0%)</span>
-              </div>
-            </div>
-          </div>
+                <div
+                  className={`p-4 rounded-2xl border text-center space-y-1.5 ${
+                    hasScheduled
+                      ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900/60'
+                      : currentAvailable > 0
+                      ? 'bg-orange-50 dark:bg-orange-950/40 border-orange-200 dark:border-orange-900/60'
+                      : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800'
+                  }`}
+                >
+                  <Calendar
+                    className={`w-6 h-6 mx-auto ${
+                      hasScheduled
+                        ? 'text-emerald-600'
+                        : currentAvailable > 0
+                        ? 'text-[#FF6A00]'
+                        : 'text-slate-400'
+                    }`}
+                  />
+                  <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white font-mono pt-1">
+                    TZS {(hasScheduled ? payoutSummary!.nextPayout!.amountTZS : currentAvailable).toLocaleString()}
+                  </div>
+                  <div className="text-xs text-slate-700 dark:text-slate-200 font-bold">
+                    {hasScheduled
+                      ? `Batch ${payoutSummary!.nextPayout!.status} (${new Date(payoutSummary!.nextPayout!.scheduledDate).toLocaleDateString()})`
+                      : currentAvailable > 0
+                      ? `TZS ${currentAvailable.toLocaleString()} Available to Request`
+                      : 'No Scheduled Payouts'}
+                  </div>
+                  <div className="text-[10px] text-slate-500">
+                    {hasScheduled
+                      ? `${payoutSummary!.nextPayout!.method} (${payoutSummary!.nextPayout!.accountNumber || ''})`
+                      : currentAvailable > 0
+                      ? 'Submit a payout request to schedule settlement'
+                      : 'Join deals & earn commissions to schedule payouts'}
+                  </div>
+                </div>
 
-          <button
-            onClick={() => onNavigateTab('earnings_payouts')}
-            className="w-full py-2.5 bg-[#0B132B] hover:bg-slate-800 text-white font-extrabold text-xs rounded-xl shadow-xs transition-colors text-center"
-          >
-            View Payout History & Statements
-          </button>
-        </div>
+                <div className="space-y-2 text-xs bg-slate-50 dark:bg-slate-800/60 p-3 rounded-2xl border">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Agreed Merchant Reward:</span>
+                    <span className="font-mono font-bold text-slate-900 dark:text-white">
+                      TZS {agreedReward.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Settlement Method:</span>
+                    <span className="font-mono font-bold text-slate-700 dark:text-slate-300">
+                      {payoutSummary?.settlementMethod || 'Vodacom M-Pesa / Mobile Money'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">LUMO Platform Fee:</span>
+                    <span className="font-mono font-bold text-emerald-600">
+                      {payoutSummary?.platformFeeDisplay || '3% (Standard)'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={() => onNavigateTab('earnings_payouts')}
+                className="w-full py-2.5 bg-[#0B132B] hover:bg-slate-800 text-white font-extrabold text-xs rounded-xl shadow-xs transition-colors text-center cursor-pointer"
+              >
+                View Payout History & Statements
+              </button>
+            </div>
+          )
+        })()}
       </div>
 
       {/* Active Enrolled Deals Section */}

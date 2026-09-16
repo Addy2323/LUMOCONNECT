@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import {
   TrendingUp,
   Download,
@@ -30,6 +30,7 @@ import {
 } from 'recharts'
 import { PartnerPerformanceMetrics, JoinedDealItem } from '../types'
 import { usePartnerToast } from '../PartnerToast'
+import { generateDateBuckets, TimeSeriesPoint } from '@/lib/dynamicDateRange'
 
 interface PerformanceTabProps {
   performance: PartnerPerformanceMetrics
@@ -45,7 +46,32 @@ export function PerformanceTab({ performance, joinedDeals, profileCompletion }: 
   const [period, setPeriod] = useState<PeriodType>('7D')
   const [metricType, setMetricType] = useState<ChartMetricType>('earnings')
 
-  // Real totals calculated directly from performance prop & enrolled deals (production mode)
+  const [chartData, setChartData] = useState<TimeSeriesPoint[]>(() => generateDateBuckets('7D'))
+  const [periodTotals, setPeriodTotals] = useState({ earnings: 0, clicks: 0, leads: 0, conversions: 0 })
+  const [apiConversionRate, setApiConversionRate] = useState<number | null>(null)
+
+  useEffect(() => {
+    fetch(`/api/partner/performance?period=${period}&metric=${metricType}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.success && Array.isArray(data.series) && data.series.length > 0) {
+          setChartData(data.series)
+          if (data.periodTotals) {
+            setPeriodTotals(data.periodTotals)
+          }
+          if (data.summary?.conversionRate !== undefined) {
+            setApiConversionRate(data.summary.conversionRate)
+          }
+        } else {
+          setChartData(generateDateBuckets(period))
+        }
+      })
+      .catch(() => {
+        setChartData(generateDateBuckets(period))
+      })
+  }, [period, metricType])
+
+  // Real totals calculated directly from performance prop & enrolled deals
   const totalClicksCount = performance?.verifiedClicks || 0
 
   const totalLeadsCount = useMemo(() => {
@@ -63,92 +89,37 @@ export function PerformanceTab({ performance, joinedDeals, profileCompletion }: 
     return joinedDeals.reduce((sum, d) => sum + (d.earningsEarnedTZS || 0), 0)
   }, [performance, joinedDeals])
 
-  const calculatedConversionRate = totalLeadsCount > 0 ? Math.round((totalConversionsCount / totalLeadsCount) * 100) : 0
-
-  // Real time-series performance data based on selected timeframe & actual metrics
-  const chartData = useMemo(() => {
-    const today = new Date()
-    let points: { date: string; clicks: number; leads: number; conversions: number; earnings: number }[] = []
-
-    if (period === '7D') {
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date()
-        d.setDate(today.getDate() - i)
-        const dateStr = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-        const factor = totalLeadsCount > 0 || totalClicksCount > 0 ? 1 : 0
-        points.push({
-          date: dateStr,
-          clicks: factor ? Math.round(totalClicksCount / 7) : 0,
-          leads: factor ? Math.round(totalLeadsCount / 7) : 0,
-          conversions: factor ? Math.round(totalConversionsCount / 7) : 0,
-          earnings: factor ? Math.round(totalRewardsTZS / 7) : 0,
-        })
-      }
-    } else if (period === '30D') {
-      for (let i = 29; i >= 0; i -= 3) {
-        const d = new Date()
-        d.setDate(today.getDate() - i)
-        const dateStr = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-        const factor = totalLeadsCount > 0 || totalClicksCount > 0 ? 1 : 0
-        points.push({
-          date: dateStr,
-          clicks: factor ? Math.round(totalClicksCount / 10) : 0,
-          leads: factor ? Math.round(totalLeadsCount / 10) : 0,
-          conversions: factor ? Math.round(totalConversionsCount / 10) : 0,
-          earnings: factor ? Math.round(totalRewardsTZS / 10) : 0,
-        })
-      }
-    } else if (period === '6M') {
-      const months = ['Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug']
-      const factor = totalLeadsCount > 0 || totalClicksCount > 0 ? 1 : 0
-      points = months.map((m) => ({
-        date: m,
-        clicks: factor ? Math.round(totalClicksCount / 6) : 0,
-        leads: factor ? Math.round(totalLeadsCount / 6) : 0,
-        conversions: factor ? Math.round(totalConversionsCount / 6) : 0,
-        earnings: factor ? Math.round(totalRewardsTZS / 6) : 0,
-      }))
-    } else {
-      // 12M
-      const months = ['Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug']
-      const factor = totalLeadsCount > 0 || totalClicksCount > 0 ? 1 : 0
-      points = months.map((m) => ({
-        date: m,
-        clicks: factor ? Math.round(totalClicksCount / 12) : 0,
-        leads: factor ? Math.round(totalLeadsCount / 12) : 0,
-        conversions: factor ? Math.round(totalConversionsCount / 12) : 0,
-        earnings: factor ? Math.round(totalRewardsTZS / 12) : 0,
-      }))
-    }
-
-    return points
-  }, [period, totalClicksCount, totalLeadsCount, totalConversionsCount, totalRewardsTZS])
-
-  // Calculated period totals from real chart points
-  const periodTotals = useMemo(() => {
-    return chartData.reduce(
-      (acc, item) => ({
-        earnings: acc.earnings + item.earnings,
-        clicks: acc.clicks + item.clicks,
-        leads: acc.leads + item.leads,
-        conversions: acc.conversions + item.conversions,
-      }),
-      { earnings: 0, clicks: 0, leads: 0, conversions: 0 }
-    )
-  }, [chartData])
+  const calculatedConversionRate =
+    apiConversionRate !== null
+      ? apiConversionRate
+      : totalClicksCount > 0
+      ? Math.round((totalConversionsCount / totalClicksCount) * 100)
+      : totalLeadsCount > 0
+      ? Math.round((totalConversionsCount / totalLeadsCount) * 100)
+      : 0
 
   // Real CSV File Export
   const handleExport = () => {
     try {
+      const startDate = chartData[0]?.date || 'start'
+      const endDate = chartData[chartData.length - 1]?.date || 'end'
+      const fileName = `lumo-partner-performance-${period.toLowerCase()}-${startDate}-to-${endDate}.csv`
+
       const csvRows = [
         ['LUMO DEALERS - COMMERCIAL PERFORMANCE & OUTCOME ANALYTICS'],
         [`Generated On: ${new Date().toLocaleString()}`],
         [`Timeframe: ${period}`],
         [''],
-        ['DATE', 'VERIFIED CLICKS', 'QUALIFIED LEADS', 'CONVERSIONS', 'EARNINGS (TZS)'],
-        ...chartData.map((d) => [d.date, d.clicks, d.leads, d.conversions, d.earnings]),
+        ['DATE', 'LABEL', 'VERIFIED CLICKS', 'QUALIFIED LEADS', 'CONVERSIONS', 'EARNINGS (TZS)'],
+        ...chartData.map((d) => [d.date, d.label, d.clicks, d.leads, d.conversions, d.earnings]),
         [''],
-        ['SUMMARY TOTALS'],
+        ['PERIOD TOTALS'],
+        ['Period Clicks', periodTotals.clicks],
+        ['Period Qualified Leads', periodTotals.leads],
+        ['Period Conversions', periodTotals.conversions],
+        ['Period Earnings (TZS)', periodTotals.earnings],
+        [''],
+        ['LIFETIME TOTALS'],
         ['Total Verified Clicks', totalClicksCount],
         ['Total Qualified Leads', totalLeadsCount],
         ['Total Conversions', totalConversionsCount],
@@ -171,12 +142,12 @@ export function PerformanceTab({ performance, joinedDeals, profileCompletion }: 
       const encodedUri = encodeURI(csvContent)
       const link = document.createElement('a')
       link.setAttribute('href', encodedUri)
-      link.setAttribute('download', `Lumo_Performance_Analytics_${period}_${Date.now()}.csv`)
+      link.setAttribute('download', fileName)
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
 
-      showToast('success', 'Performance Analytics Exported', 'CSV statement downloaded successfully.')
+      showToast('success', 'Performance Analytics Exported', `CSV statement downloaded: ${fileName}`)
     } catch (err) {
       showToast('error', 'Export Failed', 'Unable to generate CSV export.')
     }
@@ -361,73 +332,88 @@ export function PerformanceTab({ performance, joinedDeals, profileCompletion }: 
         </div>
 
         {/* Recharts Area Chart Rendering */}
-        <div className="h-64 sm:h-72 w-full pt-2">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-              <defs>
-                <linearGradient id="partnerRewardGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#FF6A00" stopOpacity={0.35} />
-                  <stop offset="95%" stopColor="#FF6A00" stopOpacity={0.0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.15} />
-              <XAxis dataKey="date" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
-              <YAxis
-                tick={{ fontSize: 11 }}
-                tickLine={false}
-                axisLine={false}
-                tickFormatter={(val) =>
-                  metricType === 'earnings'
-                    ? val >= 1000000
-                      ? `${(val / 1000000).toFixed(1)}M`
-                      : val >= 1000
-                      ? `${(val / 1000).toFixed(0)}k`
-                      : `${val}`
-                    : `${val}`
-                }
-              />
-              <Tooltip
-                content={({ active, payload, label }) => {
-                  if (active && payload && payload.length) {
-                    const data = payload[0].payload
-                    return (
-                      <div className="bg-slate-900 text-white p-3 rounded-2xl border border-slate-700 shadow-xl text-xs space-y-1.5 font-sans">
-                        <div className="font-extrabold text-slate-400 border-b border-slate-800 pb-1">{label}</div>
-                        <div className="flex items-center justify-between gap-4">
-                          <span className="text-slate-400">Accrued Earnings:</span>
-                          <span className="font-mono font-black text-[#FF6A00]">
-                            TZS {data.earnings.toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between gap-4">
-                          <span className="text-slate-400">Verified Clicks:</span>
-                          <span className="font-mono font-bold">{data.clicks}</span>
-                        </div>
-                        <div className="flex items-center justify-between gap-4">
-                          <span className="text-slate-400">Qualified Leads:</span>
-                          <span className="font-mono font-bold text-blue-400">{data.leads}</span>
-                        </div>
-                        <div className="flex items-center justify-between gap-4">
-                          <span className="text-slate-400">Conversions:</span>
-                          <span className="font-mono font-bold text-emerald-400">{data.conversions}</span>
-                        </div>
-                      </div>
-                    )
-                  }
-                  return null
-                }}
-              />
-              <Area
-                type="monotone"
-                dataKey={metricType}
-                stroke="#FF6A00"
-                strokeWidth={3}
-                fillOpacity={1}
-                fill="url(#partnerRewardGradient)"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
+        {(() => {
+          const maxVal = Math.max(0, ...(chartData.map((d: any) => Number(d[metricType]) || 0)))
+          const hasActivity = maxVal > 0
+          return (
+            <div className="relative h-64 sm:h-72 w-full pt-2">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="partnerRewardGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#FF6A00" stopOpacity={0.35} />
+                      <stop offset="95%" stopColor="#FF6A00" stopOpacity={0.0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.15} />
+                  <XAxis dataKey="label" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+                  <YAxis
+                    domain={[0, maxVal > 0 ? 'auto' : 5]}
+                    tick={{ fontSize: 11 }}
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(val) =>
+                      metricType === 'earnings'
+                        ? val >= 1000000
+                          ? `${(val / 1000000).toFixed(1)}M`
+                          : val >= 1000
+                          ? `${(val / 1000).toFixed(0)}k`
+                          : `${val}`
+                        : `${val}`
+                    }
+                  />
+                  <Tooltip
+                    content={({ active, payload, label }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload
+                        return (
+                          <div className="bg-slate-900 text-white p-3 rounded-2xl border border-slate-700 shadow-xl text-xs space-y-1.5 font-sans">
+                            <div className="font-extrabold text-slate-400 border-b border-slate-800 pb-1">{label}</div>
+                            <div className="flex items-center justify-between gap-4">
+                              <span className="text-slate-400">Accrued Earnings:</span>
+                              <span className="font-mono font-black text-[#FF6A00]">
+                                TZS {data.earnings.toLocaleString()}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between gap-4">
+                              <span className="text-slate-400">Verified Clicks:</span>
+                              <span className="font-mono font-bold">{data.clicks}</span>
+                            </div>
+                            <div className="flex items-center justify-between gap-4">
+                              <span className="text-slate-400">Qualified Leads:</span>
+                              <span className="font-mono font-bold text-blue-400">{data.leads}</span>
+                            </div>
+                            <div className="flex items-center justify-between gap-4">
+                              <span className="text-slate-400">Conversions:</span>
+                              <span className="font-mono font-bold text-emerald-400">{data.conversions}</span>
+                            </div>
+                          </div>
+                        )
+                      }
+                      return null
+                    }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey={metricType}
+                    stroke="#FF6A00"
+                    strokeWidth={3}
+                    fillOpacity={1}
+                    fill="url(#partnerRewardGradient)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+              {!hasActivity && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/40 dark:bg-slate-900/40 backdrop-blur-[1px] rounded-2xl pointer-events-none">
+                  <div className="text-center p-3">
+                    <p className="text-xs font-bold text-slate-500 dark:text-slate-400">No activity recorded for this period</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500">Live analytics will populate as leads & conversions are logged.</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        })()}
       </div>
 
       {/* Breakdown by Active Deal */}

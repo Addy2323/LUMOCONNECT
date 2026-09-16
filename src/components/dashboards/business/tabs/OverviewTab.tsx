@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import {
   Briefcase,
   Users,
@@ -20,6 +20,7 @@ import {
   PackageCheck,
   Building2,
   AlertCircle,
+  Download,
 } from 'lucide-react'
 import {
   ResponsiveContainer,
@@ -33,6 +34,7 @@ import {
 import { BusinessOpportunityItem, RewardFundingBalance, BusinessPartnerItem } from '../types'
 import { useBusinessToast } from '../BusinessToast'
 import { EscrowInquiry } from '@/components/marketplace/WhatsAppMiddlemanModal'
+import { generateDateBuckets, mergeEventSeries, RawEventItem } from '@/lib/dynamicDateRange'
 
 interface OverviewTabProps {
   businessName: string
@@ -43,31 +45,6 @@ interface OverviewTabProps {
   onNavigateTab: (tab: any) => void
 }
 
-const PERFORMANCE_DATA_7D = [
-  { date: '18 Aug', value: 0 },
-  { date: '19 Aug', value: 0 },
-  { date: '20 Aug', value: 0 },
-  { date: '21 Aug', value: 0 },
-  { date: '22 Aug', value: 0 },
-  { date: '23 Aug', value: 0 },
-  { date: '24 Aug', value: 0 },
-]
-
-const PERFORMANCE_DATA_30D = [
-  { date: 'W1', value: 0 },
-  { date: 'W2', value: 0 },
-  { date: 'W3', value: 0 },
-  { date: 'W4', value: 0 },
-]
-
-const PERFORMANCE_DATA_6M = [
-  { date: 'Mar', value: 0 },
-  { date: 'Apr', value: 0 },
-  { date: 'May', value: 0 },
-  { date: 'Jun', value: 0 },
-  { date: 'Jul', value: 0 },
-  { date: 'Aug', value: 0 },
-]
 
 const DEFAULT_MOCK_INQUIRIES: EscrowInquiry[] = [
   {
@@ -145,16 +122,107 @@ export function OverviewTab({
     }
   }, [])
 
-  const chartData =
-    timeRange === '7D'
-      ? PERFORMANCE_DATA_7D
-      : timeRange === '30D'
-      ? PERFORMANCE_DATA_30D
-      : PERFORMANCE_DATA_6M
+  const [serverSeries, setServerSeries] = useState<any[] | null>(null)
+
+  useEffect(() => {
+    fetch(`/api/business/overview?period=${timeRange}`, { credentials: 'include' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.success && Array.isArray(data.series) && data.series.length > 0) {
+          setServerSeries(data.series)
+        }
+      })
+      .catch((err) => console.warn('Could not fetch server business series:', err))
+  }, [timeRange])
+
+  const chartData = useMemo(() => {
+    if (serverSeries && serverSeries.length > 0) {
+      return serverSeries
+    }
+    const buckets = generateDateBuckets(timeRange)
+    const rawEvents: RawEventItem[] = []
+
+    partners.forEach((p) => {
+      if (p.totalEarnedTZS && p.joinedProgramDate) {
+        rawEvents.push({
+          timestamp: p.joinedProgramDate,
+          type: 'TRANSACTION',
+          amountTZS: p.totalEarnedTZS,
+        })
+      }
+    })
+
+    return mergeEventSeries(buckets, rawEvents, timeRange).map((b) => ({
+      ...b,
+      day: b.label,
+      pipelineRevenueTZS: b.pipelineRevenueTZS || 0,
+    }))
+  }, [timeRange, partners, serverSeries])
+
+  const maxPipelineRevenue = Math.max(0, ...chartData.map((d: any) => d.pipelineRevenueTZS || 0))
+  const hasRevenueActivity = maxPipelineRevenue > 0
 
   const liveOpportunities = opportunities.filter((o) => o.status === 'PUBLISHED')
   const totalActivePartners = partners.filter((p) => p.status === 'ACTIVE').length
   const totalVerifiedConversions = opportunities.reduce((acc, o) => acc + o.totalConversions, 0)
+
+  const handleExportBusinessAnalytics = () => {
+    try {
+      const now = new Date()
+      const dateStr = now.toISOString().split('T')[0]
+      const fileName = `lumo-merchant-analytics-${timeRange.toLowerCase()}-${dateStr}.csv`
+
+      const csvRows = [
+        ['"LUMO DEALS - MERCHANT OVERVIEW & PIPELINE REVENUE REPORT"'],
+        [`"Merchant Name"`, `"${businessName}"`],
+        [`"Generated At"`, `"${now.toLocaleString('en-GB')}"`],
+        [`"Reporting Period"`, `"${timeRange}"`],
+        [''],
+        ['"COMMERCIAL SUMMARY METRICS"', '"VALUE"'],
+        ['"Live Published Opportunities"', liveOpportunities.length],
+        ['"Active Enrolled Partners"', totalActivePartners],
+        ['"Verified Customer Conversions"', totalVerifiedConversions],
+        ['"Total Rewards Funded in Escrow (TZS)"', fundingBalance.committedToActiveDealsTZS || fundingBalance.availableBalanceTZS || 0],
+        ['"Total Commercial Rewards Disbursed (TZS)"', fundingBalance.rewardsPaidTZS || 0],
+        [''],
+        ['"ROLLING PIPELINE REVENUE BREAKDOWN"'],
+        ['"Date Key"', '"Label"', '"Pipeline Revenue (TZS)"', '"Recorded Transactions"', '"Conversions"'],
+        ...chartData.map((pt: any) => [
+          `"${pt.date}"`,
+          `"${pt.day || pt.label}"`,
+          pt.pipelineRevenueTZS || 0,
+          pt.txValue || 0,
+          pt.conversions || 0,
+        ]),
+        [''],
+        ['"ACTIVE OPPORTUNITIES PERFORMANCE"'],
+        ['"Opportunity Title"', '"Category"', '"Region"', '"Reward (TZS)"', '"Partners"', '"Conversions"'],
+        ...(opportunities.length > 0
+          ? opportunities.map((opp) => [
+              `"${opp.title}"`,
+              `"${opp.category}"`,
+              `"${opp.region}"`,
+              opp.rewardValueTZS,
+              opp.activePartners || 0,
+              opp.totalConversions || 0,
+            ])
+          : [['"No active campaigns published"', '—', '—', 0, 0, 0]]),
+      ]
+
+      const csvContent = 'data:text/csv;charset=utf-8,' + csvRows.map((e) => e.join(',')).join('\n')
+      const encodedUri = encodeURI(csvContent)
+      const link = document.createElement('a')
+      link.setAttribute('href', encodedUri)
+      link.setAttribute('download', fileName)
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+
+      showToast('success', 'Merchant Analytics Exported', `CSV statement downloaded: ${fileName}`)
+    } catch (err) {
+      showToast('error', 'Export Failed', 'Unable to generate CSV export.')
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -177,8 +245,16 @@ export function OverviewTab({
 
         <div className="flex items-center gap-2 shrink-0">
           <button
+            onClick={handleExportBusinessAnalytics}
+            className="py-2.5 px-4 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-extrabold text-xs rounded-xl shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer"
+          >
+            <Download className="w-4 h-4 text-[#FF6A00]" />
+            <span>Export Analytics (CSV)</span>
+          </button>
+
+          <button
             onClick={onOpenCreateWizard}
-            className="py-2.5 px-5 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold text-xs rounded-xl shadow-xs transition-all flex items-center gap-2 active:scale-[0.99]"
+            className="py-2.5 px-5 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold text-xs rounded-xl shadow-xs transition-all flex items-center gap-2 active:scale-[0.99] cursor-pointer"
           >
             <Sparkles className="w-4 h-4" />
             <span>Create Opportunity</span>
@@ -284,9 +360,35 @@ export function OverviewTab({
               </h3>
               <p className="text-xs text-slate-500">Weekly attributable deal pipeline and verified outcome volumes.</p>
             </div>
+
+            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl self-start sm:self-auto text-xs font-bold">
+              {(['7D', '30D', '6M'] as const).map((r) => (
+                <button
+                  key={r}
+                  onClick={() => setTimeRange(r)}
+                  className={`px-3 py-1 rounded-lg transition-all ${
+                    timeRange === r
+                      ? 'bg-white dark:bg-slate-900 text-[#FF6A00] shadow-2xs font-extrabold'
+                      : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  {r}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="h-64 sm:h-72 w-full pt-4">
+          <div className="relative h-64 sm:h-72 w-full pt-4">
+            {!hasRevenueActivity && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/70 dark:bg-slate-900/70 backdrop-blur-[1px] pointer-events-none z-10 rounded-2xl">
+                <p className="text-xs font-bold text-slate-600 dark:text-slate-300">
+                  No commercial conversion velocity recorded for this period.
+                </p>
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+                  Active partner referrals and verified sales will chart your revenue pipeline here.
+                </p>
+              </div>
+            )}
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData}>
                 <defs>
@@ -301,7 +403,8 @@ export function OverviewTab({
                   tick={{ fontSize: 11 }}
                   axisLine={false}
                   tickLine={false}
-                  tickFormatter={(val) => `TZS ${(val / 1000000).toFixed(0)}M`}
+                  domain={[0, maxPipelineRevenue > 0 ? 'auto' : 5000000]}
+                  tickFormatter={(val) => (val === 0 ? '0' : `TZS ${(val / 1000000).toFixed(0)}M`)}
                 />
                 <Tooltip
                   formatter={(val: any) => [`TZS ${Number(val).toLocaleString()}`, 'Pipeline Value']}

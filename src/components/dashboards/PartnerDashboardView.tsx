@@ -21,7 +21,7 @@ import { useSubscriptionCountdown } from './partner/useSubscriptionCountdown'
 import { ThemeToggle } from '@/components/theme/ThemeToggle'
 
 // Tab components
-import { OverviewTab } from './partner/tabs/OverviewTab'
+import { OverviewTab, type PartnerOverviewPayoutSummary } from './partner/tabs/OverviewTab'
 import { DiscoverOpportunitiesTab } from './partner/tabs/DiscoverOpportunitiesTab'
 import { SavedOpportunitiesTab } from './partner/tabs/SavedOpportunitiesTab'
 import { MyDealsTab } from './partner/tabs/MyDealsTab'
@@ -130,6 +130,29 @@ export function PartnerDashboardView({
   const [joinedDeals, setJoinedDeals] = useState<JoinedDealItem[]>([])
   const [leads, setLeads] = useState<PartnerLeadItem[]>(MOCK_PARTNER_LEADS)
   const [performance, setPerformance] = useState<PartnerPerformanceMetrics>(MOCK_PARTNER_PERFORMANCE)
+  const [payoutSummary, setPayoutSummary] = useState<PartnerOverviewPayoutSummary | null>(null)
+
+  // Reload Overview metrics and payout summary from authenticated server
+  const reloadOverview = useCallback(() => {
+    fetch('/api/partner/overview', { credentials: 'include' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.success) {
+          if (data.payoutSummary) {
+            setPayoutSummary(data.payoutSummary)
+          }
+          if (data.metrics) {
+            setPerformance((prev) => ({
+              ...prev,
+              approvedRewardsTZS: data.metrics.availableEarningsTZS ?? prev.approvedRewardsTZS,
+              qualifiedLeads: data.metrics.qualifiedLeadsCount ?? prev.qualifiedLeads,
+              verifiedConversions: data.metrics.verifiedConversionsCount ?? prev.verifiedConversions,
+            }))
+          }
+        }
+      })
+      .catch((err) => console.warn('Could not fetch partner overview:', err))
+  }, [])
 
   // Submit Lead Modal Trigger
   const [showSubmitLeadModal, setShowSubmitLeadModal] = useState(false)
@@ -237,17 +260,24 @@ export function PartnerDashboardView({
     reloadOpportunities()
     reloadSubscription()
     reloadJoinedDeals()
+    reloadOverview()
 
     const handleDealsUpdate = () => reloadOpportunities()
     const handleSavedUpdate = () => reloadOpportunities()
     const handleSubUpdate = () => reloadSubscription()
-    const handleJoinedUpdate = () => reloadJoinedDeals()
+    const handleJoinedUpdate = () => {
+      reloadJoinedDeals()
+      reloadOverview()
+    }
+    const handleOverviewUpdate = () => reloadOverview()
 
     window.addEventListener('lumo:deals-updated', handleDealsUpdate)
     window.addEventListener('lumo:saved-deals-updated', handleSavedUpdate)
     window.addEventListener('lumo:subscription-updated', handleSubUpdate)
     window.addEventListener('lumo:plans-updated', handleSubUpdate)
     window.addEventListener('lumo:joined-deals-updated', handleJoinedUpdate)
+    window.addEventListener('lumo:leads-updated', handleOverviewUpdate)
+    window.addEventListener('lumo:payouts-updated', handleOverviewUpdate)
 
     return () => {
       window.removeEventListener('lumo:deals-updated', handleDealsUpdate)
@@ -255,8 +285,10 @@ export function PartnerDashboardView({
       window.removeEventListener('lumo:subscription-updated', handleSubUpdate)
       window.removeEventListener('lumo:plans-updated', handleSubUpdate)
       window.removeEventListener('lumo:joined-deals-updated', handleJoinedUpdate)
+      window.removeEventListener('lumo:leads-updated', handleOverviewUpdate)
+      window.removeEventListener('lumo:payouts-updated', handleOverviewUpdate)
     }
-  }, [reloadOpportunities, reloadSubscription, reloadJoinedDeals])
+  }, [reloadOpportunities, reloadSubscription, reloadJoinedDeals, reloadOverview])
 
   const saveJoinedDeals = (newDeals: JoinedDealItem[]) => {
     setJoinedDeals(newDeals)
@@ -422,6 +454,7 @@ export function PartnerDashboardView({
               opportunities={opportunities}
               joinedDeals={joinedDeals}
               profileCompletion={profileCompletion}
+              payoutSummary={payoutSummary}
               onNavigateTab={setActiveTab}
               onOpenOpportunityDetail={(opp) => {
                 if (subscription?.status !== 'ACTIVE') {

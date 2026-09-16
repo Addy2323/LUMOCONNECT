@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { generateDateBuckets, mergeEventSeries, AnalyticsPeriod, RawEventItem } from '@/lib/dynamicDateRange'
 
 export async function GET(request: NextRequest) {
   try {
@@ -232,6 +233,52 @@ export async function GET(request: NextRequest) {
       hashSignature: 'sha256:' + log.id.replace(/-/g, '').slice(0, 16),
     }))
 
+    // Dynamic Rolling Time-Series Engine for Admin Chart
+    const validPeriod: AnalyticsPeriod = (['30D', '6M', '12M'].includes(period) ? period : '30D') as AnalyticsPeriod
+    const buckets = generateDateBuckets(validPeriod)
+
+    const rawEvents: RawEventItem[] = []
+    if (process.env.DATABASE_URL?.trim()) {
+      try {
+        const [recentPayments, recentUsers] = await Promise.all([
+          db.paymentAttempt.findMany({
+            where: { status: 'SUCCESSFUL' },
+            select: { createdAt: true, amountMinor: true },
+            take: 500,
+          }),
+          db.user.findMany({
+            where: { deletedAt: null },
+            select: { createdAt: true },
+            take: 500,
+          }),
+        ])
+
+        recentPayments.forEach((p) => {
+          rawEvents.push({
+            timestamp: p.createdAt,
+            type: 'TRANSACTION',
+            amountTZS: Number(p.amountMinor) / 100,
+          })
+        })
+
+        recentUsers.forEach((u) => {
+          rawEvents.push({
+            timestamp: u.createdAt,
+            type: 'USER_SESSION',
+            activeUsers: 1,
+          })
+        })
+      } catch (e) {
+        console.warn('Could not aggregate admin time series from database:', e)
+      }
+    }
+
+    const populatedSeries = mergeEventSeries(buckets, rawEvents, validPeriod).map((pt) => ({
+      ...pt,
+      txValue: Number((pt.txValue / 1000000).toFixed(2)), // in Millions for left YAxis
+      activeUsers: pt.activeUsers, // integer active users
+    }))
+
     return NextResponse.json({
       success: true,
       metrics: {
@@ -256,6 +303,7 @@ export async function GET(request: NextRequest) {
       users: formattedUsers,
       verifications: formattedVerifications,
       auditLogs: formattedLogs,
+      series: populatedSeries,
     })
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 })
