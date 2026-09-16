@@ -1,13 +1,15 @@
-import { INITIAL_OPPORTUNITIES } from './mock-data'
 import type { OpportunityItem, DealCreateInput } from './types'
 import { toMinorUnits } from '@/lib/money'
 import { requireActiveDealSubscription } from '@/modules/subscriptions/authorization'
 import type { DealAccessDecision } from '@/modules/subscriptions/types'
 import { matchesOpportunityCategory } from './taxonomy'
 
-let inMemoryOpportunities: OpportunityItem[] = [...INITIAL_OPPORTUNITIES]
+let inMemoryOpportunities: OpportunityItem[] = []
 
 const RETIRED_BUNDLED_OPPORTUNITY_IDS = new Set([
+  'opp_cement_bulk_01', 'opp_hiace_tz_02', 'opp_farmland_03',
+  'opp_smartphones_04', 'opp_zanzibar_hotel_05', 'opp_clothing_06',
+  'opp_import_supplier_07', 'opp_vip_solar_hybrid_08', 'opp_vip_macbook_fleet_09',
   'opp_solar_tz_01',
   'opp_agrotech_tz_02',
   'opp_fintech_pos_03',
@@ -24,43 +26,13 @@ function loadFromStorage() {
       const stored = localStorage.getItem('lumo_deals')
       if (stored) {
         const parsed = JSON.parse(stored)
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           const activeStored = parsed.filter(
             (item: OpportunityItem) => !RETIRED_BUNDLED_OPPORTUNITY_IDS.has(item.id)
           )
-          const storedIds = new Set(activeStored.map((p: OpportunityItem) => p.id))
-          const missingInitial = INITIAL_OPPORTUNITIES.filter((init) => !storedIds.has(init.id))
-          // Refresh presentation content for bundled opportunities while preserving
-          // user-created deals and live participation/budget state.
-          const refreshedStored = activeStored.map((storedItem: OpportunityItem) => {
-            const bundledItem = INITIAL_OPPORTUNITIES.find((item) => item.id === storedItem.id)
-            if (!bundledItem) return storedItem
-
-            return {
-              ...storedItem,
-              title: bundledItem.title,
-              summary: bundledItem.summary,
-              description: bundledItem.description,
-              principalPriceDisplay: bundledItem.principalPriceDisplay,
-              featuredImageUrl: bundledItem.featuredImageUrl,
-              galleryImageUrls: bundledItem.galleryImageUrls,
-              expiryDate: bundledItem.expiryDate,
-              isGoldenVip: bundledItem.isGoldenVip ?? storedItem.isGoldenVip,
-              vipAccessStartAt: bundledItem.vipAccessStartAt ?? storedItem.vipAccessStartAt,
-              vipReleaseAt: bundledItem.vipReleaseAt ?? storedItem.vipReleaseAt,
-              wholesalePriceTZS: bundledItem.wholesalePriceTZS ?? storedItem.wholesalePriceTZS,
-              minOrderQuantity: bundledItem.minOrderQuantity ?? storedItem.minOrderQuantity,
-              productCondition: bundledItem.productCondition ?? storedItem.productCondition,
-              warrantyPeriod: bundledItem.warrantyPeriod ?? storedItem.warrantyPeriod,
-              inspectionWindowHours: bundledItem.inspectionWindowHours ?? storedItem.inspectionWindowHours,
-              qualityScore: bundledItem.qualityScore ?? storedItem.qualityScore,
-              sellerPhone: bundledItem.sellerPhone ?? storedItem.sellerPhone,
-              sellerWhatsApp: bundledItem.sellerWhatsApp ?? storedItem.sellerWhatsApp,
-              sellerLocation: bundledItem.sellerLocation ?? storedItem.sellerLocation,
-            }
-          })
-          const combined = [...refreshedStored, ...missingInitial]
-          inMemoryOpportunities = combined.map((item) => ({
+          // Purge retired samples from existing browsers; never replenish listings.
+          if (activeStored.length !== parsed.length) localStorage.setItem('lumo_deals', JSON.stringify(activeStored))
+          inMemoryOpportunities = activeStored.map((item) => ({
             ...item,
             createdAt: new Date(item.createdAt),
             completedAt: item.completedAt ? new Date(item.completedAt) : undefined,

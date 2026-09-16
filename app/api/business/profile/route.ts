@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
       select: {
         id: true,
         legalName: true,
+        industry: true, hqAddress: true, contactEmail: true, contactPhone: true, website: true,
         tradingName: true,
         tin: true,
         registrationNumber: true,
@@ -57,7 +58,7 @@ export async function GET(request: NextRequest) {
         success: false,
         error: error.message || "Unauthorized",
       },
-      { status: error.status || 401 }
+      { status: error.statusCode || error.status || 401 }
     );
   }
 }
@@ -73,9 +74,18 @@ export async function PUT(request: NextRequest) {
 
     const { legalName, tradingName, tin, registrationNumber, countryCode } = body;
 
+    if (!['OWNER', 'ADMIN'].includes(biz.businessRole)) return NextResponse.json({ error: 'Business administrator access required.' }, { status: 403 });
+    const details: Record<string, string | null> = {};
+    for (const key of ['industry', 'hqAddress', 'contactEmail', 'contactPhone', 'website']) {
+      if (body[key] !== undefined) {
+        if (typeof body[key] !== 'string' || body[key].length > 500) return NextResponse.json({ error: 'Invalid profile details.' }, { status: 400 });
+        details[key] = body[key].trim() || null;
+      }
+    }
     const updated = await db.organization.update({
       where: { id: biz.businessId },
       data: {
+        ...details,
         ...(legalName !== undefined && { legalName: String(legalName).trim() }),
         ...(tradingName !== undefined && { tradingName: String(tradingName).trim() }),
         ...(tin !== undefined && { tin: String(tin).trim() }),
@@ -85,6 +95,7 @@ export async function PUT(request: NextRequest) {
       select: {
         id: true,
         legalName: true,
+        industry: true, hqAddress: true, contactEmail: true, contactPhone: true, website: true,
         tradingName: true,
         tin: true,
         registrationNumber: true,
@@ -105,7 +116,7 @@ export async function PUT(request: NextRequest) {
         success: false,
         error: error.message || "Failed to update business profile",
       },
-      { status: error.status || 400 }
+      { status: error.statusCode || error.status || 400 }
     );
   }
 }

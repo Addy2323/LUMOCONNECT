@@ -44,6 +44,21 @@ export function MyOpportunitiesTab({
   const [versioningModal, setVersioningModal] = useState<BusinessOpportunityItem | null>(null)
   const [amendmentReason, setAmendmentReason] = useState('')
   const [newRewardValue, setNewRewardValue] = useState<number>(0)
+  const [valueEdit, setValueEdit] = useState<{ id: string; value: string } | null>(null)
+  const [savingValue, setSavingValue] = useState(false)
+
+  const saveCommercialValue = async () => {
+    if (!valueEdit || savingValue) return
+    setSavingValue(true)
+    try {
+      const response = await fetch(`/api/business/opportunities/${valueEdit.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ commercialValueTZS: valueEdit.value || null }) })
+      if (!response.ok) throw new Error('Could not save commercial value')
+      setOpportunities(previous => previous.map(item => item.id === valueEdit.id ? { ...item, commercialValueTZS: valueEdit.value ? Number(valueEdit.value) : null } : item))
+      setValueEdit(null)
+      showToast('success', 'Commercial value updated', 'The public total will refresh automatically for eligible published deals.')
+    } catch { showToast('error', 'Update failed', 'Enter a valid non-negative amount with at most two decimals.') }
+    finally { setSavingValue(false) }
+  }
 
   const filtered = opportunities.filter((o) => {
     const matchesSearch =
@@ -241,6 +256,14 @@ export function MyOpportunitiesTab({
         </button>
       </div>
 
+      {valueEdit && <div className="rounded-xl border p-4 space-y-3">
+        <label className="block font-bold">Total commercial deal value (TZS)
+          <input type="number" min="0" step="0.01" value={valueEdit.value} onChange={event => setValueEdit({ ...valueEdit, value: event.target.value })} className="block rounded border p-2 mt-2" />
+        </label>
+        <p className="text-sm">Total goods or services value, excluding partner rewards. Leave blank if unknown.</p>
+        <button disabled={savingValue} onClick={saveCommercialValue} className="rounded bg-orange-600 text-white px-4 py-2">{savingValue ? 'Saving…' : 'Save value'}</button>
+        <button disabled={savingValue} onClick={() => setValueEdit(null)} className="px-4 py-2">Cancel</button>
+      </div>}
       {/* Editing & Immutability Rules Callout */}
       <div className="p-3.5 rounded-2xl bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-900 text-xs text-purple-900 dark:text-purple-200 flex items-start gap-2.5">
         <Lock className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
@@ -389,6 +412,7 @@ export function MyOpportunitiesTab({
               <div>
                 <span className="text-slate-400 text-[10px] font-bold block">Budget Allocated</span>
                 <span className="font-mono font-bold">TZS {opp.budgetTZS.toLocaleString()}</span>
+                <button type="button" className="text-xs text-orange-600 underline" onClick={() => setValueEdit({ id: opp.id, value: opp.commercialValueTZS?.toString() ?? '' })}>Set commercial value</button>
               </div>
               <div>
                 <span className="text-slate-400 text-[10px] font-bold block">Tracking Method</span>

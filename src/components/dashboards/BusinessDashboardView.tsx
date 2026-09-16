@@ -44,11 +44,15 @@ const CLEAN_FUNDING_BALANCE: RewardFundingBalance = {
   rewardsPayableTZS: 0,
   rewardsPaidTZS: 0,
   refundableBalanceTZS: 0,
-  safeguardingProvider: 'CRDB Bank Escrow / Vodacom Trust Account',
+  safeguardingProvider: 'Not configured',
   lastReconciliationDate: 'Never',
 }
 
-export function BusinessDashboardView({
+export function BusinessDashboardView(props: BusinessDashboardViewProps) {
+  return <BusinessDashboardContent key={`${props.userId ?? ''}:${props.organizationId ?? ''}`} {...props} />
+}
+
+function BusinessDashboardContent({
   initialTab = 'overview',
   businessName = 'My Business',
   profilePhotoUrl,
@@ -76,11 +80,19 @@ export function BusinessDashboardView({
   const [fundingBalance, setFundingBalance] = useState<RewardFundingBalance>(CLEAN_FUNDING_BALANCE)
   const [currentVerificationStatus, setCurrentVerificationStatus] = useState<string>(initialVerificationStatus)
   const [currentRegNumber, setCurrentRegNumber] = useState<string | undefined>(initialRegNumber)
+  const requestGeneration = useRef(0)
+  const [loadError, setLoadError] = useState('')
 
   const reloadData = useCallback(async () => {
+    const generation = ++requestGeneration.current
+    setOpportunities([])
+    setPartners([])
+    setLoadError('')
     try {
       // 1. Fetch business-owned opportunities
       const oppsRes = await fetch('/api/business/opportunities', { credentials: 'include' })
+      if (generation !== requestGeneration.current) return
+      if (!oppsRes.ok) throw new Error('Unable to load your business opportunities.')
       if (oppsRes.ok) {
         const oppsData = await oppsRes.json()
         if (oppsData.success && Array.isArray(oppsData.data)) {
@@ -92,6 +104,8 @@ export function BusinessDashboardView({
 
       // 2. Fetch enrolled partners for business deals
       const partnersRes = await fetch('/api/business/partners', { credentials: 'include' })
+      if (generation !== requestGeneration.current) return
+      if (!partnersRes.ok) throw new Error('Unable to load your business partners.')
       if (partnersRes.ok) {
         const partnersData = await partnersRes.json()
         if (partnersData.success && Array.isArray(partnersData.data)) {
@@ -103,6 +117,7 @@ export function BusinessDashboardView({
 
       // 3. Fetch real organization profile & verification status
       const profileRes = await fetch('/api/business/profile', { credentials: 'include' })
+      if (generation !== requestGeneration.current) return
       if (profileRes.ok) {
         const profileData = await profileRes.json()
         if (profileData.success && profileData.data) {
@@ -115,9 +130,11 @@ export function BusinessDashboardView({
         }
       }
     } catch (err) {
+      if (generation !== requestGeneration.current) return
+      setLoadError('Unable to load your business data. Please refresh or sign in again.')
       console.warn('Could not reload business data:', err)
     }
-  }, [])
+  }, [userId, organizationId])
 
   useEffect(() => {
     reloadData()
@@ -125,6 +142,7 @@ export function BusinessDashboardView({
     window.addEventListener('lumo:deals-updated', handleUpdate)
     window.addEventListener('lumo:joined-deals-updated', handleUpdate)
     return () => {
+      requestGeneration.current++
       window.removeEventListener('lumo:deals-updated', handleUpdate)
       window.removeEventListener('lumo:joined-deals-updated', handleUpdate)
     }
@@ -173,7 +191,8 @@ export function BusinessDashboardView({
   }
 
   return (
-    <BusinessToastProvider>
+    <BusinessToastProvider key={`${userId ?? ''}:${organizationId ?? ''}`}>
+      {loadError && <p role="alert" className="bg-red-50 p-3 text-red-700">{loadError}</p>}
       <div className="dashboard-shell dashboard-viewport w-full bg-[#F8FAFC] dark:bg-[#0B1220] text-[#0F172A] dark:text-slate-100 flex flex-col lg:flex-row transition-colors">
         {/* ========================================================================= */}
         {/* DESKTOP 4-GROUP STRUCTURED BUSINESS SIDEBAR                               */}
@@ -234,7 +253,7 @@ export function BusinessDashboardView({
                 {activeTab === 'deal_performance' && 'Deal Performance & Attribution Analytics'}
                 {activeTab === 'conversions_results' && 'Customer Conversions & Delivery Evidence'}
                 {activeTab === 'rewards_commissions' && 'Partner Rewards & Payout Ledger'}
-                {activeTab === 'payments_funding' && 'Escrow Funding & Commercial Reserve'}
+                {activeTab === 'payments_funding' && 'Partner Payment Records'}
                 {activeTab === 'partner_discovery' && 'Partner Directory & Performance Recruitment'}
                 {activeTab === 'reports_exports' && 'Reports, Audits & Data Exports'}
                 {activeTab === 'business_profile' && 'Business Profile & Verified Legal Credentials'}

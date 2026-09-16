@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { commercialValueSchema } from '@/lib/marketplace-stats'
 import { getAuthenticatedBusiness, assertOpportunityOwnership } from '@/lib/business-guard'
 
 export async function GET(
@@ -42,7 +43,12 @@ export async function PATCH(
     const { status, title, summary, description, region, coverImageUrl, promoVideoUrl } = body
 
     const updateData: any = {}
-    if (status && ['DRAFT', 'SUBMITTED', 'UNDER_REVIEW', 'APPROVED', 'PUBLISHED', 'PAUSED', 'CLOSED', 'ARCHIVED'].includes(status)) {
+    if (body.commercialValueTZS !== undefined) {
+      const value = commercialValueSchema.safeParse(body.commercialValueTZS)
+      if (!value.success) return NextResponse.json({ error: 'Invalid commercial deal value' }, { status: 400 })
+      updateData.commercialValueMinor = value.data
+    }
+    if (status && ['DRAFT', 'UNDER_REVIEW', 'RETURNED', 'REJECTED', 'PUBLISHED', 'PAUSED', 'COMPLETED', 'CANCELLED', 'ARCHIVED'].includes(status)) {
       updateData.status = status
     }
     if (title) updateData.title = title
@@ -60,7 +66,7 @@ export async function PATCH(
     return NextResponse.json({
       success: true,
       message: `Opportunity ${id} updated.`,
-      opportunity: updated,
+      opportunity: JSON.parse(JSON.stringify(updated, (_, value) => typeof value === 'bigint' ? value.toString() : value)),
     })
   } catch (error: any) {
     return NextResponse.json(

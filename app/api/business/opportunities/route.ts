@@ -2,21 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getAuthenticatedBusiness } from '@/lib/business-guard'
 import { createHash } from 'crypto'
+import { commercialValueSchema } from '@/lib/marketplace-stats'
+import { parseBusinessOpportunityInput } from '@/modules/deals/business-opportunity-input'
+import { ZodError } from 'zod'
 
 export async function GET(request: NextRequest) {
   try {
-    let biz: any = null
-    try {
-      biz = await getAuthenticatedBusiness(request)
-    } catch (authErr: any) {
-      // If unauthenticated or no business profile, return empty list (0 state)
-      return NextResponse.json({
-        success: true,
-        opportunities: [],
-        data: [],
-        total: 0,
-      })
-    }
+    const biz = await getAuthenticatedBusiness(request)
 
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status') || 'ALL'
@@ -77,11 +69,11 @@ export async function GET(request: NextRequest) {
         const spentTZS = Number(opp.spentBudgetMinor || 0) / 100
 
         // Parse reward rate from latest version or default
-        let rewardValueTZS = 50000
+        let rewardValueTZS = 0
         if (latestVersion?.rewardSummary) {
           const match = latestVersion.rewardSummary.match(/[\d,]+/)
           if (match) {
-            rewardValueTZS = parseInt(match[0].replace(/,/g, ''), 10) || 50000
+            rewardValueTZS = parseInt(match[0].replace(/,/g, ''), 10) || 0
           }
         }
 
@@ -98,6 +90,7 @@ export async function GET(request: NextRequest) {
           rewardStructure: 'FIXED_REWARD',
           rewardValueTZS,
           budgetTZS,
+          commercialValueTZS: opp.commercialValueMinor === null ? null : Number(opp.commercialValueMinor) / 100,
           spentTZS,
           status: opp.status,
           version: latestVersion ? latestVersion.versionNumber : 1,
@@ -108,7 +101,7 @@ export async function GET(request: NextRequest) {
           endDate: opp.endDate ? opp.endDate.toISOString().split('T')[0] : 'Open Access',
           attributionWindowDays: latestVersion?.attributionWindowDays || 30,
           partnerDeliverables: opp.description,
-          evidenceRequired: latestVersion?.termsAndConditions || 'Verified customer receipt and partner verification.',
+          evidenceRequired: latestVersion?.termsAndConditions || '',
           cancellationTerms: '7 days written notice with protection for all verified conversions.',
           coverImageUrl: opp.coverImageUrl || undefined,
           promoVideoUrl: opp.promoVideoUrl || undefined,
@@ -135,19 +128,20 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const biz = await getAuthenticatedBusiness(request)
-    const body = await request.json().catch(() => ({}))
+    const rawBody = await request.json().catch(() => ({}))
+    const body = { ...rawBody, ...parseBusinessOpportunityInput(rawBody) }
 
     const {
       title,
       type = 'CUSTOMER_ACQUISITION',
       category = 'Commercial Opportunity',
-      region = 'Dar es Salaam',
+      region = '',
       publicSummary,
       subscriberDescription,
       rewardStructure = 'FIXED_REWARD',
-      rewardValueTZS = 50000,
+      rewardValueTZS = 0,
       rewardPercent,
-      estimatedBudgetTZS = 5000000,
+      estimatedBudgetTZS = 0,
       trackingMethod = 'PROMO_CODE',
       attributionWindowDays = 30,
       partnerDeliverables,
@@ -156,7 +150,7 @@ export async function POST(request: NextRequest) {
       coverImageUrl,
       promoVideoUrl,
       galleryImageUrls = [],
-      status = 'SUBMITTED',
+      status = 'UNDER_REVIEW',
     } = body
 
     if (!title || !title.trim()) {
@@ -167,6 +161,8 @@ export async function POST(request: NextRequest) {
     }
 
     const slug = `${title.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now().toString().slice(-6)}`
+    const commercialValue = commercialValueSchema.safeParse(body.commercialValueTZS)
+    if (!commercialValue.success) return NextResponse.json({ error: 'Invalid commercial deal value' }, { status: 400 })
     const totalBudgetMinor = BigInt(Math.round(Number(estimatedBudgetTZS || 0) * 100))
     const termsHash = createHash('sha256')
       .update(`${title}|${rewardValueTZS}|${attributionWindowDays}|${Date.now()}`)
@@ -186,9 +182,10 @@ export async function POST(request: NextRequest) {
         promoVideoUrl: promoVideoUrl || null,
         galleryImageUrls: Array.isArray(galleryImageUrls) ? galleryImageUrls : [],
         totalBudgetMinor,
+        commercialValueMinor: commercialValue.data,
         spentBudgetMinor: BigInt(0),
         currency: 'TZS',
-        status: status as any,
+        status: (status === 'SUBMITTED' ? 'UNDER_REVIEW' : status) as any,
         versions: {
           create: {
             versionNumber: 1,
@@ -250,7 +247,7 @@ export async function POST(request: NextRequest) {
           endDate: 'Open Access',
           attributionWindowDays: Number(attributionWindowDays) || 30,
           partnerDeliverables: partnerDeliverables || created.description,
-          evidenceRequired: evidenceRequired || 'Verified customer delivery receipt.',
+          evidenceRequired: evidenceRequired || '',
           cancellationTerms: cancellationTerms || '7 days notice.',
           coverImageUrl: created.coverImageUrl || undefined,
           promoVideoUrl: created.promoVideoUrl || undefined,
@@ -261,6 +258,7 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     )
   } catch (error: any) {
+    if (error instanceof ZodError) return NextResponse.json({ success: false, error: error.issues[0]?.message || 'Invalid opportunity details.' }, { status: 400 })
     console.error('Create business opportunity error:', error)
     return NextResponse.json(
       { success: false, error: error.message || 'Server error' },

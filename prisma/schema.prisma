@@ -364,6 +364,7 @@ model Verification {
 }
 
 model PartnerProfile {
+  publicEarningsOptOut Boolean @default(false)
   id                 String   @id @default(uuid()) @db.Uuid
   userId             String   @unique @db.Uuid
   handle             String   @unique
@@ -426,6 +427,11 @@ model RoleAssignment {
 // ============================================================================
 
 model Organization {
+  industry String?
+  hqAddress String?
+  contactEmail String?
+  contactPhone String?
+  website String?
   id                 String    @id @default(uuid()) @db.Uuid
   legalName          String
   tradingName        String?
@@ -507,6 +513,7 @@ model Opportunity {
   status             OpportunityStatus @default(DRAFT)
   publishedVersionId String?           @db.Uuid
   totalBudgetMinor   BigInt?
+  commercialValueMinor BigInt? // Total commercial deal value, never the reward budget
   spentBudgetMinor   BigInt            @default(0)
   currency           String            @default("TZS")
   maxPartners        Int?
@@ -880,7 +887,21 @@ model Reward {
   @@index([rewardRuleId])
   @@index([partnerUserId])
   @@index([status])
+  @@index([status, approvedAt])
   @@map("rewards")
+}
+
+model PublicEarningsConfig {
+  id String @id @default("global")
+  enabled Boolean @default(true)
+  minimumTZS Int @default(0)
+  maximumCards Int @default(20)
+  mode String @default("APPROVED")
+  showCategory Boolean @default(true)
+  showTime Boolean @default(true)
+  maskDigits Int @default(4)
+  secondsPerCard Int @default(5)
+  @@map("public_earnings_config")
 }
 
 model PayoutMethod {

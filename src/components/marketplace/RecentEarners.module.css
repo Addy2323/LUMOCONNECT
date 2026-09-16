@@ -1,0 +1,12 @@
+.section { width: min(1200px, calc(100% - 40px)); margin: 28px auto 0; min-width: 0; border-top: 1px solid #ffffff20; padding-top: 20px; }
+.heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+.heading h3 { color: white; font-size: 15px; font-weight: 700; margin: 0; }
+.heading button { color: #cbd5e1; font-size: 12px; background: transparent; border: 1px solid #ffffff30; border-radius: 8px; padding: 6px 10px; cursor: pointer; }
+.track { display: flex; gap: 16px; overflow-x: auto; scrollbar-width: thin; scrollbar-color: #64748b transparent; padding-bottom: 10px; cursor: grab; touch-action: pan-x pan-y; }
+.track:active { cursor: grabbing; }
+.card { flex: 0 0 calc((100% - 48px) / 4); min-width: 0; display: flex; flex-direction: column; gap: 7px; padding: 18px; border: 1px solid #ffffff20; border-radius: 12px; background: #ffffff08; color: #cbd5e1; font-size: 12px; user-select: none; }
+.card strong { color: #ff8a32; font-size: 21px; font-variant-numeric: tabular-nums; }
+.card strong small { display: block; color: #94a3b8; font-size: 11px; font-weight: 400; margin-bottom: 3px; }
+.card time { color: #94a3b8; font-size: 11px; }
+@media (max-width: 1000px) { .card { flex-basis: calc((100% - 32px) / 3); } }
+@media (max-width: 700px) { .card { flex-basis: 72%; } .section { width: calc(100% - 32px); } }

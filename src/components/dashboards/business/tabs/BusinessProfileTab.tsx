@@ -35,12 +35,12 @@ export function BusinessProfileTab({
   const [profile, setProfile] = useState({
     businessName: businessName,
     tradingName: '',
-    tagline: 'Verified Commercial Merchant on the LUMO Ecosystem',
-    industry: 'Renewable Energy, Technology & Trade',
+    tagline: '',
+    industry: '',
     website: '',
     email: '',
     phone: '',
-    hqAddress: 'Dar es Salaam, Tanzania',
+    hqAddress: '',
     brelaRegNumber: registrationNumber || '',
     tinNumber: '',
   })
@@ -60,7 +60,11 @@ export function BusinessProfileTab({
             tradingName: d.tradingName || '',
             brelaRegNumber: d.registrationNumber || prev.brelaRegNumber,
             tinNumber: d.tin || '',
-            email: d.users?.[0]?.email || prev.email,
+            email: d.contactEmail || '',
+            phone: d.contactPhone || '',
+            website: d.website || '',
+            industry: d.industry || '',
+            hqAddress: d.hqAddress || '',
           }))
         }
       })
@@ -85,6 +89,11 @@ export function BusinessProfileTab({
           tradingName: profile.tradingName,
           tin: profile.tinNumber,
           registrationNumber: profile.brelaRegNumber,
+          contactEmail: profile.email,
+          contactPhone: profile.phone,
+          website: profile.website,
+          industry: profile.industry,
+          hqAddress: profile.hqAddress,
         }),
       })
 

@@ -39,6 +39,24 @@ export function DealsRegistryTab() {
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL')
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [selectedDeal, setSelectedDeal] = useState<AdminDealItem | null>(null)
+  const [removeAllOpen, setRemoveAllOpen] = useState(false)
+  const [removalConfirmation, setRemovalConfirmation] = useState('')
+  const [removing, setRemoving] = useState(false)
+
+  const removeAllProducts = async () => {
+    if (removing || removalConfirmation !== 'REMOVE ALL PRODUCTS') return
+    setRemoving(true)
+    try {
+      const response = await fetch('/api/admin/deals/remove-all', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ confirmation: removalConfirmation }) })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Removal failed.')
+      setRemoveAllOpen(false)
+      setRemovalConfirmation('')
+      resource.retry()
+      showToast('success', 'Products removed', `${result.archivedCount} listings archived. Transaction history preserved.`)
+    } catch (error) { showToast('error', 'Removal failed', error instanceof Error ? error.message : 'Please retry.') }
+    finally { setRemoving(false) }
+  }
 
   const [newDealForm, setNewDealForm] = useState({
     title: '',
@@ -83,6 +101,17 @@ export function DealsRegistryTab() {
   return (
     <div className="space-y-5 bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-4 sm:p-6 shadow-xs">
       <ResourceStatus {...resource} />
+      <div className="rounded-xl border border-red-200 p-4">
+        <button type="button" onClick={() => setRemoveAllOpen(true)} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white">Remove all products</button>
+        {removeAllOpen && <div className="mt-3 space-y-3">
+          <p className="text-sm">Remove every database listing from the marketplace, across all categories and pages. Orders, rewards and transaction history remain available. Archived records remain in the admin registry.</p>
+          <label className="block text-sm">Type REMOVE ALL PRODUCTS to confirm
+            <input value={removalConfirmation} onChange={event => setRemovalConfirmation(event.target.value)} className="mt-1 block w-full max-w-sm rounded border p-2" disabled={removing} />
+          </label>
+          <button type="button" disabled={removing || removalConfirmation !== 'REMOVE ALL PRODUCTS'} onClick={removeAllProducts} className="rounded-lg bg-red-600 px-4 py-2 text-white disabled:opacity-40">{removing ? 'Removing…' : 'Confirm removal'}</button>
+          <button type="button" disabled={removing} onClick={() => { setRemoveAllOpen(false); setRemovalConfirmation('') }} className="px-4 py-2">Cancel</button>
+        </div>}
+      </div>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
         <div>

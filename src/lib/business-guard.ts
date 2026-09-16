@@ -17,7 +17,7 @@ export interface AuthenticatedBusinessContext {
 }
 
 /**
- * Resolves the authenticated business context from the session cookie or authorization headers.
+ * Resolves the authenticated business context from a verified database session and active organization membership.
  * Throws an Error with a status code property if unauthorized.
  */
 export async function getAuthenticatedBusiness(
@@ -26,70 +26,13 @@ export async function getAuthenticatedBusiness(
   const sessionToken = request.cookies.get(DATABASE_SESSION_COOKIE)?.value
   const session = await getDatabaseSession(sessionToken)
 
-  const headerUserId = request.headers.get('x-user-id')
-  const userId = session?.userId || headerUserId
-
-  if (!userId) {
-    const error: any = new Error('Authentication required')
-    error.statusCode = 401
-    throw error
-  }
-
-  // Find user and their organization memberships
-  let user: any = session?.user
-  if (!user && process.env.DATABASE_URL?.trim()) {
-    user = await db.user.findUnique({
-      where: { id: userId },
-      include: {
-        memberships: {
-          include: {
-            organization: true,
-          },
-        },
-        roleAssignments: {
-          include: {
-            role: true,
-          },
-        },
-      },
-    })
-  }
-
-  // Find organization membership
-  let member: any = null
-  if (process.env.DATABASE_URL?.trim()) {
-    member = await db.organizationMember.findFirst({
-      where: {
-        userId,
-        status: 'ACTIVE',
-      },
-      include: {
-        organization: true,
-      },
-      orderBy: { createdAt: 'asc' },
-    })
-  }
-
-  // If no membership found, check if a test/fallback organization can be resolved for this specific user
-  if (!member) {
-    // Check if user has an organization created for them
-    const org = await db.organization.findFirst({
-      where: {
-        members: {
-          some: { userId },
-        },
-        deletedAt: null,
-      },
-    })
-
-    if (org) {
-      member = {
-        organizationId: org.id,
-        businessRole: 'OWNER',
-        organization: org,
-      }
-    }
-  }
+  if (!session) throw Object.assign(new Error('Authentication required'), { statusCode: 401 })
+  const userId = session.userId
+  const user = session.user
+  const member = await db.organizationMember.findFirst({
+    where: { userId, status: 'ACTIVE', organization: { deletedAt: null } },
+    include: { organization: true }, orderBy: { createdAt: 'asc' },
+  })
 
   if (!member || !member.organization) {
     const error: any = new Error('No active business profile or organization membership associated with this account.')

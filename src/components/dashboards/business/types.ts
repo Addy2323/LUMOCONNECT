@@ -100,6 +100,7 @@ export interface BusinessOpportunityItem {
   customRewardDetail?: string
   customFormulaDescription?: string
   budgetTZS: number
+  commercialValueTZS?: number | null
   spentTZS: number
   status: OpportunityLifecycleStatus
   version: number

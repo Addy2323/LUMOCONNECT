@@ -58,31 +58,11 @@ export function PartnersApplicationsTab({
     return matchesStatus && matchesSearch
   })
 
-  const handleUpdateStatus = (partnerId: string, nextStatus: PartnerApplicationStatus, reason?: string) => {
-    setPartners((prev) =>
-      prev.map((p) => (p.id === partnerId ? { ...p, status: nextStatus } : p))
-    )
-
-    const partner = partners.find((p) => p.id === partnerId)
-    showToast(
-      'success',
-      `Partner Status Updated: ${nextStatus}`,
-      `${partner?.partnerName} moved to ${nextStatus.replace(/_/g, ' ')}.`
-    )
-    if (selectedPartner?.id === partnerId) {
-      setSelectedPartner(null)
-    }
+  const handleUpdateStatus = (_partnerId: string, _nextStatus: PartnerApplicationStatus, _reason?: string) => {
+    showToast('error', 'Action unavailable', 'Partner status updates are not connected to the server yet. No changes were saved.')
   }
-
   const handleSendMessage = () => {
-    if (!messageModal || !messageText.trim()) return
-    showToast(
-      'success',
-      'Message Dispatched',
-      `Direct deal message sent to ${messageModal.partnerName}.`
-    )
-    setMessageModal(null)
-    setMessageText('')
+    showToast('error', 'Messaging unavailable', 'No message was sent.')
   }
 
   return (
@@ -182,7 +162,7 @@ export function PartnersApplicationsTab({
                   </div>
                   <div className="text-[10px] text-amber-500 font-bold flex items-center gap-0.5 justify-end">
                     <Star className="w-3 h-3 fill-amber-500" />
-                    <span>{prt.businessRating} Rating</span>
+                    <span>{prt.businessRating == null ? 'Not rated' : `${prt.businessRating} Rating`}</span>
                   </div>
                 </div>
               </div>

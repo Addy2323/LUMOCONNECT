@@ -37,6 +37,7 @@ export async function POST(
         promoVideoUrl: opp.promoVideoUrl,
         galleryImageUrls: opp.galleryImageUrls,
         totalBudgetMinor: opp.totalBudgetMinor,
+        commercialValueMinor: opp.commercialValueMinor,
         spentBudgetMinor: BigInt(0),
         currency: opp.currency,
         status: 'DRAFT',

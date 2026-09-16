@@ -60,33 +60,6 @@ export function OverviewTab({
   const [serverMetrics, setServerMetrics] = useState<any | null>(null)
 
   useEffect(() => {
-    const loadInquiries = () => {
-      try {
-        const stored = localStorage.getItem('lumo_escrow_inquiries')
-        if (stored) {
-          const parsed: EscrowInquiry[] = JSON.parse(stored)
-          if (Array.isArray(parsed)) {
-            setEscrowInquiries(parsed)
-            return
-          }
-        }
-      } catch (e) {
-        console.error('Failed to load escrow inquiries', e)
-      }
-      setEscrowInquiries([])
-    }
-
-    loadInquiries()
-    const handleUpdate = () => loadInquiries()
-    window.addEventListener('lumo:escrow-inquiries-updated', handleUpdate)
-    window.addEventListener('storage', handleUpdate)
-    return () => {
-      window.removeEventListener('lumo:escrow-inquiries-updated', handleUpdate)
-      window.removeEventListener('storage', handleUpdate)
-    }
-  }, [])
-
-  useEffect(() => {
     fetch(`/api/business/overview?period=${timeRange}`, { credentials: 'include' })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
@@ -149,8 +122,6 @@ export function OverviewTab({
         ['"Live Published Opportunities"', liveCount],
         ['"Active Enrolled Partners"', activePartnersCount],
         ['"Verified Customer Conversions"', verifiedConversionsCount],
-        ['"Total Rewards Funded in Escrow (TZS)"', fundingBalance.committedToActiveDealsTZS || fundingBalance.availableBalanceTZS || 0],
-        ['"Total Commercial Rewards Disbursed (TZS)"', fundingBalance.rewardsPaidTZS || 0],
         [''],
         ['"ROLLING PIPELINE REVENUE BREAKDOWN"'],
         ['"Date Key"', '"Label"', '"Pipeline Revenue (TZS)"', '"Recorded Transactions"', '"Conversions"'],
@@ -301,9 +272,9 @@ export function OverviewTab({
         >
           <div className="flex items-start justify-between">
             <div className="space-y-1">
-              <span className="text-[11px] sm:text-xs font-bold text-slate-500">Secured Reward Budget</span>
+              <span className="text-[11px] sm:text-xs font-bold text-slate-500">Recorded Reward Budgets</span>
               <div className="text-xl sm:text-2xl font-black text-[#0F172A] dark:text-white font-mono">
-                TZS {(fundingBalance.committedToActiveDealsTZS / 1000000).toFixed(1)}M
+                TZS {(opportunities.reduce((sum, opportunity) => sum + (opportunity.budgetTZS || 0), 0) / 1000000).toFixed(1)}M
               </div>
             </div>
             <div className="w-10 h-10 rounded-2xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 flex items-center justify-center shrink-0">
@@ -311,7 +282,7 @@ export function OverviewTab({
             </div>
           </div>
           <div className="text-[11px] text-purple-600 font-bold flex items-center gap-1">
-            <span>Manage wallet & payouts →</span>
+            <span>View payment records →</span>
           </div>
         </div>
       </div>
@@ -397,61 +368,7 @@ export function OverviewTab({
         </div>
 
         {/* Financial Widget (4 Cols) */}
-        <div className="lg:col-span-4 bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-4 sm:p-5 shadow-xs space-y-4 flex flex-col justify-between">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between border-b pb-3 dark:border-slate-800">
-              <h3 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
-                <Wallet className="w-4 h-4 text-[#FF6A00]" />
-                <span>Secured Wallet Balance</span>
-              </h3>
-              <span className="text-[10px] bg-emerald-100 text-emerald-800 font-mono font-bold px-2 py-0.5 rounded-full">
-                Funds Are Secured
-              </span>
-            </div>
-
-            <div className="space-y-2 text-xs">
-              <div className="flex justify-between py-1 border-b dark:border-slate-800/60">
-                <span className="text-slate-500">Available Wallet Balance:</span>
-                <span className="font-mono font-black text-slate-900 dark:text-white">
-                  TZS {fundingBalance.availableBalanceTZS.toLocaleString()}
-                </span>
-              </div>
-              <div className="flex justify-between py-1 border-b dark:border-slate-800/60">
-                <span className="text-slate-500">Committed to Active Deals:</span>
-                <span className="font-mono font-bold text-slate-700 dark:text-slate-300">
-                  TZS {fundingBalance.committedToActiveDealsTZS.toLocaleString()}
-                </span>
-              </div>
-              <div className="flex justify-between py-1 border-b dark:border-slate-800/60">
-                <span className="text-slate-500">Pending Inspections:</span>
-                <span className="font-mono font-bold text-amber-600">
-                  TZS {fundingBalance.pendingConfirmationTZS.toLocaleString()}
-                </span>
-              </div>
-              <div className="flex justify-between py-1">
-                <span className="text-slate-500">Total Rewards Paid Out:</span>
-                <span className="font-mono font-bold text-emerald-600">
-                  TZS {fundingBalance.rewardsPaidTZS.toLocaleString()}
-                </span>
-              </div>
-            </div>
-
-            {/* Safeguarding Legal Notice */}
-            <div className="p-2.5 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200/60 text-[10px] text-emerald-900 dark:text-emerald-300 leading-snug flex items-start gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
-              <span>
-                <strong>Funds Are Secured:</strong> Reward funds are processed and protected through LUMO’s licensed payment partner ({fundingBalance.safeguardingProvider}).
-              </span>
-            </div>
-          </div>
-
-          <button
-            onClick={() => onNavigateTab('payments_funding')}
-            className="w-full py-2.5 bg-[#0B132B] hover:bg-slate-800 text-white font-extrabold text-xs rounded-xl shadow-xs transition-colors text-center"
-          >
-            Manage Wallet & Review Payouts
-          </button>
-        </div>
+        <div className="lg:col-span-4 rounded-3xl border bg-white dark:bg-slate-900 p-5 space-y-3"><h3 className="font-bold">Partner payments</h3><p className="text-sm text-slate-500">View recorded reward obligations and payment status for your business.</p><button onClick={() => onNavigateTab('payments_funding')} className="rounded-lg bg-orange-600 text-white px-4 py-2">View payment records</button></div>
       </div>
 
       {/* WhatsApp Protected Inquiries & 48-Hour Inspection Holds */}
