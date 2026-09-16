@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useRef, useEffect } from 'react'
+import { uploadOpportunityImage, readApiResponse } from '@/lib/opportunity-media'
 import {
   X,
   ChevronRight,
@@ -508,6 +509,7 @@ export function CreateOpportunityWizardModal({
 
   const [currentStep, setCurrentStep] = useState<number>(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [uploadsPending, setUploadsPending] = useState(0)
   const [previewDevice, setPreviewDevice] = useState<'DESKTOP' | 'MOBILE'>('DESKTOP')
   const [previewMediaMode, setPreviewMediaMode] = useState<'IMAGE' | 'VIDEO'>('IMAGE')
   const [mediaUploadTab, setMediaUploadTab] = useState<'UPLOAD' | 'URL'>('UPLOAD')
@@ -865,57 +867,31 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
     }
   }
 
-  // Handle local file upload for cover image
-  const handleImageFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onload = (event) => {
-        const result = event.target?.result as string
-        setFormData({ ...formData, coverImageUrl: result })
-        showToast('success', 'Image Uploaded', `${file.name} imported as featured banner.`)
+  const uploadImages = async (files: File[], gallery: boolean) => {
+    setUploadsPending(count => count + 1)
+    try {
+      for (const file of files) {
+        const url = await uploadOpportunityImage(file)
+        setFormData(previous => gallery ? { ...previous, galleryImageUrls: [...previous.galleryImageUrls, url] } : { ...previous, coverImageUrl: url })
       }
-      reader.readAsDataURL(file)
-    }
+      showToast('success', 'Images uploaded', 'Your images are saved and ready for submission.')
+    } catch (error) { showToast('error', 'Upload failed', error instanceof Error ? error.message : 'Please try again.') }
+    finally { setUploadsPending(count => count - 1) }
   }
-
-  // Handle local file upload for gallery images
-  const handleGalleryUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
-    if (files && files.length > 0) {
-      const fileList = Array.from(files)
-      fileList.forEach((file) => {
-        const reader = new FileReader()
-        reader.onload = (event) => {
-          const result = event.target?.result as string
-          setFormData((prev) => ({
-            ...prev,
-            galleryImageUrls: [...prev.galleryImageUrls, result],
-          }))
-        }
-        reader.readAsDataURL(file)
-      })
-      showToast('success', 'Gallery Images Added', `${fileList.length} photos added to opportunity carousel.`)
-    }
+  const handleImageFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]; if (file) void uploadImages([file], false)
+    event.target.value = ''
   }
-
-  // Handle local file upload for video
-  const handleVideoFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onload = (event) => {
-        const result = event.target?.result as string
-        setFormData({ ...formData, promoVideoUrl: result })
-        showToast('success', 'Video Attached', `${file.name} imported as promotional video.`)
-      }
-      reader.readAsDataURL(file)
-    }
+  const handleGalleryUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? [])
+    if (files.length + formData.galleryImageUrls.length > 10) { showToast('error', 'Gallery limit', 'Use up to 10 images.'); return }
+    void uploadImages(files, true); event.target.value = ''
   }
-
+  
 
   const handleSubmitToLumo = async () => {
     if (isSubmitting) return
+    if (uploadsPending) { showToast('info', 'Images uploading', 'Please wait for your images to finish uploading.'); return }
     if (!formData.confirmAccurate || !formData.confirmNoSilentChanges) {
       showToast('error', 'Declaration Required', 'Please confirm all compliance declarations before submitting to LUMO.')
       return
@@ -991,7 +967,7 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
         }),
       })
 
-      const result = await response.json()
+      const result = await readApiResponse(response)
       if (!response.ok || !result.success) {
         throw new Error(result.error || 'Failed to create opportunity')
       }
@@ -1713,16 +1689,7 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <label className="flex-1 py-2 px-3 bg-white dark:bg-slate-900 border rounded-xl font-bold text-center cursor-pointer hover:bg-slate-100 flex items-center justify-center gap-1.5 text-slate-700 dark:text-slate-200">
-                        <Video className="w-3.5 h-3.5 text-purple-600" />
-                        <span>Upload Video (.mp4)</span>
-                        <input
-                          type="file"
-                          accept="video/*"
-                          onChange={handleVideoFileUpload}
-                          className="hidden"
-                        />
-                      </label>
+                      <p className="text-xs text-slate-500">For videos, paste a hosted video URL above.</p>
                     </div>
                   </div>
 
@@ -3138,10 +3105,11 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
             ) : (
               <button
                 onClick={handleSubmitToLumo}
+                disabled={isSubmitting || uploadsPending > 0}
                 className="py-2.5 px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl text-xs shadow-xs flex items-center gap-1.5"
               >
                 <ShieldCheck className="w-4 h-4" />
-                <span>Submit Opportunity with Media</span>
+                <span>{uploadsPending ? 'Uploading images…' : isSubmitting ? 'Submitting…' : 'Submit Opportunity with Media'}</span>
               </button>
             )}
           </div>

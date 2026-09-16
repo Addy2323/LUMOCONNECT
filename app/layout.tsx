@@ -58,7 +58,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             </PwaRoot>
           </LanguageProvider>
         </ThemeProvider>
-        {process.env.NODE_ENV === 'production' && <Analytics />}
+        {process.env.VERCEL === '1' && process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
   )
