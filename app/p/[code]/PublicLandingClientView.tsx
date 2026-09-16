@@ -251,7 +251,7 @@ export function PublicLandingClientView({ code, initialLang, resolution }: Publi
               </div>
 
               {/* Gallery Thumbnails */}
-              {deal.galleryImageUrls && deal.galleryImageUrls.length > 1 && (
+              {Array.isArray(deal.galleryImageUrls) && deal.galleryImageUrls.length > 1 && (
                 <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
                   {deal.galleryImageUrls.map((url, idx) => (
                     <button

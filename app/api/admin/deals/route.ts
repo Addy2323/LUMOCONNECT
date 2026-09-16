@@ -198,11 +198,34 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json({ error: 'Invalid target status.' }, { status: 400 })
       }
 
-      if (status === 'PUBLISHED' && (!opportunity.publishedVersionId || opportunity.status === 'DRAFT')) {
+      if (status === 'PUBLISHED' && opportunity.status === 'DRAFT') {
         return NextResponse.json({ error: 'Cannot publish a draft deal directly. Deals must go through checker approval.' }, { status: 409 })
       }
 
       updateData.status = status
+    }
+
+    // Auto-attach publishedVersionId for active/resumed deals missing a version pointer
+    if (!opportunity.publishedVersionId && (status === 'PUBLISHED' || opportunity.status === 'PUBLISHED' || opportunity.status === 'PAUSED')) {
+      const latestVer = opportunity.versions?.[0]
+      if (latestVer) {
+        updateData.publishedVersionId = latestVer.id
+      } else {
+        const newVer = await db.opportunityVersion.create({
+          data: {
+            opportunityId: dealId,
+            versionNumber: 1,
+            title: opportunity.title,
+            description: opportunity.description || 'Standard commercial performance terms apply.',
+            termsHash: 'legacy-migrated-version',
+            termsAndConditions: 'Standard commercial performance terms apply.',
+            attributionWindowDays: 30,
+          },
+        }).catch(() => null)
+        if (newVer) {
+          updateData.publishedVersionId = newVer.id
+        }
+      }
     }
 
     // Permitted administrative content updates

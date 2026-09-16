@@ -63,16 +63,36 @@ interface ApprovalItem {
   description?: string
   shortDescription?: string
   bannerUrl?: string
-  mediaUrls?: string[]
-  requirements?: string[]
-  targetAudience?: string[]
-  deliverables?: string[]
+  mediaUrls?: string[] | string | null
+  requirements?: string[] | string | null | any
+  targetAudience?: string[] | string | null | any
+  deliverables?: string[] | string | null | any
   contactPersonName?: string
   contactEmail?: string
   contactPhone?: string
   visibility?: string
   featured?: boolean
   createdAt: string
+}
+
+function normalizeToArray(val: unknown): string[] {
+  if (!val) return []
+  if (Array.isArray(val)) return val.filter(Boolean).map(String)
+  if (typeof val === 'string') {
+    const trimmed = val.trim()
+    if (!trimmed) return []
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(trimmed)
+        if (Array.isArray(parsed)) return parsed.filter(Boolean).map(String)
+      } catch {}
+    }
+    if (trimmed.includes(',')) {
+      return trimmed.split(',').map((s) => s.trim()).filter(Boolean)
+    }
+    return [trimmed]
+  }
+  return []
 }
 
 type TabKey = 'pending' | 'approved' | 'changes_requested' | 'rejected' | 'all'
@@ -190,6 +210,10 @@ export function DealApprovalsTab() {
     { key: 'rejected', label: 'Rejected', count: counts.rejected },
     { key: 'all', label: 'All Records', count: counts.all },
   ]
+
+  const selectedMediaList = selectedApproval ? normalizeToArray(selectedApproval.mediaUrls) : []
+  const selectedReqList = selectedApproval ? normalizeToArray(selectedApproval.requirements) : []
+  const selectedAudList = selectedApproval ? normalizeToArray(selectedApproval.targetAudience) : []
 
   return (
     <div className="space-y-5 bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-4 sm:p-6 shadow-xs">
@@ -516,13 +540,13 @@ export function DealApprovalsTab() {
                 </div>
 
                 {/* Additional Media Assets */}
-                {selectedApproval.mediaUrls && selectedApproval.mediaUrls.length > 0 && (
+                {selectedMediaList.length > 0 && (
                   <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
                     <div className="text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-2">
-                      Additional Media ({selectedApproval.mediaUrls.length})
+                      Additional Media ({selectedMediaList.length})
                     </div>
                     <div className="flex gap-2 overflow-x-auto pb-1">
-                      {selectedApproval.mediaUrls.map((url, i) => (
+                      {selectedMediaList.map((url, i) => (
                         <img
                           key={i}
                           src={url}
@@ -550,14 +574,13 @@ export function DealApprovalsTab() {
               </div>
 
               {/* Requirements & Target Audience */}
-              {((selectedApproval.requirements && selectedApproval.requirements.length > 0) ||
-                (selectedApproval.targetAudience && selectedApproval.targetAudience.length > 0)) && (
+              {(selectedReqList.length > 0 || selectedAudList.length > 0) && (
                 <div className="p-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2 text-xs">
-                  {selectedApproval.requirements && selectedApproval.requirements.length > 0 && (
+                  {selectedReqList.length > 0 && (
                     <div>
                       <div className="font-bold text-slate-700 dark:text-slate-300 mb-1">Partner Requirements:</div>
                       <div className="flex flex-wrap gap-1.5">
-                        {selectedApproval.requirements.map((req, i) => (
+                        {selectedReqList.map((req, i) => (
                           <span key={i} className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-md text-[10px] text-slate-600 dark:text-slate-400">
                             ✓ {req}
                           </span>
@@ -566,11 +589,11 @@ export function DealApprovalsTab() {
                     </div>
                   )}
 
-                  {selectedApproval.targetAudience && selectedApproval.targetAudience.length > 0 && (
+                  {selectedAudList.length > 0 && (
                     <div className="pt-1">
                       <div className="font-bold text-slate-700 dark:text-slate-300 mb-1">Target Audience:</div>
                       <div className="flex flex-wrap gap-1.5">
-                        {selectedApproval.targetAudience.map((aud, i) => (
+                        {selectedAudList.map((aud, i) => (
                           <span key={i} className="px-2 py-0.5 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 rounded-md text-[10px]">
                             {aud}
                           </span>

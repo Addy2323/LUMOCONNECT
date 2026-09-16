@@ -30,6 +30,26 @@ import { ResourceStatus } from '../ResourceStatus'
 import { AdminDealItem } from '../types'
 import { useAdminToast } from '../AdminToast'
 
+function normalizeToArray(val: unknown): string[] {
+  if (!val) return []
+  if (Array.isArray(val)) return val.filter(Boolean).map(String)
+  if (typeof val === 'string') {
+    const trimmed = val.trim()
+    if (!trimmed) return []
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(trimmed)
+        if (Array.isArray(parsed)) return parsed.filter(Boolean).map(String)
+      } catch {}
+    }
+    if (trimmed.includes(',')) {
+      return trimmed.split(',').map((s) => s.trim()).filter(Boolean)
+    }
+    return [trimmed]
+  }
+  return []
+}
+
 export function DealsRegistryTab() {
   const { showToast } = useAdminToast()
   const resource = useAdminResource<{ deals: AdminDealItem[] }>('/api/admin/deals')
@@ -99,6 +119,14 @@ export function DealsRegistryTab() {
   }
 
   if (!resource.data) return <ResourceStatus {...resource} />
+
+  const selectedMediaList = selectedDeal
+    ? [...normalizeToArray(selectedDeal.mediaUrls), ...normalizeToArray(selectedDeal.galleryImageUrls)].filter(
+        (url, idx, self) => self.indexOf(url) === idx
+      )
+    : []
+  const selectedReqList = selectedDeal ? normalizeToArray(selectedDeal.requirements) : []
+  const selectedDelivList = selectedDeal ? normalizeToArray(selectedDeal.deliverables) : []
 
   return (
     <div className="space-y-5 bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-4 sm:p-6 shadow-xs">
@@ -488,13 +516,13 @@ export function DealsRegistryTab() {
                 </div>
 
                 {/* Additional Media Gallery */}
-                {((selectedDeal.mediaUrls && selectedDeal.mediaUrls.length > 0) || (selectedDeal.galleryImageUrls && selectedDeal.galleryImageUrls.length > 0)) && (
+                {selectedMediaList.length > 0 && (
                   <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2">
                     <div className="font-bold text-slate-700 dark:text-slate-300">
                       Additional Media Gallery
                     </div>
                     <div className="flex gap-2 overflow-x-auto pb-1">
-                      {(selectedDeal.mediaUrls || selectedDeal.galleryImageUrls || []).map((url, i) => (
+                      {selectedMediaList.map((url, i) => (
                         <img
                           key={i}
                           src={url}
@@ -515,9 +543,9 @@ export function DealsRegistryTab() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 space-y-1.5">
                     <div className="font-bold text-slate-800 dark:text-slate-200">Partner Requirements</div>
-                    {selectedDeal.requirements && selectedDeal.requirements.length > 0 ? (
+                    {selectedReqList.length > 0 ? (
                       <ul className="space-y-1">
-                        {selectedDeal.requirements.map((r, i) => (
+                        {selectedReqList.map((r, i) => (
                           <li key={i} className="text-[11px] text-slate-600 dark:text-slate-400 flex items-start gap-1.5">
                             <span className="text-[#FF6A00] font-bold">✓</span> {r}
                           </li>
@@ -530,9 +558,9 @@ export function DealsRegistryTab() {
 
                   <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 space-y-1.5">
                     <div className="font-bold text-slate-800 dark:text-slate-200">Deliverables Expected</div>
-                    {selectedDeal.deliverables && selectedDeal.deliverables.length > 0 ? (
+                    {selectedDelivList.length > 0 ? (
                       <ul className="space-y-1">
-                        {selectedDeal.deliverables.map((d, i) => (
+                        {selectedDelivList.map((d, i) => (
                           <li key={i} className="text-[11px] text-slate-600 dark:text-slate-400 flex items-start gap-1.5">
                             <span className="text-emerald-600 font-bold">•</span> {d}
                           </li>
