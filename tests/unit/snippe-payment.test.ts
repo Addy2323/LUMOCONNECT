@@ -205,6 +205,56 @@ describe('Snippe Mobile Money Provider & Payment Adapter', () => {
         expect(balance.currency).toBe('TZS')
       })
     })
+
+    describe('sendPayout (Direct Mobile Money Transfer)', () => {
+      it('rejects invalid recipient phone numbers', async () => {
+        await expect(
+          adapter.sendPayout({
+            amountTZS: 10000,
+            recipientPhone: '12345',
+            recipientName: 'Test Recipient',
+          })
+        ).rejects.toThrow('Enter a valid Tanzanian mobile phone number')
+      })
+
+      it('rejects amounts under minimum 5,000 TZS', async () => {
+        await expect(
+          adapter.sendPayout({
+            amountTZS: 2000,
+            recipientPhone: '0711788830',
+            recipientName: 'Given Mhema',
+          })
+        ).rejects.toThrow('Minimum mobile money payout via Snippe is TZS 5,000')
+      })
+
+      it('successfully dispatches payout and returns reference', async () => {
+        globalThis.fetch = vi.fn().mockResolvedValue({
+          ok: true,
+          status: 201,
+          json: async () => ({
+            status: 'success',
+            code: 201,
+            message: 'Payout initiated successfully',
+            data: {
+              id: 'payout-uuid-123',
+              reference: 'SNIPPE-PAY-882910',
+              status: 'completed',
+            },
+          }),
+        }) as unknown as typeof fetch
+
+        const res = await adapter.sendPayout({
+          amountTZS: 18400,
+          recipientPhone: '0711788830',
+          recipientName: 'Given Mhema',
+          narration: 'Reward payout for LUMO-PAY-240893',
+        })
+
+        expect(res.success).toBe(true)
+        expect(res.reference).toBe('SNIPPE-PAY-882910')
+        expect(res.status).toBe('SUCCESSFUL')
+      })
+    })
   })
 
   describe('Snippe API Routes Security & Validation', () => {

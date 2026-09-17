@@ -162,4 +162,20 @@ describe('Partner Deal Payout Request Lifecycle', () => {
     expect(fetchedTicket!.rewardStatus).toBe('PAID')
     expect(fetchedTicket!.partnerVisibleUpdate).toContain(disbursalRef)
   })
+
+  it('guarantees no duplicate payouts are returned when identical references exist in memory and DB', async () => {
+    const { listAllPayoutRequests } = await import('@/modules/payouts/payout-store')
+    const allPayouts = await listAllPayoutRequests()
+    const partnerPayouts = await listPartnerPayouts(partnerUserId)
+
+    // Check allPayouts has unique references
+    const allRefs = allPayouts.map((p) => p.reference)
+    const uniqueAllRefs = new Set(allRefs)
+    expect(allRefs.length).toBe(uniqueAllRefs.size)
+
+    // Check partnerPayouts has unique references
+    const partnerRefs = partnerPayouts.map((p) => p.reference)
+    const uniquePartnerRefs = new Set(partnerRefs)
+    expect(partnerRefs.length).toBe(uniquePartnerRefs.size)
+  })
 })

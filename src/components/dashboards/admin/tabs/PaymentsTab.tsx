@@ -17,6 +17,8 @@ import {
   FileSpreadsheet,
   Crown,
   Smartphone,
+  Send,
+  Loader2,
 } from 'lucide-react'
 import { useAdminResource } from '../useAdminResource'
 import { ResourceStatus } from '../ResourceStatus'
@@ -55,6 +57,80 @@ export function PaymentsTab({ onNavigateToSubscriptions }: PaymentsTabProps = {}
   const [refundReason, setRefundReason] = useState('DUPLICATE_PAYMENT')
   const [customReasonNote, setCustomReasonNote] = useState('')
   const [showExportModal, setShowExportModal] = useState(false)
+
+  // Direct Mobile Money Sending State
+  const [showDirectSendModal, setShowDirectSendModal] = useState(false)
+  const [directPhone, setDirectPhone] = useState('')
+  const [directName, setDirectName] = useState('')
+  const [directAmount, setDirectAmount] = useState('')
+  const [directNarration, setDirectNarration] = useState('')
+  const [isSendingDirect, setIsSendingDirect] = useState(false)
+
+  const handleSendDirectMoney = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!directPhone.trim()) {
+      showToast('error', 'Phone Required', 'Please enter a recipient phone number (e.g. 0711788830).')
+      return
+    }
+    if (!directName.trim()) {
+      showToast('error', 'Name Required', 'Please enter the recipient full name.')
+      return
+    }
+    const amt = Number(directAmount)
+    if (isNaN(amt) || amt < 5000) {
+      showToast('error', 'Invalid Amount', 'Minimum transfer amount via Snippe is TZS 5,000.')
+      return
+    }
+    if (snippeBalance && amt > snippeBalance.available) {
+      showToast(
+        'error',
+        'Insufficient Gateway Balance',
+        `Available balance is TZS ${snippeBalance.available.toLocaleString()}. Top up gateway balance or enter a lower amount.`
+      )
+      return
+    }
+
+    setIsSendingDirect(true)
+    try {
+      const res = await fetch('/api/admin/payments/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recipientPhone: directPhone.trim(),
+          recipientName: directName.trim(),
+          amountTZS: amt,
+          narration: directNarration.trim() || 'Direct Mobile Money Disbursal via LUMO Admin',
+        }),
+      })
+      const data = await res.json()
+      if (data?.success) {
+        showToast(
+          'success',
+          'Money Sent Successfully!',
+          `TZS ${amt.toLocaleString()} sent directly to ${directPhone.trim()} via Snippe. Ref: ${data.reference}`
+        )
+        setShowDirectSendModal(false)
+        setDirectPhone('')
+        setDirectName('')
+        setDirectAmount('')
+        setDirectNarration('')
+        resource.retry()
+        // Refresh balance
+        fetch('/api/payments/balance')
+          .then((r) => r.json())
+          .then((res) => {
+            if (res.success && res.data) setSnippeBalance(res.data)
+          })
+          .catch(() => null)
+      } else {
+        showToast('error', 'Transfer Failed', data?.error || 'Failed to dispatch mobile money.')
+      }
+    } catch {
+      showToast('error', 'Network Error', 'Check your connection and try again.')
+    } finally {
+      setIsSendingDirect(false)
+    }
+  }
 
   // Executive subscription metrics calculation
   const totalSubRevenue = payments
@@ -105,7 +181,16 @@ export function PaymentsTab({ onNavigateToSubscriptions }: PaymentsTabProps = {}
           </p>
         </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+        <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+          <button
+            type="button"
+            onClick={() => setShowDirectSendModal(true)}
+            className="py-2 px-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition-all cursor-pointer"
+          >
+            <Send className="w-3.5 h-3.5 text-emerald-100" />
+            <span>Send Direct Money</span>
+          </button>
+
           {onNavigateToSubscriptions && (
             <button
               onClick={onNavigateToSubscriptions}
@@ -172,7 +257,17 @@ export function PaymentsTab({ onNavigateToSubscriptions }: PaymentsTabProps = {}
           <div className="text-xl font-black text-slate-900 dark:text-white font-mono">
             {snippeBalance ? `${snippeBalance.currency} ${snippeBalance.available.toLocaleString()}` : 'Unavailable'}
           </div>
-          <p className="text-[10px] text-orange-800 dark:text-orange-400">Mobile Money Gateway Balance</p>
+          <div className="flex items-center justify-between pt-0.5">
+            <p className="text-[10px] text-orange-800 dark:text-orange-400">Mobile Money Balance</p>
+            <button
+              type="button"
+              onClick={() => setShowDirectSendModal(true)}
+              className="text-[10px] font-black text-[#FF6A00] hover:text-orange-700 underline flex items-center gap-0.5 cursor-pointer"
+            >
+              <Send className="w-2.5 h-2.5" />
+              <span>Send Money</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -530,6 +625,167 @@ export function PaymentsTab({ onNavigateToSubscriptions }: PaymentsTabProps = {}
                 Cancel
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* DIRECT MOBILE MONEY TRANSFER MODAL */}
+      {showDirectSendModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl relative space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 flex items-center justify-center">
+                  <Send className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-1.5">
+                    <span>Direct Mobile Money Disbursal</span>
+                    <span className="text-[10px] bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-extrabold px-2 py-0.5 rounded-full">
+                      Snippe Live
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Send funds instantly to any Vodacom, Tigo, Airtel, or Halotel phone.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDirectSendModal(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Gateway Balance Indicator */}
+            <div className="p-3.5 rounded-2xl bg-orange-50/70 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Smartphone className="w-4 h-4 text-orange-500" />
+                <span className="text-xs font-bold text-orange-900 dark:text-orange-200">
+                  Available Gateway Balance:
+                </span>
+              </div>
+              <span className="font-mono font-black text-sm text-slate-900 dark:text-white">
+                {snippeBalance
+                  ? `${snippeBalance.currency} ${snippeBalance.available.toLocaleString()}`
+                  : 'Checking balance...'}
+              </span>
+            </div>
+
+            <form onSubmit={handleSendDirectMoney} className="space-y-3.5 text-xs">
+              <div>
+                <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                  Recipient Phone Number <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="tel"
+                    required
+                    placeholder="0711788830 or 255711788830"
+                    value={directPhone}
+                    onChange={(e) => setDirectPhone(e.target.value)}
+                    className="w-full pl-3 pr-24 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-mono font-bold"
+                  />
+                  <div className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-md">
+                    TZ (+255)
+                  </div>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Supports Vodacom M-Pesa, Mixx by Yas (Tigo), Airtel Money, and Halotel.
+                </p>
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                  Recipient Full Name <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Given Mhema"
+                  value={directName}
+                  onChange={(e) => setDirectName(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-bold"
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="font-bold text-slate-700 dark:text-slate-300">
+                    Amount to Send (TZS) <span className="text-rose-500">*</span>
+                  </label>
+                  <span className="text-[10px] text-slate-400">Min: TZS 5,000</span>
+                </div>
+                <input
+                  type="number"
+                  required
+                  min={5000}
+                  step={100}
+                  placeholder="e.g. 20000"
+                  value={directAmount}
+                  onChange={(e) => setDirectAmount(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-mono font-black text-sm"
+                />
+                {/* Preset amount buttons */}
+                <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                  {[5000, 10000, 18400, 20000, 50000, 100000].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setDirectAmount(preset.toString())}
+                      className="text-[10px] font-bold px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-emerald-500 hover:text-emerald-600 transition-colors cursor-pointer"
+                    >
+                      TZS {preset.toLocaleString()}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                  Narration / Purpose (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Partner deal commission / Reward payout"
+                  value={directNarration}
+                  onChange={(e) => setDirectNarration(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowDirectSendModal(false)}
+                  disabled={isSendingDirect}
+                  className="px-4 py-2.5 text-xs font-bold text-slate-500 hover:text-slate-700 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSendingDirect || !directPhone.trim() || !directName.trim() || !directAmount}
+                  className="px-5 py-2.5 text-xs font-extrabold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all flex items-center gap-2 cursor-pointer disabled:opacity-60"
+                >
+                  {isSendingDirect ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Sending Money via Snippe...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-3.5 h-3.5" />
+                      <span>
+                        Send {directAmount ? `TZS ${Number(directAmount).toLocaleString()}` : 'Money'} Now
+                      </span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

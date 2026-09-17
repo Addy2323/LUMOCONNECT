@@ -67,18 +67,25 @@ export function EarningsPayoutsTab() {
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data?.success && Array.isArray(data.payouts)) {
-          const mapped: PartnerPayoutRecord[] = data.payouts.map((p: any) => ({
-            id: p.id,
-            reference: p.reference,
-            date: new Date(p.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
-            payoutMethod: (p.payoutChannel || 'MOBILE_MONEY').replace(/_/g, ' '),
-            accountNumberMasked: p.accountNumber,
-            grossAmountTZS: p.grossAmountTZS,
-            platformFeeTZS: p.platformFeeTZS,
-            taxWithheldTZS: p.taxWithheldTZS,
-            netPaidTZS: p.netAmountTZS,
-            status: p.status === 'PAID' ? 'COMPLETED' : 'PROCESSING',
-          }))
+          const seen = new Set<string>()
+          const mapped: PartnerPayoutRecord[] = []
+          for (const p of data.payouts) {
+            const key = p.reference?.trim() || p.id
+            if (seen.has(key)) continue
+            seen.add(key)
+            mapped.push({
+              id: p.id,
+              reference: p.reference,
+              date: new Date(p.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+              payoutMethod: (p.payoutChannel || 'MOBILE_MONEY').replace(/_/g, ' '),
+              accountNumberMasked: p.accountNumber,
+              grossAmountTZS: p.grossAmountTZS,
+              platformFeeTZS: p.platformFeeTZS,
+              taxWithheldTZS: p.taxWithheldTZS,
+              netPaidTZS: p.netAmountTZS,
+              status: p.status === 'PAID' ? 'COMPLETED' : 'PROCESSING',
+            })
+          }
           setPayouts(mapped)
         }
       })

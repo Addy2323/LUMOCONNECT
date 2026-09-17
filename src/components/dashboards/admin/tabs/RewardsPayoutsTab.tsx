@@ -54,6 +54,8 @@ export function RewardsPayoutsTab() {
   const [selectedPayoutForReject, setSelectedPayoutForReject] = useState<PayoutRequestItem | null>(null)
   const [rejectReasonInput, setRejectReasonInput] = useState('')
   const [isProcessingAction, setIsProcessingAction] = useState(false)
+  const [snippeBalance, setSnippeBalance] = useState<{ available: number; balance: number; currency: string } | null>(null)
+  const [isSendingViaSnippe, setIsSendingViaSnippe] = useState(false)
 
   // ==========================================
   // STATE: REFERRAL SETTLEMENTS DESK
@@ -74,7 +76,16 @@ export function RewardsPayoutsTab() {
       const res = await fetch('/api/admin/payouts', { credentials: 'include' })
       const data = await res.json()
       if (data?.success && Array.isArray(data.payouts)) {
-        setPayouts(data.payouts)
+        const seenRefs = new Set<string>()
+        const deduped: PayoutRequestItem[] = []
+        for (const p of data.payouts) {
+          const key = p.reference?.trim() || p.id
+          if (!seenRefs.has(key)) {
+            seenRefs.add(key)
+            deduped.push(p)
+          }
+        }
+        setPayouts(deduped)
       }
     } catch (err) {
       console.warn('Failed to load payouts:', err)
@@ -141,6 +152,13 @@ export function RewardsPayoutsTab() {
     reloadPayouts()
     reloadCases()
 
+    fetch('/api/payments/balance')
+      .then((r) => r.json())
+      .then((res) => {
+        if (res.success && res.data) setSnippeBalance(res.data)
+      })
+      .catch((e) => console.warn('Snippe balance fetch in Rewards:', e))
+
     const handlePayoutUpdate = () => reloadPayouts()
     const handleCaseUpdate = () => reloadCases()
 
@@ -152,6 +170,60 @@ export function RewardsPayoutsTab() {
       window.removeEventListener('lumo:referral-cases-updated', handleCaseUpdate)
     }
   }, [reloadPayouts, reloadCases])
+
+  // Direct Mobile Money Disbursal via Snippe
+  const handleDirectSnippeDisbursal = async () => {
+    if (!selectedPayoutForDisburse) return
+    const phone = selectedPayoutForDisburse.accountNumber || selectedPayoutForDisburse.partnerPhone
+    const name = selectedPayoutForDisburse.accountName || selectedPayoutForDisburse.partnerName
+    const amount = selectedPayoutForDisburse.netAmountTZS
+
+    if (snippeBalance && amount > snippeBalance.available) {
+      showToast(
+        'error',
+        'Insufficient Snippe Balance',
+        `Available gateway balance is TZS ${snippeBalance.available.toLocaleString()}, but net payout is TZS ${amount.toLocaleString()}. Top up gateway or enter manual reference.`
+      )
+      return
+    }
+
+    setIsSendingViaSnippe(true)
+    try {
+      const res = await fetch('/api/admin/payments/send', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          payoutId: selectedPayoutForDisburse.id,
+          recipientPhone: phone,
+          recipientName: name,
+          amountTZS: amount,
+          narration: `Reward Payout ${selectedPayoutForDisburse.reference} for ${name}`,
+        }),
+      })
+      const data = await res.json()
+      if (data?.success) {
+        showToast(
+          'success',
+          'Money Sent Direct to Phone!',
+          `TZS ${amount.toLocaleString()} dispatched to ${phone} via Snippe Mobile Money. Ref: ${data.reference}`
+        )
+        setSelectedPayoutForDisburse(null)
+        setDisbursalRefInput('')
+        reloadPayouts()
+        fetch('/api/payments/balance')
+          .then((r) => r.json())
+          .then((b) => b.success && b.data && setSnippeBalance(b.data))
+          .catch(() => null)
+      } else {
+        showToast('error', 'Disbursal Failed', data?.error || 'Failed to dispatch mobile money via Snippe.')
+      }
+    } catch {
+      showToast('error', 'Network Error', 'Check your connection and try again.')
+    } finally {
+      setIsSendingViaSnippe(false)
+    }
+  }
 
   // ==========================================
   // PAYOUT ACTIONS (Authorize / Disburse / Reject)
@@ -902,22 +974,63 @@ export function RewardsPayoutsTab() {
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">Destination Account:</span>
+                <span className="text-slate-500">Destination Account / Phone:</span>
                 <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
                   {selectedPayoutForDisburse.accountNumber}
                 </span>
               </div>
               <div className="flex justify-between border-t border-slate-200 dark:border-slate-700 pt-2">
-                <span className="text-slate-500">Net Amount to Pay:</span>
+                <span className="text-slate-500">Net Amount to Disburse:</span>
                 <span className="font-mono font-black text-emerald-600 text-sm">
                   TZS {selectedPayoutForDisburse.netAmountTZS.toLocaleString()}
                 </span>
               </div>
             </div>
 
+            {/* DIRECT SNIPPE DISBURSAL ACTION */}
+            <div className="p-3.5 rounded-2xl bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs font-black text-emerald-900 dark:text-emerald-200">
+                  <Send className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Direct Mobile Money Disbursal</span>
+                </div>
+                <span className="text-[10px] font-bold text-slate-500">
+                  Balance: {snippeBalance ? `${snippeBalance.currency} ${snippeBalance.available.toLocaleString()}` : 'Live'}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-600 dark:text-slate-300">
+                Dispatch <strong>TZS {selectedPayoutForDisburse.netAmountTZS.toLocaleString()}</strong> straight to <strong>{selectedPayoutForDisburse.accountNumber}</strong> ({selectedPayoutForDisburse.partnerName}) using Snippe Gateway.
+              </p>
+              <button
+                type="button"
+                onClick={handleDirectSnippeDisbursal}
+                disabled={isSendingViaSnippe || isProcessingAction}
+                className="w-full py-2.5 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold text-xs rounded-xl shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-60"
+              >
+                {isSendingViaSnippe ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Sending Money to Phone via Snippe...</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-3.5 h-3.5" />
+                    <span>⚡ Send TZS {selectedPayoutForDisburse.netAmountTZS.toLocaleString()} Direct to Phone</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* OR MANUAL REFERENCE */}
+            <div className="flex items-center gap-2 my-1 text-[10px] font-bold text-slate-400">
+              <div className="flex-1 h-px bg-slate-200 dark:bg-slate-700" />
+              <span>OR RECORD MANUAL REFERENCE</span>
+              <div className="flex-1 h-px bg-slate-200 dark:bg-slate-700" />
+            </div>
+
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                Transaction / Disbursal Reference <span className="text-rose-500">*</span>
+                Transaction / Disbursal Reference
               </label>
               <input
                 type="text"
@@ -927,7 +1040,7 @@ export function RewardsPayoutsTab() {
                 className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-mono"
               />
               <p className="text-[10px] text-slate-400">
-                Enter the mobile money or bank payment reference returned upon disbursing funds.
+                If paid outside LUMO (USSD/Bank portal), enter the transaction reference here.
               </p>
             </div>
 
@@ -942,15 +1055,15 @@ export function RewardsPayoutsTab() {
               <button
                 type="button"
                 onClick={handleConfirmDisbursal}
-                disabled={isProcessingAction}
-                className="px-5 py-2.5 text-xs font-extrabold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all flex items-center gap-2 cursor-pointer disabled:opacity-60"
+                disabled={isProcessingAction || isSendingViaSnippe}
+                className="px-5 py-2.5 text-xs font-extrabold rounded-xl bg-slate-800 hover:bg-slate-900 text-white shadow-xs transition-all flex items-center gap-2 cursor-pointer disabled:opacity-60"
               >
                 {isProcessingAction ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 ) : (
                   <CheckCircle2 className="w-3.5 h-3.5" />
                 )}
-                <span>Confirm Disbursed</span>
+                <span>Record Manual Disbursal</span>
               </button>
             </div>
           </div>

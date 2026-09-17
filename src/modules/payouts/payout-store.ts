@@ -154,6 +154,7 @@ export async function listAllPayoutRequests(query?: string, status?: string): Pr
           status: p.status as any,
           authorizedBy: p.authorizedBy || undefined,
           authorizedAt: p.authorizedAt ? p.authorizedAt.toISOString() : undefined,
+          disbursalReference: p.providerBatchRef || undefined,
           createdAt: p.createdAt.toISOString(),
           updatedAt: p.updatedAt.toISOString(),
         })
@@ -163,17 +164,32 @@ export async function listAllPayoutRequests(query?: string, status?: string): Pr
     }
   }
 
-  // Merge DB items with memory items avoiding duplicates
-  const itemMap = new Map<string, PayoutRequestItem>()
-  for (const item of inMemoryPayouts) {
-    itemMap.set(item.id, item)
-    if (item.reference) itemMap.set(item.reference, item)
-  }
+  // Deduplicate strictly by payout reference (or id fallback) so DB and in-memory cache never produce duplicates
+  const byRef = new Map<string, PayoutRequestItem>()
   for (const item of dbItems) {
-    itemMap.set(item.id, item)
+    const key = item.reference?.trim() || item.id
+    byRef.set(key, item)
+  }
+  for (const item of inMemoryPayouts) {
+    const key = item.reference?.trim() || item.id
+    const existing = byRef.get(key)
+    if (!existing) {
+      byRef.set(key, item)
+    } else {
+      // Merge richer in-memory fields into the DB record
+      if (!existing.disbursalReference && item.disbursalReference) {
+        existing.disbursalReference = item.disbursalReference
+      }
+      if (!existing.rejectionReason && item.rejectionReason) {
+        existing.rejectionReason = item.rejectionReason
+      }
+      if (!existing.notes && item.notes) {
+        existing.notes = item.notes
+      }
+    }
   }
 
-  let all = Array.from(new Set(itemMap.values())).sort(
+  let all = Array.from(byRef.values()).sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   )
 
@@ -235,6 +251,7 @@ export async function listPartnerPayouts(
           status: p.status as any,
           authorizedBy: p.authorizedBy || undefined,
           authorizedAt: p.authorizedAt ? p.authorizedAt.toISOString() : undefined,
+          disbursalReference: p.providerBatchRef || undefined,
           createdAt: p.createdAt.toISOString(),
           updatedAt: p.updatedAt.toISOString(),
         })
@@ -244,17 +261,32 @@ export async function listPartnerPayouts(
     }
   }
 
-  // Combine with in-memory store matching partnerUserId
-  const memoryItems = inMemoryPayouts.filter((p) => p.partnerUserId === partnerUserId)
-  const itemMap = new Map<string, PayoutRequestItem>()
-  for (const item of memoryItems) {
-    itemMap.set(item.id, item)
-  }
+  // Combine with in-memory store matching partnerUserId, deduplicating strictly by reference (or id fallback)
+  const byRef = new Map<string, PayoutRequestItem>()
   for (const item of dbItems) {
-    itemMap.set(item.id, item)
+    const key = item.reference?.trim() || item.id
+    byRef.set(key, item)
+  }
+  const memoryItems = inMemoryPayouts.filter((p) => p.partnerUserId === partnerUserId)
+  for (const item of memoryItems) {
+    const key = item.reference?.trim() || item.id
+    const existing = byRef.get(key)
+    if (!existing) {
+      byRef.set(key, item)
+    } else {
+      if (!existing.disbursalReference && item.disbursalReference) {
+        existing.disbursalReference = item.disbursalReference
+      }
+      if (!existing.rejectionReason && item.rejectionReason) {
+        existing.rejectionReason = item.rejectionReason
+      }
+      if (!existing.notes && item.notes) {
+        existing.notes = item.notes
+      }
+    }
   }
 
-  return Array.from(itemMap.values()).sort(
+  return Array.from(byRef.values()).sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   )
 }
@@ -304,6 +336,10 @@ export async function updatePayoutStatus(params: {
       if (params.action === 'AUTHORIZE') {
         updateData.authorizedBy = params.adminActor
         updateData.authorizedAt = new Date()
+      } else if (params.action === 'DISBURSE') {
+        if (params.disbursalReference || target?.disbursalReference) {
+          updateData.providerBatchRef = params.disbursalReference || target?.disbursalReference
+        }
       }
       await db.payout.update({
         where: { id: params.payoutId },

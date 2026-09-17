@@ -403,4 +403,109 @@ export class SnippePaymentAdapter implements PaymentProvider {
       return false
     }
   }
+
+  /**
+   * Sends mobile money payout directly to a recipient phone number via POST /v1/payouts/send
+   */
+  async sendPayout(req: {
+    amountTZS: number
+    recipientPhone: string
+    recipientName: string
+    narration?: string
+    idempotencyKey?: string
+    metadata?: Record<string, unknown>
+  }): Promise<{
+    success: boolean
+    reference?: string
+    externalReference?: string
+    status?: 'PENDING' | 'SUCCESSFUL' | 'FAILED'
+    message?: string
+    rawResponse?: unknown
+  }> {
+    if (!this.apiKey) {
+      throw new Error('Snippe API key is not configured. Set SNIPPE_API_KEY.')
+    }
+
+    if (!req.recipientPhone || !req.recipientPhone.trim()) {
+      throw new Error('Recipient phone number is required.')
+    }
+    const formattedPhone = normalizeTanzanianPhone(req.recipientPhone)
+    if (!/^255[67]\d{8}$/.test(formattedPhone)) {
+      throw new Error('Enter a valid Tanzanian mobile phone number (e.g. 07XXXXXXXX or 255XXXXXXXXX).')
+    }
+
+    if (!req.recipientName || !req.recipientName.trim()) {
+      throw new Error('Recipient name is required.')
+    }
+
+    const amountTZS = Math.round(Number(req.amountTZS))
+    if (isNaN(amountTZS) || amountTZS <= 0) {
+      throw new Error('Invalid payout amount.')
+    }
+    if (amountTZS < 5000) {
+      throw new Error('Minimum mobile money payout via Snippe is TZS 5,000.')
+    }
+
+    const idempotencyKey = sanitizeIdempotencyKey(req.idempotencyKey || `payout_${Date.now()}`)
+
+    const payload = {
+      amount: amountTZS,
+      channel: 'mobile',
+      recipient_phone: formattedPhone,
+      recipient_name: req.recipientName.trim(),
+      narration: req.narration || 'LUMO Partner Reward Disbursal',
+      ...(req.metadata ? { metadata: req.metadata } : {}),
+    }
+
+    try {
+      const res = await fetch(`${this.baseUrl}/v1/payouts/send`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+          'Idempotency-Key': idempotencyKey,
+        },
+        body: JSON.stringify(payload),
+      })
+
+      const data = await res.json().catch(() => ({}))
+
+      if (!res.ok || data.status !== 'success') {
+        const errMsg = data.message || `Snippe payout failed with status ${res.status}`
+        return {
+          success: false,
+          status: 'FAILED',
+          message: errMsg,
+          rawResponse: data,
+        }
+      }
+
+      const payoutData = data.data || {}
+      const reference = payoutData.reference || payoutData.id || `SNIPPE-${Date.now()}`
+      const externalReference = payoutData.external_reference || undefined
+      const status: 'PENDING' | 'SUCCESSFUL' | 'FAILED' =
+        payoutData.status === 'completed'
+          ? 'SUCCESSFUL'
+          : payoutData.status === 'failed' || payoutData.status === 'reversed'
+          ? 'FAILED'
+          : 'PENDING'
+
+      return {
+        success: true,
+        reference,
+        externalReference,
+        status,
+        message: data.message || 'Payout initiated successfully via Snippe',
+        rawResponse: payoutData,
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Network error connecting to Snippe payout gateway'
+      return {
+        success: false,
+        status: 'FAILED',
+        message,
+        rawResponse: { error: message },
+      }
+    }
+  }
 }
