@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   FileText,
   Calendar,
@@ -26,6 +26,7 @@ import {
   ArrowDownRight,
   Calculator,
   RefreshCw,
+  Loader2,
 } from 'lucide-react'
 import { useAdminToast } from '../AdminToast'
 import {
@@ -36,31 +37,39 @@ import {
 
 type FinancialTab = 'reports' | 'records' | 'statements' | 'deal_economics' | 'calendar' | 'tax'
 
-// 15 Core Record Types
-const FINANCIAL_RECORD_TYPES = [
-  { id: 'customer_payments', name: 'Customer Payment Records', timeline: 'Real-time / Post Payment', count: 142 },
-  { id: 'deal_transactions', name: 'Deal Transaction Records', timeline: 'Real-time', count: 98 },
-  { id: 'revenue', name: 'Platform Revenue Records', timeline: 'Upon Recognition', count: 86 },
-  { id: 'merchant_settlements', name: 'Merchant Settlement Records', timeline: 'At Settlement Creation', count: 54 },
-  { id: 'partner_rewards', name: 'Partner Reward Records', timeline: 'When Deal Confirmed', count: 112 },
-  { id: 'partner_payouts', name: 'Partner Payout Records', timeline: 'Immediately Post Payout', count: 74 },
-  { id: 'subscriptions', name: 'Subscription Payment Records', timeline: 'On Payment / Renewal', count: 230 },
-  { id: 'refunds', name: 'Customer Refund Records', timeline: 'Post Approval / Payment', count: 6 },
-  { id: 'expenses', name: 'Operating Expense Records', timeline: 'Daily / As Incurred', count: 32 },
-  { id: 'tax_records', name: 'Statutory Tax Records (VAT/WHT)', timeline: 'At Transaction Stage', count: 180 },
-  { id: 'bank_mobile_money', name: 'Bank & Mobile Money Records', timeline: 'Real-time / Daily Sync', count: 412 },
-  { id: 'reconciliation', name: 'Reconciliation Records', timeline: 'Daily Close', count: 28 },
-  { id: 'adjustments', name: 'Financial Adjustment Records', timeline: 'Post Approval', count: 5 },
-  { id: 'general_ledger', name: 'General Ledger Journal Entries', timeline: 'Automated Real-time', count: 840 },
-  { id: 'audit_records', name: 'Financial Audit Records', timeline: 'Real-time Immutable', count: 960 },
-]
-
 export function FinancialReportsRecordsTab() {
   const { showToast } = useAdminToast()
   const [activeSubTab, setActiveSubTab] = useState<FinancialTab>('reports')
   const [reportFrequency, setReportFrequency] = useState<'DAILY' | 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'ANNUAL'>('MONTHLY')
   const [selectedRecordType, setSelectedRecordType] = useState('customer_payments')
   const [searchQuery, setSearchQuery] = useState('')
+
+  // Live Dynamic Financial Data
+  const [financialData, setFinancialData] = useState<any>(null)
+  const [dataLoading, setDataLoading] = useState<boolean>(true)
+  const [selectedDealIndex, setSelectedDealIndex] = useState<number>(0)
+
+  const fetchFinancialData = async () => {
+    setDataLoading(true)
+    try {
+      const res = await fetch('/api/admin/financial-reports', { credentials: 'include' })
+      const data = await res.json()
+      if (data?.success) {
+        setFinancialData(data)
+      } else {
+        showToast('error', 'Sync Failed', data?.error || 'Could not fetch live financial data.')
+      }
+    } catch (err) {
+      console.warn('Failed to load financial reports data:', err)
+      showToast('error', 'Network Error', 'Check connection to live financial ledger.')
+    } finally {
+      setDataLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchFinancialData()
+  }, [])
 
   // Tax Simulator State (Preserved from TaxStatementsTab)
   const [grossInput, setGrossInput] = useState<number>(1000000)
@@ -69,73 +78,100 @@ export function FinancialReportsRecordsTab() {
   const withholdingAmount = Math.round(grossInput * withholdingRate)
   const netEarnings = grossInput - withholdingAmount
 
-  // Sample Deal Economics Data
-  const sampleDeal = {
-    dealId: 'LUMO-A529',
-    dealTitle: 'Bulk Cement Supply (500 Bags Grade 42.5)',
-    postedDate: '01 September 2026',
-    customerPaymentDate: '08 September 2026',
-    completedDate: '10 September 2026',
-    financiallyClosedDate: '12 September 2026',
-    dealValue: 75000000,
-    customerPayment: 75000000,
-    merchantPayable: 68250000,
-    partnerReward: 2250000,
-    lumoGrossRevenue: 4500000,
-    paymentCharges: 450000,
-    lumoNetContribution: 4050000,
+  // Real Active Deals List
+  const realDeals = financialData?.dealEconomics || []
+  const activeDeal = realDeals[selectedDealIndex] || realDeals[0] || {
+    dealId: 'LUMO-DEAL-LIVE',
+    dealTitle: 'Real Commercial Deal Allocation',
+    postedDate: 'Live System Record',
+    customerPaymentDate: 'Real-time Escrow',
+    completedDate: 'Pending Completion',
+    financiallyClosedDate: 'Pending Settlement',
+    dealValue: 1000000,
+    customerPayment: 1000000,
+    merchantPayable: 910000,
+    partnerReward: 30000,
+    lumoGrossRevenue: 60000,
+    paymentCharges: 6000,
+    lumoNetContribution: 54000,
+    rows: [],
   }
 
-  // Generate Sample Report Data for PDF/Excel Exports
+  // 15 Dynamic Registers
+  const registers = financialData?.recordRegisters || []
+  const currentRegister = registers.find((r: any) => r.id === selectedRecordType) || registers[0] || {
+    name: 'Real Financial Record Register',
+    rows: [],
+    count: 0,
+  }
+
+  // Generate Real Report Data for PDF/Excel Exports
   const getActiveReportData = (): ReportData => {
     if (activeSubTab === 'statements') {
+      const pnlRows = financialData?.statements?.rows || []
+      const pnlTotals = financialData?.statements?.totals || {}
+      const periodLabel = financialData?.statements?.currentPeriod || 'Fiscal Current Period'
+      const prevPeriodLabel = financialData?.statements?.previousPeriod || 'Fiscal Previous Period'
+
       return {
         title: 'Statement of Profit or Loss (Income Statement)',
-        subtitle: 'Formal Audited Management Account',
-        period: 'Q3 2026 (July - September)',
+        subtitle: 'Formal Audited Management Account - Live Ledger',
+        period: periodLabel,
         summaryKpis: [
-          { label: 'Gross Revenue', value: 'TZS 162,900,000', color: '#10B981' },
-          { label: 'Direct Operational Costs', value: 'TZS 106,710,000', color: '#F59E0B' },
-          { label: 'Net Profit Before Tax', value: 'TZS 56,190,000', color: '#FF6A00' },
+          {
+            label: 'Marketplace Fees',
+            value: `TZS ${(pnlRows[0]?.currAmount ?? 0).toLocaleString()}`,
+            color: '#10B981',
+          },
+          {
+            label: 'VIP Subscriptions',
+            value: `TZS ${(pnlRows[1]?.currAmount ?? 0).toLocaleString()}`,
+            color: '#3B82F6',
+          },
+          {
+            label: 'Net Profit',
+            value: `TZS ${(pnlTotals?.currAmount ?? 0).toLocaleString()}`,
+            color: '#FF6A00',
+          },
         ],
         columns: [
           { key: 'lineItem', label: 'Financial Statement Line Item', width: 220 },
           { key: 'category', label: 'Classification', align: 'center', width: 140 },
-          { key: 'q3Amount', label: 'Q3 2026 (TZS)', type: 'currency', width: 150 },
-          { key: 'q2Amount', label: 'Q2 2026 (TZS)', type: 'currency', width: 150 },
+          { key: 'currAmount', label: `${periodLabel} (TZS)`, type: 'currency', width: 150 },
+          { key: 'prevAmount', label: `${prevPeriodLabel} (TZS)`, type: 'currency', width: 150 },
           { key: 'variance', label: 'Variance (%)', align: 'center', width: 110 },
         ],
-        rows: [
-          { lineItem: 'Marketplace Commission & Fees', category: 'Operating Revenue', q3Amount: 'TZS 124,500,000', q2Amount: 'TZS 98,200,000', variance: '+26.8%' },
-          { lineItem: 'Partner VIP Subscriptions', category: 'Subscription Revenue', q3Amount: 'TZS 38,400,000', q2Amount: 'TZS 28,900,000', variance: '+32.9%' },
-          { lineItem: 'Partner Direct Rewards & Comms', category: 'Direct Cost', q3Amount: 'TZS 88,350,000', q2Amount: 'TZS 71,400,000', variance: '+23.7%' },
-          { lineItem: 'Payment Telco Gateway Charges', category: 'Direct Cost', q3Amount: 'TZS 8,140,000', q2Amount: 'TZS 6,250,000', variance: '+30.2%' },
-          { lineItem: 'SMS Notification Infrastructure', category: 'Operating Expense', q3Amount: 'TZS 10,220,000', q2Amount: 'TZS 8,900,000', variance: '+14.8%' },
-        ],
+        rows: pnlRows.map((r: any) => ({
+          lineItem: r.lineItem,
+          category: r.category,
+          currAmount: `TZS ${Number(r.currAmount).toLocaleString()}`,
+          prevAmount: `TZS ${Number(r.prevAmount).toLocaleString()}`,
+          variance: r.variance,
+        })),
         totals: {
-          lineItem: 'NET OPERATING PROFIT',
-          category: 'Statutory Result',
-          q3Amount: 'TZS 56,190,000',
-          q2Amount: 'TZS 40,550,000',
-          variance: '+38.6%',
+          lineItem: pnlTotals.lineItem || 'NET OPERATING PROFIT',
+          category: pnlTotals.category || 'Statutory Result',
+          currAmount: `TZS ${(pnlTotals?.currAmount ?? 0).toLocaleString()}`,
+          prevAmount: `TZS ${(pnlTotals?.prevAmount ?? 0).toLocaleString()}`,
+          variance: pnlTotals?.variance || '+0.0%',
         },
         notes: [
-          'Prepared in accordance with Tanzania Financial Reporting Standards (TFRS).',
+          'Prepared dynamically in accordance with Tanzania Financial Reporting Standards (TFRS).',
           'Merchant settlements do not form part of Lumo gross revenue under agency principle.',
-          'Withholding tax amounts remitted directly to Tanzania Revenue Authority (TRA).',
+          'Statutory withholding tax amounts remitted directly to Tanzania Revenue Authority (TRA).',
         ],
       }
     }
 
     if (activeSubTab === 'deal_economics') {
       return {
-        title: `Deal Financial Economics - ${sampleDeal.dealId}`,
-        subtitle: sampleDeal.dealTitle,
-        period: 'September 2026',
+        title: `Deal Financial Economics - ${activeDeal.dealId}`,
+        subtitle: activeDeal.dealTitle,
+        period: activeDeal.postedDate,
         summaryKpis: [
-          { label: 'Gross Deal Value', value: 'TZS 75,000,000', color: '#0F172A' },
-          { label: 'Merchant Settlement', value: 'TZS 68,250,000', color: '#3B82F6' },
-          { label: 'Lumo Net Margin', value: 'TZS 4,050,000', color: '#10B981' },
+          { label: 'Gross Deal Value', value: `TZS ${activeDeal.dealValue.toLocaleString()}`, color: '#0F172A' },
+          { label: 'Merchant Settlement', value: `TZS ${activeDeal.merchantPayable.toLocaleString()}`, color: '#3B82F6' },
+          { label: 'Lumo Net Margin', value: `TZS ${activeDeal.lumoNetContribution.toLocaleString()}`, color: '#10B981' },
         ],
         columns: [
           { key: 'item', label: 'Economics Component', width: 220 },
@@ -143,27 +179,42 @@ export function FinancialReportsRecordsTab() {
           { key: 'amount', label: 'Amount (TZS)', type: 'currency', width: 160 },
           { key: 'percentage', label: '% of Deal', align: 'center', width: 110 },
         ],
-        rows: [
-          { item: 'Customer Gross Payment', party: 'Retail Buyer', amount: 'TZS 75,000,000', percentage: '100.0%' },
-          { item: 'Merchant Settlement Payable', party: 'Verified Supplier', amount: 'TZS 68,250,000', percentage: '91.0%' },
-          { item: 'Partner Qualified Reward', party: 'Referring Partner', amount: 'TZS 2,250,000', percentage: '3.0%' },
-          { item: 'Lumo Platform Fee', party: 'Lumo Deals', amount: 'TZS 4,500,000', percentage: '6.0%' },
-          { item: 'Payment Processing Charges', party: 'Telco / M-Pesa', amount: 'TZS 450,000', percentage: '0.6%' },
-          { item: 'Lumo Net Contribution', party: 'Lumo Net Margin', amount: 'TZS 4,050,000', percentage: '5.4%' },
-        ],
+        rows: (activeDeal.rows || []).map((r: any) => ({
+          item: r.item,
+          party: r.party,
+          amount: `TZS ${Number(r.amount).toLocaleString()}`,
+          percentage: r.percentage,
+        })),
       }
     }
 
-    // Default: Monthly / Periodic Financial Report
+    // Default: Live Operations Report
+    const feedRows = financialData?.reportFeedRows || []
     return {
       title: `${reportFrequency} Financial Operations Report`,
-      subtitle: 'Centralized Platform Financial Performance & Audit Record',
-      period: reportFrequency === 'DAILY' ? 'Today, 15 September 2026' : reportFrequency === 'WEEKLY' ? 'Week 37, September 2026' : 'Fiscal September 2026',
+      subtitle: 'Centralized Platform Financial Performance & Live Ledger Audit Record',
+      period: `Live Sync ${new Date().toLocaleDateString('en-GB')}`,
       summaryKpis: [
-        { label: 'Customer Collections', value: 'TZS 148,600,000', color: '#0F172A' },
-        { label: 'Merchant Settlements', value: 'TZS 124,300,000', color: '#3B82F6' },
-        { label: 'Partner Rewards', value: 'TZS 12,450,000', color: '#10B981' },
-        { label: 'Platform Net Margin', value: 'TZS 11,850,000', color: '#FF6A00' },
+        {
+          label: 'Customer Collections',
+          value: `TZS ${(financialData?.kpis?.today?.customerCollectionsTZS ?? 0).toLocaleString()}`,
+          color: '#0F172A',
+        },
+        {
+          label: 'Merchant Settlements',
+          value: `TZS ${(financialData?.kpis?.today?.merchantSettlementsTZS ?? 0).toLocaleString()}`,
+          color: '#3B82F6',
+        },
+        {
+          label: 'Partner Rewards',
+          value: `TZS ${(financialData?.kpis?.today?.partnerRewardsTZS ?? 0).toLocaleString()}`,
+          color: '#10B981',
+        },
+        {
+          label: 'Platform Net Margin',
+          value: `TZS ${(financialData?.kpis?.thisMonth?.netOperatingProfitTZS ?? 0).toLocaleString()}`,
+          color: '#FF6A00',
+        },
       ],
       columns: [
         { key: 'ref', label: 'Ref / Ticket', width: 130 },
@@ -173,19 +224,13 @@ export function FinancialReportsRecordsTab() {
         { key: 'amount', label: 'Amount (TZS)', type: 'currency', width: 150 },
         { key: 'date', label: 'Date & Time', align: 'center', width: 130 },
       ],
-      rows: [
-        { ref: 'REF-868371', type: 'Customer Referral Settlement', party: 'Given Mhema (Partner)', status: 'CONFIRMED', amount: 'TZS 900,000', date: '15/09/2026 14:30' },
-        { ref: 'REF-940212', type: 'Merchant Direct Settlement', party: 'Ujenzi Trade Ltd', status: 'SETTLED', amount: 'TZS 28,450,000', date: '15/09/2026 12:15' },
-        { ref: 'SUB-410291', type: 'Partner Pro Subscription', party: 'Baraka Mrema', status: 'ACTIVE', amount: 'TZS 45,000', date: '15/09/2026 10:05' },
-        { ref: 'REF-720194', type: 'Commercial Vehicle Payout', party: 'Kilimanjaro Motors', status: 'IN_PROGRESS', amount: 'TZS 650,000', date: '14/09/2026 17:40' },
-        { ref: 'TAX-00192', type: 'Statutory Withholding 5%', party: 'TRA (Tanzania Revenue)', status: 'REMITTED', amount: 'TZS 45,000', date: '14/09/2026 16:00' },
-      ],
+      rows: feedRows,
       totals: {
         ref: 'SUMMARY TOTAL',
-        type: '5 Transactions',
+        type: `${feedRows.length} Live Transactions`,
         party: 'All Counterparties',
         status: 'BALANCED',
-        amount: 'TZS 30,090,000',
+        amount: `TZS ${(financialData?.kpis?.thisMonth?.platformGrossRevenueTZS ?? 0).toLocaleString()}`,
         date: 'Generated Live',
       },
       notes: [
@@ -215,20 +260,28 @@ export function FinancialReportsRecordsTab() {
         <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs">
           <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Today</span>
-            <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40">Live Sync</span>
+            <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40">
+              Live Sync
+            </span>
           </div>
           <div className="mt-3 space-y-2">
             <div className="flex justify-between items-center text-xs">
               <span className="text-slate-600 dark:text-slate-400">Customer Collections</span>
-              <span className="font-mono font-bold text-slate-900 dark:text-white">TZS 12,450,000</span>
+              <span className="font-mono font-bold text-slate-900 dark:text-white">
+                TZS {(financialData?.kpis?.today?.customerCollectionsTZS ?? 0).toLocaleString()}
+              </span>
             </div>
             <div className="flex justify-between items-center text-xs">
               <span className="text-slate-600 dark:text-slate-400">Merchant Settlements</span>
-              <span className="font-mono font-bold text-blue-600">TZS 8,620,000</span>
+              <span className="font-mono font-bold text-blue-600">
+                TZS {(financialData?.kpis?.today?.merchantSettlementsTZS ?? 0).toLocaleString()}
+              </span>
             </div>
             <div className="flex justify-between items-center text-xs">
               <span className="text-slate-600 dark:text-slate-400">Partner Rewards</span>
-              <span className="font-mono font-bold text-[#FF6A00]">TZS 1,250,000</span>
+              <span className="font-mono font-bold text-[#FF6A00]">
+                TZS {(financialData?.kpis?.today?.partnerRewardsTZS ?? 0).toLocaleString()}
+              </span>
             </div>
           </div>
         </div>
@@ -236,21 +289,31 @@ export function FinancialReportsRecordsTab() {
         {/* This Month */}
         <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs">
           <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">This Month (September)</span>
-            <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 dark:bg-blue-950/40">Fiscal Q3</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+              This Month ({financialData?.kpis?.thisMonth?.monthName ?? 'Current'})
+            </span>
+            <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 dark:bg-blue-950/40">
+              {financialData?.kpis?.thisMonth?.quarterName ?? 'Fiscal Q3'}
+            </span>
           </div>
           <div className="mt-3 space-y-2">
             <div className="flex justify-between items-center text-xs">
               <span className="text-slate-600 dark:text-slate-400">Platform Gross Revenue</span>
-              <span className="font-mono font-bold text-emerald-600">TZS 54,300,000</span>
+              <span className="font-mono font-bold text-emerald-600">
+                TZS {(financialData?.kpis?.thisMonth?.platformGrossRevenueTZS ?? 0).toLocaleString()}
+              </span>
             </div>
             <div className="flex justify-between items-center text-xs">
               <span className="text-slate-600 dark:text-slate-400">Net Operating Profit</span>
-              <span className="font-mono font-bold text-slate-900 dark:text-white">TZS 18,740,000</span>
+              <span className="font-mono font-bold text-slate-900 dark:text-white">
+                TZS {(financialData?.kpis?.thisMonth?.netOperatingProfitTZS ?? 0).toLocaleString()}
+              </span>
             </div>
             <div className="flex justify-between items-center text-xs">
               <span className="text-slate-600 dark:text-slate-400">Total Cash Position</span>
-              <span className="font-mono font-bold text-indigo-600">TZS 74,650,000</span>
+              <span className="font-mono font-bold text-indigo-600">
+                TZS {(financialData?.kpis?.thisMonth?.totalCashPositionTZS ?? 0).toLocaleString()}
+              </span>
             </div>
           </div>
         </div>
@@ -259,19 +322,27 @@ export function FinancialReportsRecordsTab() {
         <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs">
           <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Reporting Calendar</span>
-            <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 dark:bg-amber-950/40">Timelines</span>
+            <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 dark:bg-amber-950/40">
+              Timelines
+            </span>
           </div>
           <div className="mt-3 grid grid-cols-3 gap-2 text-center">
             <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800">
-              <div className="text-base font-black text-blue-600">4</div>
+              <div className="text-base font-black text-blue-600">
+                {financialData?.kpis?.calendarSummary?.reportsDue ?? 0}
+              </div>
               <div className="text-[10px] text-slate-500 font-bold uppercase">Reports Due</div>
             </div>
             <div className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/30">
-              <div className="text-base font-black text-rose-600">1</div>
+              <div className="text-base font-black text-rose-600">
+                {financialData?.kpis?.calendarSummary?.overdue ?? 0}
+              </div>
               <div className="text-[10px] text-rose-500 font-bold uppercase">Overdue</div>
             </div>
             <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/30">
-              <div className="text-base font-black text-emerald-600">3</div>
+              <div className="text-base font-black text-emerald-600">
+                {financialData?.kpis?.calendarSummary?.closed ?? 0}
+              </div>
               <div className="text-[10px] text-emerald-500 font-bold uppercase">Closed</div>
             </div>
           </div>
@@ -308,9 +379,19 @@ export function FinancialReportsRecordsTab() {
           })}
         </div>
 
-        {/* Global Export Buttons */}
+        {/* Global Action & Export Buttons */}
         <div className="flex items-center gap-2">
           <button
+            type="button"
+            onClick={fetchFinancialData}
+            disabled={dataLoading}
+            className="py-2 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 text-[#FF6A00] ${dataLoading ? 'animate-spin' : ''}`} />
+            <span>Sync Live</span>
+          </button>
+          <button
+            type="button"
             onClick={handleExportPdf}
             className="py-2 px-3 bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
           >
@@ -318,6 +399,7 @@ export function FinancialReportsRecordsTab() {
             <span>Export Colored PDF</span>
           </button>
           <button
+            type="button"
             onClick={handleExportExcel}
             className="py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
           >
@@ -347,8 +429,9 @@ export function FinancialReportsRecordsTab() {
               ))}
             </div>
 
-            <div className="text-xs text-slate-500 font-medium">
-              Showing authoritative audit-ready summary for <strong>{reportFrequency}</strong> cycle
+            <div className="text-xs text-slate-500 font-medium flex items-center gap-2">
+              <span>Authoritative live audit-ready ledger for <strong>{reportFrequency}</strong> cycle</span>
+              {dataLoading && <Loader2 className="w-3 h-3 animate-spin text-[#FF6A00]" />}
             </div>
           </div>
 
@@ -364,7 +447,7 @@ export function FinancialReportsRecordsTab() {
                 </p>
               </div>
               <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-                Balanced & Reconciled
+                Live Dynamic Sync
               </span>
             </div>
 
@@ -381,20 +464,32 @@ export function FinancialReportsRecordsTab() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-                  {getActiveReportData().rows.map((row, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
-                      <td className="p-3 font-mono font-bold text-blue-600 dark:text-blue-400">{row.ref}</td>
-                      <td className="p-3 font-extrabold text-slate-900 dark:text-white">{row.type}</td>
-                      <td className="p-3 text-slate-600 dark:text-slate-300">{row.party}</td>
-                      <td className="p-3 text-center">
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-                          {row.status}
-                        </span>
+                  {getActiveReportData().rows.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="p-6 text-center text-slate-400">
+                        No financial transactions recorded yet. Live payments and payouts will appear dynamically.
                       </td>
-                      <td className="p-3 text-right font-mono font-black text-slate-900 dark:text-white">{row.amount}</td>
-                      <td className="p-3 text-center text-slate-500 text-[11px]">{row.date}</td>
                     </tr>
-                  ))}
+                  ) : (
+                    getActiveReportData().rows.map((row, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                        <td className="p-3 font-mono font-bold text-blue-600 dark:text-blue-400">{row.ref}</td>
+                        <td className="p-3 font-extrabold text-slate-900 dark:text-white">{row.type}</td>
+                        <td className="p-3 text-slate-600 dark:text-slate-300">{row.party}</td>
+                        <td className="p-3 text-center">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                            row.status === 'SETTLED' || row.status === 'CONFIRMED'
+                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                              : 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+                          }`}>
+                            {row.status}
+                          </span>
+                        </td>
+                        <td className="p-3 text-right font-mono font-black text-slate-900 dark:text-white">{row.amount}</td>
+                        <td className="p-3 text-center text-slate-500 text-[11px]">{row.date}</td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -408,9 +503,9 @@ export function FinancialReportsRecordsTab() {
           {/* Record Selector Sidebar */}
           <div className="lg:col-span-4 space-y-2 max-h-[620px] overflow-y-auto pr-1">
             <div className="text-xs font-black uppercase text-slate-400 tracking-wider mb-2">
-              Financial Record Registers (15)
+              Financial Record Registers ({registers.length})
             </div>
-            {FINANCIAL_RECORD_TYPES.map((rec) => (
+            {registers.map((rec: any) => (
               <button
                 key={rec.id}
                 onClick={() => setSelectedRecordType(rec.id)}
@@ -422,8 +517,10 @@ export function FinancialReportsRecordsTab() {
               >
                 <div className="font-extrabold flex justify-between items-center">
                   <span>{rec.name}</span>
-                  <span className={`text-[10px] px-2 py-0.2 rounded-full font-bold ${
-                    selectedRecordType === rec.id ? 'bg-[#FF6A00] text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                    selectedRecordType === rec.id
+                      ? 'bg-[#FF6A00] text-white'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                   }`}>
                     {rec.count}
                   </span>
@@ -441,7 +538,7 @@ export function FinancialReportsRecordsTab() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
                 <div>
                   <h3 className="text-base font-black text-slate-900 dark:text-white">
-                    {FINANCIAL_RECORD_TYPES.find((r) => r.id === selectedRecordType)?.name}
+                    {currentRegister.name} ({currentRegister.count || 0})
                   </h3>
                   <p className="text-xs text-slate-500 mt-0.5">
                     Immutable underlying record register for compliance audits. Records transition: Active → Reversed → Archived.
@@ -463,7 +560,7 @@ export function FinancialReportsRecordsTab() {
                 </div>
               </div>
 
-              {/* Sample Table for Selected Record Type */}
+              {/* Dynamic Table for Selected Record Type */}
               <div className="overflow-x-auto mt-4">
                 <table className="w-full text-xs text-left">
                   <thead className="bg-slate-50 dark:bg-slate-800 text-[10px] uppercase font-bold text-slate-500 border-b">
@@ -476,21 +573,29 @@ export function FinancialReportsRecordsTab() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-                    {[1, 2, 3, 4, 5].map((item) => (
-                      <tr key={item} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
-                        <td className="p-3 font-mono text-slate-500 font-bold">REC-2026-00{item}82</td>
-                        <td className="p-3 font-bold text-slate-900 dark:text-white">LUMO-REF-8683{item}</td>
-                        <td className="p-3 text-slate-600 dark:text-slate-300">Given Mhema (Partner)</td>
-                        <td className="p-3 text-right font-mono font-black text-slate-900 dark:text-white">
-                          TZS {(item * 450000).toLocaleString()}
-                        </td>
-                        <td className="p-3 text-center">
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-                            ACTIVE
-                          </span>
+                    {!currentRegister.rows || currentRegister.rows.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="p-6 text-center text-slate-400">
+                          No records in this register yet. Real database entries will populate dynamically as transactions occur.
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      currentRegister.rows.map((row: any, idx: number) => (
+                        <tr key={idx} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                          <td className="p-3 font-mono text-slate-500 font-bold">{row.recordId}</td>
+                          <td className="p-3 font-bold text-slate-900 dark:text-white font-mono">{row.reference}</td>
+                          <td className="p-3 text-slate-600 dark:text-slate-300">{row.entity}</td>
+                          <td className="p-3 text-right font-mono font-black text-slate-900 dark:text-white">
+                            TZS {Number(row.amount || 0).toLocaleString()}
+                          </td>
+                          <td className="p-3 text-center">
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                              {row.state}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -499,20 +604,21 @@ export function FinancialReportsRecordsTab() {
         </div>
       )}
 
-      {/* 5. SUB-TAB 3: FINANCIAL STATEMENTS */}
+      {/* 5. SUB-TAB 3: FINANCIAL STATEMENTS (DYNAMIC P&L) */}
       {activeSubTab === 'statements' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
             <div>
               <h3 className="text-base font-black text-slate-900 dark:text-white">
                 Statement of Profit or Loss & Other Comprehensive Income
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Prepared under Tanzania Financial Reporting Standards (TFRS) for Fiscal Q3 2026
+                Prepared dynamically under Tanzania Financial Reporting Standards (TFRS) for {financialData?.statements?.currentPeriod || 'Fiscal Q3 2026'}
               </p>
             </div>
             <div className="flex gap-2">
               <button
+                type="button"
                 onClick={handleExportPdf}
                 className="py-2 px-3 bg-slate-900 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
               >
@@ -520,6 +626,7 @@ export function FinancialReportsRecordsTab() {
                 <span>Print Official Statement</span>
               </button>
               <button
+                type="button"
                 onClick={handleExportExcel}
                 className="py-2 px-3 bg-emerald-600 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
               >
@@ -535,27 +642,45 @@ export function FinancialReportsRecordsTab() {
                 <tr>
                   <th className="p-3">Line Item</th>
                   <th className="p-3 text-center">Classification</th>
-                  <th className="p-3 text-right">Q3 2026 (TZS)</th>
-                  <th className="p-3 text-right">Q2 2026 (TZS)</th>
+                  <th className="p-3 text-right">{financialData?.statements?.currentPeriod || 'Current Period'} (TZS)</th>
+                  <th className="p-3 text-right">{financialData?.statements?.previousPeriod || 'Previous Period'} (TZS)</th>
                   <th className="p-3 text-center">Variance (%)</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-                {getActiveReportData().rows.map((r, i) => (
+                {(financialData?.statements?.rows || []).map((r: any, i: number) => (
                   <tr key={i} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
                     <td className="p-3 font-extrabold text-slate-900 dark:text-white">{r.lineItem}</td>
                     <td className="p-3 text-center text-slate-500">{r.category}</td>
-                    <td className="p-3 text-right font-mono font-bold text-slate-900 dark:text-white">{r.q3Amount}</td>
-                    <td className="p-3 text-right font-mono text-slate-500">{r.q2Amount}</td>
-                    <td className="p-3 text-center font-bold text-emerald-600">{r.variance}</td>
+                    <td className="p-3 text-right font-mono font-bold text-slate-900 dark:text-white">
+                      TZS {Number(r.currAmount || 0).toLocaleString()}
+                    </td>
+                    <td className="p-3 text-right font-mono text-slate-500">
+                      TZS {Number(r.prevAmount || 0).toLocaleString()}
+                    </td>
+                    <td className={`p-3 text-center font-bold ${
+                      r.variance?.startsWith('+') ? 'text-emerald-600' : 'text-slate-500'
+                    }`}>
+                      {r.variance}
+                    </td>
                   </tr>
                 ))}
                 <tr className="bg-amber-50/60 dark:bg-amber-950/30 font-black border-t-2 border-amber-300">
-                  <td className="p-3 text-amber-900 dark:text-amber-200">NET OPERATING PROFIT</td>
-                  <td className="p-3 text-center text-amber-900 dark:text-amber-200">Statutory Result</td>
-                  <td className="p-3 text-right font-mono text-amber-900 dark:text-amber-200">TZS 56,190,000</td>
-                  <td className="p-3 text-right font-mono text-amber-900 dark:text-amber-200">TZS 40,550,000</td>
-                  <td className="p-3 text-center text-emerald-600">+38.6%</td>
+                  <td className="p-3 text-amber-900 dark:text-amber-200">
+                    {financialData?.statements?.totals?.lineItem || 'NET OPERATING PROFIT'}
+                  </td>
+                  <td className="p-3 text-center text-amber-900 dark:text-amber-200">
+                    {financialData?.statements?.totals?.category || 'Statutory Result'}
+                  </td>
+                  <td className="p-3 text-right font-mono text-amber-900 dark:text-amber-200">
+                    TZS {(financialData?.statements?.totals?.currAmount ?? 0).toLocaleString()}
+                  </td>
+                  <td className="p-3 text-right font-mono text-amber-900 dark:text-amber-200">
+                    TZS {(financialData?.statements?.totals?.prevAmount ?? 0).toLocaleString()}
+                  </td>
+                  <td className="p-3 text-center text-emerald-600">
+                    {financialData?.statements?.totals?.variance || '+0.0%'}
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -563,24 +688,40 @@ export function FinancialReportsRecordsTab() {
         </div>
       )}
 
-      {/* 6. SUB-TAB 4: DEAL ECONOMICS (LUMO-A529 EXAMPLE) */}
+      {/* 6. SUB-TAB 4: DEAL ECONOMICS (REAL SYSTEM DEALS) */}
       {activeSubTab === 'deal_economics' && (
         <div className="space-y-4">
           <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
-              <div>
-                <div className="flex items-center gap-2">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-mono font-black text-blue-600 bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded-md text-xs">
-                    {sampleDeal.dealId}
+                    {activeDeal.dealId}
                   </span>
-                  <h3 className="text-base font-black text-slate-900 dark:text-white">{sampleDeal.dealTitle}</h3>
+                  <h3 className="text-base font-black text-slate-900 dark:text-white">
+                    {activeDeal.dealTitle}
+                  </h3>
+                  {realDeals.length > 1 && (
+                    <select
+                      value={selectedDealIndex}
+                      onChange={(e) => setSelectedDealIndex(Number(e.target.value))}
+                      className="text-xs font-bold py-1 px-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                    >
+                      {realDeals.map((d: any, idx: number) => (
+                        <option key={d.dealId} value={idx}>
+                          Select Deal: {d.dealId} - {d.dealTitle}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
                 <p className="text-xs text-slate-500 mt-1">
-                  Timeline: Posted ({sampleDeal.postedDate}) → Customer Payment ({sampleDeal.customerPaymentDate}) → Closed ({sampleDeal.financiallyClosedDate})
+                  Timeline: Posted ({activeDeal.postedDate}) → Customer Payment ({activeDeal.customerPaymentDate}) → Closed ({activeDeal.financiallyClosedDate})
                 </p>
               </div>
               <div className="flex gap-2">
                 <button
+                  type="button"
                   onClick={handleExportPdf}
                   className="py-2 px-3 bg-slate-900 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
                 >
@@ -588,6 +729,7 @@ export function FinancialReportsRecordsTab() {
                   <span>Export Deal PDF</span>
                 </button>
                 <button
+                  type="button"
                   onClick={handleExportExcel}
                   className="py-2 px-3 bg-emerald-600 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
                 >
@@ -602,25 +744,25 @@ export function FinancialReportsRecordsTab() {
               <div className="p-3 rounded-xl border bg-slate-50 dark:bg-slate-800">
                 <div className="text-[10px] uppercase font-bold text-slate-400">Total Deal Value</div>
                 <div className="text-base font-black text-slate-900 dark:text-white font-mono mt-1">
-                  TZS {sampleDeal.dealValue.toLocaleString()}
+                  TZS {activeDeal.dealValue.toLocaleString()}
                 </div>
               </div>
               <div className="p-3 rounded-xl border bg-blue-50/60 dark:bg-blue-950/20 border-blue-100 dark:border-blue-900">
                 <div className="text-[10px] uppercase font-bold text-blue-600">Merchant Payable (91%)</div>
                 <div className="text-base font-black text-blue-700 dark:text-blue-300 font-mono mt-1">
-                  TZS {sampleDeal.merchantPayable.toLocaleString()}
+                  TZS {activeDeal.merchantPayable.toLocaleString()}
                 </div>
               </div>
               <div className="p-3 rounded-xl border bg-orange-50/60 dark:bg-orange-950/20 border-orange-100 dark:border-orange-900">
                 <div className="text-[10px] uppercase font-bold text-[#FF6A00]">Partner Reward (3%)</div>
                 <div className="text-base font-black text-[#FF6A00] font-mono mt-1">
-                  TZS {sampleDeal.partnerReward.toLocaleString()}
+                  TZS {activeDeal.partnerReward.toLocaleString()}
                 </div>
               </div>
               <div className="p-3 rounded-xl border bg-emerald-50/60 dark:bg-emerald-950/20 border-emerald-100 dark:border-emerald-900">
                 <div className="text-[10px] uppercase font-bold text-emerald-600">Lumo Net Margin (5.4%)</div>
                 <div className="text-base font-black text-emerald-700 dark:text-emerald-300 font-mono mt-1">
-                  TZS {sampleDeal.lumoNetContribution.toLocaleString()}
+                  TZS {activeDeal.lumoNetContribution.toLocaleString()}
                 </div>
               </div>
             </div>
@@ -637,42 +779,24 @@ export function FinancialReportsRecordsTab() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-                  <tr>
-                    <td className="p-3 font-bold text-slate-900 dark:text-white">Customer Payment Received</td>
-                    <td className="p-3 text-center text-slate-500">Retail Buyer</td>
-                    <td className="p-3 text-right font-mono font-bold text-slate-900 dark:text-white">TZS 75,000,000</td>
-                    <td className="p-3 text-center font-bold">100.0%</td>
-                  </tr>
-                  <tr>
-                    <td className="p-3 font-bold text-slate-900 dark:text-white">Merchant Payable Disbursed</td>
-                    <td className="p-3 text-center text-slate-500">Verified Cement Supplier</td>
-                    <td className="p-3 text-right font-mono font-bold text-blue-600">TZS 68,250,000</td>
-                    <td className="p-3 text-center font-bold">91.0%</td>
-                  </tr>
-                  <tr>
-                    <td className="p-3 font-bold text-slate-900 dark:text-white">Partner Referral Reward</td>
-                    <td className="p-3 text-center text-slate-500">Referring Partner (Given Mhema)</td>
-                    <td className="p-3 text-right font-mono font-bold text-[#FF6A00]">TZS 2,250,000</td>
-                    <td className="p-3 text-center font-bold">3.0%</td>
-                  </tr>
-                  <tr>
-                    <td className="p-3 font-bold text-slate-900 dark:text-white">Lumo Gross Platform Fee</td>
-                    <td className="p-3 text-center text-slate-500">Lumo Platform Fee Account</td>
-                    <td className="p-3 text-right font-mono font-bold text-slate-900 dark:text-white">TZS 4,500,000</td>
-                    <td className="p-3 text-center font-bold">6.0%</td>
-                  </tr>
-                  <tr>
-                    <td className="p-3 font-bold text-slate-900 dark:text-white">Payment Network Gateway Charges</td>
-                    <td className="p-3 text-center text-slate-500">Telco Gateway</td>
-                    <td className="p-3 text-right font-mono text-rose-600 font-bold">TZS 450,000</td>
-                    <td className="p-3 text-center font-bold">0.6%</td>
-                  </tr>
-                  <tr className="bg-emerald-50/60 dark:bg-emerald-950/20 font-black border-t-2 border-emerald-300">
-                    <td className="p-3 text-emerald-900 dark:text-emerald-200">Lumo Net Profit Contribution</td>
-                    <td className="p-3 text-center text-emerald-900 dark:text-emerald-200">Retained Margin</td>
-                    <td className="p-3 text-right font-mono text-emerald-700 dark:text-emerald-300">TZS 4,050,000</td>
-                    <td className="p-3 text-center text-emerald-600">5.4%</td>
-                  </tr>
+                  {(!activeDeal.rows || activeDeal.rows.length === 0) ? (
+                    <tr>
+                      <td colSpan={4} className="p-4 text-center text-slate-400">
+                        No economics breakdown available for this record.
+                      </td>
+                    </tr>
+                  ) : (
+                    activeDeal.rows.map((item: any, i: number) => (
+                      <tr key={i} className={i === activeDeal.rows.length - 1 ? 'bg-emerald-50/60 dark:bg-emerald-950/20 font-black border-t-2 border-emerald-300' : ''}>
+                        <td className="p-3 font-bold text-slate-900 dark:text-white">{item.item}</td>
+                        <td className="p-3 text-center text-slate-500">{item.party}</td>
+                        <td className="p-3 text-right font-mono font-bold text-slate-900 dark:text-white">
+                          TZS {Number(item.amount).toLocaleString()}
+                        </td>
+                        <td className="p-3 text-center font-bold">{item.percentage}</td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>

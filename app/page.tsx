@@ -19,6 +19,7 @@ import { BusinessPublishNoticeModal } from '@/components/marketplace/BusinessPub
 import { ProtectedDealDetailsModal } from '@/components/marketplace/ProtectedDealDetailsModal'
 import { WhatsAppMiddlemanModal } from '@/components/marketplace/WhatsAppMiddlemanModal'
 import { SubscriptionsView } from '@/components/subscriptions/SubscriptionsView'
+import { InternationalLandingView } from '@/components/international/InternationalLandingView'
 import { PartnerDashboardView } from '@/components/dashboards/PartnerDashboardView'
 import { BusinessDashboardView } from '@/components/dashboards/BusinessDashboardView'
 import { AdminDashboardView } from '@/components/dashboards/AdminDashboardView'
@@ -71,6 +72,7 @@ const INITIAL_WORKSPACES: UserWorkspaceInfo[] = [
 const ROUTE_MAP: Record<string, string> = {
   marketplace: '/',
   marketplace_catalog: '/catalog',
+  international: '/international',
   subscriptions: '/subscriptions',
   partner: '/partner',
   business: '/business',
@@ -752,6 +754,16 @@ export default function LumoApp() {
             onPostOpportunity={handleTriggerCreateDeal}
             onConnectWhatsApp={handleConnectWhatsApp}
             onUpgradeToVip={() => setActiveView('subscriptions')}
+          />
+        )}
+
+        {/* VIEW: LUMO INTERNATIONAL (/international) */}
+        {activeView === 'international' && (
+          <InternationalLandingView
+            currentUserId={currentUserId}
+            currentUserEmail={userDetails.email}
+            currentUserName={userDetails.name}
+            onNavigateHome={() => setActiveView('marketplace')}
           />
         )}
 

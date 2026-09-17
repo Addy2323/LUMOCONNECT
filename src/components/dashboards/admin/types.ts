@@ -9,6 +9,8 @@ export type AdminSidebarSection =
   | 'approvals'
   | 'conversions'
   | 'referrals'
+  // Group: International Desk
+  | 'international'
   // Group 2: Financial Operations
   | 'subscriptions'
   | 'payments'

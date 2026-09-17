@@ -45,6 +45,7 @@ import { RolesPermissionsTab } from './admin/tabs/RolesPermissionsTab'
 import { IntegrationsWebhooksTab } from './admin/tabs/IntegrationsWebhooksTab'
 import { SystemSettingsTab } from './admin/tabs/SystemSettingsTab'
 import { ReferralsCoordinationTab } from './admin/tabs/ReferralsCoordinationTab'
+import { AdminInternationalDeskTab } from './admin/tabs/AdminInternationalDeskTab'
 
 interface AdminDashboardViewProps {
   adminName?: string
@@ -235,6 +236,7 @@ export function AdminDashboardView({
         {activeTab === 'approvals' && <DealApprovalsTab />}
         {activeTab === 'conversions' && <ConversionsAttributionTab />}
         {activeTab === 'referrals' && <ReferralsCoordinationTab />}
+        {activeTab === 'international' && <AdminInternationalDeskTab />}
 
         {/* GROUP 2: FINANCIAL OPERATIONS */}
         {activeTab === 'subscriptions' && <SubscriptionsTab />}

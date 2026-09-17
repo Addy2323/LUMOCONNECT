@@ -34,6 +34,7 @@ import {
   Store,
   LogOut,
   Ticket,
+  Globe,
 } from 'lucide-react'
 import { BrandMark } from '@/components/shared/BrandMark'
 import { AdminSidebarSection } from './types'
@@ -101,6 +102,12 @@ function getNavGroups({
         { id: 'approvals', label: 'Deal Approvals', icon: CheckCircle, badge: pendingDealsCount > 0 ? pendingDealsCount : undefined, badgeColor: 'bg-orange-100 text-[#FF6A00]', opType: 'Approval Workflow' },
         { id: 'conversions', label: 'Conversions & Attribution', icon: BarChart3, opType: 'Platform Evidence' },
         { id: 'referrals', label: 'Connection Review', icon: Ticket, opType: 'Qualification & Intro' },
+      ],
+    },
+    {
+      title: 'INTERNATIONAL',
+      items: [
+        { id: 'international', label: 'International Desk', icon: Globe, opType: 'Global Desk' },
       ],
     },
     {
