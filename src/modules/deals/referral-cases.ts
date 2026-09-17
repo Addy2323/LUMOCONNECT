@@ -204,6 +204,13 @@ export function sanitizeTicketForAdmin(ticket: ReferralTicketDTO): ReferralTicke
 }
 
 function mapPrismaTicketToDTO(raw: any): ReferralTicketDTO {
+  let specMeta: any = null
+  if (raw.specifications && typeof raw.specifications === 'string' && raw.specifications.trim().startsWith('{')) {
+    try {
+      specMeta = JSON.parse(raw.specifications)
+    } catch {}
+  }
+
   return {
     id: raw.id,
     ticketReference: raw.ticketReference,
@@ -219,16 +226,16 @@ function mapPrismaTicketToDTO(raw: any): ReferralTicketDTO {
     partnerPhoneMasked: raw.partnerPhoneMasked || maskPhone(raw.partnerPhone),
     partnerWhatsApp: raw.partnerWhatsApp,
     partnerWhatsAppMasked: maskPhone(raw.partnerWhatsApp),
-    customerFirstName: raw.customerFirstName ?? null,
-    customerLastName: raw.customerLastName ?? null,
-    customerPhone: raw.customerPhone ?? null,
+    customerFirstName: raw.customerFirstName ?? specMeta?.customerFirstName ?? null,
+    customerLastName: raw.customerLastName ?? specMeta?.customerLastName ?? null,
+    customerPhone: raw.customerPhone ?? specMeta?.customerPhone ?? null,
     customerPhoneMasked: raw.customerPhoneMasked ?? null,
-    contactPermissionConfirmed: Boolean(raw.contactPermissionConfirmed),
+    contactPermissionConfirmed: Boolean(raw.contactPermissionConfirmed ?? specMeta?.contactPermissionConfirmed),
     quantity: raw.quantity ?? 1,
     deliveryDestination: raw.deliveryDestination ?? null,
-    specifications: raw.specifications ?? null,
+    specifications: specMeta ? (specMeta.specifications ?? null) : (raw.specifications ?? null),
     terminalOption: raw.terminalOption ?? null,
-    additionalNotes: raw.additionalNotes ?? null,
+    additionalNotes: raw.additionalNotes ?? specMeta?.additionalNotes ?? null,
     acceptedTermsVersion: raw.acceptedTermsVersion ?? 1,
     stage: raw.stage,
     stageUpdatedAt: raw.stageUpdatedAt instanceof Date ? raw.stageUpdatedAt.toISOString() : String(raw.stageUpdatedAt),
@@ -237,29 +244,41 @@ function mapPrismaTicketToDTO(raw: any): ReferralTicketDTO {
     nextActionDueDate: raw.nextActionDueDate ?? null,
     partnerVisibleUpdate: raw.partnerVisibleUpdate ?? null,
     coordinatorNotes: raw.coordinatorNotes ?? null,
-    closureReason: raw.closureReason ?? null,
+    closureReason: specMeta?.closureReason ?? raw.closureReason ?? null,
+    requestedInfoNotes:
+      raw.requestedInfoNotes ??
+      specMeta?.requestedInfoNotes ??
+      (raw.stage === 'MORE_INFO_REQUIRED' && raw.partnerVisibleUpdate?.startsWith('Information Required by LUMO: ')
+        ? raw.partnerVisibleUpdate.replace('Information Required by LUMO: ', '').trim()
+        : null),
+    rejectionReasonNotes:
+      raw.rejectionReasonNotes ??
+      specMeta?.rejectionReasonNotes ??
+      (raw.stage === 'REJECTED' && raw.partnerVisibleUpdate?.startsWith('Connection rejected: ')
+        ? raw.partnerVisibleUpdate.replace('Connection rejected: ', '').trim()
+        : null),
     rewardAmountTZS: raw.rewardAmountTZS ? Number(raw.rewardAmountTZS) : null,
     rewardDisplay: raw.rewardDisplay ?? null,
     rewardStatus: raw.rewardStatus ?? 'NOT_YET_EARNED',
     // Extended Connection Details (60-Step Process)
-    entityType: raw.entityType ?? null,
-    customerRole: raw.customerRole ?? null,
-    companyName: raw.companyName ?? null,
-    contactPerson: raw.contactPerson ?? null,
-    customerCountry: raw.customerCountry ?? null,
-    customerRegion: raw.customerRegion ?? null,
-    customerCity: raw.customerCity ?? null,
-    customerEmail: raw.customerEmail ?? null,
-    customerWebsite: raw.customerWebsite ?? null,
-    relationshipWithCustomer: raw.relationshipWithCustomer ?? null,
-    spokenToCustomer: raw.spokenToCustomer ?? null,
-    customerInterestLevel: raw.customerInterestLevel ?? null,
-    lumoMayContact: raw.lumoMayContact ?? null,
-    customerSuitability: raw.customerSuitability ?? null,
-    relevantCapabilities: raw.relevantCapabilities ?? null,
-    supportingDocuments: raw.supportingDocuments ?? null,
-    isDuplicatePotential: Boolean(raw.isDuplicatePotential),
-    declarationAccepted: Boolean(raw.declarationAccepted),
+    entityType: raw.entityType ?? specMeta?.entityType ?? null,
+    customerRole: raw.customerRole ?? specMeta?.customerRole ?? null,
+    companyName: raw.companyName ?? specMeta?.companyName ?? null,
+    contactPerson: raw.contactPerson ?? specMeta?.contactPerson ?? null,
+    customerCountry: raw.customerCountry ?? specMeta?.customerCountry ?? null,
+    customerRegion: raw.customerRegion ?? specMeta?.customerRegion ?? null,
+    customerCity: raw.customerCity ?? specMeta?.customerCity ?? null,
+    customerEmail: raw.customerEmail ?? specMeta?.customerEmail ?? null,
+    customerWebsite: raw.customerWebsite ?? specMeta?.customerWebsite ?? null,
+    relationshipWithCustomer: raw.relationshipWithCustomer ?? specMeta?.relationshipWithCustomer ?? null,
+    spokenToCustomer: raw.spokenToCustomer ?? specMeta?.spokenToCustomer ?? null,
+    customerInterestLevel: raw.customerInterestLevel ?? specMeta?.customerInterestLevel ?? null,
+    lumoMayContact: raw.lumoMayContact ?? specMeta?.lumoMayContact ?? null,
+    customerSuitability: raw.customerSuitability ?? specMeta?.customerSuitability ?? null,
+    relevantCapabilities: raw.relevantCapabilities ?? specMeta?.relevantCapabilities ?? null,
+    supportingDocuments: raw.supportingDocuments ?? specMeta?.supportingDocuments ?? null,
+    isDuplicatePotential: Boolean(raw.isDuplicatePotential ?? specMeta?.isDuplicatePotential),
+    declarationAccepted: Boolean(raw.declarationAccepted ?? specMeta?.declarationAccepted),
     merchantOrgId: raw.merchantOrgId ?? null,
     merchantName: raw.merchantName ?? null,
     createdAt: raw.createdAt instanceof Date ? raw.createdAt.toISOString() : String(raw.createdAt),
@@ -483,6 +502,32 @@ export async function createReferralTicket(input: CreateReferralTicketInput): Pr
     ? `Your Customer Connection has been submitted successfully and is awaiting LUMO review (Reference: ${ticketReference}).`
     : `Your referral ticket has been created successfully (Reference: ${ticketReference}). Lumo is reviewing availability.`
 
+  const connectionMetadata = {
+    entityType: input.entityType || null,
+    customerRole: input.customerRole || null,
+    companyName: input.companyName || null,
+    contactPerson: input.contactPerson || null,
+    customerCountry: input.customerCountry || 'Tanzania',
+    customerRegion: input.customerRegion || null,
+    customerCity: input.customerCity || null,
+    customerEmail: input.customerEmail || null,
+    customerWebsite: input.customerWebsite || null,
+    relationshipWithCustomer: input.relationshipWithCustomer || null,
+    spokenToCustomer: input.spokenToCustomer || null,
+    customerInterestLevel: input.customerInterestLevel || null,
+    lumoMayContact: input.lumoMayContact || null,
+    customerSuitability: input.customerSuitability || null,
+    relevantCapabilities: Array.isArray(input.relevantCapabilities) ? input.relevantCapabilities : [],
+    supportingDocuments: Array.isArray(input.supportingDocuments) ? input.supportingDocuments : undefined,
+    isDuplicatePotential: Boolean(input.isDuplicatePotential),
+    declarationAccepted: Boolean(input.declarationAccepted),
+  }
+
+  // Specifications fallback preserves JSON metadata for any DB without the new columns yet
+  const fallbackSpecifications = input.specifications?.trim()
+    ? JSON.stringify({ ...connectionMetadata, specifications: input.specifications.trim() })
+    : JSON.stringify(connectionMetadata)
+
   try {
     const created = await db.referralTicket.create({
       data: {
@@ -505,7 +550,7 @@ export async function createReferralTicket(input: CreateReferralTicketInput): Pr
         contactPermissionConfirmed: isCustomerReferral ? Boolean(input.contactPermissionConfirmed) : false,
         quantity: input.quantity && input.quantity > 0 ? input.quantity : 1,
         deliveryDestination: input.deliveryDestination?.trim() || null,
-        specifications: input.specifications?.trim() || null,
+        specifications: fallbackSpecifications,
         terminalOption: input.terminalOption?.trim() || null,
         additionalNotes: input.additionalNotes?.trim() || null,
         acceptedTermsVersion: input.acceptedTermsVersion || 1,
@@ -525,6 +570,7 @@ export async function createReferralTicket(input: CreateReferralTicketInput): Pr
         rewardDisplay: input.rewardDisplay || null,
         rewardStatus: 'NOT_YET_EARNED',
         idempotencyKey: input.idempotencyKey || null,
+        ...connectionMetadata,
       },
     })
 
@@ -537,7 +583,63 @@ export async function createReferralTicket(input: CreateReferralTicketInput): Pr
       ticket: sanitizeTicketForPartner(dto),
     }
   } catch (error: any) {
-    console.warn('Database referral ticket creation fallback to in-memory store:', error?.message || error)
+    // If DB has not yet applied the new column migration, retry without the new columns using fallbackSpecifications
+    try {
+      const legacyCreated = await db.referralTicket.create({
+        data: {
+          ticketReference,
+          dealId: input.dealId,
+          opportunityId: resolvedOpportunityId,
+          dealTitle: input.dealTitle,
+          dealSlug: input.dealSlug,
+          submissionType: (input.submissionType === 'CUSTOMER_CONNECTION' ? 'CUSTOMER_REFERRAL' : input.submissionType) as any,
+          partnerUserId: input.partnerUserId,
+          promotionalCode: input.promotionalCode || null,
+          partnerName: input.partnerName,
+          partnerPhone: normalizedPartnerPhone,
+          partnerWhatsApp: normalizedPartnerWhatsApp,
+          partnerPhoneMasked,
+          customerFirstName: isCustomerReferral ? finalCustomerFirstName : null,
+          customerLastName: isCustomerReferral ? finalCustomerLastName : null,
+          customerPhone: normalizedCustomerPhone,
+          customerPhoneMasked,
+          contactPermissionConfirmed: isCustomerReferral ? Boolean(input.contactPermissionConfirmed) : false,
+          quantity: input.quantity && input.quantity > 0 ? input.quantity : 1,
+          deliveryDestination: input.deliveryDestination?.trim() || null,
+          specifications: fallbackSpecifications,
+          terminalOption: input.terminalOption?.trim() || null,
+          additionalNotes: input.additionalNotes?.trim() || null,
+          acceptedTermsVersion: input.acceptedTermsVersion || 1,
+          merchantOrgId,
+          merchantName,
+          stage: 'SUBMITTED',
+          assignedCoordinator: 'Sarah (Lumo Coordination Desk)',
+          nextAction: 'Lumo Coordinator to verify details and confirm availability with merchant',
+          nextActionDueDate: 'Within 1 business day',
+          coordinatorNotes: isCustomerReferral
+            ? 'New referral submitted. Awaiting merchant availability confirmation.'
+            : 'Coordination enquiry logged. Verifying product specifications and dispatch timelines.',
+          partnerVisibleUpdate: isCustomerReferral
+            ? 'Referral ticket submitted. Lumo coordinator reviewing availability.'
+            : 'Coordination enquiry submitted. Lumo coordinator reviewing specifications.',
+          rewardAmountTZS: parsedNumericReward > 0 ? parsedNumericReward : (input.rewardAmountTZS ? Number(input.rewardAmountTZS) : null),
+          rewardDisplay: input.rewardDisplay || null,
+          rewardStatus: 'NOT_YET_EARNED',
+          idempotencyKey: input.idempotencyKey || null,
+        } as any,
+      })
+
+      const dto = mapPrismaTicketToDTO(legacyCreated)
+      inMemoryTickets = [dto, ...inMemoryTickets]
+
+      return {
+        success: true,
+        message: successMessage,
+        ticket: sanitizeTicketForPartner(dto),
+      }
+    } catch (fallbackErr: any) {
+      console.warn('Database referral ticket creation fallback to in-memory store:', fallbackErr?.message || error?.message || error)
+    }
 
     // Create in in-memory fallback
     const memTicket: ReferralTicketDTO = {
@@ -773,8 +875,14 @@ export async function updateReferralTicketStage(
     nextActionDueDate?: string
     coordinatorNotes?: string
     partnerVisibleUpdate?: string
-    closureReason?: ReferralClosureReason
+    closureReason?: ReferralClosureReason | string
     rewardStatus?: string
+    requestedInfoNotes?: string
+    rejectionReasonNotes?: string
+    partnerResubmissionNotes?: string
+    customerEmail?: string
+    customerPhone?: string
+    relationshipWithCustomer?: string
   }
 ): Promise<boolean> {
   const stageUpdatedAt = new Date()
@@ -794,6 +902,33 @@ export async function updateReferralTicketStage(
   }
 
   let effectiveRewardAmount = 0
+
+  // Standardize notes and messages for info requests and rejections
+  let effectivePartnerVisibleUpdate = details?.partnerVisibleUpdate
+  let effectiveCoordinatorNotes = details?.coordinatorNotes
+
+  if (stage === 'MORE_INFO_REQUIRED' && details?.requestedInfoNotes) {
+    if (!effectivePartnerVisibleUpdate) {
+      effectivePartnerVisibleUpdate = `Information Required by LUMO: ${details.requestedInfoNotes}`
+    }
+    if (!effectiveCoordinatorNotes) {
+      effectiveCoordinatorNotes = `Admin requested additional info: ${details.requestedInfoNotes}`
+    }
+  } else if (stage === 'REJECTED' && details?.rejectionReasonNotes) {
+    if (!effectivePartnerVisibleUpdate) {
+      effectivePartnerVisibleUpdate = `Connection rejected: ${details.rejectionReasonNotes}`
+    }
+    if (!effectiveCoordinatorNotes) {
+      effectiveCoordinatorNotes = `Connection rejected (${details.closureReason || 'OTHER'}): ${details.rejectionReasonNotes}`
+    }
+  } else if (details?.partnerResubmissionNotes) {
+    if (!effectivePartnerVisibleUpdate) {
+      effectivePartnerVisibleUpdate = `Additional information submitted by Partner. Under review by LUMO Desk.`
+    }
+    if (!effectiveCoordinatorNotes) {
+      effectiveCoordinatorNotes = `Partner provided requested information: "${details.partnerResubmissionNotes}". Ready for review.`
+    }
+  }
 
   try {
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrRef)
@@ -846,6 +981,51 @@ export async function updateReferralTicketStage(
         console.warn('Opp lookup failed during ticket stage update:', oppLookupErr)
       }
 
+      // Merge metadata into specifications JSON for resilient storage
+      let updatedSpecifications: string | undefined = undefined
+      try {
+        let currentMeta: any = {}
+        if (existingTicket.specifications && existingTicket.specifications.startsWith('{')) {
+          currentMeta = JSON.parse(existingTicket.specifications)
+        }
+        if (details?.requestedInfoNotes !== undefined) {
+          currentMeta.requestedInfoNotes = details.requestedInfoNotes
+        }
+        if (details?.rejectionReasonNotes !== undefined) {
+          currentMeta.rejectionReasonNotes = details.rejectionReasonNotes
+        }
+        if (details?.closureReason !== undefined) {
+          currentMeta.closureReason = details.closureReason
+        }
+        if (details?.partnerResubmissionNotes !== undefined) {
+          currentMeta.partnerResubmissionNotes = details.partnerResubmissionNotes
+          currentMeta.requestedInfoNotes = null
+        }
+        updatedSpecifications = JSON.stringify(currentMeta)
+      } catch {}
+
+      let updatedAdditionalNotes: string | undefined = undefined
+      if (details?.partnerResubmissionNotes) {
+        const timestamp = new Date().toLocaleDateString('en-GB')
+        updatedAdditionalNotes = existingTicket.additionalNotes
+          ? `${existingTicket.additionalNotes}\n\n[Partner Resubmission ${timestamp}]: ${details.partnerResubmissionNotes}`
+          : `[Partner Resubmission ${timestamp}]: ${details.partnerResubmissionNotes}`
+      }
+
+      const validPrismaClosureReasons = ['UNAVAILABLE', 'DUPLICATE', 'CANCELLED', 'UNSUCCESSFUL', 'OTHER']
+      let prismaClosureReason: any = undefined
+      if (details?.closureReason) {
+        if (validPrismaClosureReasons.includes(details.closureReason)) {
+          prismaClosureReason = details.closureReason
+        } else if (details.closureReason === 'CUSTOMER_NOT_INTERESTED' || details.closureReason === 'OUT_OF_SCOPE') {
+          prismaClosureReason = 'UNSUCCESSFUL'
+        } else if (details.closureReason === 'INVALID_CONTACT') {
+          prismaClosureReason = 'UNAVAILABLE'
+        } else {
+          prismaClosureReason = 'OTHER'
+        }
+      }
+
       await db.referralTicket.update({
         where: { id: existingTicket.id },
         data: {
@@ -859,9 +1039,14 @@ export async function updateReferralTicketStage(
           ...(details?.assignedCoordinator !== undefined ? { assignedCoordinator: details.assignedCoordinator } : {}),
           ...(details?.nextAction !== undefined ? { nextAction: details.nextAction } : {}),
           ...(details?.nextActionDueDate !== undefined ? { nextActionDueDate: details.nextActionDueDate } : {}),
-          ...(details?.coordinatorNotes !== undefined ? { coordinatorNotes: details.coordinatorNotes } : {}),
-          ...(details?.partnerVisibleUpdate !== undefined ? { partnerVisibleUpdate: details.partnerVisibleUpdate } : {}),
-          ...(details?.closureReason !== undefined ? { closureReason: details.closureReason } : {}),
+          ...(effectiveCoordinatorNotes !== undefined ? { coordinatorNotes: effectiveCoordinatorNotes } : {}),
+          ...(effectivePartnerVisibleUpdate !== undefined ? { partnerVisibleUpdate: effectivePartnerVisibleUpdate } : {}),
+          ...(prismaClosureReason !== undefined ? { closureReason: prismaClosureReason } : {}),
+          ...(updatedSpecifications ? { specifications: updatedSpecifications } : {}),
+          ...(updatedAdditionalNotes ? { additionalNotes: updatedAdditionalNotes } : {}),
+          ...(details?.customerEmail ? { customerEmail: details.customerEmail } : {}),
+          ...(details?.customerPhone ? { customerPhone: details.customerPhone } : {}),
+          ...(details?.relationshipWithCustomer ? { relationshipWithCustomer: details.relationshipWithCustomer } : {}),
         },
       })
 
@@ -922,6 +1107,8 @@ export async function updateReferralTicketStage(
           const stageNames: Record<string, string> = {
             SUBMITTED: 'Submitted',
             UNDER_REVIEW: 'Under Review',
+            MORE_INFO_REQUIRED: 'Action Needed: More Info Required',
+            REJECTED: 'Connection Rejected',
             AVAILABILITY_CONFIRMED: 'Availability Confirmed',
             IN_PROGRESS: 'In Progress',
             COMPLETED: 'Completed',
@@ -931,21 +1118,51 @@ export async function updateReferralTicketStage(
             CLOSED: 'Closed',
           }
           const stageLabel = stageNames[stage] || stage
+          const updateTitle =
+            stage === 'MORE_INFO_REQUIRED'
+              ? 'LUMO: Additional Information Required'
+              : stage === 'REJECTED'
+              ? 'LUMO: Connection Not Approved'
+              : `Referral Updated: ${stageLabel}`
+
           const updateText =
-            details?.partnerVisibleUpdate ||
+            effectivePartnerVisibleUpdate ||
             `Your referral (${existingTicket.ticketReference}) for "${existingTicket.dealTitle}" is now: ${stageLabel}. Next Action: ${details?.nextAction || 'Completed'}.`
 
           await db.notification.create({
             data: {
               userId: existingTicket.partnerUserId,
               channel: 'IN_APP',
-              title: `Referral Updated: ${stageLabel}`,
+              title: updateTitle,
               body: updateText,
-              linkUrl: '/partner?tab=wallet_payouts',
+              linkUrl: '/partner?tab=leads_referrals',
             },
           })
         } catch (notifError) {
           console.warn('Could not create notification for partner:', notifError)
+        }
+      }
+
+      // If partner resubmitted information, alert the admin team
+      if (details?.partnerResubmissionNotes) {
+        try {
+          const adminUser = await db.user.findFirst({
+            where: { email: 'admin@lumo.co.tz' },
+            select: { id: true },
+          })
+          if (adminUser) {
+            await db.notification.create({
+              data: {
+                userId: adminUser.id,
+                channel: 'IN_APP',
+                title: 'Connection Info Resubmitted',
+                body: `Partner ${existingTicket.partnerName} resubmitted requested information for connection ${existingTicket.ticketReference}.`,
+                linkUrl: '/admin?tab=referrals',
+              },
+            })
+          }
+        } catch (adminNotifErr) {
+          console.warn('Could not notify admin on partner resubmission:', adminNotifErr)
         }
       }
 
@@ -954,7 +1171,7 @@ export async function updateReferralTicketStage(
         try {
           await providers.sms.sendSms({
             recipientPhone: existingTicket.partnerPhone,
-            messageText: `[LUMO] Rufaa #${existingTicket.ticketReference} imeboreshwa: ${details?.partnerVisibleUpdate || stage}. Ingia kwenye Lumo kufuatilia hatua inayofuata.`,
+            messageText: `[LUMO] Rufaa #${existingTicket.ticketReference} imeboreshwa: ${effectivePartnerVisibleUpdate || stage}. Ingia kwenye Lumo kufuatilia hatua inayofuata.`,
           })
         } catch (smsError) {
           console.warn('SMS alert failed (non-blocking):', smsError)
@@ -972,9 +1189,9 @@ export async function updateReferralTicketStage(
           ...(details?.assignedCoordinator ? { assignedCoordinator: details.assignedCoordinator } : {}),
           ...(details?.nextAction ? { nextAction: details.nextAction } : {}),
           ...(details?.nextActionDueDate ? { nextActionDueDate: details.nextActionDueDate } : {}),
-          ...(details?.coordinatorNotes ? { coordinatorNotes: details.coordinatorNotes } : {}),
-          ...(details?.partnerVisibleUpdate ? { partnerVisibleUpdate: details.partnerVisibleUpdate } : {}),
-          ...(details?.closureReason ? { closureReason: details.closureReason } : {}),
+          ...(effectiveCoordinatorNotes ? { coordinatorNotes: effectiveCoordinatorNotes } : {}),
+          ...(effectivePartnerVisibleUpdate ? { partnerVisibleUpdate: effectivePartnerVisibleUpdate } : {}),
+          ...(details?.closureReason ? { closureReason: details.closureReason as any } : {}),
         },
       })
     }
@@ -994,9 +1211,20 @@ export async function updateReferralTicketStage(
     if (details?.assignedCoordinator) target.assignedCoordinator = details.assignedCoordinator
     if (details?.nextAction) target.nextAction = details.nextAction
     if (details?.nextActionDueDate) target.nextActionDueDate = details.nextActionDueDate
-    if (details?.coordinatorNotes) target.coordinatorNotes = details.coordinatorNotes
-    if (details?.partnerVisibleUpdate) target.partnerVisibleUpdate = details.partnerVisibleUpdate
+    if (effectiveCoordinatorNotes) target.coordinatorNotes = effectiveCoordinatorNotes
+    if (effectivePartnerVisibleUpdate) target.partnerVisibleUpdate = effectivePartnerVisibleUpdate
     if (details?.closureReason) target.closureReason = details.closureReason
+    if (details?.requestedInfoNotes !== undefined) target.requestedInfoNotes = details.requestedInfoNotes
+    if (details?.rejectionReasonNotes !== undefined) target.rejectionReasonNotes = details.rejectionReasonNotes
+    if (details?.partnerResubmissionNotes) {
+      target.requestedInfoNotes = null
+      target.additionalNotes = target.additionalNotes
+        ? `${target.additionalNotes}\n\n[Partner Resubmission]: ${details.partnerResubmissionNotes}`
+        : `[Partner Resubmission]: ${details.partnerResubmissionNotes}`
+    }
+    if (details?.customerEmail) target.customerEmail = details.customerEmail
+    if (details?.customerPhone) target.customerPhone = details.customerPhone
+    if (details?.relationshipWithCustomer) target.relationshipWithCustomer = details.relationshipWithCustomer
 
     if ((stage === 'REWARD_PAID' || inferredRewardStatus === 'PAID') && (target.rewardAmountTZS || 0) > 0) {
       try {

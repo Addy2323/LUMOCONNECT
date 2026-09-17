@@ -85,6 +85,14 @@ export function LeadsReferralsTab({
   const [showDealSelectorModal, setShowDealSelectorModal] = useState(false)
   const [selectedDealForReferral, setSelectedDealForReferral] = useState<JoinedDealItem | null>(null)
 
+  // Resubmission State for More Info Required
+  const [selectedCaseForResubmit, setSelectedCaseForResubmit] = useState<ReferralCase | null>(null)
+  const [resubmitNotes, setResubmitNotes] = useState('')
+  const [resubmitEmail, setResubmitEmail] = useState('')
+  const [resubmitPhone, setResubmitPhone] = useState('')
+  const [resubmitRelationship, setResubmitRelationship] = useState('')
+  const [isResubmitting, setIsResubmitting] = useState(false)
+
   const reloadCases = useCallback(async () => {
     setLoading(true)
     try {
@@ -130,6 +138,17 @@ export function LeadsReferralsTab({
           nextAction: t.nextAction || undefined,
           nextActionDueDate: t.nextActionDueDate || undefined,
           partnerVisibleUpdate: t.partnerVisibleUpdate || undefined,
+          closureReason: t.closureReason || undefined,
+          requestedInfoNotes:
+            t.requestedInfoNotes ||
+            (t.partnerVisibleUpdate?.startsWith('Information Required by LUMO: ')
+              ? t.partnerVisibleUpdate.replace('Information Required by LUMO: ', '').trim()
+              : undefined),
+          rejectionReasonNotes:
+            t.rejectionReasonNotes ||
+            (t.partnerVisibleUpdate?.startsWith('Connection rejected: ')
+              ? t.partnerVisibleUpdate.replace('Connection rejected: ', '').trim()
+              : undefined),
           rewardAmountTZS: t.rewardAmountTZS || 0,
           rewardDisplay: t.rewardDisplay || 'Commercial Reward Direct from Merchant',
           rewardStatus: (t.rewardStatus as DirectRewardStatus) || 'NOT_YET_EARNED',
@@ -200,6 +219,46 @@ export function LeadsReferralsTab({
       )
       setSelectedCaseForDispute(null)
       setDisputeReason('')
+    }
+  }
+
+  const handleExecuteResubmit = async () => {
+    if (!selectedCaseForResubmit) return
+    if (!resubmitNotes.trim()) {
+      showToast('error', 'Missing Details', 'Please provide notes or explanations before resubmitting.')
+      return
+    }
+
+    setIsResubmitting(true)
+    try {
+      const res = await fetch(`/api/referrals/tickets/${selectedCaseForResubmit.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          partnerResubmissionNotes: resubmitNotes.trim(),
+          customerEmail: resubmitEmail.trim() || undefined,
+          customerPhone: resubmitPhone.trim() || undefined,
+          relationshipWithCustomer: resubmitRelationship.trim() || undefined,
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to submit additional information')
+      }
+
+      showToast(
+        'success',
+        'Connection Resubmitted',
+        'Your additional information was received and your connection is now back Under Review.'
+      )
+      setSelectedCaseForResubmit(null)
+      setResubmitNotes('')
+      reloadCases()
+    } catch (err: any) {
+      showToast('error', 'Resubmission Failed', err.message || 'Could not resubmit connection.')
+    } finally {
+      setIsResubmitting(false)
     }
   }
 
@@ -480,6 +539,25 @@ export function LeadsReferralsTab({
                         </button>
                       </div>
 
+                      {/* Action Needed: Provide Info & Resubmit */}
+                      {caseItem.stage === 'MORE_INFO_REQUIRED' && (
+                        <div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedCaseForResubmit(caseItem)
+                              setResubmitNotes('')
+                              setResubmitEmail(caseItem.customerEmail || '')
+                              setResubmitPhone(caseItem.customerPhone || '')
+                              setResubmitRelationship(caseItem.relationshipWithCustomer || '')
+                            }}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-[11px] shadow-xs cursor-pointer transition-all animate-pulse"
+                          >
+                            <span>Provide Info & Resubmit</span>
+                          </button>
+                        </div>
+                      )}
+
                       {/* WhatsApp Follow-up */}
                       <div>
                         <a
@@ -545,6 +623,51 @@ export function LeadsReferralsTab({
                 Connecting: <strong>{selectedCaseForProgress.companyName || `${selectedCaseForProgress.customerFirstName} ${selectedCaseForProgress.customerLastName}`}</strong> ({selectedCaseForProgress.customerRole || selectedCaseForProgress.entityType || 'Customer'})
               </p>
             </div>
+
+            {/* More Info Required Action Card */}
+            {selectedCaseForProgress.stage === 'MORE_INFO_REQUIRED' && (
+              <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-400 dark:border-amber-600 space-y-3">
+                <div className="flex items-center gap-2 text-amber-900 dark:text-amber-200 font-bold text-xs">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>Action Required: LUMO Requested Additional Information</span>
+                </div>
+                <p className="text-xs text-amber-900 dark:text-amber-100 font-semibold leading-relaxed">
+                  {selectedCaseForProgress.requestedInfoNotes ||
+                    selectedCaseForProgress.partnerVisibleUpdate?.replace('Information Required by LUMO: ', '') ||
+                    'Please provide the requested information to resume connection review.'}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const c = selectedCaseForProgress
+                    setSelectedCaseForProgress(null)
+                    setSelectedCaseForResubmit(c)
+                    setResubmitNotes('')
+                    setResubmitEmail(c.customerEmail || '')
+                    setResubmitPhone(c.customerPhone || '')
+                    setResubmitRelationship(c.relationshipWithCustomer || '')
+                  }}
+                  className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-black cursor-pointer shadow-xs transition-all"
+                >
+                  Provide Information & Resubmit Now
+                </button>
+              </div>
+            )}
+
+            {/* Rejection Notification Card */}
+            {selectedCaseForProgress.stage === 'REJECTED' && (
+              <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border-2 border-rose-300 dark:border-rose-700 space-y-2">
+                <div className="flex items-center gap-2 text-rose-900 dark:text-rose-200 font-bold text-xs">
+                  <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>Connection Declined ({selectedCaseForProgress.closureReason || 'CRITERIA_NOT_MET'})</span>
+                </div>
+                <p className="text-xs text-rose-800 dark:text-rose-300">
+                  {selectedCaseForProgress.rejectionReasonNotes ||
+                    selectedCaseForProgress.partnerVisibleUpdate?.replace('Connection rejected: ', '') ||
+                    'This connection did not meet verification criteria.'}
+                </p>
+              </div>
+            )}
 
             {/* Current Status Box */}
             <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 space-y-2">
@@ -772,6 +895,139 @@ export function LeadsReferralsTab({
             setShowReferralModal(false)
           }}
         />
+      )}
+
+      {/* PARTNER RESUBMIT MODAL (More Info Required) */}
+      {selectedCaseForResubmit && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[calc(100dvh-2rem)] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-600 flex items-center justify-center font-bold text-sm">
+                  !
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900 dark:text-white">
+                    Provide Requested Information
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Ref: <span className="font-mono font-bold text-orange-600">{selectedCaseForResubmit.reference}</span> · {selectedCaseForResubmit.dealTitle}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedCaseForResubmit(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Admin Instructions Banner */}
+            <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 space-y-1">
+              <span className="text-[11px] font-black uppercase tracking-wider text-amber-900 dark:text-amber-300 block">
+                LUMO Desk Request:
+              </span>
+              <p className="text-xs text-amber-900 dark:text-amber-100 font-medium leading-relaxed">
+                {selectedCaseForResubmit.requestedInfoNotes ||
+                  selectedCaseForResubmit.partnerVisibleUpdate?.replace('Information Required by LUMO: ', '') ||
+                  'Please provide additional details or verify customer information to proceed.'}
+              </p>
+            </div>
+
+            {/* Partner Response Form */}
+            <div className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Your Response / Additional Details *
+                </label>
+                <textarea
+                  rows={4}
+                  required
+                  value={resubmitNotes}
+                  onChange={(e) => setResubmitNotes(e.target.value)}
+                  placeholder="Provide the requested details, explanation, or updates regarding this customer connection..."
+                  className="w-full text-xs p-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+
+              {/* Optional Field Updates if Partner needs to correct Email/Phone/Relationship */}
+              <div className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-850/50 space-y-2.5">
+                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 block">
+                  Verify or Update Contact Details (Optional):
+                </span>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-300 mb-1">
+                      Customer Email
+                    </label>
+                    <input
+                      type="email"
+                      value={resubmitEmail}
+                      onChange={(e) => setResubmitEmail(e.target.value)}
+                      placeholder="e.g. buyer@company.tz"
+                      className="w-full text-xs px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-300 mb-1">
+                      Customer Phone
+                    </label>
+                    <input
+                      type="tel"
+                      value={resubmitPhone}
+                      onChange={(e) => setResubmitPhone(e.target.value)}
+                      placeholder="e.g. +255 754 510 059"
+                      className="w-full text-xs px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-300 mb-1">
+                    Your Relationship
+                  </label>
+                  <select
+                    value={resubmitRelationship}
+                    onChange={(e) => setResubmitRelationship(e.target.value)}
+                    className="w-full text-xs px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                  >
+                    <option value="">(Keep Current Relationship)</option>
+                    <option value="Existing Business Contact">Existing Business Contact</option>
+                    <option value="Direct Corporate Buyer">Direct Corporate Buyer</option>
+                    <option value="Procurement Officer">Procurement Officer</option>
+                    <option value="Personal Friend / Associate">Personal Friend / Associate</option>
+                    <option value="New Commercial Lead">New Commercial Lead</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                disabled={isResubmitting}
+                onClick={() => setSelectedCaseForResubmit(null)}
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={isResubmitting || !resubmitNotes.trim()}
+                onClick={handleExecuteResubmit}
+                className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
+              >
+                {isResubmitting ? 'Submitting...' : 'Resubmit to LUMO'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

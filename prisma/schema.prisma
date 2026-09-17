@@ -1795,6 +1795,26 @@ model ReferralTicket {
   customerPhoneMasked        String?
   contactPermissionConfirmed Boolean                 @default(false)
 
+  // Extended Connection Details (60-Step Process)
+  entityType                 String?
+  customerRole               String?
+  companyName                String?
+  contactPerson              String?
+  customerCountry            String?                 @default("Tanzania")
+  customerRegion             String?
+  customerCity               String?
+  customerEmail              String?
+  customerWebsite            String?
+  relationshipWithCustomer   String?
+  spokenToCustomer           String?
+  customerInterestLevel      String?
+  lumoMayContact             String?
+  customerSuitability        String?
+  relevantCapabilities       String[]
+  supportingDocuments        Json?
+  isDuplicatePotential       Boolean                 @default(false)
+  declarationAccepted        Boolean                 @default(false)
+
   // Deal Requirement Details
   quantity                   Int                     @default(1)
   deliveryDestination        String?

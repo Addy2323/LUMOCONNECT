@@ -76,6 +76,13 @@ export function ReferralsCoordinationTab() {
   const [modalNotes, setModalNotes] = useState('')
   const [updating, setUpdating] = useState(false)
 
+  // Extra modals for More Info and Rejection
+  const [showMoreInfoModal, setShowMoreInfoModal] = useState(false)
+  const [moreInfoPrompt, setMoreInfoPrompt] = useState('')
+  const [showRejectModal, setShowRejectModal] = useState(false)
+  const [rejectionReason, setRejectionReason] = useState('INVALID_CONTACT')
+  const [rejectionExplanation, setRejectionExplanation] = useState('')
+
   const fetchTickets = useCallback(async () => {
     setLoading(true)
     try {
@@ -95,7 +102,16 @@ export function ReferralsCoordinationTab() {
     fetchTickets()
   }, [fetchTickets])
 
-  const handleUpdateStage = async (ticketId: string, newStage: ReferralTicketStage, notes?: string) => {
+  const handleUpdateStage = async (
+    ticketId: string,
+    newStage: ReferralTicketStage,
+    notes?: string,
+    extra?: {
+      requestedInfoNotes?: string
+      rejectionReasonNotes?: string
+      closureReason?: string
+    }
+  ) => {
     setUpdating(true)
     try {
       const stageInfo = getStageConfig(newStage)
@@ -110,15 +126,27 @@ export function ReferralsCoordinationTab() {
           ? 'PARTNER_CONFIRMS_RECEIPT'
           : undefined
 
+      const partnerVisibleUpdate =
+        newStage === 'MORE_INFO_REQUIRED' && extra?.requestedInfoNotes
+          ? `Information Required by LUMO: ${extra.requestedInfoNotes}`
+          : newStage === 'REJECTED' && extra?.rejectionReasonNotes
+          ? `Connection rejected: ${extra.rejectionReasonNotes}`
+          : `Your connection review stage is now: ${stageInfo.label}.`
+
+      const payload: any = {
+        stage: newStage,
+        ...(rewardStatus ? { rewardStatus } : {}),
+        coordinatorNotes: notes || `Admin updated stage to ${stageInfo.label}`,
+        partnerVisibleUpdate,
+        ...(extra?.requestedInfoNotes ? { requestedInfoNotes: extra.requestedInfoNotes } : {}),
+        ...(extra?.rejectionReasonNotes ? { rejectionReasonNotes: extra.rejectionReasonNotes } : {}),
+        ...(extra?.closureReason ? { closureReason: extra.closureReason } : {}),
+      }
+
       const res = await fetch(`/api/referrals/tickets/${ticketId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          stage: newStage,
-          ...(rewardStatus ? { rewardStatus } : {}),
-          coordinatorNotes: notes || `Admin updated stage to ${stageInfo.label}`,
-          partnerVisibleUpdate: `Your connection review stage is now: ${stageInfo.label}.`,
-        }),
+        body: JSON.stringify(payload),
       })
 
       const data = await res.json()
@@ -128,12 +156,40 @@ export function ReferralsCoordinationTab() {
 
       // Update state locally
       setTickets((prev) =>
-        prev.map((t) => (t.id === ticketId ? { ...t, stage: newStage, ...(rewardStatus ? { rewardStatus } : {}), coordinatorNotes: notes || t.coordinatorNotes } : t))
+        prev.map((t) =>
+          t.id === ticketId
+            ? {
+                ...t,
+                stage: newStage,
+                ...(rewardStatus ? { rewardStatus } : {}),
+                coordinatorNotes: notes || t.coordinatorNotes,
+                partnerVisibleUpdate,
+                requestedInfoNotes: extra?.requestedInfoNotes ?? t.requestedInfoNotes,
+                rejectionReasonNotes: extra?.rejectionReasonNotes ?? t.rejectionReasonNotes,
+                closureReason: (extra?.closureReason as any) ?? t.closureReason,
+              }
+            : t
+        )
       )
       if (selectedTicket && selectedTicket.id === ticketId) {
-        setSelectedTicket((prev) => (prev ? { ...prev, stage: newStage, ...(rewardStatus ? { rewardStatus } : {}) } : null))
+        setSelectedTicket((prev) =>
+          prev
+            ? {
+                ...prev,
+                stage: newStage,
+                ...(rewardStatus ? { rewardStatus } : {}),
+                coordinatorNotes: notes || prev.coordinatorNotes,
+                partnerVisibleUpdate,
+                requestedInfoNotes: extra?.requestedInfoNotes ?? prev.requestedInfoNotes,
+                rejectionReasonNotes: extra?.rejectionReasonNotes ?? prev.rejectionReasonNotes,
+                closureReason: (extra?.closureReason as any) ?? prev.closureReason,
+              }
+            : null
+        )
         setModalStage(newStage)
       }
+      setShowMoreInfoModal(false)
+      setShowRejectModal(false)
     } catch (err: any) {
       showToast('error', 'Update Failed', err.message || 'Could not update stage.')
     } finally {
@@ -566,30 +622,220 @@ export function ReferralsCoordinationTab() {
                   <button
                     type="button"
                     disabled={updating}
-                    onClick={() => handleUpdateStage(selectedTicket.id, 'MORE_INFO_REQUIRED')}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold border transition-colors cursor-pointer ${
+                    onClick={() => {
+                      setMoreInfoPrompt(selectedTicket.requestedInfoNotes || '')
+                      setShowMoreInfoModal(true)
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors cursor-pointer flex items-center gap-1.5 ${
                       selectedTicket.stage === 'MORE_INFO_REQUIRED'
                         ? 'bg-yellow-100 text-yellow-900 border-yellow-400'
-                        : 'border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100'
+                        : 'border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
                     }`}
                   >
-                    Set More Info Required
+                    <span>Set More Info Required</span>
                   </button>
 
                   <button
                     type="button"
                     disabled={updating}
-                    onClick={() => handleUpdateStage(selectedTicket.id, 'REJECTED')}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold border transition-colors cursor-pointer ${
+                    onClick={() => {
+                      setRejectionReason((selectedTicket.closureReason as any) || 'INVALID_CONTACT')
+                      setRejectionExplanation(selectedTicket.rejectionReasonNotes || '')
+                      setShowRejectModal(true)
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors cursor-pointer flex items-center gap-1.5 ${
                       selectedTicket.stage === 'REJECTED'
                         ? 'bg-rose-600 text-white border-rose-600'
-                        : 'border-rose-200 dark:border-rose-800 text-rose-600 hover:bg-rose-50'
+                        : 'border-rose-200 dark:border-rose-800 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40'
                     }`}
                   >
-                    Reject Connection
+                    <span>Reject Connection</span>
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DIALOG 1: Admin Specify Required Information Modal */}
+      {showMoreInfoModal && selectedTicket && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-600 flex items-center justify-center font-bold text-sm">
+                  !
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                    Request Additional Information
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Connection: <span className="font-mono font-semibold text-slate-700 dark:text-slate-300">{selectedTicket.ticketReference}</span>
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowMoreInfoModal(false)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-white text-xs font-bold"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-xs text-slate-600 dark:text-slate-300">
+                Specify the exact information or documentation the partner needs to provide. This will be sent directly to the partner to enable resubmission.
+              </p>
+
+              {/* Quick Suggestion Chips */}
+              <div>
+                <span className="text-[11px] font-bold text-slate-400 block mb-1.5">Quick Suggestions:</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    'Please provide valid corporate email address',
+                    'Please clarify your relationship with the decision maker',
+                    'Please verify buyer mandate or letter of intent',
+                    'Please confirm purchase volume & required timeline',
+                    'Customer phone number is unreachable, please verify',
+                  ].map((chip) => (
+                    <button
+                      key={chip}
+                      type="button"
+                      onClick={() => setMoreInfoPrompt(chip)}
+                      className="text-[11px] px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-amber-400 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors text-left cursor-pointer"
+                    >
+                      {chip}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Required Information / Instructions *
+                </label>
+                <textarea
+                  rows={4}
+                  value={moreInfoPrompt}
+                  onChange={(e) => setMoreInfoPrompt(e.target.value)}
+                  placeholder="Type clear instructions for the partner on what details or documents to submit..."
+                  className="w-full text-xs p-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setShowMoreInfoModal(false)}
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={updating || !moreInfoPrompt.trim()}
+                onClick={() =>
+                  handleUpdateStage(selectedTicket.id, 'MORE_INFO_REQUIRED', moreInfoPrompt.trim(), {
+                    requestedInfoNotes: moreInfoPrompt.trim(),
+                  })
+                }
+                className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
+              >
+                {updating ? 'Sending...' : 'Send Request to Partner'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DIALOG 2: Admin Reject Connection with Reason Modal */}
+      {showRejectModal && selectedTicket && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-600 flex items-center justify-center font-bold text-sm">
+                  ✕
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                    Reject Partner Connection
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Connection: <span className="font-mono font-semibold text-slate-700 dark:text-slate-300">{selectedTicket.ticketReference}</span>
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowRejectModal(false)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-white text-xs font-bold"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Rejection Reason Category *
+                </label>
+                <select
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-semibold"
+                >
+                  <option value="INVALID_CONTACT">Invalid or unreachable customer contact details</option>
+                  <option value="CUSTOMER_NOT_INTERESTED">Customer is not interested / declined engagement</option>
+                  <option value="DUPLICATE">Duplicate submission for this deal</option>
+                  <option value="OUT_OF_SCOPE">Outside deal specifications or geographical scope</option>
+                  <option value="COMMERCIAL_TERMS_MISMATCH">Commercial terms or minimum order not met</option>
+                  <option value="UNAVAILABLE">Merchant capacity or product is no longer available</option>
+                  <option value="OTHER">Other operational reason</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Detailed Explanation for Partner *
+                </label>
+                <textarea
+                  rows={4}
+                  value={rejectionExplanation}
+                  onChange={(e) => setRejectionExplanation(e.target.value)}
+                  placeholder="Explain why this connection was not approved so the partner has full transparency..."
+                  className="w-full text-xs p-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-rose-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setShowRejectModal(false)}
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={updating || !rejectionExplanation.trim()}
+                onClick={() =>
+                  handleUpdateStage(selectedTicket.id, 'REJECTED', rejectionExplanation.trim(), {
+                    closureReason: rejectionReason,
+                    rejectionReasonNotes: rejectionExplanation.trim(),
+                  })
+                }
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
+              >
+                {updating ? 'Rejecting...' : 'Confirm Rejection'}
+              </button>
             </div>
           </div>
         </div>
