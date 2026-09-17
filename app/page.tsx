@@ -885,12 +885,19 @@ export default function LumoApp() {
                 initialPhone={userDetails.phone}
                 onComplete={async (finalRole, profileData) => {
                   const chosenBizName =
-                    profileData?.tradingName ||
-                    profileData?.legalName ||
-                    profileData?.name ||
-                    (userDetails.name ? `${userDetails.name}'s Business` : 'My Business')
+                    profileData?.tradingName?.trim() ||
+                    profileData?.legalName?.trim() ||
+                    profileData?.name?.trim() ||
+                    (userDetails.name?.trim() ? `${userDetails.name.trim()}'s Business` : 'My Business')
 
-                  const userName = profileData?.contactPerson || userDetails.name || (profileData?.email ? profileData.email.split('@')[0] : 'User')
+                  const userName =
+                    profileData?.contactPerson?.trim() ||
+                    userDetails.name?.trim() ||
+                    profileData?.tradingName?.trim() ||
+                    profileData?.legalName?.trim() ||
+                    (profileData?.email ? profileData.email.split('@')[0] : '') ||
+                    (userDetails.email ? userDetails.email.split('@')[0] : '') ||
+                    'Lumo Member'
 
                   const activePwd =
                     registeredPassword ||
@@ -907,17 +914,17 @@ export default function LumoApp() {
                     password: activePwd,
                     name: userName,
                     phone: profileData?.phone || userDetails.phone,
-                    image: profileData?.profilePhotoUrl,
+                    image: profileData?.profilePhotoUrl || undefined,
                     role: finalRole,
                     bizDetails:
                       finalRole === 'BUSINESS'
                         ? {
-                            legalName: profileData?.legalName || chosenBizName,
-                            tradingName: profileData?.tradingName || chosenBizName,
-                            brelaRegNumber: profileData?.registrationNumber,
-                            traTin: profileData?.tinNumber,
-                            bizCategory: profileData?.industry,
-                            contactPerson: profileData?.contactPerson || userName,
+                            legalName: profileData?.legalName?.trim() || chosenBizName,
+                            tradingName: profileData?.tradingName?.trim() || chosenBizName,
+                            brelaRegNumber: profileData?.registrationNumber?.trim() || undefined,
+                            traTin: profileData?.tinNumber?.trim() || undefined,
+                            bizCategory: profileData?.industry?.trim() || undefined,
+                            contactPerson: profileData?.contactPerson?.trim() || userName,
                           }
                         : undefined,
                   }
@@ -930,8 +937,17 @@ export default function LumoApp() {
                   const registrationData = await registrationResponse.json().catch(() => null)
 
                   if (!registrationResponse.ok || !registrationData?.user?.id) {
+                    const firstDetailError = registrationData?.details
+                      ? Object.entries(registrationData.details)
+                          .flatMap(([field, val]: [string, any]) =>
+                            (val?._errors || []).map((err: string) => `${field !== '_errors' ? field + ': ' : ''}${err}`)
+                          )
+                          .filter(Boolean)[0]
+                      : null
+
                     throw new Error(
                       registrationData?.message ||
+                      firstDetailError ||
                       registrationData?.error ||
                       'We could not activate your account. Check your connection and try again.'
                     )

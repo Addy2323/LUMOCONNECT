@@ -99,11 +99,23 @@ export function ReferralsCoordinationTab() {
     setUpdating(true)
     try {
       const stageInfo = getStageConfig(newStage)
+      const rewardStatus =
+        newStage === 'REWARD_PAID'
+          ? 'PAID'
+          : newStage === 'REWARD_APPROVED'
+          ? 'APPROVED'
+          : newStage === 'REWARD_PENDING'
+          ? 'PENDING'
+          : newStage === 'COMPLETED'
+          ? 'PARTNER_CONFIRMS_RECEIPT'
+          : undefined
+
       const res = await fetch(`/api/referrals/tickets/${ticketId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           stage: newStage,
+          ...(rewardStatus ? { rewardStatus } : {}),
           coordinatorNotes: notes || `Admin updated stage to ${stageInfo.label}`,
           partnerVisibleUpdate: `Your connection review stage is now: ${stageInfo.label}.`,
         }),
@@ -116,10 +128,10 @@ export function ReferralsCoordinationTab() {
 
       // Update state locally
       setTickets((prev) =>
-        prev.map((t) => (t.id === ticketId ? { ...t, stage: newStage, coordinatorNotes: notes || t.coordinatorNotes } : t))
+        prev.map((t) => (t.id === ticketId ? { ...t, stage: newStage, ...(rewardStatus ? { rewardStatus } : {}), coordinatorNotes: notes || t.coordinatorNotes } : t))
       )
       if (selectedTicket && selectedTicket.id === ticketId) {
-        setSelectedTicket((prev) => (prev ? { ...prev, stage: newStage } : null))
+        setSelectedTicket((prev) => (prev ? { ...prev, stage: newStage, ...(rewardStatus ? { rewardStatus } : {}) } : null))
         setModalStage(newStage)
       }
     } catch (err: any) {

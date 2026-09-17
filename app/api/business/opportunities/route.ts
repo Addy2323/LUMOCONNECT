@@ -53,17 +53,33 @@ export async function GET(request: NextRequest) {
           select: { id: true, partnerUserId: true },
         },
         referralTickets: {
-          where: {
-            OR: [
-              { stage: 'COMPLETED' },
-              { rewardStatus: 'PARTNER_CONFIRMS_RECEIPT' },
-            ],
-          },
-          select: { id: true },
+          select: { id: true, stage: true, rewardStatus: true, rewardAmountTZS: true, rewardDisplay: true },
         },
       },
       orderBy: { createdAt: 'desc' },
     })
+
+    const oppTitles = opportunities.map((o) => o.title)
+    const oppSlugs = opportunities.map((o) => o.slug).filter(Boolean) as string[]
+    const unlinkedTickets = db.referralTicket?.findMany
+      ? await db.referralTicket.findMany({
+          where: {
+            OR: [{ opportunityId: null }],
+            AND: [
+              {
+                OR: [
+                  ...(oppTitles.length > 0 ? [{ dealTitle: { in: oppTitles } }] : []),
+                  ...(oppSlugs.length > 0 ? [{ dealSlug: { in: oppSlugs } }] : []),
+                  { merchantOrgId: biz.businessId },
+                ],
+              },
+            ],
+          },
+          select: { id: true, dealTitle: true, dealSlug: true, stage: true, rewardStatus: true, rewardAmountTZS: true, rewardDisplay: true },
+        })
+      : []
+
+    const { extractNumericReward } = await import('@/modules/deals/referral-cases')
 
     const mapped = opportunities
       .filter((opp) => {
@@ -76,10 +92,26 @@ export async function GET(request: NextRequest) {
       })
       .map((opp) => {
         const activeVersion = opp.publishedVersion ?? opp.versions[0] ?? null
-        const activePartnersCount = new Set(opp.participations.map((p) => p.partnerUserId)).size
-        const totalConversions = opp.referralTickets.length
+        const activePartnersCount = new Set((opp.participations || []).map((p: any) => p.partnerUserId)).size
+
+        const matchedUnlinked = unlinkedTickets.filter(
+          (t) => t.dealTitle === opp.title || (opp.slug && t.dealSlug === opp.slug)
+        )
+        const allRelevantTickets = [...(opp.referralTickets || []), ...matchedUnlinked]
+        const conversionTickets = allRelevantTickets.filter(
+          (t) =>
+            ['COMPLETED', 'REWARD_PAID', 'REWARD_APPROVED', 'SUCCESSFUL'].includes(t.stage) ||
+            Boolean(t.rewardStatus && ['PARTNER_CONFIRMS_RECEIPT', 'PAID', 'APPROVED'].includes(t.rewardStatus as any))
+        )
+        const totalConversions = conversionTickets.length
+
+        const ticketPaidAmount = allRelevantTickets
+          .filter((t) => t.stage === 'REWARD_PAID' || t.rewardStatus === 'PAID')
+          .reduce((sum, t) => sum + extractNumericReward(t.rewardAmountTZS, t.rewardDisplay), 0)
+
         const budgetTZS = Number(opp.totalBudgetMinor || 0) / 100
-        const spentTZS = Number(opp.spentBudgetMinor || 0) / 100
+        const oppSpent = Number(opp.spentBudgetMinor || 0) / 100
+        const spentTZS = Math.max(oppSpent, ticketPaidAmount)
         const latestApproval = opp.approvalRequests[0] ?? null
 
         let rewardValueTZS = opp.fixedRewardAmountMinor ? Number(opp.fixedRewardAmountMinor) / 100 : 0

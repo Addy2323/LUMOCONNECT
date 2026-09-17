@@ -62,55 +62,71 @@ export async function GET(request: NextRequest) {
         })
 
         const oppIds = opportunities.map((o) => o.id)
+        const oppTitles = opportunities.map((o) => o.title)
+        const oppSlugs = opportunities.map((o) => o.slug).filter(Boolean) as string[]
 
-        if (oppIds.length > 0) {
-          const [dbParts, dbReferrals] = await Promise.all([
-            db.dealParticipation.findMany({
+        const [dbParts, dbReferrals] = await Promise.all([
+          oppIds.length > 0
+            ? db.dealParticipation.findMany({
+                where: {
+                  opportunityId: { in: oppIds },
+                  status: 'ACTIVE',
+                },
+                select: {
+                  id: true,
+                  opportunityId: true,
+                  partnerUserId: true,
+                  joinedAt: true,
+                },
+              })
+            : Promise.resolve([]),
+          db.referralTicket?.findMany
+            ? db.referralTicket.findMany({
+                where: {
+                  OR: [
+                    ...(oppIds.length > 0 ? [{ opportunityId: { in: oppIds } }] : []),
+                    { merchantOrgId: businessId },
+                    ...(oppTitles.length > 0 ? [{ dealTitle: { in: oppTitles } }] : []),
+                    ...(oppSlugs.length > 0 ? [{ dealSlug: { in: oppSlugs } }] : []),
+                  ],
+                },
+                select: {
+                  id: true,
+                  opportunityId: true,
+                  dealTitle: true,
+                  dealSlug: true,
+                  stage: true,
+                  rewardAmountTZS: true,
+                  rewardDisplay: true,
+                  rewardStatus: true,
+                  createdAt: true,
+                },
+              })
+            : Promise.resolve([]),
+        ])
+
+        participations = dbParts
+        referrals = dbReferrals
+
+        payments = db.paymentAttempt?.findMany
+          ? await db.paymentAttempt.findMany({
               where: {
-                opportunityId: { in: oppIds },
-                status: 'ACTIVE',
+                status: 'SUCCESSFUL',
+                userId: biz.userId,
               },
               select: {
-                id: true,
-                opportunityId: true,
-                partnerUserId: true,
-                joinedAt: true,
-              },
-            }),
-            db.referralTicket.findMany({
-              where: {
-                opportunityId: { in: oppIds },
-              },
-              select: {
-                id: true,
-                opportunityId: true,
-                stage: true,
-                rewardAmountTZS: true,
-                rewardStatus: true,
                 createdAt: true,
+                amountMinor: true,
               },
-            }),
-          ])
-
-          participations = dbParts
-          referrals = dbReferrals
-        }
-
-        payments = await db.paymentAttempt.findMany({
-          where: {
-            status: 'SUCCESSFUL',
-            userId: biz.userId,
-          },
-          select: {
-            createdAt: true,
-            amountMinor: true,
-          },
-          take: 50,
-        })
+              take: 50,
+            })
+          : []
       } catch (e) {
         console.warn('Database query error in business overview:', e)
       }
     }
+
+    const { extractNumericReward } = await import('@/modules/deals/referral-cases')
 
     // Compute isolated aggregates strictly for this business
     const liveOpportunities = opportunities.filter((o) => o.status === 'PUBLISHED')
@@ -121,9 +137,11 @@ export async function GET(request: NextRequest) {
     const pausedOpportunities = opportunities.filter((o) => o.status === 'PAUSED')
 
     const activePartnersCount = new Set(participations.map((p) => p.partnerUserId)).size
-    const totalConversions = referrals.filter(
-      (r) => r.stage === 'COMPLETED' || r.rewardStatus === 'PARTNER_CONFIRMS_RECEIPT'
-    ).length
+    const isConversionStage = (r: any) =>
+      ['COMPLETED', 'REWARD_PAID', 'REWARD_APPROVED', 'SUCCESSFUL'].includes(r.stage) ||
+      ['PARTNER_CONFIRMS_RECEIPT', 'PAID', 'APPROVED'].includes(r.rewardStatus)
+
+    const totalConversions = referrals.filter(isConversionStage).length
 
     // Deal Values
     const getOppValue = (o: any) => Number(o.totalBudgetMinor || 0) / 100
@@ -131,10 +149,16 @@ export async function GET(request: NextRequest) {
     const activeDealValueTZS = liveOpportunities.reduce((sum, o) => sum + getOppValue(o), 0)
     const pendingDealValueTZS = pendingOpportunities.reduce((sum, o) => sum + getOppValue(o), 0)
     const completedDealValueTZS = completedOpportunities.reduce((sum, o) => sum + getOppValue(o), 0)
-    const totalSpentTZS = opportunities.reduce(
+
+    const ticketPaidAmount = referrals
+      .filter((r) => r.stage === 'REWARD_PAID' || r.rewardStatus === 'PAID')
+      .reduce((sum, r) => sum + extractNumericReward(r.rewardAmountTZS, r.rewardDisplay), 0)
+
+    const oppSpent = opportunities.reduce(
       (sum, o) => sum + Number(o.spentBudgetMinor || 0) / 100,
       0
     )
+    const totalSpentTZS = Math.max(oppSpent, ticketPaidAmount)
 
     // Dynamic Rolling Series
     const buckets = generateDateBuckets(period)
@@ -143,16 +167,17 @@ export async function GET(request: NextRequest) {
     referrals.forEach((r) => {
       const ts = r.createdAt
       if (ts) {
+        const rewardVal = extractNumericReward(r.rewardAmountTZS, r.rewardDisplay)
         rawEvents.push({
           timestamp: ts,
           type: 'LEAD',
-          amountTZS: Number(r.rewardAmountTZS || 0),
+          amountTZS: rewardVal,
         })
-        if (r.stage === 'COMPLETED' || r.rewardStatus === 'PARTNER_CONFIRMS_RECEIPT') {
+        if (isConversionStage(r)) {
           rawEvents.push({
             timestamp: ts,
             type: 'CONVERSION',
-            amountTZS: Number(r.rewardAmountTZS || 0),
+            amountTZS: rewardVal,
           })
         }
       }

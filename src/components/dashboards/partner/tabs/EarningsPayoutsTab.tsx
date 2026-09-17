@@ -89,17 +89,85 @@ export function EarningsPayoutsTab() {
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data?.success && Array.isArray(data.tickets)) {
-          const eligibleTickets = data.tickets.filter((t: any) => t.rewardAmountTZS && t.rewardAmountTZS > 0)
-          const mappedRewards: PartnerRewardItem[] = eligibleTickets.map((t: any) => ({
-            id: t.id,
-            opportunityTitle: t.dealTitle,
-            merchantName: t.merchantName || 'Lumo Commercial Partner',
-            category: 'Commercial Deal',
-            completionsCount: 1,
-            grossAmountTZS: t.rewardAmountTZS,
-            status: t.rewardStatus === 'PARTNER_CONFIRMS_RECEIPT' || t.stage === 'COMPLETED' ? 'PAYABLE' : 'PENDING',
-          }))
+          const parseTicketReward = (amount?: any, display?: string | null): number => {
+            if (amount !== undefined && amount !== null) {
+              const n = Number(amount)
+              if (!isNaN(n) && n > 0) return n
+            }
+            if (!display) return 0
+            const matchTZS = display.match(/TZS\s*([\d,]+(?:\.\d+)?)/i)
+            if (matchTZS) return parseFloat(matchTZS[1].replace(/,/g, ''))
+            const matchUSD = display.match(/USD\s*([\d,]+(?:\.\d+)?)/i)
+            if (matchUSD) return parseFloat(matchUSD[1].replace(/,/g, '')) * 2600
+            const numbers = display.match(/[\d,]+/g)
+            if (numbers) {
+              for (const raw of numbers) {
+                const parsed = parseFloat(raw.replace(/,/g, ''))
+                if (!isNaN(parsed) && parsed >= 1000) return parsed
+              }
+            }
+            return 0
+          }
+
+          const mappedRewards: PartnerRewardItem[] = []
+          const synthesizedPayouts: PartnerPayoutRecord[] = []
+
+          data.tickets.forEach((t: any) => {
+            const rewardAmount = parseTicketReward(t.rewardAmountTZS, t.rewardDisplay)
+            if (rewardAmount <= 0) return
+
+            const isPaid = t.stage === 'REWARD_PAID' || t.rewardStatus === 'PAID'
+            const isPayable =
+              !isPaid &&
+              (t.rewardStatus === 'PARTNER_CONFIRMS_RECEIPT' ||
+                t.rewardStatus === 'APPROVED' ||
+                t.stage === 'COMPLETED' ||
+                t.stage === 'REWARD_APPROVED')
+
+            if (isPaid) {
+              const fee = Math.round(rewardAmount * feeRate)
+              const tax = Math.round(rewardAmount * taxRate)
+              const net = Math.max(0, rewardAmount - fee - tax)
+
+              synthesizedPayouts.push({
+                id: `ticket_payout_${t.id}`,
+                reference: `PAY-${t.ticketReference || t.id.slice(0, 8)}`,
+                date: new Date(t.stageUpdatedAt || t.updatedAt || t.createdAt).toLocaleDateString('en-GB', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                }),
+                payoutMethod: 'MOBILE MONEY',
+                accountNumberMasked: t.partnerPhoneMasked || t.partnerPhone || '—',
+                grossAmountTZS: rewardAmount,
+                platformFeeTZS: fee,
+                taxWithheldTZS: tax,
+                netPaidTZS: net,
+                status: 'COMPLETED',
+              })
+            } else {
+              mappedRewards.push({
+                id: t.id,
+                opportunityTitle: t.dealTitle,
+                merchantName: t.merchantName || 'Lumo Commercial Partner',
+                category: 'Commercial Deal',
+                completionsCount: 1,
+                grossAmountTZS: rewardAmount,
+                status: isPayable ? 'PAYABLE' : 'PENDING',
+              })
+            }
+          })
+
           setRewards(mappedRewards)
+          if (synthesizedPayouts.length > 0) {
+            setPayouts((prev) => {
+              const existingRefs = new Set(prev.map((p) => p.reference))
+              const toAdd = synthesizedPayouts.filter((p) => !existingRefs.has(p.reference))
+              return [...toAdd, ...prev]
+            })
+          }
         }
       })
       .catch(() => {})

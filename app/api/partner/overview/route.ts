@@ -39,16 +39,34 @@ export async function GET(request: NextRequest) {
 
     // 2. Query Partner Referral Tickets
     const tickets = await listPartnerReferralTickets(userId, phone)
+    const { extractNumericReward } = await import('@/modules/deals/referral-cases')
 
-    const qualifiedStages = new Set(['QUALIFIED', 'APPROVED', 'COMPLETED', 'CUSTOMER_ENGAGED'])
-    const conversionStages = new Set(['COMPLETED'])
+    const qualifiedStages = new Set([
+      'QUALIFIED',
+      'APPROVED',
+      'COMPLETED',
+      'CUSTOMER_ENGAGED',
+      'REWARD_PENDING',
+      'REWARD_APPROVED',
+      'REWARD_PAID',
+    ])
+    const conversionStages = new Set(['COMPLETED', 'REWARD_PAID', 'REWARD_APPROVED', 'SUCCESSFUL'])
 
-    const qualifiedLeads = tickets.filter((t) => qualifiedStages.has(t.stage) || (t.rewardAmountTZS && t.rewardAmountTZS > 0))
-    const verifiedConversions = tickets.filter((t) => conversionStages.has(t.stage) || t.rewardStatus === 'PARTNER_CONFIRMS_RECEIPT')
+    const qualifiedLeads = tickets.filter(
+      (t) =>
+        qualifiedStages.has(t.stage) ||
+        extractNumericReward(t.rewardAmountTZS, t.rewardDisplay) > 0
+    )
+    const verifiedConversions = tickets.filter(
+      (t) =>
+        conversionStages.has(t.stage) ||
+        ['PARTNER_CONFIRMS_RECEIPT', 'PAID', 'APPROVED'].includes(t.rewardStatus || '')
+    )
 
     const totalApprovedRewardsTZS = tickets.reduce((sum, t) => {
-      if (t.rewardAmountTZS && qualifiedStages.has(t.stage)) {
-        return sum + Number(t.rewardAmountTZS)
+      const amt = extractNumericReward(t.rewardAmountTZS, t.rewardDisplay)
+      if (amt > 0 && qualifiedStages.has(t.stage)) {
+        return sum + amt
       }
       return sum
     }, 0)

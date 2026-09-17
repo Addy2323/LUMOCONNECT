@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { providers } from '@/lib/providers'
+import { createPartnerPayoutRequest } from '@/modules/payouts/payout-store'
 import {
   ReferralCase,
   ReferralCaseStage,
@@ -11,6 +12,46 @@ import {
 } from './types'
 
 export const LUMO_OFFICIAL_WHATSAPP = process.env.NEXT_PUBLIC_LUMO_WHATSAPP_NUMBER || '255775717501'
+
+/**
+ * Extracts a numeric reward value in TZS from rewardAmountTZS or rewardDisplay string.
+ */
+export function extractNumericReward(
+  rewardAmountTZS?: any,
+  rewardDisplay?: string | null
+): number {
+  if (rewardAmountTZS !== undefined && rewardAmountTZS !== null) {
+    const rawVal =
+      typeof rewardAmountTZS === 'object' && rewardAmountTZS !== null && 'toNumber' in rewardAmountTZS
+        ? (rewardAmountTZS as any).toNumber()
+        : rewardAmountTZS
+    const num = Number(rawVal)
+    if (!isNaN(num) && num > 0) return num
+  }
+  if (!rewardDisplay) return 0
+
+  const matchTZS = rewardDisplay.match(/TZS\s*([\d,]+(?:\.\d+)?)/i)
+  if (matchTZS) {
+    return parseFloat(matchTZS[1].replace(/,/g, ''))
+  }
+
+  const matchUSD = rewardDisplay.match(/USD\s*([\d,]+(?:\.\d+)?)/i)
+  if (matchUSD) {
+    return parseFloat(matchUSD[1].replace(/,/g, '')) * 2600
+  }
+
+  const numbers = rewardDisplay.match(/[\d,]+/g)
+  if (numbers) {
+    for (const raw of numbers) {
+      const parsed = parseFloat(raw.replace(/,/g, ''))
+      if (!isNaN(parsed) && parsed >= 1000) {
+        return parsed
+      }
+    }
+  }
+
+  return 0
+}
 
 /**
  * Normalizes Tanzanian phone numbers to standard E.164 format (+2557XXXXXXXX or +2556XXXXXXXX).
@@ -404,9 +445,39 @@ export async function createReferralTicket(input: CreateReferralTicketInput): Pr
   const partnerPhoneMasked = maskPhone(normalizedPartnerPhone)
   const customerPhoneMasked = normalizedCustomerPhone ? maskPhone(normalizedCustomerPhone) : null
 
-  // Ensure internal merchant data is preserved internally
-  const merchantOrgId = input.merchantOrgId || null
-  const merchantName = input.merchantName || 'Internal Merchant Partner'
+  // Ensure internal merchant data and opportunity linkage are resolved
+  let resolvedOpportunityId =
+    input.opportunityId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input.opportunityId)
+      ? input.opportunityId
+      : null
+  let merchantOrgId = input.merchantOrgId || null
+  let merchantName = input.merchantName || 'Internal Merchant Partner'
+
+  try {
+    const isDealIdUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input.dealId)
+    const matchedOpp = await db.opportunity.findFirst({
+      where: {
+        OR: [
+          ...(resolvedOpportunityId ? [{ id: resolvedOpportunityId }] : []),
+          { slug: input.dealSlug },
+          { title: input.dealTitle },
+          ...(isDealIdUuid ? [{ id: input.dealId }] : []),
+        ],
+      },
+      include: { organization: true },
+    })
+    if (matchedOpp) {
+      resolvedOpportunityId = matchedOpp.id
+      if (!merchantOrgId && matchedOpp.organizationId) {
+        merchantOrgId = matchedOpp.organizationId
+      }
+      if (merchantName === 'Internal Merchant Partner' && matchedOpp.organization?.legalName) {
+        merchantName = matchedOpp.organization.legalName
+      }
+    }
+  } catch (oppLookupErr) {}
+
+  const parsedNumericReward = extractNumericReward(input.rewardAmountTZS, input.rewardDisplay)
 
   const successMessage = isConnection
     ? `Your Customer Connection has been submitted successfully and is awaiting LUMO review (Reference: ${ticketReference}).`
@@ -417,7 +488,7 @@ export async function createReferralTicket(input: CreateReferralTicketInput): Pr
       data: {
         ticketReference,
         dealId: input.dealId,
-        opportunityId: input.opportunityId ?? null,
+        opportunityId: resolvedOpportunityId,
         dealTitle: input.dealTitle,
         dealSlug: input.dealSlug,
         submissionType: (input.submissionType === 'CUSTOMER_CONNECTION' ? 'CUSTOMER_REFERRAL' : input.submissionType) as any,
@@ -450,7 +521,7 @@ export async function createReferralTicket(input: CreateReferralTicketInput): Pr
         partnerVisibleUpdate: isCustomerReferral
           ? 'Referral ticket submitted. Lumo coordinator reviewing availability.'
           : 'Coordination enquiry submitted. Lumo coordinator reviewing specifications.',
-        rewardAmountTZS: input.rewardAmountTZS ? String(input.rewardAmountTZS) : null,
+        rewardAmountTZS: parsedNumericReward > 0 ? parsedNumericReward : (input.rewardAmountTZS ? Number(input.rewardAmountTZS) : null),
         rewardDisplay: input.rewardDisplay || null,
         rewardStatus: 'NOT_YET_EARNED',
         idempotencyKey: input.idempotencyKey || null,
@@ -708,6 +779,22 @@ export async function updateReferralTicketStage(
 ): Promise<boolean> {
   const stageUpdatedAt = new Date()
 
+  // Determine inferred rewardStatus based on stage if not explicitly passed
+  let inferredRewardStatus = details?.rewardStatus
+  if (!inferredRewardStatus) {
+    if (stage === 'REWARD_PAID') {
+      inferredRewardStatus = 'PAID'
+    } else if (stage === 'REWARD_APPROVED') {
+      inferredRewardStatus = 'APPROVED'
+    } else if (stage === 'REWARD_PENDING') {
+      inferredRewardStatus = 'PENDING'
+    } else if (stage === 'COMPLETED') {
+      inferredRewardStatus = 'PARTNER_CONFIRMS_RECEIPT'
+    }
+  }
+
+  let effectiveRewardAmount = 0
+
   try {
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrRef)
     const existingTicket = await db.referralTicket.findFirst({
@@ -721,20 +808,113 @@ export async function updateReferralTicketStage(
     })
 
     if (existingTicket) {
+      // Calculate reward amount if missing
+      effectiveRewardAmount = extractNumericReward(existingTicket.rewardAmountTZS, existingTicket.rewardDisplay)
+
+      // Resolve opportunity & merchant linkage if missing
+      let resolvedOpportunityId = existingTicket.opportunityId
+      let resolvedMerchantOrgId = existingTicket.merchantOrgId
+      let resolvedMerchantName = existingTicket.merchantName
+
+      try {
+        const isDealIdUuid = existingTicket.dealId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(existingTicket.dealId)
+        const matchedOpp = await db.opportunity.findFirst({
+          where: {
+            OR: [
+              ...(resolvedOpportunityId ? [{ id: resolvedOpportunityId }] : []),
+              { slug: existingTicket.dealSlug },
+              { title: existingTicket.dealTitle },
+              ...(isDealIdUuid ? [{ id: existingTicket.dealId }] : []),
+            ],
+          },
+          include: { organization: true, publishedVersion: true },
+        })
+
+        if (matchedOpp) {
+          if (!resolvedOpportunityId) resolvedOpportunityId = matchedOpp.id
+          if (!resolvedMerchantOrgId && matchedOpp.organizationId) resolvedMerchantOrgId = matchedOpp.organizationId
+          if (!resolvedMerchantName && matchedOpp.organization?.legalName) resolvedMerchantName = matchedOpp.organization.legalName
+          if (effectiveRewardAmount <= 0) {
+            if (matchedOpp.fixedRewardAmountMinor) {
+              effectiveRewardAmount = Number(matchedOpp.fixedRewardAmountMinor) / 100
+            } else if (matchedOpp.publishedVersion?.rewardSummary) {
+              effectiveRewardAmount = extractNumericReward(null, matchedOpp.publishedVersion.rewardSummary)
+            }
+          }
+        }
+      } catch (oppLookupErr) {
+        console.warn('Opp lookup failed during ticket stage update:', oppLookupErr)
+      }
+
       await db.referralTicket.update({
         where: { id: existingTicket.id },
         data: {
           stage: stage as any,
           stageUpdatedAt,
+          ...(inferredRewardStatus ? { rewardStatus: inferredRewardStatus } : {}),
+          ...(effectiveRewardAmount > 0 ? { rewardAmountTZS: effectiveRewardAmount } : {}),
+          ...(resolvedOpportunityId ? { opportunityId: resolvedOpportunityId } : {}),
+          ...(resolvedMerchantOrgId ? { merchantOrgId: resolvedMerchantOrgId } : {}),
+          ...(resolvedMerchantName ? { merchantName: resolvedMerchantName } : {}),
           ...(details?.assignedCoordinator !== undefined ? { assignedCoordinator: details.assignedCoordinator } : {}),
           ...(details?.nextAction !== undefined ? { nextAction: details.nextAction } : {}),
           ...(details?.nextActionDueDate !== undefined ? { nextActionDueDate: details.nextActionDueDate } : {}),
           ...(details?.coordinatorNotes !== undefined ? { coordinatorNotes: details.coordinatorNotes } : {}),
           ...(details?.partnerVisibleUpdate !== undefined ? { partnerVisibleUpdate: details.partnerVisibleUpdate } : {}),
           ...(details?.closureReason !== undefined ? { closureReason: details.closureReason } : {}),
-          ...(details?.rewardStatus !== undefined ? { rewardStatus: details.rewardStatus } : {}),
         },
       })
+
+      // If stage transitioned to REWARD_PAID, ensure a payout record is created/marked PAID and opportunity spent budget incremented
+      if ((stage === 'REWARD_PAID' || inferredRewardStatus === 'PAID') && effectiveRewardAmount > 0) {
+        if (resolvedOpportunityId) {
+          try {
+            await db.opportunity.update({
+              where: { id: resolvedOpportunityId },
+              data: {
+                spentBudgetMinor: {
+                  increment: BigInt(Math.round(effectiveRewardAmount * 100)),
+                },
+              },
+            })
+          } catch (budgetErr) {
+            console.warn('Failed to increment spentBudgetMinor:', budgetErr)
+          }
+        }
+
+        if (existingTicket.partnerUserId) {
+          try {
+            const { createPartnerPayoutRequest, updatePayoutStatus } = await import('@/modules/payouts/payout-store')
+            const gross = effectiveRewardAmount
+            const fee = Math.round(gross * 0.03)
+            const tax = Math.round(gross * 0.05)
+            const net = Math.max(0, gross - fee - tax)
+
+            const payout = await createPartnerPayoutRequest({
+              partnerUserId: existingTicket.partnerUserId,
+              partnerName: existingTicket.partnerName || 'Partner',
+              partnerPhone: existingTicket.partnerPhone || '—',
+              payoutChannel: 'MOBILE_MONEY',
+              accountNumber: existingTicket.partnerPhone || '—',
+              grossAmountTZS: gross,
+              platformFeeTZS: fee,
+              taxWithheldTZS: tax,
+              netAmountTZS: net,
+              notes: `Disbursement for ${existingTicket.ticketReference} - ${existingTicket.dealTitle}`,
+            })
+
+            await updatePayoutStatus({
+              payoutId: payout.id,
+              action: 'DISBURSE',
+              adminActor: details?.assignedCoordinator || 'Admin Coordination Desk',
+              disbursalReference: `PAY-${existingTicket.ticketReference}`,
+              notes: `Auto-disbursed upon REWARD_PAID stage transition.`,
+            })
+          } catch (payoutErr) {
+            console.warn('Failed to auto-create payout for REWARD_PAID ticket:', payoutErr)
+          }
+        }
+      }
 
       // Send In-App notification to the partner user
       if (existingTicket.partnerUserId) {
@@ -745,12 +925,15 @@ export async function updateReferralTicketStage(
             AVAILABILITY_CONFIRMED: 'Availability Confirmed',
             IN_PROGRESS: 'In Progress',
             COMPLETED: 'Completed',
+            REWARD_PENDING: 'Reward Pending',
+            REWARD_APPROVED: 'Reward Approved',
+            REWARD_PAID: 'Reward Paid',
             CLOSED: 'Closed',
           }
           const stageLabel = stageNames[stage] || stage
           const updateText =
             details?.partnerVisibleUpdate ||
-            `Your referral (${existingTicket.ticketReference}) for "${existingTicket.dealTitle}" is now: ${stageLabel}. Next Action: ${details?.nextAction || 'Under review'}.`
+            `Your referral (${existingTicket.ticketReference}) for "${existingTicket.dealTitle}" is now: ${stageLabel}. Next Action: ${details?.nextAction || 'Completed'}.`
 
           await db.notification.create({
             data: {
@@ -758,7 +941,7 @@ export async function updateReferralTicketStage(
               channel: 'IN_APP',
               title: `Referral Updated: ${stageLabel}`,
               body: updateText,
-              linkUrl: '/partner?tab=leads_referrals',
+              linkUrl: '/partner?tab=wallet_payouts',
             },
           })
         } catch (notifError) {
@@ -785,13 +968,13 @@ export async function updateReferralTicketStage(
         data: {
           stage: stage as any,
           stageUpdatedAt,
+          ...(inferredRewardStatus ? { rewardStatus: inferredRewardStatus } : {}),
           ...(details?.assignedCoordinator ? { assignedCoordinator: details.assignedCoordinator } : {}),
           ...(details?.nextAction ? { nextAction: details.nextAction } : {}),
           ...(details?.nextActionDueDate ? { nextActionDueDate: details.nextActionDueDate } : {}),
           ...(details?.coordinatorNotes ? { coordinatorNotes: details.coordinatorNotes } : {}),
           ...(details?.partnerVisibleUpdate ? { partnerVisibleUpdate: details.partnerVisibleUpdate } : {}),
           ...(details?.closureReason ? { closureReason: details.closureReason } : {}),
-          ...(details?.rewardStatus ? { rewardStatus: details.rewardStatus } : {}),
         },
       })
     }
@@ -806,13 +989,47 @@ export async function updateReferralTicketStage(
     target.stage = stage
     target.stageUpdatedAt = stageUpdatedAt.toISOString()
     target.updatedAt = stageUpdatedAt.toISOString()
+    if (inferredRewardStatus) target.rewardStatus = inferredRewardStatus
+    if (effectiveRewardAmount > 0) target.rewardAmountTZS = effectiveRewardAmount
     if (details?.assignedCoordinator) target.assignedCoordinator = details.assignedCoordinator
     if (details?.nextAction) target.nextAction = details.nextAction
     if (details?.nextActionDueDate) target.nextActionDueDate = details.nextActionDueDate
     if (details?.coordinatorNotes) target.coordinatorNotes = details.coordinatorNotes
     if (details?.partnerVisibleUpdate) target.partnerVisibleUpdate = details.partnerVisibleUpdate
     if (details?.closureReason) target.closureReason = details.closureReason
-    if (details?.rewardStatus) target.rewardStatus = details.rewardStatus
+
+    if ((stage === 'REWARD_PAID' || inferredRewardStatus === 'PAID') && (target.rewardAmountTZS || 0) > 0) {
+      try {
+        const { createPartnerPayoutRequest, updatePayoutStatus } = await import('@/modules/payouts/payout-store')
+        const gross = target.rewardAmountTZS || 0
+        const fee = Math.round(gross * 0.03)
+        const tax = Math.round(gross * 0.05)
+        const net = Math.max(0, gross - fee - tax)
+
+        const payout = await createPartnerPayoutRequest({
+          partnerUserId: target.partnerUserId,
+          partnerName: target.partnerName || 'Partner',
+          partnerPhone: target.partnerPhone || '—',
+          payoutChannel: 'MOBILE_MONEY',
+          accountNumber: target.partnerPhone || '—',
+          grossAmountTZS: gross,
+          platformFeeTZS: fee,
+          taxWithheldTZS: tax,
+          netAmountTZS: net,
+          notes: `Disbursement for ${target.ticketReference} - ${target.dealTitle}`,
+        })
+
+        await updatePayoutStatus({
+          payoutId: payout.id,
+          action: 'DISBURSE',
+          adminActor: details?.assignedCoordinator || 'Admin Coordination Desk',
+          disbursalReference: `PAY-${target.ticketReference}`,
+          notes: `Auto-disbursed upon REWARD_PAID stage transition.`,
+        })
+      } catch (payoutErr) {
+        console.warn('Memory payout creation fallback failed:', payoutErr)
+      }
+    }
   }
 
   return true
