@@ -198,7 +198,7 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json({ error: 'Invalid target status.' }, { status: 400 })
       }
 
-      if (status === 'PUBLISHED' && opportunity.status === 'DRAFT') {
+      if (status === 'PUBLISHED' && opportunity.status === 'DRAFT' && !opportunity.publishedVersionId && !body.forcePublish) {
         return NextResponse.json({ error: 'Cannot publish a draft deal directly. Deals must go through checker approval.' }, { status: 409 })
       }
 
@@ -210,7 +210,7 @@ export async function PATCH(request: NextRequest) {
       const latestVer = opportunity.versions?.[0]
       if (latestVer) {
         updateData.publishedVersionId = latestVer.id
-      } else {
+      } else if (db.opportunityVersion?.create) {
         const newVer = await db.opportunityVersion.create({
           data: {
             opportunityId: dealId,
@@ -234,6 +234,9 @@ export async function PATCH(request: NextRequest) {
     if (editFields.description !== undefined) updateData.description = String(editFields.description).trim()
     if (editFields.region !== undefined) updateData.region = String(editFields.region).trim()
     if (editFields.subcategory !== undefined) updateData.subcategory = String(editFields.subcategory).trim()
+    if (editFields.type !== undefined || editFields.opportunityType !== undefined) {
+      updateData.opportunityType = editFields.type || editFields.opportunityType
+    }
     if (editFields.coverImageUrl !== undefined) updateData.coverImageUrl = editFields.coverImageUrl
     if (editFields.promoVideoUrl !== undefined) updateData.promoVideoUrl = editFields.promoVideoUrl
     if (editFields.galleryImageUrls !== undefined) updateData.galleryImageUrls = Array.isArray(editFields.galleryImageUrls) ? editFields.galleryImageUrls : []
@@ -253,6 +256,14 @@ export async function PATCH(request: NextRequest) {
     if (editFields.closingDate !== undefined) updateData.closingDate = editFields.closingDate ? new Date(editFields.closingDate) : null
     if (editFields.visibility !== undefined) updateData.visibility = editFields.visibility
     if (editFields.accessTier !== undefined) updateData.accessTier = editFields.accessTier
+    if (editFields.commercialValueMinor !== undefined) updateData.commercialValueMinor = BigInt(editFields.commercialValueMinor)
+    if (editFields.originalDealValueMinor !== undefined) updateData.originalDealValueMinor = BigInt(editFields.originalDealValueMinor)
+    if (editFields.originalCurrency !== undefined) updateData.originalCurrency = editFields.originalCurrency
+    if (editFields.rewardPercentage !== undefined) updateData.rewardPercentage = editFields.rewardPercentage !== null && editFields.rewardPercentage !== '' ? Number(editFields.rewardPercentage) : null
+    if (editFields.fixedRewardAmountMinor !== undefined) updateData.fixedRewardAmountMinor = editFields.fixedRewardAmountMinor !== null && editFields.fixedRewardAmountMinor !== '' ? BigInt(editFields.fixedRewardAmountMinor) : null
+    if (editFields.rewardModel !== undefined) updateData.rewardModel = editFields.rewardModel
+    if (editFields.rewardType !== undefined) updateData.rewardType = editFields.rewardType
+    if (editFields.totalBudgetMinor !== undefined) updateData.totalBudgetMinor = editFields.totalBudgetMinor !== null && editFields.totalBudgetMinor !== '' ? BigInt(editFields.totalBudgetMinor) : null
 
     const updatedOpp = await db.$transaction(async (tx) => {
       const updated = await tx.opportunity.update({

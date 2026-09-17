@@ -157,6 +157,14 @@ export function PartnerDashboardView({
   // Submit Lead Modal Trigger
   const [showSubmitLeadModal, setShowSubmitLeadModal] = useState(false)
   const [selectedDealForLead, setSelectedDealForLead] = useState<JoinedDealItem | null>(null)
+  const [selectedOppForDetail, setSelectedOppForDetail] = useState<PartnerOpportunitySummary | null>(null)
+
+  const handleSelectTab = (tab: PartnerSidebarSection) => {
+    if (tab !== 'discover' || (tab === 'discover' && activeTab === 'discover')) {
+      setSelectedOppForDetail(null)
+    }
+    setActiveTab(tab)
+  }
 
   // Reload Opportunities from shared storage & live database
   const reloadOpportunities = useCallback(() => {
@@ -353,7 +361,7 @@ export function PartnerDashboardView({
         {/* ========================================================================= */}
         <PartnerSidebar
           activeTab={activeTab}
-          onSelectTab={setActiveTab}
+          onSelectTab={handleSelectTab}
           sidebarCollapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
           partnerName={partnerName}
@@ -375,7 +383,7 @@ export function PartnerDashboardView({
           open={mobileSidebarOpen}
           onClose={() => setMobileSidebarOpen(false)}
           activeTab={activeTab}
-          onSelectTab={setActiveTab}
+          onSelectTab={handleSelectTab}
           partnerName={partnerName}
           profilePhotoUrl={profilePhotoUrl}
           myDealsCount={joinedDeals.length}
@@ -409,7 +417,7 @@ export function PartnerDashboardView({
               </button>
               <h1 className="min-w-0 truncate text-sm font-black text-[#0F172A] dark:text-white sm:text-xl">
                 {activeTab === 'overview' && 'Commercial Partner Overview'}
-                {activeTab === 'discover' && 'Discover Commercial Opportunities'}
+                {activeTab === 'discover' && (selectedOppForDetail ? 'Deal Details' : 'Find Deals')}
                 {activeTab === 'saved_opportunities' && 'Saved Opportunities & Bookmarks'}
                 {activeTab === 'my_deals' && 'My Deals & Enrolled Campaigns'}
                 {activeTab === 'leads_referrals' && 'Customer Leads & Commercial Referrals'}
@@ -476,15 +484,8 @@ export function PartnerDashboardView({
               payoutSummary={payoutSummary}
               onNavigateTab={setActiveTab}
               onOpenOpportunityDetail={(opp) => {
-                if (subscription?.status !== 'ACTIVE') {
-                  if (onNavigateToSubscriptions) {
-                    onNavigateToSubscriptions()
-                  } else {
-                    setActiveTab('subscription')
-                  }
-                } else {
-                  setActiveTab('discover')
-                }
+                setSelectedOppForDetail(opp)
+                setActiveTab('discover')
               }}
               onOpenPayoutRequest={() => setActiveTab('earnings_payouts')}
             />
@@ -498,6 +499,8 @@ export function PartnerDashboardView({
               onJoinOpportunity={handleJoinOpportunity}
               onNavigateTab={setActiveTab}
               onNavigateToSubscriptions={onNavigateToSubscriptions}
+              selectedOpp={selectedOppForDetail}
+              onSelectOpp={setSelectedOppForDetail}
             />
           )}
 
@@ -506,17 +509,13 @@ export function PartnerDashboardView({
               opportunities={opportunities}
               setOpportunities={setOpportunities}
               onOpenOpportunityDetail={(opp) => {
-                if (subscription?.status !== 'ACTIVE') {
-                  if (onNavigateToSubscriptions) {
-                    onNavigateToSubscriptions()
-                  } else {
-                    setActiveTab('subscription')
-                  }
-                } else {
-                  setActiveTab('discover')
-                }
+                setSelectedOppForDetail(opp)
+                setActiveTab('discover')
               }}
-              onExploreMore={() => setActiveTab('discover')}
+              onExploreMore={() => {
+                setSelectedOppForDetail(null)
+                setActiveTab('discover')
+              }}
             />
           )}
 

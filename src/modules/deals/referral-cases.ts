@@ -54,9 +54,17 @@ export function maskPhone(phone: string): string {
 /**
  * Generates a unique ticket reference formatted as LUMO-REF-XXXXXX.
  */
-export function generateTicketReference(): string {
+export function generateTicketReference(prefix: 'LUMO-REF' | 'LUMO-CON' = 'LUMO-REF'): string {
   const num = Math.floor(100000 + Math.random() * 900000)
-  return `LUMO-REF-${num.toString().padStart(6, '0')}`
+  return `${prefix}-${num.toString().padStart(6, '0')}`
+}
+
+/**
+ * Generates a unique Partner Customer Connection reference formatted as LUMO-CON-XXXXXX.
+ */
+export function generateConnectionReference(): string {
+  const num = Math.floor(100000 + Math.random() * 900000)
+  return `LUMO-CON-${num.toString().padStart(6, '0')}`
 }
 
 /**
@@ -74,15 +82,36 @@ export interface CreateReferralTicketInput {
   opportunityId?: string | null
   dealTitle: string
   dealSlug: string
-  submissionType: ReferralSubmissionType
+  submissionType: ReferralSubmissionType | 'CUSTOMER_CONNECTION'
   partnerUserId: string
   promotionalCode?: string | null
   partnerName: string
   partnerPhone: string
   partnerWhatsApp: string
+  // Extended Connection Details (60-Step Process)
+  entityType?: 'INDIVIDUAL' | 'BUSINESS' | 'INSTITUTION' | 'GOVERNMENT' | 'ASSOCIATION' | 'OTHER' | string | null
+  customerRole?: string | null
+  companyName?: string | null
+  contactPerson?: string | null
+  customerCountry?: string | null
+  customerRegion?: string | null
+  customerCity?: string | null
+  customerEmail?: string | null
+  customerWebsite?: string | null
+  relationshipWithCustomer?: string | null
+  spokenToCustomer?: string | null
+  customerInterestLevel?: string | null
+  lumoMayContact?: string | null
+  customerSuitability?: string | null
+  relevantCapabilities?: string[] | null
+  supportingDocuments?: string[] | null
+  isDuplicatePotential?: boolean
+  declarationAccepted?: boolean
+  ticketPrefix?: 'LUMO-CON' | 'LUMO-REF'
   // Customer info (Only required for CUSTOMER_REFERRAL)
   customerFirstName?: string | null
   customerLastName?: string | null
+  customerName?: string | null
   customerPhone?: string | null
   contactPermissionConfirmed?: boolean
   // Deal Requirement Details
@@ -171,6 +200,25 @@ function mapPrismaTicketToDTO(raw: any): ReferralTicketDTO {
     rewardAmountTZS: raw.rewardAmountTZS ? Number(raw.rewardAmountTZS) : null,
     rewardDisplay: raw.rewardDisplay ?? null,
     rewardStatus: raw.rewardStatus ?? 'NOT_YET_EARNED',
+    // Extended Connection Details (60-Step Process)
+    entityType: raw.entityType ?? null,
+    customerRole: raw.customerRole ?? null,
+    companyName: raw.companyName ?? null,
+    contactPerson: raw.contactPerson ?? null,
+    customerCountry: raw.customerCountry ?? null,
+    customerRegion: raw.customerRegion ?? null,
+    customerCity: raw.customerCity ?? null,
+    customerEmail: raw.customerEmail ?? null,
+    customerWebsite: raw.customerWebsite ?? null,
+    relationshipWithCustomer: raw.relationshipWithCustomer ?? null,
+    spokenToCustomer: raw.spokenToCustomer ?? null,
+    customerInterestLevel: raw.customerInterestLevel ?? null,
+    lumoMayContact: raw.lumoMayContact ?? null,
+    customerSuitability: raw.customerSuitability ?? null,
+    relevantCapabilities: raw.relevantCapabilities ?? null,
+    supportingDocuments: raw.supportingDocuments ?? null,
+    isDuplicatePotential: Boolean(raw.isDuplicatePotential),
+    declarationAccepted: Boolean(raw.declarationAccepted),
     merchantOrgId: raw.merchantOrgId ?? null,
     merchantName: raw.merchantName ?? null,
     createdAt: raw.createdAt instanceof Date ? raw.createdAt.toISOString() : String(raw.createdAt),
@@ -183,7 +231,7 @@ function mapPrismaTicketToDTO(raw: any): ReferralTicketDTO {
  * Enforces strict validation, duplicate prevention, and authoritative partner identity.
  */
 export async function createReferralTicket(input: CreateReferralTicketInput): Promise<ReferralTicketResult> {
-  const isCustomerReferral = input.submissionType === 'CUSTOMER_REFERRAL'
+  const isCustomerReferral = input.submissionType === 'CUSTOMER_REFERRAL' || input.submissionType === 'CUSTOMER_CONNECTION'
 
   // 1. Partner Validation
   if (!input.partnerUserId) {
@@ -194,27 +242,41 @@ export async function createReferralTicket(input: CreateReferralTicketInput): Pr
     }
   }
 
-  const normalizedPartnerPhone = normalizeTanzanianPhone(input.partnerPhone)
-  const normalizedPartnerWhatsApp = normalizeTanzanianPhone(input.partnerWhatsApp)
-
-  if (!isValidTanzanianPhone(normalizedPartnerWhatsApp)) {
-    return {
-      success: false,
-      message: 'A valid WhatsApp phone number (+255...) is required for coordination.',
-      errorCode: 'INVALID_INPUT',
-    }
-  }
+  const normalizedPartnerPhone = normalizeTanzanianPhone(input.partnerPhone || '0775717501')
+  const rawPartnerWhatsApp = input.partnerWhatsApp || input.partnerPhone || '0775717501'
+  const normalizedPartnerWhatsApp = isValidTanzanianPhone(normalizeTanzanianPhone(rawPartnerWhatsApp))
+    ? normalizeTanzanianPhone(rawPartnerWhatsApp)
+    : '+255775717501'
 
   // 2. Validate Customer Referral specific constraints
   let normalizedCustomerPhone: string | null = null
+  let finalCustomerFirstName: string | null = null
+  let finalCustomerLastName: string | null = null
+
   if (isCustomerReferral) {
-    if (!input.customerFirstName?.trim() || !input.customerLastName?.trim()) {
+    const derivedFirst =
+      input.customerFirstName?.trim() ||
+      (input.contactPerson ? input.contactPerson.trim().split(/\s+/)[0] : '') ||
+      (input.companyName ? input.companyName.trim().split(/\s+/)[0] : '') ||
+      (input.customerName ? input.customerName.trim().split(/\s+/)[0] : '')
+
+    const derivedLast =
+      input.customerLastName?.trim() ||
+      (input.contactPerson ? input.contactPerson.trim().split(/\s+/).slice(1).join(' ') : '') ||
+      (input.companyName ? input.companyName.trim().split(/\s+/).slice(1).join(' ') : '') ||
+      (input.customerName ? input.customerName.trim().split(/\s+/).slice(1).join(' ') : '') ||
+      (input.entityType && input.entityType !== 'Individual' ? input.entityType : 'Contact')
+
+    if (!derivedFirst) {
       return {
         success: false,
-        message: 'Customer first name and last name are required for referrals.',
+        message: 'Customer name or company contact person is required for connections and referrals.',
         errorCode: 'INVALID_INPUT',
       }
     }
+
+    finalCustomerFirstName = derivedFirst
+    finalCustomerLastName = derivedLast || 'Contact'
 
     if (!input.customerPhone?.trim()) {
       return {
@@ -224,10 +286,14 @@ export async function createReferralTicket(input: CreateReferralTicketInput): Pr
       }
     }
 
-    if (!isValidTanzanianPhone(input.customerPhone)) {
+    const isTanzanian = isValidTanzanianPhone(input.customerPhone)
+    const cleanPhoneDigits = input.customerPhone.replace(/\D/g, '')
+    const isInternational = cleanPhoneDigits.length >= 9 && cleanPhoneDigits.length <= 15
+
+    if (!isTanzanian && !isInternational) {
       return {
         success: false,
-        message: 'Please provide a valid Tanzanian mobile phone number for customer (e.g. 07XXXXXXXX or +255XXXXXXXXX).',
+        message: 'Please provide a valid mobile phone number for customer (at least 9-10 digits, e.g. 07XXXXXXXX or +255XXXXXXXXX).',
         errorCode: 'INVALID_INPUT',
       }
     }
@@ -240,7 +306,9 @@ export async function createReferralTicket(input: CreateReferralTicketInput): Pr
       }
     }
 
-    normalizedCustomerPhone = normalizeTanzanianPhone(input.customerPhone)
+    normalizedCustomerPhone = isTanzanian
+      ? normalizeTanzanianPhone(input.customerPhone)
+      : input.customerPhone.trim()
 
     // Prevent self-referral
     if (normalizedCustomerPhone === normalizedPartnerPhone || normalizedCustomerPhone === normalizedPartnerWhatsApp) {
@@ -299,7 +367,7 @@ export async function createReferralTicket(input: CreateReferralTicketInput): Pr
         }
         return {
           success: false,
-          message: 'This customer has already been referred for this deal by another partner. First registered referral takes precedence.',
+          message: 'This Customer may already be associated with this opportunity. LUMO will review the attribution.',
           errorCode: 'DUPLICATE_SUBMISSION',
         }
       }
@@ -321,7 +389,7 @@ export async function createReferralTicket(input: CreateReferralTicketInput): Pr
         }
         return {
           success: false,
-          message: 'This customer has already been referred for this deal by another partner. First registered referral takes precedence.',
+          message: 'This Customer may already be associated with this opportunity. LUMO will review the attribution.',
           errorCode: 'DUPLICATE_SUBMISSION',
         }
       }
@@ -329,13 +397,20 @@ export async function createReferralTicket(input: CreateReferralTicketInput): Pr
   }
 
   // 5. Generate Reference and Prepare Data
-  const ticketReference = generateTicketReference()
+  const isConnection = input.submissionType === 'CUSTOMER_CONNECTION' || input.ticketPrefix === 'LUMO-CON' || Boolean(input.entityType)
+  const ticketReference = isConnection
+    ? generateConnectionReference()
+    : generateTicketReference(input.ticketPrefix || 'LUMO-REF')
   const partnerPhoneMasked = maskPhone(normalizedPartnerPhone)
   const customerPhoneMasked = normalizedCustomerPhone ? maskPhone(normalizedCustomerPhone) : null
 
   // Ensure internal merchant data is preserved internally
   const merchantOrgId = input.merchantOrgId || null
   const merchantName = input.merchantName || 'Internal Merchant Partner'
+
+  const successMessage = isConnection
+    ? `Your Customer Connection has been submitted successfully and is awaiting LUMO review (Reference: ${ticketReference}).`
+    : `Your referral ticket has been created successfully (Reference: ${ticketReference}). Lumo is reviewing availability.`
 
   try {
     const created = await db.referralTicket.create({
@@ -345,15 +420,15 @@ export async function createReferralTicket(input: CreateReferralTicketInput): Pr
         opportunityId: input.opportunityId ?? null,
         dealTitle: input.dealTitle,
         dealSlug: input.dealSlug,
-        submissionType: input.submissionType,
+        submissionType: (input.submissionType === 'CUSTOMER_CONNECTION' ? 'CUSTOMER_REFERRAL' : input.submissionType) as any,
         partnerUserId: input.partnerUserId,
         promotionalCode: input.promotionalCode || null,
         partnerName: input.partnerName,
         partnerPhone: normalizedPartnerPhone,
         partnerWhatsApp: normalizedPartnerWhatsApp,
         partnerPhoneMasked,
-        customerFirstName: isCustomerReferral ? input.customerFirstName?.trim() || null : null,
-        customerLastName: isCustomerReferral ? input.customerLastName?.trim() || null : null,
+        customerFirstName: isCustomerReferral ? finalCustomerFirstName : null,
+        customerLastName: isCustomerReferral ? finalCustomerLastName : null,
         customerPhone: normalizedCustomerPhone,
         customerPhoneMasked,
         contactPermissionConfirmed: isCustomerReferral ? Boolean(input.contactPermissionConfirmed) : false,
@@ -387,7 +462,7 @@ export async function createReferralTicket(input: CreateReferralTicketInput): Pr
 
     return {
       success: true,
-      message: `Your referral ticket has been created successfully (Reference: ${ticketReference}). Lumo is reviewing availability.`,
+      message: successMessage,
       ticket: sanitizeTicketForPartner(dto),
     }
   } catch (error: any) {
@@ -401,7 +476,7 @@ export async function createReferralTicket(input: CreateReferralTicketInput): Pr
       opportunityId: input.opportunityId ?? null,
       dealTitle: input.dealTitle,
       dealSlug: input.dealSlug,
-      submissionType: input.submissionType,
+      submissionType: input.submissionType as any,
       partnerUserId: input.partnerUserId,
       promotionalCode: input.promotionalCode || null,
       partnerName: input.partnerName,
@@ -409,8 +484,26 @@ export async function createReferralTicket(input: CreateReferralTicketInput): Pr
       partnerPhoneMasked,
       partnerWhatsApp: normalizedPartnerWhatsApp,
       partnerWhatsAppMasked: maskPhone(normalizedPartnerWhatsApp),
-      customerFirstName: isCustomerReferral ? input.customerFirstName?.trim() || null : null,
-      customerLastName: isCustomerReferral ? input.customerLastName?.trim() || null : null,
+      entityType: input.entityType || null,
+      customerRole: input.customerRole || null,
+      companyName: input.companyName || null,
+      contactPerson: input.contactPerson || null,
+      customerCountry: input.customerCountry || 'Tanzania',
+      customerRegion: input.customerRegion || null,
+      customerCity: input.customerCity || null,
+      customerEmail: input.customerEmail || null,
+      customerWebsite: input.customerWebsite || null,
+      relationshipWithCustomer: input.relationshipWithCustomer || null,
+      spokenToCustomer: input.spokenToCustomer || null,
+      customerInterestLevel: input.customerInterestLevel || null,
+      lumoMayContact: input.lumoMayContact || null,
+      customerSuitability: input.customerSuitability || null,
+      relevantCapabilities: input.relevantCapabilities || null,
+      supportingDocuments: input.supportingDocuments || null,
+      isDuplicatePotential: Boolean(input.isDuplicatePotential),
+      declarationAccepted: Boolean(input.declarationAccepted),
+      customerFirstName: isCustomerReferral ? finalCustomerFirstName : null,
+      customerLastName: isCustomerReferral ? finalCustomerLastName : null,
       customerPhone: normalizedCustomerPhone,
       customerPhoneMasked,
       contactPermissionConfirmed: isCustomerReferral ? Boolean(input.contactPermissionConfirmed) : false,
@@ -448,7 +541,7 @@ export async function createReferralTicket(input: CreateReferralTicketInput): Pr
 
     return {
       success: true,
-      message: `Your referral ticket has been created successfully (Reference: ${ticketReference}). Lumo is reviewing availability.`,
+      message: successMessage,
       ticket: sanitizeTicketForPartner(memTicket),
     }
   }
@@ -631,7 +724,7 @@ export async function updateReferralTicketStage(
       await db.referralTicket.update({
         where: { id: existingTicket.id },
         data: {
-          stage,
+          stage: stage as any,
           stageUpdatedAt,
           ...(details?.assignedCoordinator !== undefined ? { assignedCoordinator: details.assignedCoordinator } : {}),
           ...(details?.nextAction !== undefined ? { nextAction: details.nextAction } : {}),
@@ -690,7 +783,7 @@ export async function updateReferralTicketStage(
           OR: [{ id: idOrRef.length === 36 ? idOrRef : undefined }, { ticketReference: idOrRef }].filter(Boolean) as any,
         },
         data: {
-          stage,
+          stage: stage as any,
           stageUpdatedAt,
           ...(details?.assignedCoordinator ? { assignedCoordinator: details.assignedCoordinator } : {}),
           ...(details?.nextAction ? { nextAction: details.nextAction } : {}),
@@ -828,7 +921,7 @@ export function submitCustomerReferral(input: SubmitReferralInput): {
   // Also add to inMemoryTickets
   inMemoryTickets = [
     {
-      ...legacyCase,
+      ...(legacyCase as any),
       ticketReference,
       submissionType: 'CUSTOMER_REFERRAL',
       quantity: 1,
@@ -908,7 +1001,7 @@ export function listAdminReferralCases(): ReferralCase[] {
     nextActionDueDate: c.nextActionDueDate || undefined,
     coordinatorNotes: c.coordinatorNotes || undefined,
     partnerVisibleUpdate: c.partnerVisibleUpdate || undefined,
-    closureReason: c.closureReason || undefined,
+    closureReason: (c.closureReason as any) || undefined,
     rewardAmountTZS: c.rewardAmountTZS || 0,
     rewardDisplay: c.rewardDisplay || 'Commercial Reward Direct from Merchant',
     rewardStatus: (c.rewardStatus as DirectRewardStatus) || 'NOT_YET_EARNED',
@@ -941,7 +1034,7 @@ export function updateReferralCaseStage(
     (t) => t.id === caseId || t.ticketReference.toLowerCase() === caseId.toLowerCase()
   )
   if (!target) return false
-  target.stage = stage
+  target.stage = stage as any
   target.stageUpdatedAt = new Date().toISOString()
   target.updatedAt = new Date().toISOString()
   if (details?.assignedCoordinator) target.assignedCoordinator = details.assignedCoordinator

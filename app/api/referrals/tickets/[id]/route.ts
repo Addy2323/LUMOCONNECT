@@ -94,7 +94,29 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const { id } = await params
     const body = await req.json()
 
-    const validStages: ReferralTicketStage[] = ['SUBMITTED', 'UNDER_REVIEW', 'AVAILABILITY_CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CLOSED']
+    const validStages: ReferralTicketStage[] = [
+      'SUBMITTED',
+      'UNDER_REVIEW',
+      'MORE_INFO_REQUIRED',
+      'QUALIFIED',
+      'CONTACTED',
+      'CUSTOMER_INTERESTED',
+      'INTRODUCTION_SCHEDULED',
+      'INTRODUCED',
+      'NEGOTIATING',
+      'SUCCESSFUL',
+      'REJECTED',
+      'AVAILABILITY_CONFIRMED',
+      'IN_PROGRESS',
+      'COMPLETED',
+      'CLOSED',
+      'REWARD_PENDING',
+      'REWARD_APPROVED',
+      'REWARD_PAID',
+      'DUPLICATE',
+      'RESUBMITTED',
+      'CUSTOMER_NOT_INTERESTED',
+    ]
     if (body.stage && !validStages.includes(body.stage)) {
       return NextResponse.json({ success: false, error: 'Invalid stage' }, { status: 400 })
     }

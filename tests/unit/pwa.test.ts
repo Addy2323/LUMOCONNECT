@@ -34,11 +34,8 @@ describe('Progressive Web App (PWA) Verification Suite', () => {
       expect(has512Maskable).toBe(true)
     })
 
-    it('public/manifest.webmanifest matches manifest specification', () => {
-      const manifestPath = path.join(publicDir, 'manifest.webmanifest')
-      expect(fs.existsSync(manifestPath)).toBe(true)
-
-      const content = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
+    it('app/manifest.ts matches manifest specification', () => {
+      const content = manifestFn()
       expect(content.name).toBe('Lumo Dealers')
       expect(content.short_name).toBe('Lumo')
       expect(content.display).toBe('standalone')

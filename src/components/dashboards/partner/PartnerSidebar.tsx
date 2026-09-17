@@ -79,10 +79,10 @@ function getNavGroups({
       title: 'WORKSPACE',
       items: [
         { id: 'overview', label: 'Overview', icon: Home, opType: 'Read/Monitor' },
-        { id: 'discover', label: 'Discover Opportunities', icon: Search, opType: 'Read + Join' },
+        { id: 'discover', label: 'Find Deals', icon: Search, opType: 'Read + Join' },
         { id: 'saved_opportunities', label: 'Saved Opportunities', icon: Bookmark, opType: 'Read/Bookmarks', badge: savedCount > 0 ? savedCount : undefined },
         { id: 'my_deals', label: 'My Deals', icon: Briefcase, opType: 'Read/Workflow', badge: myDealsCount > 0 ? myDealsCount : undefined, badgeColor: 'bg-orange-100 dark:bg-orange-950/60 text-[#FF6A00]' },
-        { id: 'leads_referrals', label: 'Leads & Referrals', icon: Users, opType: 'Draft CRUD + Submit', badge: leadsCount > 0 ? leadsCount : undefined, badgeColor: 'bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300' },
+        { id: 'leads_referrals', label: 'My Connections', icon: Users, opType: 'Draft CRUD + Submit', badge: leadsCount > 0 ? leadsCount : undefined, badgeColor: 'bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300' },
       ],
     },
     {

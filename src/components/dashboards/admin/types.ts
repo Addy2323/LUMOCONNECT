@@ -123,10 +123,18 @@ export interface AdminDealItem {
   featured?: boolean
   versions?: any[]
   makerUser?: { id: string; name: string; email: string } | null
-  checkerUser?: { id: string; name: string; email: string } | null
-  reviewerComments?: string
+  subcategory?: string
+  region?: string
+  commercialResultType?: string
+  rewardTrigger?: string
+  successCondition?: string
+  closingDate?: string | null
+  commercialValueMinor?: string
   termsHash?: string
   attributionWindowDays?: number
+  originalDealValue?: number | null
+  rewardPercentage?: number | null
+  fixedRewardAmountMinor?: string | null
 }
 
 export interface ConversionRecord {

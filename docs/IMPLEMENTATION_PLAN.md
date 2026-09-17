@@ -22,6 +22,7 @@ Governing Principle: **Money follows genuine and independently verifiable econom
   - Discovery marketplace with keyword search, category, region, and opportunity type filters.
   - Rich Opportunity Cards with milestone bonuses, reward badges, and active partner counts.
   - Interactive 4-step Deal Creation Wizard (`src/components/marketplace/CreateDealWizard.tsx`).
+  - Partner Customer Connection Submission workflow ("I Can Connect This Deal") with pre-filled deal metadata, category-tailored customer role selection, capability checkboxes, and anti-duplicate check ([PARTNER_CUSTOMER_CONNECTION_PROCESS.md](file:///c:/Users/BEC/Desktop/lumo/docs/PARTNER_CUSTOMER_CONNECTION_PROCESS.md)).
   - Instant Partner Deal Enrollment and unique tracking link/QR code generation (`src/components/marketplace/DealApplyModal.tsx`).
   - Multi-step Partner & Business Onboarding (`src/components/onboarding/OnboardingView.tsx`).
 

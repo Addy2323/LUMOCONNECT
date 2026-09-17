@@ -167,22 +167,22 @@ export function AdminDashboardView({
               <Menu className="h-5 w-5" />
             </button>
             <h1 className="min-w-0 truncate text-sm font-black text-[#0F172A] dark:text-white sm:text-xl">
-              {activeTab === 'overview' && 'Admin Overview'}
+              {activeTab === 'overview' && 'Overview'}
               {activeTab === 'users' && 'Users, Access & Role Management'}
               {activeTab === 'verifications' && 'Business KYB Document Approvals'}
-              {activeTab === 'deals' && 'Deals & Opportunities Repository'}
-              {activeTab === 'approvals' && 'Pending Deal Approvals (Dual Control)'}
+              {activeTab === 'deals' && 'Deals & Opportunities'}
+              {activeTab === 'approvals' && 'Deal Approvals'}
               {activeTab === 'conversions' && 'Conversions & Attribution Engine'}
-              {activeTab === 'referrals' && 'Referrals & Coordination Desk'}
+              {activeTab === 'referrals' && 'Connection Review'}
               {activeTab === 'subscriptions' && 'Partner Subscriptions & Plans'}
               {activeTab === 'payments' && 'Incoming Payments & Settlement Ledger'}
-              {activeTab === 'payouts' && 'Rewards & Partner Payout Batches'}
+              {activeTab === 'payouts' && 'Rewards & Payouts'}
               {activeTab === 'reconciliation' && 'Payment Provider Reconciliation'}
               {activeTab === 'tax' && 'Financial Reports, Records & Reporting Calendar'}
               {activeTab === 'kyc' && 'KYC & Identity Compliance'}
               {activeTab === 'risk' && 'Fraud Engine & Anomaly Case Management'}
               {activeTab === 'disputes' && 'Disputes, Complaints & Mediation'}
-              {activeTab === 'logs' && 'Immutable Platform Audit Ledger'}
+              {activeTab === 'logs' && 'Audit & Compliance'}
               {activeTab === 'notifications' && 'Automated Communications & Notifications'}
               {activeTab === 'sms' && 'SMS Operations Centre'}
               {activeTab === 'content' && 'Promotions, Banners & Featured Content'}

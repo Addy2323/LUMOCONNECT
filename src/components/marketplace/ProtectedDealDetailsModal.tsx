@@ -448,7 +448,7 @@ export function ProtectedDealDetailsModal({
                   onClick={() => setShowReferralModal(true)}
                   className="w-full py-3.5 px-4 bg-gradient-to-r from-[#FF6A00] to-orange-500 hover:from-[#EA580C] hover:to-orange-600 text-white font-black text-xs rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#FF6A00]/25 active:scale-98"
                 >
-                  <span>{t('I Have a Customer')}</span>
+                  <span>{locale === 'sw' ? 'Ninaweza Kuunganisha Deal Hii' : 'I Can Connect This Deal'}</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
@@ -486,7 +486,7 @@ export function ProtectedDealDetailsModal({
                   onClick={() => setShowReferralModal(true)}
                   className="w-full py-3.5 px-4 bg-white text-slate-950 hover:bg-slate-100 font-black text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  <span>{t('I Have a Customer')}</span>
+                  <span>{locale === 'sw' ? 'Ninaweza Kuunganisha Deal Hii' : 'I Can Connect This Deal'}</span>
                   <ArrowRight className="w-4 h-4 text-[#FF6A00]" />
                 </button>
               </div>
