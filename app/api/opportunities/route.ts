@@ -102,6 +102,11 @@ export async function GET(request: NextRequest) {
           ? `${opp.rewardPercentage}% commission`
           : 'Standard Performance Terms')
 
+      const rawDealValueMinor = opp.originalDealValueMinor ?? opp.commercialValueMinor
+      const dealValueNum = rawDealValueMinor ? Number(rawDealValueMinor) / 100 : 0
+      const currency = opp.originalCurrency || opp.currency || 'TZS'
+      const principalPriceDisplay = dealValueNum > 0 ? `${currency} ${dealValueNum.toLocaleString()}` : undefined
+
       return {
         id: opp.id,
         organizationId: opp.organizationId,
@@ -117,10 +122,16 @@ export async function GET(request: NextRequest) {
         subcategory: opp.subcategory || undefined,
         countryCode: 'TZ',
         region: opp.region || 'All Tanzania',
-        currency: opp.currency || 'TZS',
+        currency,
+        originalCurrency: currency,
         rewardType: (opp.rewardType as any) || 'FIXED_COMMISSION',
         rewardDisplay,
         rewardDetail: opp.rewardTrigger || 'per verified outcome',
+        rewardValueTZS: fixedRewardTZS,
+        commercialValue: principalPriceDisplay,
+        commercialValueTZS: currency === 'TZS' ? dealValueNum : (opp.commercialValueMinor ? Number(opp.commercialValueMinor) / 100 : dealValueNum),
+        originalDealValue: dealValueNum,
+        principalPriceDisplay,
         totalBudgetTZS: opp.totalBudgetMinor ? Number(opp.totalBudgetMinor) / 100 : 0,
         spentBudgetTZS: opp.spentBudgetMinor ? Number(opp.spentBudgetMinor) / 100 : 0,
         activePartnerCount: opp._count.participations,

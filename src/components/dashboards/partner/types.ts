@@ -41,6 +41,10 @@ export interface PartnerOpportunitySummary {
   type: PartnerOpportunityType
   rewardDisplay: string
   rewardValueTZS: number
+  principalPriceDisplay?: string
+  commercialValue?: string
+  originalDealValue?: number
+  originalCurrency?: string
   activePartnersCount: number
   closingDate: string
   isSaved?: boolean

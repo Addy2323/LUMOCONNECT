@@ -139,9 +139,11 @@ export function DiscoverOpportunitiesTab({
   // =========================================================================
   if (selectedOpp) {
     const commercialValue =
-      (selectedOpp as any).principalPriceDisplay ||
-      (selectedOpp as any).commercialValue ||
-      (selectedOpp.rewardValueTZS
+      selectedOpp.principalPriceDisplay ||
+      selectedOpp.commercialValue ||
+      (selectedOpp.originalDealValue
+        ? `${selectedOpp.originalCurrency || 'TZS'} ${Number(selectedOpp.originalDealValue).toLocaleString()}`
+        : selectedOpp.rewardValueTZS
         ? `TZS ${selectedOpp.rewardValueTZS.toLocaleString()}`
         : 'USD 2,500,000')
 
@@ -383,9 +385,13 @@ export function DiscoverOpportunitiesTab({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {filtered.map((opp) => {
             const commercialValue =
-              (opp as any).principalPriceDisplay ||
-              (opp as any).commercialValue ||
-              (opp.rewardValueTZS ? `TZS ${opp.rewardValueTZS.toLocaleString()}` : 'USD 2,500,000')
+              opp.principalPriceDisplay ||
+              opp.commercialValue ||
+              (opp.originalDealValue
+                ? `${opp.originalCurrency || 'TZS'} ${Number(opp.originalDealValue).toLocaleString()}`
+                : opp.rewardValueTZS
+                ? `TZS ${opp.rewardValueTZS.toLocaleString()}`
+                : 'USD 2,500,000')
 
             return (
               <div

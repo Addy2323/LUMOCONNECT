@@ -55,8 +55,20 @@ export async function GET(request: NextRequest) {
       const status: JoinedDealStatus = (p.status as any) || 'ACTIVE'
       const trackingCode = p.trackingAssets[0]?.code || `LUMO-${partnerCode.slice(0, 4).toUpperCase()}-${p.id.slice(0, 4)}`
 
-      const rewardDisplay = catalogMatch?.rewardDisplay || 'Commercial Partner Commission'
-      const rewardValueTZS = catalogMatch ? Number((catalogMatch as any).baseRewardValue || (catalogMatch as any).rewardValue || 50000) : 50000
+      const fixedRewardTZS = opp.fixedRewardAmountMinor ? Number(opp.fixedRewardAmountMinor) / 100 : 0
+      const rewardDisplay =
+        opp.rewardDisplayLabel ||
+        (fixedRewardTZS > 0
+          ? `TZS ${fixedRewardTZS.toLocaleString()}`
+          : opp.rewardPercentage
+          ? `${opp.rewardPercentage}% commission`
+          : catalogMatch?.rewardDisplay || 'Commercial Partner Commission')
+      const rewardValueTZS = fixedRewardTZS > 0 ? fixedRewardTZS : (catalogMatch ? Number((catalogMatch as any).baseRewardValue || (catalogMatch as any).rewardValue || 50000) : 50000)
+
+      const rawValMinor = opp.originalDealValueMinor ?? opp.commercialValueMinor
+      const dealValNum = rawValMinor ? Number(rawValMinor) / 100 : 0
+      const currency = opp.originalCurrency || opp.currency || 'TZS'
+      const principalPriceDisplay = dealValNum > 0 ? `${currency} ${dealValNum.toLocaleString()}` : catalogMatch?.principalPriceDisplay
 
       const matchingTickets = userTickets.filter((t: any) =>
         t.opportunityId === opp.id ||
@@ -79,6 +91,10 @@ export async function GET(request: NextRequest) {
         joinedDate: p.joinedAt.toISOString().slice(0, 10),
         rewardDisplay,
         rewardValueTZS,
+        principalPriceDisplay,
+        commercialValue: principalPriceDisplay,
+        originalDealValue: dealValNum,
+        originalCurrency: currency,
         trackingLink: `https://lumo.co.tz/d/${slug}?partner=${partnerCode}`,
         referralId: trackingCode,
         promoCode: `${partnerCode.slice(0, 4).toUpperCase()}${slug.slice(0, 4).toUpperCase()}`,

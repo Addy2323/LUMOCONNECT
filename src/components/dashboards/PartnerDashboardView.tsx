@@ -67,18 +67,32 @@ function mapOpportunityToPartnerSummary(
   opp: OpportunityItem,
   savedSet: Set<string>
 ): PartnerOpportunitySummary {
+  const oppAny = opp as any
+  const fixedRewardNum = oppAny.rewardValueTZS ? Number(oppAny.rewardValueTZS) : 0
+  const parsedReward = fixedRewardNum > 0 ? fixedRewardNum : (oppAny.baseRewardValue || oppAny.rewardValue || 0)
+
+  const commValDisplay =
+    oppAny.principalPriceDisplay ||
+    oppAny.commercialValue ||
+    (oppAny.originalDealValue ? `${oppAny.originalCurrency || 'TZS'} ${Number(oppAny.originalDealValue).toLocaleString()}` : undefined)
+
   return {
     id: opp.id,
     slug: opp.slug,
     title: opp.title,
-    businessName: 'Lumo Deals',
+    businessName: opp.companyName || 'Lumo Deals',
     businessLogo: opp.companyLogo || 'LD',
     isBusinessVerified: opp.isVerified,
     category: opp.category,
+    subcategory: opp.subcategory,
     region: opp.region,
     type: (opp.type as any) || 'CUSTOMER_ACQUISITION',
     rewardDisplay: opp.rewardDisplay,
-    rewardValueTZS: Number((opp as any).baseRewardValue || (opp as any).rewardValue || 50000),
+    rewardValueTZS: parsedReward > 0 ? parsedReward : 50000,
+    principalPriceDisplay: commValDisplay,
+    commercialValue: commValDisplay,
+    originalDealValue: oppAny.originalDealValue ? Number(oppAny.originalDealValue) : undefined,
+    originalCurrency: oppAny.originalCurrency || 'TZS',
     activePartnersCount: opp.activePartnerCount || 0,
     closingDate: 'Open Access',
     isSaved: savedSet.has(opp.id),
