@@ -25,6 +25,7 @@ import { usePlatformConfig } from '@/lib/platformConfig'
 
 interface PartnerRewardItem {
   id: string
+  ticketReference?: string
   opportunityTitle: string
   merchantName: string
   category: string
@@ -117,12 +118,15 @@ export function EarningsPayoutsTab() {
             if (rewardAmount <= 0) return
 
             const isPaid = t.stage === 'REWARD_PAID' || t.rewardStatus === 'PAID'
+            const isPendingPayout = !isPaid && (t.stage === 'REWARD_PENDING' || t.rewardStatus === 'PENDING')
             const isPayable =
               !isPaid &&
-              (t.rewardStatus === 'PARTNER_CONFIRMS_RECEIPT' ||
-                t.rewardStatus === 'APPROVED' ||
+              !isPendingPayout &&
+              (t.stage === 'SUCCESSFUL' ||
+                t.stage === 'REWARD_APPROVED' ||
                 t.stage === 'COMPLETED' ||
-                t.stage === 'REWARD_APPROVED')
+                t.rewardStatus === 'APPROVED' ||
+                t.rewardStatus === 'PARTNER_CONFIRMS_RECEIPT')
 
             if (isPaid) {
               const fee = Math.round(rewardAmount * feeRate)
@@ -131,7 +135,7 @@ export function EarningsPayoutsTab() {
 
               synthesizedPayouts.push({
                 id: `ticket_payout_${t.id}`,
-                reference: `PAY-${t.ticketReference || t.id.slice(0, 8)}`,
+                reference: t.payoutReference || `PAY-${t.ticketReference || t.id.slice(0, 8)}`,
                 date: new Date(t.stageUpdatedAt || t.updatedAt || t.createdAt).toLocaleDateString('en-GB', {
                   day: 'numeric',
                   month: 'short',
@@ -147,9 +151,44 @@ export function EarningsPayoutsTab() {
                 netPaidTZS: net,
                 status: 'COMPLETED',
               })
+            } else if (isPendingPayout) {
+              const fee = Math.round(rewardAmount * feeRate)
+              const tax = Math.round(rewardAmount * taxRate)
+              const net = Math.max(0, rewardAmount - fee - tax)
+
+              synthesizedPayouts.push({
+                id: `ticket_payout_pending_${t.id}`,
+                reference: t.payoutReference || `PAY-${t.ticketReference || t.id.slice(0, 8)}`,
+                date: new Date(t.stageUpdatedAt || t.updatedAt || t.createdAt).toLocaleDateString('en-GB', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                }),
+                payoutMethod: 'MOBILE MONEY',
+                accountNumberMasked: t.partnerPhoneMasked || t.partnerPhone || '—',
+                grossAmountTZS: rewardAmount,
+                platformFeeTZS: fee,
+                taxWithheldTZS: tax,
+                netPaidTZS: net,
+                status: 'PROCESSING',
+              })
+
+              mappedRewards.push({
+                id: t.id,
+                ticketReference: t.ticketReference,
+                opportunityTitle: t.dealTitle,
+                merchantName: t.merchantName || 'Lumo Commercial Partner',
+                category: 'Commercial Deal',
+                completionsCount: 1,
+                grossAmountTZS: rewardAmount,
+                status: 'PENDING',
+              })
             } else {
               mappedRewards.push({
                 id: t.id,
+                ticketReference: t.ticketReference,
                 opportunityTitle: t.dealTitle,
                 merchantName: t.merchantName || 'Lumo Commercial Partner',
                 category: 'Commercial Deal',
@@ -257,6 +296,8 @@ export function EarningsPayoutsTab() {
         'X-User-Phone': partnerPhone,
       },
       body: JSON.stringify({
+        ticketId: requestTargetReward?.id,
+        ticketReference: requestTargetReward?.ticketReference,
         amountTZS: requestAmount,
         payoutChannel,
         accountNumber: payoutPhone,
@@ -264,7 +305,9 @@ export function EarningsPayoutsTab() {
         partnerUserId: partnerId,
         partnerName,
         partnerPhone,
-        notes: requestTargetReward ? `Reward withdrawal for: ${requestTargetReward.opportunityTitle}` : 'Partner balance withdrawal',
+        notes: requestTargetReward
+          ? `Reward withdrawal for: ${requestTargetReward.opportunityTitle} (${requestTargetReward.ticketReference || ''})`
+          : 'Partner balance withdrawal',
       }),
     })
       .then((res) => (res.ok ? res.json() : null))
@@ -275,6 +318,7 @@ export function EarningsPayoutsTab() {
           if (typeof window !== 'undefined') {
             window.dispatchEvent(new Event('lumo:payouts-updated'))
           }
+          reloadPayoutData()
         }
       })
       .catch((err) => console.warn('Could not post payout to server:', err))
@@ -438,10 +482,17 @@ export function EarningsPayoutsTab() {
                 {payableRewards.map((p) => (
                   <tr key={p.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
                     <td className="py-4 px-5">
-                      <div className="font-bold text-slate-900 dark:text-white text-xs">
-                        {p.opportunityTitle}
+                      <div className="flex items-center gap-2">
+                        {p.ticketReference && (
+                          <span className="font-mono text-[10px] font-bold text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/60 border border-orange-200 dark:border-orange-800 px-1.5 py-0.5 rounded shrink-0">
+                            {p.ticketReference}
+                          </span>
+                        )}
+                        <span className="font-bold text-slate-900 dark:text-white text-xs">
+                          {p.opportunityTitle}
+                        </span>
                       </div>
-                      <div className="text-[10px] text-slate-400 font-mono">
+                      <div className="text-[10px] text-slate-400 font-mono mt-0.5">
                         Merchant: {p.merchantName} · {p.category}
                       </div>
                     </td>
@@ -567,6 +618,24 @@ export function EarningsPayoutsTab() {
               </button>
             </div>
 
+            {requestTargetReward && (
+              <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider">
+                    Target Deal Reward
+                  </span>
+                  {requestTargetReward.ticketReference && (
+                    <span className="font-mono text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/60 px-1.5 py-0.5 rounded">
+                      {requestTargetReward.ticketReference}
+                    </span>
+                  )}
+                </div>
+                <div className="text-xs font-bold text-slate-900 dark:text-white">
+                  {requestTargetReward.opportunityTitle}
+                </div>
+              </div>
+            )}
+
             <div className="space-y-3.5 text-xs">
               <div>
                 <label className="font-bold block text-slate-700 dark:text-slate-300 mb-1">
@@ -580,13 +649,15 @@ export function EarningsPayoutsTab() {
                   <option value="VODACOM_MPESA">Vodacom M-Pesa</option>
                   <option value="TIGO_PESA">Tigo Pesa</option>
                   <option value="AIRTEL_MONEY">Airtel Money</option>
+                  <option value="HALOPESA">Halopesa</option>
                   <option value="CRDB_BANK">CRDB Bank Account</option>
+                  <option value="NMB_BANK">NMB Bank Account</option>
                 </select>
               </div>
 
               <div>
                 <label className="font-bold block text-slate-700 dark:text-slate-300 mb-1">
-                  {payoutChannel === 'CRDB_BANK' ? 'Bank Account Number' : 'Recipient Mobile Phone Number'}
+                  {payoutChannel.includes('BANK') ? 'Bank Account Number' : 'Recipient Mobile Phone Number'}
                 </label>
                 <input
                   type="text"

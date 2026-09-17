@@ -93,6 +93,57 @@ export function LeadsReferralsTab({
   const [resubmitRelationship, setResubmitRelationship] = useState('')
   const [isResubmitting, setIsResubmitting] = useState(false)
 
+  // Deal Payout Request State
+  const [selectedCaseForPayout, setSelectedCaseForPayout] = useState<ReferralCase | null>(null)
+  const [payoutChannel, setPayoutChannel] = useState<'VODACOM_MPESA' | 'TIGO_PESA' | 'AIRTEL_MONEY' | 'HALOPESA' | 'CRDB_BANK' | 'NMB_BANK'>('VODACOM_MPESA')
+  const [payoutPhone, setPayoutPhone] = useState('')
+  const [isSubmittingPayout, setIsSubmittingPayout] = useState(false)
+
+  const handleExecutePayout = async () => {
+    if (!selectedCaseForPayout) return
+    if (!payoutPhone.trim()) {
+      showToast('error', 'Account Required', 'Please enter your mobile money number or bank account.')
+      return
+    }
+
+    setIsSubmittingPayout(true)
+    try {
+      const res = await fetch('/api/payouts/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          ticketId: selectedCaseForPayout.id,
+          ticketReference: selectedCaseForPayout.reference,
+          amountTZS: selectedCaseForPayout.rewardAmountTZS,
+          payoutChannel,
+          accountNumber: payoutPhone.trim(),
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to submit payout request')
+      }
+
+      showToast(
+        'success',
+        'Payout Request Submitted',
+        `Your payout request for ${selectedCaseForPayout.reference} has been submitted to LUMO Finance.`
+      )
+
+      setSelectedCaseForPayout(null)
+      reloadCases()
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('lumo:payouts-updated'))
+      }
+    } catch (err: any) {
+      showToast('error', 'Request Failed', err.message || 'Could not process payout request.')
+    } finally {
+      setIsSubmittingPayout(false)
+    }
+  }
+
   const reloadCases = useCallback(async () => {
     setLoading(true)
     try {
@@ -152,6 +203,8 @@ export function LeadsReferralsTab({
           rewardAmountTZS: t.rewardAmountTZS || 0,
           rewardDisplay: t.rewardDisplay || 'Commercial Reward Direct from Merchant',
           rewardStatus: (t.rewardStatus as DirectRewardStatus) || 'NOT_YET_EARNED',
+          payoutReference: t.payoutReference || undefined,
+          payoutId: t.payoutId || undefined,
           merchantPaymentReportedAt: t.merchantPaymentReportedAt || undefined,
           merchantPaymentReference: t.merchantPaymentReference || undefined,
           merchantPaymentNotes: t.merchantPaymentNotes || undefined,
@@ -558,6 +611,33 @@ export function LeadsReferralsTab({
                         </div>
                       )}
 
+                      {/* Action: Request Payout for Successful / Reward Approved deals */}
+                      {(caseItem.stage === 'SUCCESSFUL' || caseItem.stage === 'REWARD_APPROVED') && (
+                        <div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedCaseForPayout(caseItem)
+                              setPayoutPhone(caseItem.partnerPhone || '')
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[11px] shadow-xs cursor-pointer transition-all"
+                          >
+                            <Wallet className="w-3.5 h-3.5" />
+                            <span>Request Payout</span>
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Payout In Review Badge */}
+                      {caseItem.stage === 'REWARD_PENDING' && (
+                        <div>
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300 font-bold text-[10px]">
+                            <Clock className="w-3 h-3" />
+                            <span>Payout In Review</span>
+                          </span>
+                        </div>
+                      )}
+
                       {/* WhatsApp Follow-up */}
                       <div>
                         <a
@@ -665,6 +745,50 @@ export function LeadsReferralsTab({
                   {selectedCaseForProgress.rejectionReasonNotes ||
                     selectedCaseForProgress.partnerVisibleUpdate?.replace('Connection rejected: ', '') ||
                     'This connection did not meet verification criteria.'}
+                </p>
+              </div>
+            )}
+
+            {/* Successful Deal Celebration & Payout Request Card */}
+            {(selectedCaseForProgress.stage === 'SUCCESSFUL' || selectedCaseForProgress.stage === 'REWARD_APPROVED') && (
+              <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-400 dark:border-emerald-600 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-emerald-900 dark:text-emerald-200 font-bold text-xs">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>🎉 Deal Closed Successfully! Reward Available</span>
+                  </div>
+                  <span className="font-mono font-black text-emerald-700 dark:text-emerald-300 text-xs">
+                    TZS {selectedCaseForProgress.rewardAmountTZS.toLocaleString()}
+                  </span>
+                </div>
+                <p className="text-xs text-emerald-900 dark:text-emerald-100 font-medium leading-relaxed">
+                  Congratulations! This commercial introduction was successfully closed. Your reward has been approved and is available for payout withdrawal.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const c = selectedCaseForProgress
+                    setSelectedCaseForProgress(null)
+                    setSelectedCaseForPayout(c)
+                    setPayoutPhone(c.partnerPhone || '')
+                  }}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black cursor-pointer shadow-xs transition-all inline-flex items-center gap-1.5"
+                >
+                  <Wallet className="w-4 h-4" />
+                  <span>Request Payout Now</span>
+                </button>
+              </div>
+            )}
+
+            {/* Payout Request Under Review Card */}
+            {selectedCaseForProgress.stage === 'REWARD_PENDING' && (
+              <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 space-y-2">
+                <div className="flex items-center gap-2 text-amber-900 dark:text-amber-200 font-bold text-xs">
+                  <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>Payout Request Under Review</span>
+                </div>
+                <p className="text-xs text-amber-800 dark:text-amber-200">
+                  Your payout request of <strong>TZS {selectedCaseForProgress.rewardAmountTZS.toLocaleString()}</strong> has been submitted to the LUMO Finance Desk and is queued for verification and disbursal.
                 </p>
               </div>
             )}
@@ -1024,6 +1148,130 @@ export function LeadsReferralsTab({
                 className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
               >
                 {isResubmitting ? 'Submitting...' : 'Resubmit to LUMO'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PAYOUT REQUEST MODAL (Direct from My Connections) */}
+      {selectedCaseForPayout && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center font-bold">
+                  <Wallet className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900 dark:text-white">
+                    Request Deal Payout
+                  </h3>
+                  <p className="text-xs text-slate-500">Withdraw approved commercial reward.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedCaseForPayout(null)}
+                className="text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Target Deal Card */}
+            <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider">
+                  Target Deal
+                </span>
+                <span className="font-mono text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/60 px-1.5 py-0.5 rounded">
+                  {selectedCaseForPayout.reference}
+                </span>
+              </div>
+              <div className="text-xs font-bold text-slate-900 dark:text-white">
+                {selectedCaseForPayout.dealTitle}
+              </div>
+            </div>
+
+            <div className="space-y-3.5 text-xs">
+              <div>
+                <label className="font-bold block text-slate-700 dark:text-slate-300 mb-1">
+                  Payout Channel / Mobile Provider
+                </label>
+                <select
+                  value={payoutChannel}
+                  onChange={(e) => setPayoutChannel(e.target.value as any)}
+                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-medium text-slate-900 dark:text-white"
+                >
+                  <option value="VODACOM_MPESA">Vodacom M-Pesa</option>
+                  <option value="TIGO_PESA">Tigo Pesa</option>
+                  <option value="AIRTEL_MONEY">Airtel Money</option>
+                  <option value="HALOPESA">Halopesa</option>
+                  <option value="CRDB_BANK">CRDB Bank Account</option>
+                  <option value="NMB_BANK">NMB Bank Account</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="font-bold block text-slate-700 dark:text-slate-300 mb-1">
+                  {payoutChannel.includes('BANK') ? 'Bank Account Number' : 'Recipient Mobile Phone Number'}
+                </label>
+                <input
+                  type="text"
+                  value={payoutPhone}
+                  onChange={(e) => setPayoutPhone(e.target.value)}
+                  placeholder={payoutChannel.includes('BANK') ? 'e.g. 0150XXXXXXXX' : 'e.g. 07XXXXXXXX or +255XXXXXXXXX'}
+                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-mono font-bold text-slate-900 dark:text-white"
+                />
+              </div>
+
+              {/* Deductions Breakdown */}
+              <div className="p-3.5 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-1.5">
+                <div className="flex justify-between text-slate-500 dark:text-slate-400">
+                  <span>Gross Reward:</span>
+                  <span className="font-mono font-bold text-slate-900 dark:text-white">
+                    TZS {selectedCaseForPayout.rewardAmountTZS.toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex justify-between text-slate-400 text-[11px]">
+                  <span>3% LUMO Platform Fee:</span>
+                  <span className="font-mono">
+                    -TZS {Math.round(selectedCaseForPayout.rewardAmountTZS * 0.03).toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex justify-between text-slate-400 text-[11px]">
+                  <span>5% TRA Withholding Tax:</span>
+                  <span className="font-mono">
+                    -TZS {Math.round(selectedCaseForPayout.rewardAmountTZS * 0.05).toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex justify-between pt-1.5 border-t border-slate-200 dark:border-slate-700 text-sm font-black text-emerald-600 font-mono">
+                  <span>Net Expected Disbursement:</span>
+                  <span>
+                    TZS {Math.max(0, Math.round(selectedCaseForPayout.rewardAmountTZS * 0.92)).toLocaleString()}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-2 flex gap-2">
+              <button
+                type="button"
+                disabled={isSubmittingPayout}
+                onClick={() => setSelectedCaseForPayout(null)}
+                className="py-2.5 px-4 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer text-slate-700 dark:text-slate-300"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isSubmittingPayout || !payoutPhone.trim()}
+                onClick={handleExecutePayout}
+                className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-extrabold rounded-xl shadow-xs cursor-pointer flex items-center justify-center gap-1.5 transition-all"
+              >
+                <Wallet className="w-4 h-4" />
+                <span>{isSubmittingPayout ? 'Submitting...' : 'Confirm & Request Payout'}</span>
               </button>
             </div>
           </div>

@@ -218,6 +218,8 @@ export interface ReferralTicketDTO {
   closureReason?: ReferralClosureReason | string | null
   requestedInfoNotes?: string | null
   rejectionReasonNotes?: string | null
+  payoutId?: string | null
+  payoutReference?: string | null
   rewardAmountTZS?: number | null
   rewardDisplay?: string | null
   rewardStatus?: string | null
@@ -277,6 +279,8 @@ export interface ReferralCase {
   closureReason?: ReferralClosureReason | string
   requestedInfoNotes?: string
   rejectionReasonNotes?: string
+  payoutId?: string
+  payoutReference?: string
   rewardAmountTZS: number
   rewardDisplay: string
   rewardStatus: DirectRewardStatus

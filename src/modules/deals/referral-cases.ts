@@ -257,6 +257,8 @@ function mapPrismaTicketToDTO(raw: any): ReferralTicketDTO {
       (raw.stage === 'REJECTED' && raw.partnerVisibleUpdate?.startsWith('Connection rejected: ')
         ? raw.partnerVisibleUpdate.replace('Connection rejected: ', '').trim()
         : null),
+    payoutId: specMeta?.payoutId ?? null,
+    payoutReference: specMeta?.payoutReference ?? null,
     rewardAmountTZS: raw.rewardAmountTZS ? Number(raw.rewardAmountTZS) : null,
     rewardDisplay: raw.rewardDisplay ?? null,
     rewardStatus: raw.rewardStatus ?? 'NOT_YET_EARNED',
@@ -883,6 +885,8 @@ export async function updateReferralTicketStage(
     customerEmail?: string
     customerPhone?: string
     relationshipWithCustomer?: string
+    payoutId?: string
+    payoutReference?: string
   }
 ): Promise<boolean> {
   const stageUpdatedAt = new Date()
@@ -896,6 +900,8 @@ export async function updateReferralTicketStage(
       inferredRewardStatus = 'APPROVED'
     } else if (stage === 'REWARD_PENDING') {
       inferredRewardStatus = 'PENDING'
+    } else if (stage === 'SUCCESSFUL') {
+      inferredRewardStatus = 'APPROVED'
     } else if (stage === 'COMPLETED') {
       inferredRewardStatus = 'PARTNER_CONFIRMS_RECEIPT'
     }
@@ -903,7 +909,7 @@ export async function updateReferralTicketStage(
 
   let effectiveRewardAmount = 0
 
-  // Standardize notes and messages for info requests and rejections
+  // Standardize notes and messages for info requests, rejections, resubmission, and payout requests
   let effectivePartnerVisibleUpdate = details?.partnerVisibleUpdate
   let effectiveCoordinatorNotes = details?.coordinatorNotes
 
@@ -927,6 +933,17 @@ export async function updateReferralTicketStage(
     }
     if (!effectiveCoordinatorNotes) {
       effectiveCoordinatorNotes = `Partner provided requested information: "${details.partnerResubmissionNotes}". Ready for review.`
+    }
+  } else if (stage === 'REWARD_PENDING') {
+    if (!effectivePartnerVisibleUpdate) {
+      effectivePartnerVisibleUpdate = details?.payoutReference
+        ? `Payout request submitted (${details.payoutReference}). Awaiting LUMO Finance verification & disbursal.`
+        : `Payout request submitted. Awaiting LUMO Finance verification & disbursal.`
+    }
+    if (!effectiveCoordinatorNotes) {
+      effectiveCoordinatorNotes = details?.payoutReference
+        ? `Partner requested reward payout (${details.payoutReference}). Queued for disbursal.`
+        : `Partner requested reward payout. Queued for disbursal.`
     }
   }
 
@@ -1000,6 +1017,12 @@ export async function updateReferralTicketStage(
         if (details?.partnerResubmissionNotes !== undefined) {
           currentMeta.partnerResubmissionNotes = details.partnerResubmissionNotes
           currentMeta.requestedInfoNotes = null
+        }
+        if (details?.payoutId !== undefined) {
+          currentMeta.payoutId = details.payoutId
+        }
+        if (details?.payoutReference !== undefined) {
+          currentMeta.payoutReference = details.payoutReference
         }
         updatedSpecifications = JSON.stringify(currentMeta)
       } catch {}

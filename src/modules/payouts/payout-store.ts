@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import { randomUUID } from 'crypto'
 
 export interface PayoutRequestItem {
   id: string
@@ -51,7 +52,7 @@ export async function createPartnerPayoutRequest(params: {
   netAmountTZS: number
   notes?: string
 }): Promise<PayoutRequestItem> {
-  const id = `payout_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
+  const id = randomUUID()
   const reference = generatePayoutReference()
   const now = new Date().toISOString()
 
@@ -303,13 +304,39 @@ export async function updatePayoutStatus(params: {
       if (params.action === 'AUTHORIZE') {
         updateData.authorizedBy = params.adminActor
         updateData.authorizedAt = new Date()
-      } else if (params.action === 'DISBURSE' && params.disbursalReference) {
-        updateData.providerReference = params.disbursalReference
       }
       await db.payout.update({
         where: { id: params.payoutId },
         data: updateData,
       })
+
+      // If disbursed, advance any linked referral ticket to REWARD_PAID
+      if (params.action === 'DISBURSE') {
+        try {
+          const matchTicketRef = (target?.notes || params.notes || '').match(/(LUMO-CON-[A-Z0-9-]+|LUMO-REF-[A-Z0-9-]+|REF-[A-Z0-9-]+)/i)
+          const linkedTicket = await db.referralTicket.findFirst({
+            where: {
+              OR: [
+                { specifications: { contains: params.payoutId } },
+                ...(target?.reference ? [{ specifications: { contains: target.reference } }] : []),
+                ...(target?.reference ? [{ partnerVisibleUpdate: { contains: target.reference } }] : []),
+                ...(target?.reference ? [{ coordinatorNotes: { contains: target.reference } }] : []),
+                ...(matchTicketRef ? [{ ticketReference: matchTicketRef[1] }] : []),
+              ],
+            },
+          })
+          if (linkedTicket && linkedTicket.stage !== 'REWARD_PAID') {
+            const { updateReferralTicketStage } = await import('@/modules/deals/referral-cases')
+            await updateReferralTicketStage(linkedTicket.id, 'REWARD_PAID', {
+              rewardStatus: 'PAID',
+              partnerVisibleUpdate: `Reward payout disbursed! Ref: ${params.disbursalReference || target?.disbursalReference || 'DISBURSED'}. Funds sent to your account.`,
+              coordinatorNotes: `Admin ${params.adminActor} disbursed payout (${params.disbursalReference || 'DISBURSED'}). Stage updated to REWARD_PAID.`,
+            })
+          }
+        } catch (syncErr) {
+          console.warn('Could not auto-advance linked referral ticket on payout disbursal:', syncErr)
+        }
+      }
     } catch (err) {
       console.warn('Could not update DB payout record:', err)
     }
