@@ -19,6 +19,7 @@
       }
     ],
     "paths": {
+      "next-themes": ["./src/components/theme/ThemeProvider.tsx"],
       "@/*": ["./src/*", "./*"]
     }
   },

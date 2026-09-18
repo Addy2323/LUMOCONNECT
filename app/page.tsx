@@ -378,7 +378,9 @@ export default function LumoApp() {
     // Synchronize live database opportunities from PostgreSQL
     syncOpportunitiesFromServer().catch(() => {})
 
-    const handleUpdate = () => setDealsRevision((r) => r + 1)
+    const handleUpdate = () => {
+      setDealsRevision((r) => r + 1)
+    }
     const handleSavedUpdate = () => {
       if (typeof window !== 'undefined') {
         try {
@@ -387,16 +389,29 @@ export default function LumoApp() {
       }
     }
     window.addEventListener('lumo:deals-updated', handleUpdate)
+    window.addEventListener('lumo:deal-created', handleUpdate)
+    window.addEventListener('lumo:deal-status-changed', handleUpdate)
+    window.addEventListener('lumo:joined-deals-updated', handleUpdate)
     window.addEventListener('lumo:saved-deals-updated', handleSavedUpdate)
     window.addEventListener('lumo:subscription-updated', handleUpdate)
     window.addEventListener('storage', handleUpdate)
     return () => {
       window.removeEventListener('lumo:deals-updated', handleUpdate)
+      window.removeEventListener('lumo:deal-created', handleUpdate)
+      window.removeEventListener('lumo:deal-status-changed', handleUpdate)
+      window.removeEventListener('lumo:joined-deals-updated', handleUpdate)
       window.removeEventListener('lumo:saved-deals-updated', handleSavedUpdate)
       window.removeEventListener('lumo:subscription-updated', handleUpdate)
       window.removeEventListener('storage', handleUpdate)
     }
   }, [])
+
+  useEffect(() => {
+    if (activeView === 'marketplace_catalog' || activeView === 'marketplace') {
+      syncOpportunitiesFromServer().catch(() => {})
+      setDealsRevision((r) => r + 1)
+    }
+  }, [activeView])
 
   // Filtered Opportunities from domain service
   const allOpportunities = useMemo(() => listOpportunities(), [dealsRevision, activeView])
@@ -729,6 +744,7 @@ export default function LumoApp() {
           <MarketplaceCatalog
             footer={<Footer onNavigate={navigateToView} />}
             opportunities={opportunities}
+            allOpportunities={allOpportunities}
             query={searchQuery}
             onQueryChange={setSearchQuery}
             selectedCategory={selectedCategory}

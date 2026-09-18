@@ -8,7 +8,38 @@
  * or media controllers alter, wrap, or reparent React-managed DOM nodes.
  */
 
+if (typeof console !== 'undefined') {
+  const origConsoleError = console.error
+  console.error = (...args: unknown[]) => {
+    const msg = args.map((a) => (typeof a === 'string' ? a : (a as any)?.message || (a as any)?.stack || '')).join(' ')
+    if (
+      msg.includes('Encountered a script tag') ||
+      msg.includes('Scripts inside React components are never executed')
+    ) {
+      return
+    }
+    origConsoleError.apply(console, args)
+  }
+}
+
 if (typeof window !== 'undefined') {
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then((regs) => {
+        for (const reg of regs) {
+          reg.unregister()
+        }
+      }).catch(() => {})
+    }
+    if ('caches' in window) {
+      caches.keys().then((keys) => {
+        for (const key of keys) {
+          caches.delete(key)
+        }
+      }).catch(() => {})
+    }
+  }
+
   if (!(window as any).__LUMO_DOM_GUARD_INITIALIZED__) {
     ;(window as any).__LUMO_DOM_GUARD_INITIALIZED__ = true
 

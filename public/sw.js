@@ -8,7 +8,7 @@
  * - Navigation falls back to bilingual /offline.html on network failure.
  */
 
-const CACHE_VERSION = 'lumo-pwa-v1.0.1'
+const CACHE_VERSION = 'lumo-pwa-v1.0.2'
 const STATIC_CACHE_NAME = `lumo-static-${CACHE_VERSION}`
 
 // Core static assets to precache for offline shell
@@ -45,6 +45,10 @@ const SENSITIVE_URL_PATTERNS = [
 
 // Install event: Precache core assets
 self.addEventListener('install', (event) => {
+  if (self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1') {
+    self.skipWaiting()
+    return
+  }
   event.waitUntil(
     caches.open(STATIC_CACHE_NAME).then((cache) => {
       // Precache critical shell assets
@@ -57,6 +61,22 @@ self.addEventListener('install', (event) => {
 
 // Activate event: Clean up obsolete caches
 self.addEventListener('activate', (event) => {
+  if (self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1') {
+    event.waitUntil(
+      caches.keys()
+        .then((cacheNames) => Promise.all(cacheNames.map((c) => caches.delete(c))))
+        .then(() => self.registration.unregister())
+        .then(() => self.clients.claim())
+        .then(() => self.clients.matchAll({ type: 'window' }))
+        .then((clients) => {
+          for (const client of clients) {
+            client.navigate(client.url)
+          }
+        })
+    )
+    return
+  }
+
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
@@ -95,6 +115,22 @@ function isSensitiveRequest(request) {
   // Any RSC (React Server Components) payload or Next.js server action/data request
   if (url.includes('_rsc=') || request.headers.get('RSC') === '1' || request.headers.get('Next-Router-State-Tree')) {
     return true
+  }
+
+  // Development, HMR, and Turbopack chunks must never be cached to prevent stale module factory mismatches
+  if (
+    url.includes('turbopack') ||
+    url.includes('hot-update') ||
+    url.includes('/_next/static/development/') ||
+    url.includes('/_next/static/webpack/')
+  ) {
+    return true
+  }
+
+  if (self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1') {
+    if (url.includes('/_next/static/')) {
+      return true
+    }
   }
 
   // Check explicit sensitive patterns

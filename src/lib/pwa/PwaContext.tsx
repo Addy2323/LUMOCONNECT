@@ -120,9 +120,10 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  // Service Worker Registration and Update Detection
+  // Service Worker Registration and Update Detection (Production only)
   useEffect(() => {
     if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') return
 
     navigator.serviceWorker
       .register('/sw.js')

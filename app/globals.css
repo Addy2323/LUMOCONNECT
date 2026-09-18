@@ -445,6 +445,11 @@ html, body {
   overflow-y: auto;
   overscroll-behavior-y: contain;
   scrollbar-gutter: stable;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
   padding: 24px 16px 32px;
 }
 
@@ -496,3 +501,6 @@ html, body {
   }
 }
 
+.font-script {
+  font-family: 'Caveat', 'Dancing Script', cursive, sans-serif;
+}

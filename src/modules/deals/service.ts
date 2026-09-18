@@ -17,6 +17,10 @@ const RETIRED_BUNDLED_OPPORTUNITY_IDS = new Set([
   'opp_safari_tourism_05',
   'opp_afyabora_health_06',
   'opp_emobility_boda_07',
+  'opp_cargo_inspection_swiss_01',
+  'opp_cement_dar_500_bags_02',
+  'opp_housing_jv_dar_03',
+  'opp_residential_housing_dar_03',
 ])
 
 // Load from localStorage in browser environment
@@ -24,14 +28,23 @@ function loadFromStorage() {
   if (typeof window !== 'undefined') {
     try {
       const stored = localStorage.getItem('lumo_deals')
-      if (stored) {
+      if (stored !== null) {
         const parsed = JSON.parse(stored)
         if (Array.isArray(parsed)) {
-          const activeStored = parsed.filter(
-            (item: OpportunityItem) => !RETIRED_BUNDLED_OPPORTUNITY_IDS.has(item.id)
-          )
-          // Purge retired samples from existing browsers; never replenish listings.
-          if (activeStored.length !== parsed.length) localStorage.setItem('lumo_deals', JSON.stringify(activeStored))
+          const seenIds = new Set<string>()
+          const activeStored: OpportunityItem[] = []
+          for (const item of parsed) {
+            if (!item || !item.id) continue
+            if (RETIRED_BUNDLED_OPPORTUNITY_IDS.has(item.id)) continue
+            if (seenIds.has(item.id)) continue
+            seenIds.add(item.id)
+            activeStored.push(item)
+          }
+
+          // Purge retired samples and deduplicate in storage if duplicates or retired items were found
+          if (activeStored.length !== parsed.length) {
+            localStorage.setItem('lumo_deals', JSON.stringify(activeStored))
+          }
           inMemoryOpportunities = activeStored.map((item) => ({
             ...item,
             createdAt: new Date(item.createdAt),
@@ -44,6 +57,10 @@ function loadFromStorage() {
           }))
           return
         }
+      } else {
+        // Zero demo or hardcoded products: start clean and synchronize genuine database records
+        inMemoryOpportunities = []
+        return
       }
     } catch (e) {
       console.warn('Could not load deals from localStorage', e)
@@ -54,6 +71,15 @@ function loadFromStorage() {
 function syncToStorage() {
   if (typeof window !== 'undefined') {
     try {
+      const seenIds = new Set<string>()
+      const uniqueItems: OpportunityItem[] = []
+      for (const item of inMemoryOpportunities) {
+        if (!item || !item.id || seenIds.has(item.id)) continue
+        seenIds.add(item.id)
+        uniqueItems.push(item)
+      }
+      inMemoryOpportunities = uniqueItems
+
       const serialized = inMemoryOpportunities.map((item) => ({
         ...item,
         totalBudgetTZS: item.totalBudgetTZS ? item.totalBudgetTZS.toString() : undefined,
@@ -188,7 +214,12 @@ export function listOpportunities(filters?: OpportunityFilterParams): Opportunit
     items.sort((a, b) => (a.expiryDate?.getTime() ?? Number.MAX_SAFE_INTEGER) - (b.expiryDate?.getTime() ?? Number.MAX_SAFE_INTEGER))
   }
 
-  return items
+  const seenIds = new Set<string>()
+  return items.filter((item) => {
+    if (!item?.id || seenIds.has(item.id)) return false
+    seenIds.add(item.id)
+    return true
+  })
 }
 
 export function getOpportunityById(id: string): OpportunityItem | null {
@@ -647,7 +678,28 @@ export function updateDealStatus(
 export const createOpportunity = createDealOpportunity
 
 export function setOpportunitiesInStore(items: OpportunityItem[]): void {
-  inMemoryOpportunities = items.map((item) => ({
+  const byId = new Map<string, OpportunityItem>()
+  const slugToId = new Map<string, string>()
+
+  // Keep whatever is currently in memory (local updates, created deals, enrollment counts)
+  for (const item of inMemoryOpportunities) {
+    if (!item || !item.id) continue
+    byId.set(item.id, item)
+    if (item.slug) slugToId.set(item.slug, item.id)
+  }
+
+  // Incorporate server items
+  for (const item of items) {
+    if (!item || !item.id) continue
+    const matchedId = byId.has(item.id) ? item.id : (item.slug ? slugToId.get(item.slug) : undefined)
+    const existing = matchedId ? byId.get(matchedId) : undefined
+    const merged = existing ? { ...existing, ...item, id: existing.id } : item
+
+    byId.set(merged.id, merged)
+    if (merged.slug) slugToId.set(merged.slug, merged.id)
+  }
+
+  inMemoryOpportunities = Array.from(byId.values()).map((item) => ({
     ...item,
     createdAt: new Date(item.createdAt),
     completedAt: item.completedAt ? new Date(item.completedAt) : undefined,
