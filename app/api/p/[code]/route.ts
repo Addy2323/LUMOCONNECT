@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { resolvePromoCode } from '@/modules/promotional-toolkit/public-allowlist'
+import { resolvePromoCodeAsync } from '@/modules/promotional-toolkit/public-allowlist'
 import { recordPromoInteraction } from '@/modules/promotional-toolkit/analytics'
 
 export async function GET(
@@ -13,7 +13,8 @@ export async function GET(
     return NextResponse.json({ success: false, message: 'Code parameter is required.' }, { status: 400 })
   }
 
-  const resolution = resolvePromoCode(code)
+  const search = new URL(request.url).searchParams
+  const resolution = await resolvePromoCodeAsync(code, search.get('ref') || search.get('partner') || undefined)
 
   if (!resolution.isValid || !resolution.dealData) {
     return NextResponse.json(

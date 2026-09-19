@@ -1,96 +1,56 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { listAllPayoutRequests, updatePayoutStatus } from '@/modules/payouts/payout-store'
 import { getDatabaseSession, DATABASE_SESSION_COOKIE } from '@/lib/database-session'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const payouts = await db.payout.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 50,
-      include: {
-        partnerUser: true,
-        payoutMethod: true,
-      },
-    })
+    const { searchParams } = new URL(request.url)
+    const q = searchParams.get('q') || undefined
+    const status = searchParams.get('status') || undefined
 
-    const formattedBatches = payouts.map((p) => {
-      const grossTZS = Number(p.grossAmountMinor / 100n)
-      const taxTZS = Number(p.taxWithheldMinor / 100n)
-      const netTZS = Number(p.netAmountMinor / 100n)
-
-      return {
-        id: p.id,
-        reference: p.providerReference || p.id.slice(0, 8),
-        itemCount: 1,
-        grossAmountTZS: grossTZS,
-        taxWithheldTZS: taxTZS,
-        netAmountTZS: netTZS,
-        status: p.status,
-        createdAt: p.createdAt.toISOString().slice(0, 10),
-        payouts: [
-          {
-            id: p.id,
-            recipientName: p.partnerUser?.name || 'Partner',
-            phone: p.partnerUser?.phone || '—',
-            netAmountTZS: netTZS,
-            status: p.status,
-          },
-        ],
-      }
-    })
-
-    return NextResponse.json({ batches: formattedBatches })
+    const payouts = await listAllPayoutRequests(q, status)
+    return NextResponse.json({ success: true, payouts, total: payouts.length })
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error('Admin list payouts error:', error)
+    return NextResponse.json({ success: false, error: error.message || 'Server error' }, { status: 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
     const session = await getDatabaseSession(request.cookies.get(DATABASE_SESSION_COOKIE)?.value)
-    const actorId = session?.userId || 'usr_root_admin'
+    const actorName = session?.user?.name || request.headers.get('X-User-Name') || 'Finance Administrator'
 
     const body = await request.json().catch(() => ({}))
-    const { batchId, action } = body // action = 'AUTHORIZE' | 'REJECT'
-    const payoutId = batchId
+    const { payoutId, action, disbursalReference, rejectionReason, notes } = body
 
-    if (!payoutId || !['AUTHORIZE', 'REJECT'].includes(action)) {
-      return NextResponse.json({ message: 'Missing payoutId or invalid action.' }, { status: 400 })
+    if (!payoutId || !['AUTHORIZE', 'DISBURSE', 'REJECT'].includes(action)) {
+      return NextResponse.json(
+        { success: false, error: 'Missing payoutId or invalid action. Must be AUTHORIZE, DISBURSE, or REJECT.' },
+        { status: 400 }
+      )
     }
 
-    const payout = await db.payout.findUnique({
-      where: { id: payoutId },
+    const updated = await updatePayoutStatus({
+      payoutId,
+      action,
+      adminActor: actorName,
+      disbursalReference,
+      rejectionReason,
+      notes,
     })
 
-    if (!payout) {
-      return NextResponse.json({ message: 'Payout not found.' }, { status: 404 })
+    if (!updated) {
+      return NextResponse.json({ success: false, error: 'Payout request not found.' }, { status: 404 })
     }
 
-    const updated = await db.$transaction(async (tx) => {
-      const b = await tx.payout.update({
-        where: { id: payoutId },
-        data: {
-          status: action === 'AUTHORIZE' ? 'AUTHORIZED' : 'REVERSED',
-          authorizedAt: action === 'AUTHORIZE' ? new Date() : null,
-          authorizedBy: actorId,
-        },
-      })
-
-      await tx.auditLog.create({
-        data: {
-          actorUserId: actorId,
-          action: action === 'AUTHORIZE' ? 'ADMIN_PAYOUT_AUTHORIZED' : 'ADMIN_PAYOUT_REJECTED',
-          entityType: 'PAYOUT',
-          entityId: payoutId,
-          afterData: { action, status: b.status },
-        },
-      })
-
-      return b
+    return NextResponse.json({
+      success: true,
+      message: `Payout ${updated.reference} updated to ${updated.status}.`,
+      payout: updated,
     })
-
-    return NextResponse.json({ success: true, batch: updated })
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error('Admin payout action error:', error)
+    return NextResponse.json({ success: false, error: error.message || 'Server error' }, { status: 500 })
   }
 }

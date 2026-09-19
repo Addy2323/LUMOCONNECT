@@ -1,3 +1,5 @@
+import type { SubscriptionStatus } from '@/modules/subscriptions/types'
+
 export type PartnerSidebarSection =
   // Workspace
   | 'overview'
@@ -39,6 +41,10 @@ export interface PartnerOpportunitySummary {
   type: PartnerOpportunityType
   rewardDisplay: string
   rewardValueTZS: number
+  principalPriceDisplay?: string
+  commercialValue?: string
+  originalDealValue?: number
+  originalCurrency?: string
   activePartnersCount: number
   closingDate: string
   isSaved?: boolean
@@ -69,6 +75,7 @@ export type JoinedDealStatus =
 export interface JoinedDealItem {
   id: string
   opportunityId: string
+  slug?: string
   title: string
   businessName: string
   category: string
@@ -90,6 +97,10 @@ export interface JoinedDealItem {
   rejectionReason?: string
   coverImageUrl?: string
   promoVideoUrl?: string
+  latestReferralStage?: string
+  latestReferralTicketRef?: string
+  latestReferralCustomerName?: string
+  latestReferralDate?: string
 }
 
 export type LeadLifecycleStatus =
@@ -195,13 +206,16 @@ export interface PartnerPayoutMethod {
 
 export interface PartnerSubscriptionPlan {
   planName: string // e.g. "Semi-Annual Access Pass"
-  status: 'ACTIVE' | 'GRACE_PERIOD' | 'EXPIRED'
+  status: SubscriptionStatus | 'GRACE_PERIOD'
   daysRemaining: number
   priceTZS: number
-  cycle: 'MONTHLY' | 'SEMI_ANNUAL'
+  cycle: 'MONTHLY' | 'SEMI_ANNUAL' | 'ANNUAL' | 'ENTERPRISE'
   expiryDate: string
   autoRenew: boolean
+  startedAtISO?: string
   expiresAtISO?: string
+  serverTimeISO?: string
+  remainingMilliseconds?: number
 }
 
 export interface PartnerKYCProfile {

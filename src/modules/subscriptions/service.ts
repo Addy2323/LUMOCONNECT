@@ -7,8 +7,6 @@ import type {
   SubscriptionCheckoutResult,
   SubscriptionPlanCode,
 } from './types'
-import { SnippePaymentAdapter } from '@/lib/providers/snippe'
-import { MongikePaymentAdapter } from '@/lib/providers/mongike'
 
 export const DEFAULT_SUBSCRIPTION_PLANS: SubscriptionPlanItem[] = [
   {
@@ -241,17 +239,9 @@ export function getSubscriptionPlanByCode(code: SubscriptionPlanCode): Subscript
 }
 
 export function getUserSubscription(userId: string): UserSubscriptionItem | null {
+  if (!userId) return null
   loadSubscriptionsFromStorage()
-  let sub = inMemorySubscriptions.get(userId)
-  
-  // Cross-user fallback check for session consistency
-  if (!sub && typeof window !== 'undefined') {
-    const allSubs = Array.from(inMemorySubscriptions.values())
-    const activeOne = allSubs.find((s) => s.status === 'ACTIVE' && new Date(s.expiresAt) > new Date())
-    if (activeOne) {
-      sub = activeOne
-    }
-  }
+  const sub = inMemorySubscriptions.get(userId)
 
   if (!sub) return null
 
@@ -314,32 +304,92 @@ export function cancelSubscriptionRenewal(userId: string): {
   }
 }
 
+/**
+ * Calculates accurate calendar-aware subscription expiry.
+ * Handles month-end date overflows (e.g., Jan 31 + 1 month = Feb 28/29).
+ */
+export function calculateSubscriptionExpiry(
+  startDate: Date,
+  planCode: SubscriptionPlanCode
+): Date {
+  const result = new Date(startDate.getTime())
+
+  if (planCode === 'MONTHLY' || planCode === 'GOLDEN_VIP') {
+    const originalDay = result.getDate()
+    result.setMonth(result.getMonth() + 1)
+    // If date rolled over past the end of the month (e.g. 31 Jan -> March 2/3), cap to last day of target month
+    if (result.getDate() < originalDay) {
+      result.setDate(0)
+    }
+  } else if (planCode === 'SEMI_ANNUAL') {
+    const originalDay = result.getDate()
+    result.setMonth(result.getMonth() + 6)
+    if (result.getDate() < originalDay) {
+      result.setDate(0)
+    }
+  } else if (planCode === 'ANNUAL' || planCode === 'ENTERPRISE') {
+    const originalDay = result.getDate()
+    result.setFullYear(result.getFullYear() + 1)
+    if (result.getDate() < originalDay) {
+      result.setDate(0)
+    }
+  } else {
+    // Default 30 days
+    result.setDate(result.getDate() + 30)
+  }
+
+  return result
+}
+
 export function grantUserSubscription(
   userId: string,
   planCode: SubscriptionPlanCode,
-  days = 30,
+  days?: number,
   amountPaidTZS = 0
 ): UserSubscriptionItem {
   const plan = getSubscriptionPlanByCode(planCode)
-  const startsAt = new Date()
-  const expiresAt = new Date()
-  expiresAt.setDate(expiresAt.getDate() + days)
+  const now = new Date()
+  const existing = getUserSubscription(userId)
+
+  // If user already has an active subscription, extend from existing expiry date
+  let startsAt = now
+  let expiresAt: Date
+
+  if (days !== undefined) {
+    if (existing && existing.isActive && new Date(existing.expiresAt) > now && days > 0) {
+      expiresAt = new Date(new Date(existing.expiresAt).getTime() + days * 24 * 60 * 60 * 1000)
+      startsAt = new Date(existing.startsAt)
+    } else {
+      expiresAt = new Date(now.getTime() + days * 24 * 60 * 60 * 1000)
+    }
+  } else {
+    if (existing && existing.isActive && new Date(existing.expiresAt) > now) {
+      expiresAt = calculateSubscriptionExpiry(new Date(existing.expiresAt), planCode)
+      startsAt = new Date(existing.startsAt)
+    } else {
+      expiresAt = calculateSubscriptionExpiry(now, planCode)
+    }
+  }
+
+  const isTimeValid = startsAt <= now && expiresAt > now
+  const diffMs = Math.max(0, expiresAt.getTime() - now.getTime())
+  const computedDaysRemaining = isTimeValid ? Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24))) : 0
   const isVip = planCode === 'GOLDEN_VIP' || planCode === 'ANNUAL' || planCode === 'ENTERPRISE'
 
   const sub: UserSubscriptionItem = {
     id: `sub_admin_${Date.now()}_${userId}`,
     userId,
     planCode,
-    planName: plan?.name || 'Custom Plan',
-    status: 'ACTIVE',
+    planName: plan?.name || 'Standard Plan',
+    status: isTimeValid ? 'ACTIVE' : 'EXPIRED',
     startsAt,
     expiresAt,
-    daysRemaining: days,
-    isActive: true,
+    daysRemaining: computedDaysRemaining,
+    isActive: isTimeValid,
     autoRenew: true,
     amountPaidTZS: amountPaidTZS || plan?.priceTZS || 0,
     isGoldenVip: isVip,
-    hasGoldenVipAccess: isVip,
+    hasGoldenVipAccess: Boolean(isVip && isTimeValid),
   }
 
   inMemorySubscriptions.set(userId, sub)
@@ -379,17 +429,8 @@ export async function createSubscriptionCheckout(
       ? 'HALOPESA'
       : 'MPESA'
 
-  const snippe = new SnippePaymentAdapter()
-  const initResult = await snippe.initiatePayment({
-    orderId: paymentAttemptId,
-    idempotencyKey: `idemp_${paymentAttemptId}`.slice(0, 30),
-    amountMinorUnits: BigInt(amountTZS * 100),
-    currency: 'TZS',
-    paymentMethod: mappedPaymentMethod as any,
-    customerPhone: req.phoneNumber,
-    customerEmail: `${req.userId}@lumo.co.tz`,
-    callbackUrl: 'https://lumo.co.tz/api/webhooks/snippe',
-  })
+  // In-memory simulation / test checkout helper: Never calls external payment gateways or Snippe network
+  const providerRef = `sub_mock_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
 
   // Calculate durations on server
   const startsAt = new Date()
@@ -433,9 +474,9 @@ export async function createSubscriptionCheckout(
     success: true,
     subscriptionId,
     paymentAttemptId,
-    providerRef: (initResult as any).providerRef || (initResult as any).providerReference || 'MPESA-DEMO',
+    providerRef,
     status: 'ACTIVE',
-    instructions: initResult.instructions || 'Check your mobile device for the M-Pesa PIN prompt.',
+    instructions: 'Subscription activated via local in-memory simulation.',
     amountTZS,
     planName: plan.name,
     expiresAt,

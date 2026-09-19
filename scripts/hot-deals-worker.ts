@@ -1,6 +1,7 @@
 import { runReleasePrivateDealsJob, runExpireSubscriptionsJob, runRewardValidationJob, runNotificationJob } from '../src/modules/jobs'
 import { processHotDeals, deliverHotDealNotifications } from '../src/modules/hot-deals/worker'
 import { db } from '../src/lib/db'
+import { cleanupDeletedMerchantFiles } from '../src/modules/identity/merchant-file-cleanup'
 
 let stopped = false
 process.on('SIGTERM', () => { stopped = true })
@@ -20,6 +21,7 @@ async function main() {
 
       // Run subscription sweeps and reward validation every 30 iterations (~30s)
       if (iteration % 30 === 0) {
+        await cleanupDeletedMerchantFiles()
         await runExpireSubscriptionsJob()
         await runRewardValidationJob()
       }

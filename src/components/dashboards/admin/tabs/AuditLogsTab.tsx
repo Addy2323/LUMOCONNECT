@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import {
   FileText,
   Search,
@@ -14,29 +14,19 @@ import {
   X,
   ShieldCheck,
 } from 'lucide-react'
-import { MOCK_AUDIT_LOGS } from '../mockData'
+import { useAdminResource } from '../useAdminResource'
+import { ResourceStatus } from '../ResourceStatus'
+import { downloadRecords } from '@/lib/download-records'
 import { AuditLogEntry } from '../types'
-import { useAdminToast } from '../AdminToast'
 
 export function AuditLogsTab() {
-  const { showToast } = useAdminToast()
 
-  const [logs, setLogs] = useState<AuditLogEntry[]>(MOCK_AUDIT_LOGS)
+  const resource = useAdminResource<{ auditLogs: AuditLogEntry[] }>('/api/admin/logs?limit=1000')
+  const logs = resource.data?.auditLogs ?? []
   const [searchQuery, setSearchQuery] = useState('')
   const [moduleFilter, setModuleFilter] = useState('ALL')
   const [selectedLog, setSelectedLog] = useState<AuditLogEntry | null>(null)
   const [showExportModal, setShowExportModal] = useState(false)
-
-  useEffect(() => {
-    fetch('/api/admin/overview')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.auditLogs && data.auditLogs.length > 0) {
-          setLogs(data.auditLogs)
-        }
-      })
-      .catch((err) => console.warn('Failed to load audit logs:', err))
-  }, [])
 
   const filtered = logs.filter((l) => {
     const matchesSearch =
@@ -48,19 +38,22 @@ export function AuditLogsTab() {
     return matchesSearch && matchesModule
   })
 
+  if (!resource.data) return <ResourceStatus {...resource} />
+
   return (
     <div className="space-y-5 bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-4 sm:p-6 shadow-xs">
+      <ResourceStatus {...resource} />
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
         <div>
           <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <span>Immutable Platform Audit Logs</span>
+            <span>Platform Audit Logs</span>
             <span className="text-[10px] bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-extrabold px-2 py-0.5 rounded-full">
               100% Read-Only
             </span>
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Tamper-evident, cryptographically chained logs of all sensitive administrative and financial actions.
+            Recorded administrative actions with stored before and after values. Shows up to 1,000 recent records.
           </p>
         </div>
 
@@ -77,8 +70,7 @@ export function AuditLogsTab() {
       <div className="p-3.5 rounded-2xl bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-900 text-xs text-purple-900 dark:text-purple-200 flex items-center gap-2.5">
         <Lock className="w-4 h-4 text-purple-600 shrink-0" />
         <span>
-          <strong>Zero Edit/Delete Policy:</strong> No administrator—including Super Admin or Database Root—can modify or delete records from this ledger. Every entry is signed with a SHA-256 state hash.
-        </span>
+          <strong>Read-only view:</strong> This screen cannot edit or delete audit records. Cryptographic signatures are not recorded by the current audit store.</span>
       </div>
 
       {/* Filter Bar */}
@@ -120,11 +112,12 @@ export function AuditLogsTab() {
               <th className="p-3">Action Executed</th>
               <th className="p-3">Target Resource</th>
               <th className="p-3">IP & Client</th>
-              <th className="p-3">SHA-256 Hash</th>
+              <th className="p-3">Signature</th>
               <th className="p-3 text-right">Inspect</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
+            {!resource.loading && !resource.error && filtered.length === 0 && <tr><td colSpan={7} className="p-6 text-center text-slate-500">No audit records match these filters.</td></tr>}
             {filtered.map((log) => (
               <tr key={log.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
                 <td className="p-3 font-mono text-[11px] text-slate-500">
@@ -151,7 +144,7 @@ export function AuditLogsTab() {
                 </td>
 
                 <td className="p-3 font-mono text-[10px] text-slate-400">
-                  {log.hashSignature.slice(0, 12)}...
+                  {log.hashSignature}
                 </td>
 
                 <td className="p-3 text-right">
@@ -177,7 +170,7 @@ export function AuditLogsTab() {
               <div className="flex items-center gap-2">
                 <ShieldCheck className="w-5 h-5 text-purple-600" />
                 <h3 className="text-base font-black text-slate-900 dark:text-white">
-                  Export Cryptographic Audit Package
+                  Export Audit Records
                 </h3>
               </div>
               <button onClick={() => setShowExportModal(false)} className="p-1 text-slate-400">
@@ -187,14 +180,14 @@ export function AuditLogsTab() {
 
             <div className="space-y-3 text-xs">
               <p className="text-slate-500">
-                Generates a cryptographically signed JSON/CSV package containing before/after state diffs and SHA-256 verification hashes for compliance auditors.
+                Download the currently filtered records, including stored before and after values, as JSON.
               </p>
 
               <div>
                 <label className="font-bold block mb-1">Export Format</label>
                 <select className="w-full p-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800">
-                  <option>JSON Bundle with Cryptographic Manifest (Recommended)</option>
-                  <option>CSV Formatted Audit Trail</option>
+                  <option>JSON records</option>
+
                 </select>
               </div>
             </div>
@@ -203,7 +196,7 @@ export function AuditLogsTab() {
               <button
                 onClick={() => {
                   setShowExportModal(false)
-                  showToast('success', 'Audit Package Exported', 'Cryptographically verified audit trail package downloaded.')
+                  downloadRecords('lumo-audit-records.json', filtered)
                 }}
                 className="py-2 px-4 bg-purple-600 text-white font-extrabold rounded-xl text-xs flex items-center gap-1.5"
               >

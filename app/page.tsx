@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useMemo, useEffect } from 'react'
-import { listOpportunities, getProtectedOpportunityDetails, isUserEnrolledInDeal } from '@/modules/deals/service'
+import { listOpportunities, syncOpportunitiesFromServer, getProtectedOpportunityDetails, isUserEnrolledInDeal } from '@/modules/deals/service'
 import type { OpportunityItem } from '@/modules/deals/types'
 import type { ProtectedDealDetails } from '@/modules/deals/service'
 import { requireActiveDealSubscription } from '@/modules/subscriptions/authorization'
@@ -19,6 +19,7 @@ import { BusinessPublishNoticeModal } from '@/components/marketplace/BusinessPub
 import { ProtectedDealDetailsModal } from '@/components/marketplace/ProtectedDealDetailsModal'
 import { WhatsAppMiddlemanModal } from '@/components/marketplace/WhatsAppMiddlemanModal'
 import { SubscriptionsView } from '@/components/subscriptions/SubscriptionsView'
+import { InternationalLandingView } from '@/components/international/InternationalLandingView'
 import { PartnerDashboardView } from '@/components/dashboards/PartnerDashboardView'
 import { BusinessDashboardView } from '@/components/dashboards/BusinessDashboardView'
 import { AdminDashboardView } from '@/components/dashboards/AdminDashboardView'
@@ -71,6 +72,7 @@ const INITIAL_WORKSPACES: UserWorkspaceInfo[] = [
 const ROUTE_MAP: Record<string, string> = {
   marketplace: '/',
   marketplace_catalog: '/catalog',
+  international: '/international',
   subscriptions: '/subscriptions',
   partner: '/partner',
   business: '/business',
@@ -373,7 +375,12 @@ export default function LumoApp() {
       }
     } catch (e) {}
 
-    const handleUpdate = () => setDealsRevision((r) => r + 1)
+    // Synchronize live database opportunities from PostgreSQL
+    syncOpportunitiesFromServer().catch(() => {})
+
+    const handleUpdate = () => {
+      setDealsRevision((r) => r + 1)
+    }
     const handleSavedUpdate = () => {
       if (typeof window !== 'undefined') {
         try {
@@ -382,16 +389,29 @@ export default function LumoApp() {
       }
     }
     window.addEventListener('lumo:deals-updated', handleUpdate)
+    window.addEventListener('lumo:deal-created', handleUpdate)
+    window.addEventListener('lumo:deal-status-changed', handleUpdate)
+    window.addEventListener('lumo:joined-deals-updated', handleUpdate)
     window.addEventListener('lumo:saved-deals-updated', handleSavedUpdate)
     window.addEventListener('lumo:subscription-updated', handleUpdate)
     window.addEventListener('storage', handleUpdate)
     return () => {
       window.removeEventListener('lumo:deals-updated', handleUpdate)
+      window.removeEventListener('lumo:deal-created', handleUpdate)
+      window.removeEventListener('lumo:deal-status-changed', handleUpdate)
+      window.removeEventListener('lumo:joined-deals-updated', handleUpdate)
       window.removeEventListener('lumo:saved-deals-updated', handleSavedUpdate)
       window.removeEventListener('lumo:subscription-updated', handleUpdate)
       window.removeEventListener('storage', handleUpdate)
     }
   }, [])
+
+  useEffect(() => {
+    if (activeView === 'marketplace_catalog' || activeView === 'marketplace') {
+      syncOpportunitiesFromServer().catch(() => {})
+      setDealsRevision((r) => r + 1)
+    }
+  }, [activeView])
 
   // Filtered Opportunities from domain service
   const allOpportunities = useMemo(() => listOpportunities(), [dealsRevision, activeView])
@@ -508,12 +528,21 @@ export default function LumoApp() {
     setActiveWorkspace(INITIAL_WORKSPACES[0])
     setIsAdminModeActive(false)
     if (typeof window !== 'undefined') {
-      sessionStorage.removeItem('lumo_reg_pwd')
+      sessionStorage.clear()
       try {
         localStorage.removeItem('lumo_auth_session')
         localStorage.removeItem('lumo_active_workspace')
         localStorage.removeItem('lumo_available_workspaces')
         localStorage.removeItem('lumo_user_session')
+        localStorage.removeItem('lumo_partner_joined_deals')
+        localStorage.removeItem('lumo_user_subscriptions')
+        localStorage.removeItem('lumo_saved_deals')
+        // Clean up any email-specific locked profile photos
+        Object.keys(localStorage).forEach((key) => {
+          if (key.startsWith('lumo_locked_profile_photo') || key.startsWith('lumo_partner_')) {
+            localStorage.removeItem(key)
+          }
+        })
       } catch (e) {}
       window.history.pushState({}, '', '/')
     }
@@ -648,7 +677,7 @@ export default function LumoApp() {
   }
 
   return (
-    <div id="lumo-localized-app" className={`${isAuthView ? 'auth-page-root' : ''} min-h-screen flex flex-col bg-[#F8FAFC] dark:bg-[#0B1220] text-[#0F172A] dark:text-slate-100 transition-colors`}>
+    <div id="lumo-localized-app" className={`${isAuthView ? 'auth-page-root' : ''} ${activeView === 'marketplace_catalog' ? 'marketplace-page-root' : ''} min-h-screen flex flex-col bg-[#F8FAFC] dark:bg-[#0B1220] text-[#0F172A] dark:text-slate-100 transition-colors`}>
       <NavigationLoader key={activeView} />
       <LanguageSwitch />
       {/* Persistent Admin Mode Security Warning Banner */}
@@ -713,7 +742,9 @@ export default function LumoApp() {
         {/* DEDICATED MARKETPLACE: COMPLETE DEAL CATALOGUE */}
         {activeView === 'marketplace_catalog' && (
           <MarketplaceCatalog
+            footer={<Footer onNavigate={navigateToView} />}
             opportunities={opportunities}
+            allOpportunities={allOpportunities}
             query={searchQuery}
             onQueryChange={setSearchQuery}
             selectedCategory={selectedCategory}
@@ -742,12 +773,23 @@ export default function LumoApp() {
           />
         )}
 
+        {/* VIEW: LUMO INTERNATIONAL (/international) */}
+        {activeView === 'international' && (
+          <InternationalLandingView
+            currentUserId={currentUserId}
+            currentUserEmail={userDetails.email}
+            currentUserName={userDetails.name}
+            onNavigateHome={() => setActiveView('marketplace')}
+          />
+        )}
+
         {/* VIEW 2: SUBSCRIPTION PLANS (/subscriptions) */}
         {activeView === 'subscriptions' && (
           <SubscriptionsView
             currentUserId={currentUserId}
             userEmail={userDetails.email}
             userPhone={userDetails.phone}
+            userRole={activeWorkspace.type}
             returnTo={subscriptionRedirectContext.returnTo}
             intent={subscriptionRedirectContext.intent}
             reasonMessage={subscriptionRedirectContext.reasonMessage}
@@ -792,6 +834,8 @@ export default function LumoApp() {
             initialTab={businessDashboardTab}
             businessName={activeWorkspace.type === 'BUSINESS' ? (activeWorkspace.organizationName || `${userDetails.name}'s Business`) : userDetails.name}
             profilePhotoUrl={userDetails.profilePhotoUrl}
+            userId={currentUserId}
+            organizationId={activeWorkspace.type === 'BUSINESS' ? activeWorkspace.organizationId : undefined}
             onCreateDeal={() => setShowCreateWizard(true)}
             onExploreDeals={() => setActiveView('marketplace')}
             onSignOut={handleSignOut}
@@ -869,12 +913,19 @@ export default function LumoApp() {
                 initialPhone={userDetails.phone}
                 onComplete={async (finalRole, profileData) => {
                   const chosenBizName =
-                    profileData?.tradingName ||
-                    profileData?.legalName ||
-                    profileData?.name ||
-                    (userDetails.name ? `${userDetails.name}'s Business` : 'My Business')
+                    profileData?.tradingName?.trim() ||
+                    profileData?.legalName?.trim() ||
+                    profileData?.name?.trim() ||
+                    (userDetails.name?.trim() ? `${userDetails.name.trim()}'s Business` : 'My Business')
 
-                  const userName = profileData?.contactPerson || userDetails.name || (profileData?.email ? profileData.email.split('@')[0] : 'User')
+                  const userName =
+                    profileData?.contactPerson?.trim() ||
+                    userDetails.name?.trim() ||
+                    profileData?.tradingName?.trim() ||
+                    profileData?.legalName?.trim() ||
+                    (profileData?.email ? profileData.email.split('@')[0] : '') ||
+                    (userDetails.email ? userDetails.email.split('@')[0] : '') ||
+                    'Lumo Member'
 
                   const activePwd =
                     registeredPassword ||
@@ -891,17 +942,17 @@ export default function LumoApp() {
                     password: activePwd,
                     name: userName,
                     phone: profileData?.phone || userDetails.phone,
-                    image: profileData?.profilePhotoUrl,
+                    image: profileData?.profilePhotoUrl || undefined,
                     role: finalRole,
                     bizDetails:
                       finalRole === 'BUSINESS'
                         ? {
-                            legalName: profileData?.legalName || chosenBizName,
-                            tradingName: profileData?.tradingName || chosenBizName,
-                            brelaRegNumber: profileData?.registrationNumber,
-                            traTin: profileData?.tinNumber,
-                            bizCategory: profileData?.industry,
-                            contactPerson: profileData?.contactPerson || userName,
+                            legalName: profileData?.legalName?.trim() || chosenBizName,
+                            tradingName: profileData?.tradingName?.trim() || chosenBizName,
+                            brelaRegNumber: profileData?.registrationNumber?.trim() || undefined,
+                            traTin: profileData?.tinNumber?.trim() || undefined,
+                            bizCategory: profileData?.industry?.trim() || undefined,
+                            contactPerson: profileData?.contactPerson?.trim() || userName,
                           }
                         : undefined,
                   }
@@ -914,8 +965,17 @@ export default function LumoApp() {
                   const registrationData = await registrationResponse.json().catch(() => null)
 
                   if (!registrationResponse.ok || !registrationData?.user?.id) {
+                    const firstDetailError = registrationData?.details
+                      ? Object.entries(registrationData.details)
+                          .flatMap(([field, val]: [string, any]) =>
+                            (val?._errors || []).map((err: string) => `${field !== '_errors' ? field + ': ' : ''}${err}`)
+                          )
+                          .filter(Boolean)[0]
+                      : null
+
                     throw new Error(
                       registrationData?.message ||
+                      firstDetailError ||
                       registrationData?.error ||
                       'We could not activate your account. Check your connection and try again.'
                     )
@@ -1249,7 +1309,7 @@ export default function LumoApp() {
       {!isDashboardView && <MobileNav activeView={activeView} onNavigate={handleMobileNavigation} />}
 
       {/* Footer ONLY on non-auth views */}
-      {!isAuthView && !isDashboardView && <Footer onNavigate={navigateToView} variant={activeView === 'marketplace' ? 'landing' : 'default'} />}
+      {!isAuthView && !isDashboardView && activeView !== 'marketplace_catalog' && <Footer onNavigate={navigateToView} variant={activeView === 'marketplace' ? 'landing' : 'default'} />}
     </div>
   )
 }

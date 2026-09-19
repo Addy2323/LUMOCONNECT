@@ -25,6 +25,7 @@ import { usePlatformConfig } from '@/lib/platformConfig'
 
 interface PartnerRewardItem {
   id: string
+  ticketReference?: string
   opportunityTitle: string
   merchantName: string
   category: string
@@ -46,50 +47,8 @@ interface PartnerPayoutRecord {
   status: 'COMPLETED' | 'PROCESSING'
 }
 
-const DEFAULT_PARTNER_REWARDS: PartnerRewardItem[] = [
-  {
-    id: 'pr_1',
-    opportunityTitle: 'SaaS SME Lead Generation & Customer Referral',
-    merchantName: 'Zanzi Solar Ltd',
-    category: 'IT & Software Services',
-    completionsCount: 7,
-    grossAmountTZS: 517000,
-    status: 'PAYABLE',
-  },
-  {
-    id: 'pr_2',
-    opportunityTitle: 'Toyota Land Cruiser V8 High-Ticket Acquisition',
-    merchantName: 'Bingwa Wa Magari Co.',
-    category: 'Automotive & Transportation',
-    completionsCount: 1,
-    grossAmountTZS: 2000000,
-    status: 'PAYABLE',
-  },
-  {
-    id: 'pr_3',
-    opportunityTitle: 'Mwanza Regional Solar Distributors Match',
-    merchantName: 'Lake Renewables Ltd',
-    category: 'Sourcing & Supply Chain',
-    completionsCount: 1,
-    grossAmountTZS: 3000000,
-    status: 'PENDING',
-  },
-]
-
-const DEFAULT_PARTNER_PAYOUTS: PartnerPayoutRecord[] = [
-  {
-    id: 'po_prev_1',
-    reference: 'LUMO-PAY-992140',
-    date: '20 Aug 2026, 14:15',
-    payoutMethod: 'Vodacom M-Pesa',
-    accountNumberMasked: '+255 754 *** 123',
-    grossAmountTZS: 1200000,
-    platformFeeTZS: 36000,
-    taxWithheldTZS: 60000,
-    netPaidTZS: 1104000,
-    status: 'COMPLETED',
-  },
-]
+const DEFAULT_PARTNER_REWARDS: PartnerRewardItem[] = []
+const DEFAULT_PARTNER_PAYOUTS: PartnerPayoutRecord[] = []
 
 export function EarningsPayoutsTab() {
   const { showToast } = usePartnerToast()
@@ -97,55 +56,178 @@ export function EarningsPayoutsTab() {
   const feeRate = (platformConfig.platformFeePercent || 3) / 100
   const taxRate = (platformConfig.withholdingTaxPercent || 5) / 100
 
-  const [rewards, setRewards] = useState<PartnerRewardItem[]>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('lumo_partner_rewards_list')
-        if (saved) {
-          const parsed = JSON.parse(saved)
-          if (Array.isArray(parsed)) return parsed
-        }
-      } catch (e) {
-        console.warn('Failed to load partner rewards', e)
-      }
-    }
-    return DEFAULT_PARTNER_REWARDS
-  })
+  const [rewards, setRewards] = useState<PartnerRewardItem[]>([])
+  const [payouts, setPayouts] = useState<PartnerPayoutRecord[]>([])
 
-  const [payouts, setPayouts] = useState<PartnerPayoutRecord[]>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('lumo_partner_payout_history')
-        if (saved) {
-          const parsed = JSON.parse(saved)
-          if (Array.isArray(parsed)) return parsed
+  // Synchronize live partner payouts and earned rewards from server
+  const reloadPayoutData = () => {
+    fetch('/api/payouts', {
+      credentials: 'include',
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.success && Array.isArray(data.payouts)) {
+          const seen = new Set<string>()
+          const mapped: PartnerPayoutRecord[] = []
+          for (const p of data.payouts) {
+            const key = p.reference?.trim() || p.id
+            if (seen.has(key)) continue
+            seen.add(key)
+            mapped.push({
+              id: p.id,
+              reference: p.reference,
+              date: new Date(p.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+              payoutMethod: (p.payoutChannel || 'MOBILE_MONEY').replace(/_/g, ' '),
+              accountNumberMasked: p.accountNumber,
+              grossAmountTZS: p.grossAmountTZS,
+              platformFeeTZS: p.platformFeeTZS,
+              taxWithheldTZS: p.taxWithheldTZS,
+              netPaidTZS: p.netAmountTZS,
+              status: p.status === 'PAID' ? 'COMPLETED' : 'PROCESSING',
+            })
+          }
+          setPayouts(mapped)
         }
-      } catch (e) {
-        console.warn('Failed to load partner payouts', e)
-      }
-    }
-    return DEFAULT_PARTNER_PAYOUTS
-  })
+      })
+      .catch(() => {})
+
+    fetch('/api/referrals/tickets', {
+      credentials: 'include',
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.success && Array.isArray(data.tickets)) {
+          const parseTicketReward = (amount?: any, display?: string | null): number => {
+            if (amount !== undefined && amount !== null) {
+              const n = Number(amount)
+              if (!isNaN(n) && n > 0) return n
+            }
+            if (!display) return 0
+            const matchTZS = display.match(/TZS\s*([\d,]+(?:\.\d+)?)/i)
+            if (matchTZS) return parseFloat(matchTZS[1].replace(/,/g, ''))
+            const matchUSD = display.match(/USD\s*([\d,]+(?:\.\d+)?)/i)
+            if (matchUSD) return parseFloat(matchUSD[1].replace(/,/g, '')) * 2600
+            const numbers = display.match(/[\d,]+/g)
+            if (numbers) {
+              for (const raw of numbers) {
+                const parsed = parseFloat(raw.replace(/,/g, ''))
+                if (!isNaN(parsed) && parsed >= 1000) return parsed
+              }
+            }
+            return 0
+          }
+
+          const mappedRewards: PartnerRewardItem[] = []
+          const synthesizedPayouts: PartnerPayoutRecord[] = []
+
+          data.tickets.forEach((t: any) => {
+            const rewardAmount = parseTicketReward(t.rewardAmountTZS, t.rewardDisplay)
+            if (rewardAmount <= 0) return
+
+            const isPaid = t.stage === 'REWARD_PAID' || t.rewardStatus === 'PAID'
+            const isPendingPayout = !isPaid && (t.stage === 'REWARD_PENDING' || t.rewardStatus === 'PENDING')
+            const isPayable =
+              !isPaid &&
+              !isPendingPayout &&
+              (t.stage === 'SUCCESSFUL' ||
+                t.stage === 'REWARD_APPROVED' ||
+                t.stage === 'COMPLETED' ||
+                t.rewardStatus === 'APPROVED' ||
+                t.rewardStatus === 'PARTNER_CONFIRMS_RECEIPT')
+
+            if (isPaid) {
+              const fee = Math.round(rewardAmount * feeRate)
+              const tax = Math.round(rewardAmount * taxRate)
+              const net = Math.max(0, rewardAmount - fee - tax)
+
+              synthesizedPayouts.push({
+                id: `ticket_payout_${t.id}`,
+                reference: t.payoutReference || `PAY-${t.ticketReference || t.id.slice(0, 8)}`,
+                date: new Date(t.stageUpdatedAt || t.updatedAt || t.createdAt).toLocaleDateString('en-GB', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                }),
+                payoutMethod: 'MOBILE MONEY',
+                accountNumberMasked: t.partnerPhoneMasked || t.partnerPhone || '—',
+                grossAmountTZS: rewardAmount,
+                platformFeeTZS: fee,
+                taxWithheldTZS: tax,
+                netPaidTZS: net,
+                status: 'COMPLETED',
+              })
+            } else if (isPendingPayout) {
+              const fee = Math.round(rewardAmount * feeRate)
+              const tax = Math.round(rewardAmount * taxRate)
+              const net = Math.max(0, rewardAmount - fee - tax)
+
+              synthesizedPayouts.push({
+                id: `ticket_payout_pending_${t.id}`,
+                reference: t.payoutReference || `PAY-${t.ticketReference || t.id.slice(0, 8)}`,
+                date: new Date(t.stageUpdatedAt || t.updatedAt || t.createdAt).toLocaleDateString('en-GB', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                }),
+                payoutMethod: 'MOBILE MONEY',
+                accountNumberMasked: t.partnerPhoneMasked || t.partnerPhone || '—',
+                grossAmountTZS: rewardAmount,
+                platformFeeTZS: fee,
+                taxWithheldTZS: tax,
+                netPaidTZS: net,
+                status: 'PROCESSING',
+              })
+
+              mappedRewards.push({
+                id: t.id,
+                ticketReference: t.ticketReference,
+                opportunityTitle: t.dealTitle,
+                merchantName: t.merchantName || 'Lumo Commercial Partner',
+                category: 'Commercial Deal',
+                completionsCount: 1,
+                grossAmountTZS: rewardAmount,
+                status: 'PENDING',
+              })
+            } else {
+              mappedRewards.push({
+                id: t.id,
+                ticketReference: t.ticketReference,
+                opportunityTitle: t.dealTitle,
+                merchantName: t.merchantName || 'Lumo Commercial Partner',
+                category: 'Commercial Deal',
+                completionsCount: 1,
+                grossAmountTZS: rewardAmount,
+                status: isPayable ? 'PAYABLE' : 'PENDING',
+              })
+            }
+          })
+
+          setRewards(mappedRewards)
+          if (synthesizedPayouts.length > 0) {
+            setPayouts((prev) => {
+              const existingRefs = new Set(prev.map((p) => p.reference))
+              const toAdd = synthesizedPayouts.filter((p) => !existingRefs.has(p.reference))
+              return [...toAdd, ...prev]
+            })
+          }
+        }
+      })
+      .catch(() => {})
+  }
+
+  useEffect(() => {
+    reloadPayoutData()
+  }, [])
 
   const [showRequestModal, setShowRequestModal] = useState(false)
   const [requestTargetReward, setRequestTargetReward] = useState<PartnerRewardItem | null>(null)
-
-  // Modal Form State
   const [payoutChannel, setPayoutChannel] = useState<'VODACOM_MPESA' | 'TIGO_PESA' | 'AIRTEL_MONEY' | 'CRDB_BANK'>('VODACOM_MPESA')
   const [payoutPhone, setPayoutPhone] = useState('')
   const [requestAmount, setRequestAmount] = useState<number>(517000)
-
-  // Sync to storage
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem('lumo_partner_rewards_list', JSON.stringify(rewards))
-        localStorage.setItem('lumo_partner_payout_history', JSON.stringify(payouts))
-      } catch (e) {
-        console.warn('Failed to save partner payout state', e)
-      }
-    }
-  }, [rewards, payouts])
 
   // Calculated totals
   const payableRewards = rewards.filter((r) => r.status === 'PAYABLE')
@@ -186,6 +268,17 @@ export function EarningsPayoutsTab() {
     const taxWithheld = Math.round(requestAmount * taxRate)
     const net = requestAmount - platformFee - taxWithheld
 
+    const storedUser = (() => {
+      try {
+        const s = localStorage.getItem('lumo_auth_session') || localStorage.getItem('lumo_user_session')
+        return s ? JSON.parse(s) : null
+      } catch { return null }
+    })()
+
+    const partnerId = storedUser?.id || ''
+    const partnerName = storedUser?.name || 'Promoting Partner'
+    const partnerPhone = storedUser?.phone || payoutPhone
+
     const newPayout: PartnerPayoutRecord = {
       id: `po_req_${Date.now()}`,
       reference: `LUMO-PAY-${Date.now().toString().slice(-6)}`,
@@ -198,6 +291,44 @@ export function EarningsPayoutsTab() {
       netPaidTZS: net,
       status: 'PROCESSING',
     }
+
+    // Call server API so Admin sees this request immediately
+    fetch('/api/payouts/request', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-User-Id': partnerId,
+        'X-User-Name': partnerName,
+        'X-User-Phone': partnerPhone,
+      },
+      body: JSON.stringify({
+        ticketId: requestTargetReward?.id,
+        ticketReference: requestTargetReward?.ticketReference,
+        amountTZS: requestAmount,
+        payoutChannel,
+        accountNumber: payoutPhone,
+        accountName: partnerName,
+        partnerUserId: partnerId,
+        partnerName,
+        partnerPhone,
+        notes: requestTargetReward
+          ? `Reward withdrawal for: ${requestTargetReward.opportunityTitle} (${requestTargetReward.ticketReference || ''})`
+          : 'Partner balance withdrawal',
+      }),
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.success && data.payout) {
+          newPayout.reference = data.payout.reference
+          newPayout.id = data.payout.id
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new Event('lumo:payouts-updated'))
+          }
+          reloadPayoutData()
+        }
+      })
+      .catch((err) => console.warn('Could not post payout to server:', err))
 
     // Update rewards if specific or general
     if (requestTargetReward) {
@@ -214,7 +345,7 @@ export function EarningsPayoutsTab() {
     showToast(
       'success',
       'Payout Request Submitted',
-      `Payout request for TZS ${requestAmount.toLocaleString()} (Net TZS ${net.toLocaleString()}) submitted. Queued for mobile money settlement.`
+      `Payout request for TZS ${requestAmount.toLocaleString()} (Net TZS ${net.toLocaleString()}) submitted. Queued for admin review & mobile money disbursal.`
     )
   }
 
@@ -358,10 +489,17 @@ export function EarningsPayoutsTab() {
                 {payableRewards.map((p) => (
                   <tr key={p.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
                     <td className="py-4 px-5">
-                      <div className="font-bold text-slate-900 dark:text-white text-xs">
-                        {p.opportunityTitle}
+                      <div className="flex items-center gap-2">
+                        {p.ticketReference && (
+                          <span className="font-mono text-[10px] font-bold text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/60 border border-orange-200 dark:border-orange-800 px-1.5 py-0.5 rounded shrink-0">
+                            {p.ticketReference}
+                          </span>
+                        )}
+                        <span className="font-bold text-slate-900 dark:text-white text-xs">
+                          {p.opportunityTitle}
+                        </span>
                       </div>
-                      <div className="text-[10px] text-slate-400 font-mono">
+                      <div className="text-[10px] text-slate-400 font-mono mt-0.5">
                         Merchant: {p.merchantName} · {p.category}
                       </div>
                     </td>
@@ -487,6 +625,24 @@ export function EarningsPayoutsTab() {
               </button>
             </div>
 
+            {requestTargetReward && (
+              <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider">
+                    Target Deal Reward
+                  </span>
+                  {requestTargetReward.ticketReference && (
+                    <span className="font-mono text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/60 px-1.5 py-0.5 rounded">
+                      {requestTargetReward.ticketReference}
+                    </span>
+                  )}
+                </div>
+                <div className="text-xs font-bold text-slate-900 dark:text-white">
+                  {requestTargetReward.opportunityTitle}
+                </div>
+              </div>
+            )}
+
             <div className="space-y-3.5 text-xs">
               <div>
                 <label className="font-bold block text-slate-700 dark:text-slate-300 mb-1">
@@ -500,13 +656,15 @@ export function EarningsPayoutsTab() {
                   <option value="VODACOM_MPESA">Vodacom M-Pesa</option>
                   <option value="TIGO_PESA">Tigo Pesa</option>
                   <option value="AIRTEL_MONEY">Airtel Money</option>
+                  <option value="HALOPESA">Halopesa</option>
                   <option value="CRDB_BANK">CRDB Bank Account</option>
+                  <option value="NMB_BANK">NMB Bank Account</option>
                 </select>
               </div>
 
               <div>
                 <label className="font-bold block text-slate-700 dark:text-slate-300 mb-1">
-                  {payoutChannel === 'CRDB_BANK' ? 'Bank Account Number' : 'Recipient Mobile Phone Number'}
+                  {payoutChannel.includes('BANK') ? 'Bank Account Number' : 'Recipient Mobile Phone Number'}
                 </label>
                 <input
                   type="text"

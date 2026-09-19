@@ -16,13 +16,13 @@ async function getAuthenticatedUser(req: Request) {
     })
   )
 
-  const token = cookies[DATABASE_SESSION_COOKIE]
+  const token = cookies[DATABASE_SESSION_COOKIE] || cookies['lumo_session']
   if (!token) return null
 
   if (process.env.DATABASE_URL?.trim()) {
     try {
       const session = await getDatabaseSession(token)
-      if (session) {
+      if (session && session.user && session.user.accountStatus === 'ACTIVE' && !session.user.deletedAt) {
         const user = session.user
         const roleCode = user.roleAssignments[0]?.role?.code
         const isAdmin = roleCode === 'SUPER_ADMIN' || roleCode === 'ADMIN' || user.email === 'admin@lumo.co.tz'
@@ -39,16 +39,6 @@ async function getAuthenticatedUser(req: Request) {
     }
   }
 
-  const partnerUser = findUserByEmail('partner@lumo.co.tz')
-  if (partnerUser) {
-    return {
-      id: partnerUser.id,
-      name: partnerUser.name,
-      email: partnerUser.email,
-      role: partnerUser.role,
-      isAdmin: partnerUser.role === 'ADMIN',
-    }
-  }
   return null
 }
 
@@ -97,14 +87,68 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 })
     }
 
+    const { id } = await params
+    const body = await req.json().catch(() => ({}))
+
+    // Handle Partner Resubmission
     if (!user.isAdmin) {
-      return NextResponse.json({ success: false, error: 'Admin access required' }, { status: 403 })
+      const ticket = await getReferralTicket(id, { forPartnerId: user.id })
+      if (!ticket || ticket.partnerUserId !== user.id) {
+        return NextResponse.json({ success: false, error: 'Connection ticket not found' }, { status: 404 })
+      }
+
+      if (ticket.stage !== 'MORE_INFO_REQUIRED') {
+        return NextResponse.json(
+          { success: false, error: 'Additional information can only be submitted when stage is More Info Required' },
+          { status: 400 }
+        )
+      }
+
+      const resubmissionNotes = body.partnerResubmissionNotes?.trim() || body.additionalInfo?.trim() || 'Partner provided additional information.'
+
+      const updated = await updateReferralTicketStage(id, 'UNDER_REVIEW', {
+        partnerResubmissionNotes: resubmissionNotes,
+        customerEmail: body.customerEmail?.trim() || undefined,
+        customerPhone: body.customerPhone?.trim() || undefined,
+        relationshipWithCustomer: body.relationshipWithCustomer?.trim() || undefined,
+        partnerVisibleUpdate: 'Additional information submitted by Partner. Under review by LUMO Desk.',
+        coordinatorNotes: `Partner provided requested information: "${resubmissionNotes}". Ready for review.`,
+      })
+
+      if (!updated) {
+        return NextResponse.json({ success: false, error: 'Failed to update connection' }, { status: 500 })
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: 'Additional information submitted successfully. Connection is now Under Review.',
+      })
     }
 
-    const { id } = await params
-    const body = await req.json()
-
-    const validStages: ReferralTicketStage[] = ['SUBMITTED', 'UNDER_REVIEW', 'AVAILABILITY_CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CLOSED']
+    // Admin Stage & Action Updates
+    const validStages: ReferralTicketStage[] = [
+      'SUBMITTED',
+      'UNDER_REVIEW',
+      'MORE_INFO_REQUIRED',
+      'QUALIFIED',
+      'CONTACTED',
+      'CUSTOMER_INTERESTED',
+      'INTRODUCTION_SCHEDULED',
+      'INTRODUCED',
+      'NEGOTIATING',
+      'SUCCESSFUL',
+      'REJECTED',
+      'AVAILABILITY_CONFIRMED',
+      'IN_PROGRESS',
+      'COMPLETED',
+      'CLOSED',
+      'REWARD_PENDING',
+      'REWARD_APPROVED',
+      'REWARD_PAID',
+      'DUPLICATE',
+      'RESUBMITTED',
+      'CUSTOMER_NOT_INTERESTED',
+    ]
     if (body.stage && !validStages.includes(body.stage)) {
       return NextResponse.json({ success: false, error: 'Invalid stage' }, { status: 400 })
     }
@@ -117,13 +161,18 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       partnerVisibleUpdate: body.partnerVisibleUpdate,
       closureReason: body.closureReason,
       rewardStatus: body.rewardStatus,
+      requestedInfoNotes: body.requestedInfoNotes?.trim() || undefined,
+      rejectionReasonNotes: body.rejectionReasonNotes?.trim() || undefined,
+      customerEmail: body.customerEmail?.trim() || undefined,
+      customerPhone: body.customerPhone?.trim() || undefined,
+      relationshipWithCustomer: body.relationshipWithCustomer?.trim() || undefined,
     })
 
     if (!updated) {
       return NextResponse.json({ success: false, error: 'Ticket not found or update failed' }, { status: 404 })
     }
 
-    return NextResponse.json({ success: true, message: 'Ticket updated' })
+    return NextResponse.json({ success: true, message: 'Ticket updated successfully' })
   } catch (error: any) {
     console.error('Referral ticket update error:', error)
     return NextResponse.json({ success: false, error: 'Server error' }, { status: 500 })

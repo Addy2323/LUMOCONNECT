@@ -144,3 +144,14 @@ export function authenticateInMemoryUser(email: string, password: string): { suc
 
   return { success: true, user }
 }
+
+export function deleteInMemoryUser(idOrEmail: string): boolean {
+  const idx = inMemoryUsersStore.findIndex(
+    (u) => u.id === idOrEmail || u.email.toLowerCase() === idOrEmail.toLowerCase()
+  )
+  if (idx !== -1) {
+    inMemoryUsersStore.splice(idx, 1)
+    return true
+  }
+  return false
+}

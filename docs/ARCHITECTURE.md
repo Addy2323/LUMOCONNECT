@@ -62,4 +62,15 @@ All third-party external services are accessed exclusively through typed provide
 - **Maker-Checker Control:** Segregation of duties prevents the creator of a financial payout batch from authorizing it.
 - **Tenant Isolation:** Every business-scoped record requires an explicit `organizationId` filter.
 - **Audit Logging:** Append-only `AuditEvent` entries capture actor, action, timestamp, and correlation ID for all material changes.
-- **Strict Decimal Arithmetic:** Integer minor units (`BigInt` / minor units) eliminate floating-point inaccuracies.
+
+---
+
+## 5. Partner Customer Connection Engine
+
+The end-to-end commercial workflow connecting Deal Owners, Partners, and Customers is specified in [PARTNER_CUSTOMER_CONNECTION_PROCESS.md](file:///c:/Users/BEC/Desktop/lumo/docs/PARTNER_CUSTOMER_CONNECTION_PROCESS.md).
+
+### Core Invariant:
+> **The Partner's job is to bring the Customer to LUMO. LUMO controls the connection, verification, introduction, attribution, commercial-result verification, and reward process.**
+
+### Lifecycle State Machine:
+`Draft` → `Submitted` → `Under Review` → `Qualified` → `Contacted` → `Customer Interested` → `Introduction Scheduled` → `Introduced` → `Negotiating` → `Successful` → `Reward Pending` → `Reward Approved` → `Reward Paid` → `Closed`

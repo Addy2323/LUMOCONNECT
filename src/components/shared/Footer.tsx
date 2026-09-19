@@ -143,6 +143,7 @@ export function Footer({ onNavigate, variant = 'default' }: { onNavigate?: (view
             </h4>
             <ul className="space-y-2">
               <li><button onClick={() => onNavigate?.('marketplace')} className="hover:text-white">Discover Deals</button></li>
+              <li><button onClick={() => onNavigate?.('international')} className="text-[#FF6A00] font-bold hover:underline">LUMO International</button></li>
               <li><button onClick={() => onNavigate?.('marketplace')} className="hover:text-white">Customer Acquisition</button></li>
               <li><button onClick={() => onNavigate?.('marketplace')} className="hover:text-white">Qualified Leads</button></li>
               <li><button onClick={() => onNavigate?.('marketplace')} className="hover:text-white">Content & Influence</button></li>

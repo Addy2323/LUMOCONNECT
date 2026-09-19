@@ -13,6 +13,7 @@ import {
   Award,
   Calculator,
   Receipt,
+  FileSpreadsheet,
   UserCheck,
   AlertTriangle,
   MessageSquare,
@@ -33,6 +34,7 @@ import {
   Store,
   LogOut,
   Ticket,
+  Globe,
 } from 'lucide-react'
 import { BrandMark } from '@/components/shared/BrandMark'
 import { AdminSidebarSection } from './types'
@@ -99,7 +101,13 @@ function getNavGroups({
         { id: 'deals', label: 'Deals & Opportunities', icon: Briefcase, opType: 'C/R/U/Archive' },
         { id: 'approvals', label: 'Deal Approvals', icon: CheckCircle, badge: pendingDealsCount > 0 ? pendingDealsCount : undefined, badgeColor: 'bg-orange-100 text-[#FF6A00]', opType: 'Approval Workflow' },
         { id: 'conversions', label: 'Conversions & Attribution', icon: BarChart3, opType: 'Platform Evidence' },
-        { id: 'referrals', label: 'Referrals & Coordination', icon: Ticket, opType: 'Ticket Workflow' },
+        { id: 'referrals', label: 'Connection Review', icon: Ticket, opType: 'Qualification & Intro' },
+      ],
+    },
+    {
+      title: 'INTERNATIONAL',
+      items: [
+        { id: 'international', label: 'International Desk', icon: Globe, opType: 'Global Desk' },
       ],
     },
     {
@@ -109,7 +117,7 @@ function getNavGroups({
         { id: 'payments', label: 'Payments', icon: Wallet, opType: 'Immutable Ledger' },
         { id: 'payouts', label: 'Rewards & Payouts', icon: Award, opType: 'Financial Workflow' },
         { id: 'reconciliation', label: 'Reconciliation', icon: Calculator, opType: 'Match & Close' },
-        { id: 'tax', label: 'Tax & Statements', icon: Receipt, opType: 'Settlement & Rules' },
+        { id: 'tax', label: 'Reports & Records', icon: FileSpreadsheet, opType: 'Reports & Calendar' },
       ],
     },
     {
@@ -156,11 +164,11 @@ export function AdminSidebar({
     <aside
       className={`dashboard-sidebar hidden lg:flex flex-col justify-between ${
         sidebarCollapsed ? 'w-20' : 'w-[298px]'
-      } bg-white dark:bg-slate-900 border-r border-[#E2E8F0] dark:border-slate-800 p-4 shrink-0 transition-all duration-200 sticky top-0 h-screen overflow-y-auto space-y-4`}
+      } bg-white dark:bg-slate-900 border-r border-[#E2E8F0] dark:border-slate-800 p-4 shrink-0 transition-all duration-200 sticky top-0 h-screen overflow-hidden space-y-4`}
     >
-      <div className="space-y-4">
+      <div className="min-h-0 flex-1 flex flex-col gap-4">
         {/* Brand Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
+        <div className="flex shrink-0 items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
           {!sidebarCollapsed && (
             <div className="flex items-center gap-3">
               <BrandMark size={40} />
@@ -182,7 +190,7 @@ export function AdminSidebar({
 
         {/* Console Pill */}
         {!sidebarCollapsed && (
-          <div className="w-full py-2 px-3 bg-[#071B42] dark:bg-[#070D1E] text-white rounded-md text-[10px] font-black tracking-wider uppercase flex items-center justify-between">
+          <div className="w-full shrink-0 py-2 px-3 bg-[#071B42] dark:bg-[#070D1E] text-white rounded-md text-[10px] font-black tracking-wider uppercase flex items-center justify-between">
             <span className="flex items-center gap-1.5">
               <Shield className="w-3 h-3 text-[#FF6A00]" />
               <span>Admin Portal</span>
@@ -194,7 +202,7 @@ export function AdminSidebar({
         )}
 
         {/* Navigation Groups */}
-        <div className="space-y-4 text-xs">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain space-y-4 text-xs">
           {navGroups.map((group) => (
             <div key={group.title} className="space-y-0.5">
               {!sidebarCollapsed && (

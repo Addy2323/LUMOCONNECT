@@ -31,7 +31,63 @@ export function DealPerformanceTab({ opportunities }: DealPerformanceTabProps) {
   const avgCostPerSale = totalConversions > 0 ? Math.round(totalSpent / totalConversions) : 0
 
   const handleExport = () => {
-    showToast('success', 'Performance Report Exported', 'CSV/PDF analytics report downloaded.')
+    try {
+      const now = new Date()
+      const dateStr = now.toISOString().split('T')[0]
+      const fileName = `lumo-merchant-deal-performance-${dateStr}.csv`
+
+      const filtered =
+        selectedOpportunityId === 'ALL'
+          ? opportunities
+          : opportunities.filter((o) => o.id === selectedOpportunityId)
+
+      const csvRows = [
+        ['"LUMO COMMERCIAL DEAL PERFORMANCE & ROI STATEMENT"'],
+        [`"Generated At"`, `"${now.toLocaleString('en-GB')}"`],
+        [`"Filter"`, `"${selectedOpportunityId === 'ALL' ? 'All Active Campaigns' : selectedOpportunityId}"`],
+        [''],
+        ['"FINANCIAL ROI OVERVIEW"', '"VALUE"'],
+        ['"Gross Commercial Value (TZS)"', estimatedRevenue],
+        ['"Total Rewards Spent (TZS)"', totalSpent],
+        ['"Return on Spend (ROI)"', `${roiMultiplier}x`],
+        ['"Average Cost per Verified Sale (TZS)"', avgCostPerSale],
+        [''],
+        ['"CAMPAIGN BREAKDOWN"'],
+        [
+          '"Opportunity Title"',
+          '"Category"',
+          '"Region"',
+          '"Budget (TZS)"',
+          '"Spent (TZS)"',
+          '"Active Partners"',
+          '"Conversions"',
+          '"Status"',
+        ],
+        ...filtered.map((opp) => [
+          `"${opp.title}"`,
+          `"${opp.category}"`,
+          `"${opp.region}"`,
+          opp.budgetTZS,
+          opp.spentTZS,
+          opp.activePartners,
+          opp.totalConversions,
+          `"${opp.status}"`,
+        ]),
+      ]
+
+      const csvContent = 'data:text/csv;charset=utf-8,' + csvRows.map((e) => e.join(',')).join('\n')
+      const encodedUri = encodeURI(csvContent)
+      const link = document.createElement('a')
+      link.setAttribute('href', encodedUri)
+      link.setAttribute('download', fileName)
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+
+      showToast('success', 'Performance Report Exported', `CSV statement downloaded: ${fileName}`)
+    } catch (err) {
+      showToast('error', 'Export Failed', 'Unable to generate CSV export.')
+    }
   }
 
   return (

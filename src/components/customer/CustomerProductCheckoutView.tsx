@@ -87,64 +87,21 @@ export function CustomerProductCheckoutView({
     setIsProcessing(true)
     setFormError(null)
     try {
-      // Initiate live Snippe mobile money payment
-      const res = await fetch('/api/payments/initiate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amountTZS: priceTZS,
-          phoneNumber: customerPhone,
-          customerName,
-          customerEmail: customerEmail || undefined,
-          paymentMethod,
-          metadata: {
-            dealTitle,
-            merchantName,
-            partnerTrackingCode,
-          },
-        }),
-      })
+      // Simulate mobile money USSD prompt for customer demo view
+      const demoRef = `ORD-MOMO-${Date.now()}`
+      setPaymentReference(demoRef)
+      setUssdInstructions(
+        `A USSD push prompt has been dispatched to ${customerPhone}. Please enter your M-Pesa / Mobile Money PIN on your phone to complete payment of ${formatMoney(priceTZS, 'TZS')}.`
+      )
+      setStep('AWAITING_USSD')
+      setPollingStatus('POLLING')
 
-      const data = await res.json()
-
-      if (data.success && data.data?.reference) {
-        setPaymentReference(data.data.reference)
-        setUssdInstructions(
-          data.data.instructions ||
-            `A USSD push prompt has been dispatched to ${customerPhone}. Please enter your M-Pesa / Mobile Money PIN on your phone.`
-        )
-        setStep('AWAITING_USSD')
-        setPollingStatus('POLLING')
-
-        // Start polling for payment status
-        const ref = data.data.reference
-        const interval = setInterval(async () => {
-          try {
-            const statusRes = await fetch(`/api/payments/${ref}/status`)
-            const statusData = await statusRes.json()
-            if (statusData.success && statusData.data?.status === 'SUCCESSFUL') {
-              clearInterval(interval)
-              setPollingStatus('CONFIRMED')
-              finalizeOrder(ref)
-            } else if (statusData.success && statusData.data?.status === 'FAILED') {
-              clearInterval(interval)
-              setPollingStatus('FAILED')
-              setFormError('Payment was declined or timed out. Please try again.')
-            }
-          } catch {
-            // keep polling
-          }
-        }, 3000)
-
-        // Clear after 3 minutes max
-        setTimeout(() => clearInterval(interval), 180000)
-      } else {
-        // Fallback for card or offline gateway simulation
-        finalizeOrder(`SNP-SIM-${Date.now()}`)
-      }
+      setTimeout(() => {
+        setPollingStatus('CONFIRMED')
+        finalizeOrder(demoRef)
+        setIsProcessing(false)
+      }, 3000)
     } catch {
-      // Fallback
-      finalizeOrder(`SNP-FALLBACK-${Date.now()}`)
     } finally {
       setIsProcessing(false)
     }

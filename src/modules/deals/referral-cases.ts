@@ -1,4 +1,6 @@
 import { db } from '@/lib/db'
+import { providers } from '@/lib/providers'
+import { createPartnerPayoutRequest } from '@/modules/payouts/payout-store'
 import {
   ReferralCase,
   ReferralCaseStage,
@@ -10,6 +12,46 @@ import {
 } from './types'
 
 export const LUMO_OFFICIAL_WHATSAPP = process.env.NEXT_PUBLIC_LUMO_WHATSAPP_NUMBER || '255775717501'
+
+/**
+ * Extracts a numeric reward value in TZS from rewardAmountTZS or rewardDisplay string.
+ */
+export function extractNumericReward(
+  rewardAmountTZS?: any,
+  rewardDisplay?: string | null
+): number {
+  if (rewardAmountTZS !== undefined && rewardAmountTZS !== null) {
+    const rawVal =
+      typeof rewardAmountTZS === 'object' && rewardAmountTZS !== null && 'toNumber' in rewardAmountTZS
+        ? (rewardAmountTZS as any).toNumber()
+        : rewardAmountTZS
+    const num = Number(rawVal)
+    if (!isNaN(num) && num > 0) return num
+  }
+  if (!rewardDisplay) return 0
+
+  const matchTZS = rewardDisplay.match(/TZS\s*([\d,]+(?:\.\d+)?)/i)
+  if (matchTZS) {
+    return parseFloat(matchTZS[1].replace(/,/g, ''))
+  }
+
+  const matchUSD = rewardDisplay.match(/USD\s*([\d,]+(?:\.\d+)?)/i)
+  if (matchUSD) {
+    return parseFloat(matchUSD[1].replace(/,/g, '')) * 2600
+  }
+
+  const numbers = rewardDisplay.match(/[\d,]+/g)
+  if (numbers) {
+    for (const raw of numbers) {
+      const parsed = parseFloat(raw.replace(/,/g, ''))
+      if (!isNaN(parsed) && parsed >= 1000) {
+        return parsed
+      }
+    }
+  }
+
+  return 0
+}
 
 /**
  * Normalizes Tanzanian phone numbers to standard E.164 format (+2557XXXXXXXX or +2556XXXXXXXX).
@@ -53,9 +95,17 @@ export function maskPhone(phone: string): string {
 /**
  * Generates a unique ticket reference formatted as LUMO-REF-XXXXXX.
  */
-export function generateTicketReference(): string {
+export function generateTicketReference(prefix: 'LUMO-REF' | 'LUMO-CON' = 'LUMO-REF'): string {
   const num = Math.floor(100000 + Math.random() * 900000)
-  return `LUMO-REF-${num.toString().padStart(6, '0')}`
+  return `${prefix}-${num.toString().padStart(6, '0')}`
+}
+
+/**
+ * Generates a unique Partner Customer Connection reference formatted as LUMO-CON-XXXXXX.
+ */
+export function generateConnectionReference(): string {
+  const num = Math.floor(100000 + Math.random() * 900000)
+  return `LUMO-CON-${num.toString().padStart(6, '0')}`
 }
 
 /**
@@ -73,15 +123,36 @@ export interface CreateReferralTicketInput {
   opportunityId?: string | null
   dealTitle: string
   dealSlug: string
-  submissionType: ReferralSubmissionType
+  submissionType: ReferralSubmissionType | 'CUSTOMER_CONNECTION'
   partnerUserId: string
   promotionalCode?: string | null
   partnerName: string
   partnerPhone: string
   partnerWhatsApp: string
+  // Extended Connection Details (60-Step Process)
+  entityType?: 'INDIVIDUAL' | 'BUSINESS' | 'INSTITUTION' | 'GOVERNMENT' | 'ASSOCIATION' | 'OTHER' | string | null
+  customerRole?: string | null
+  companyName?: string | null
+  contactPerson?: string | null
+  customerCountry?: string | null
+  customerRegion?: string | null
+  customerCity?: string | null
+  customerEmail?: string | null
+  customerWebsite?: string | null
+  relationshipWithCustomer?: string | null
+  spokenToCustomer?: string | null
+  customerInterestLevel?: string | null
+  lumoMayContact?: string | null
+  customerSuitability?: string | null
+  relevantCapabilities?: string[] | null
+  supportingDocuments?: string[] | null
+  isDuplicatePotential?: boolean
+  declarationAccepted?: boolean
+  ticketPrefix?: 'LUMO-CON' | 'LUMO-REF'
   // Customer info (Only required for CUSTOMER_REFERRAL)
   customerFirstName?: string | null
   customerLastName?: string | null
+  customerName?: string | null
   customerPhone?: string | null
   contactPermissionConfirmed?: boolean
   // Deal Requirement Details
@@ -106,82 +177,9 @@ export interface ReferralTicketResult {
   errorCode?: 'INVALID_INPUT' | 'SELF_REFERRAL' | 'DUPLICATE_SUBMISSION' | 'SERVER_ERROR'
 }
 
-// In-memory fallback cache to support test suites, offline work, or fallback operation
-let inMemoryTickets: ReferralTicketDTO[] = [
-  {
-    id: 'ticket_001',
-    ticketReference: 'REF-7K9M-4281',
-    dealId: 'deal_gold_vip_001',
-    dealTitle: 'Toyota Land Cruiser Prado TX 2021 (Grade A Japan Direct Import)',
-    dealSlug: 'toyota-land-cruiser-prado-tx-2021',
-    submissionType: 'CUSTOMER_REFERRAL',
-    partnerUserId: 'usr_partner_001',
-    partnerName: 'Alex Mushi',
-    partnerPhone: '+255712345678',
-    partnerPhoneMasked: '+255 712 *** 678',
-    partnerWhatsApp: '+255712345678',
-    partnerWhatsAppMasked: '+255 712 *** 678',
-    promotionalCode: 'LUMO-ALEX-SOLAR',
-    customerFirstName: 'Baraka',
-    customerLastName: 'Mrema',
-    customerPhone: '+255714902311',
-    customerPhoneMasked: '+255 714 *** 311',
-    contactPermissionConfirmed: true,
-    quantity: 1,
-    deliveryDestination: 'Mikocheni, Dar es Salaam',
-    specifications: 'Ready for inspection walkthrough',
-    additionalNotes: 'Customer is ready with full payment. Needs vehicle inspection in Mikocheni.',
-    acceptedTermsVersion: 1,
-    assignedCoordinator: 'Sarah (Lumo Coordination Desk)',
-    stage: 'IN_PROGRESS',
-    stageUpdatedAt: new Date(Date.now() - 3600000 * 5).toISOString(),
-    nextAction: 'Schedule inspection walkthrough with buyer & merchant',
-    nextActionDueDate: 'Today, 4:00 PM',
-    partnerVisibleUpdate: 'Lumo confirmed vehicle availability with the supplier. Inspection scheduled.',
-    coordinatorNotes: 'Availability confirmed with merchant. Coordinating direct inspection.',
-    rewardAmountTZS: 2500000,
-    rewardDisplay: 'TZS 2,500,000 Flat Reward',
-    rewardStatus: 'AWAITING_MERCHANT_PAYMENT',
-    merchantOrgId: 'org_auto_dealers',
-    merchantName: 'Kilimanjaro Motors Ltd',
-    createdAt: new Date(Date.now() - 3600000 * 24).toISOString(),
-    updatedAt: new Date(Date.now() - 3600000 * 5).toISOString(),
-  },
-  {
-    id: 'ticket_002',
-    ticketReference: 'REF-3B8X-9104',
-    dealId: 'deal_gold_vip_002',
-    dealTitle: 'Commercial Beachfront Villa 6-Bedroom - Oysterbay / Masaki',
-    dealSlug: 'commercial-beachfront-villa-oysterbay',
-    submissionType: 'COORDINATION_ENQUIRY',
-    partnerUserId: 'usr_partner_001',
-    partnerName: 'Alex Mushi',
-    partnerPhone: '+255712345678',
-    partnerPhoneMasked: '+255 712 *** 678',
-    partnerWhatsApp: '+255712345678',
-    partnerWhatsAppMasked: '+255 712 *** 678',
-    quantity: 1,
-    deliveryDestination: 'Oysterbay, Dar es Salaam',
-    specifications: 'Enquiry on lease structure and commercial licensing',
-    additionalNotes: 'Corporate tenant seeking 2-year lease terms.',
-    acceptedTermsVersion: 1,
-    contactPermissionConfirmed: false,
-    assignedCoordinator: 'Kelvin (Lumo Real Estate Desk)',
-    stage: 'AVAILABILITY_CONFIRMED',
-    stageUpdatedAt: new Date(Date.now() - 3600000 * 12).toISOString(),
-    nextAction: 'Review lease terms with supplier desk',
-    nextActionDueDate: 'Tomorrow, 10:00 AM',
-    partnerVisibleUpdate: 'Merchant confirmed property availability. Lease introduction ongoing.',
-    coordinatorNotes: 'Unit is vacant. Landlord accepts proposed commercial tenancy terms.',
-    rewardAmountTZS: 4500000,
-    rewardDisplay: 'TZS 4,500,000 Commission',
-    rewardStatus: 'NOT_YET_EARNED',
-    merchantOrgId: 'org_real_estate',
-    merchantName: 'Oysterbay Prime Holdings',
-    createdAt: new Date(Date.now() - 3600000 * 48).toISOString(),
-    updatedAt: new Date(Date.now() - 3600000 * 12).toISOString(),
-  },
-]
+// In-memory fallback cache for dynamic tickets created during runtime
+let inMemoryTickets: ReferralTicketDTO[] = []
+
 
 /**
  * Strips all internal merchant details and coordinator private notes for partner-facing views.
@@ -206,6 +204,13 @@ export function sanitizeTicketForAdmin(ticket: ReferralTicketDTO): ReferralTicke
 }
 
 function mapPrismaTicketToDTO(raw: any): ReferralTicketDTO {
+  let specMeta: any = null
+  if (raw.specifications && typeof raw.specifications === 'string' && raw.specifications.trim().startsWith('{')) {
+    try {
+      specMeta = JSON.parse(raw.specifications)
+    } catch {}
+  }
+
   return {
     id: raw.id,
     ticketReference: raw.ticketReference,
@@ -221,16 +226,16 @@ function mapPrismaTicketToDTO(raw: any): ReferralTicketDTO {
     partnerPhoneMasked: raw.partnerPhoneMasked || maskPhone(raw.partnerPhone),
     partnerWhatsApp: raw.partnerWhatsApp,
     partnerWhatsAppMasked: maskPhone(raw.partnerWhatsApp),
-    customerFirstName: raw.customerFirstName ?? null,
-    customerLastName: raw.customerLastName ?? null,
-    customerPhone: raw.customerPhone ?? null,
+    customerFirstName: raw.customerFirstName ?? specMeta?.customerFirstName ?? null,
+    customerLastName: raw.customerLastName ?? specMeta?.customerLastName ?? null,
+    customerPhone: raw.customerPhone ?? specMeta?.customerPhone ?? null,
     customerPhoneMasked: raw.customerPhoneMasked ?? null,
-    contactPermissionConfirmed: Boolean(raw.contactPermissionConfirmed),
+    contactPermissionConfirmed: Boolean(raw.contactPermissionConfirmed ?? specMeta?.contactPermissionConfirmed),
     quantity: raw.quantity ?? 1,
     deliveryDestination: raw.deliveryDestination ?? null,
-    specifications: raw.specifications ?? null,
+    specifications: specMeta ? (specMeta.specifications ?? null) : (raw.specifications ?? null),
     terminalOption: raw.terminalOption ?? null,
-    additionalNotes: raw.additionalNotes ?? null,
+    additionalNotes: raw.additionalNotes ?? specMeta?.additionalNotes ?? null,
     acceptedTermsVersion: raw.acceptedTermsVersion ?? 1,
     stage: raw.stage,
     stageUpdatedAt: raw.stageUpdatedAt instanceof Date ? raw.stageUpdatedAt.toISOString() : String(raw.stageUpdatedAt),
@@ -239,10 +244,43 @@ function mapPrismaTicketToDTO(raw: any): ReferralTicketDTO {
     nextActionDueDate: raw.nextActionDueDate ?? null,
     partnerVisibleUpdate: raw.partnerVisibleUpdate ?? null,
     coordinatorNotes: raw.coordinatorNotes ?? null,
-    closureReason: raw.closureReason ?? null,
+    closureReason: specMeta?.closureReason ?? raw.closureReason ?? null,
+    requestedInfoNotes:
+      raw.requestedInfoNotes ??
+      specMeta?.requestedInfoNotes ??
+      (raw.stage === 'MORE_INFO_REQUIRED' && raw.partnerVisibleUpdate?.startsWith('Information Required by LUMO: ')
+        ? raw.partnerVisibleUpdate.replace('Information Required by LUMO: ', '').trim()
+        : null),
+    rejectionReasonNotes:
+      raw.rejectionReasonNotes ??
+      specMeta?.rejectionReasonNotes ??
+      (raw.stage === 'REJECTED' && raw.partnerVisibleUpdate?.startsWith('Connection rejected: ')
+        ? raw.partnerVisibleUpdate.replace('Connection rejected: ', '').trim()
+        : null),
+    payoutId: specMeta?.payoutId ?? null,
+    payoutReference: specMeta?.payoutReference ?? null,
     rewardAmountTZS: raw.rewardAmountTZS ? Number(raw.rewardAmountTZS) : null,
     rewardDisplay: raw.rewardDisplay ?? null,
     rewardStatus: raw.rewardStatus ?? 'NOT_YET_EARNED',
+    // Extended Connection Details (60-Step Process)
+    entityType: raw.entityType ?? specMeta?.entityType ?? null,
+    customerRole: raw.customerRole ?? specMeta?.customerRole ?? null,
+    companyName: raw.companyName ?? specMeta?.companyName ?? null,
+    contactPerson: raw.contactPerson ?? specMeta?.contactPerson ?? null,
+    customerCountry: raw.customerCountry ?? specMeta?.customerCountry ?? null,
+    customerRegion: raw.customerRegion ?? specMeta?.customerRegion ?? null,
+    customerCity: raw.customerCity ?? specMeta?.customerCity ?? null,
+    customerEmail: raw.customerEmail ?? specMeta?.customerEmail ?? null,
+    customerWebsite: raw.customerWebsite ?? specMeta?.customerWebsite ?? null,
+    relationshipWithCustomer: raw.relationshipWithCustomer ?? specMeta?.relationshipWithCustomer ?? null,
+    spokenToCustomer: raw.spokenToCustomer ?? specMeta?.spokenToCustomer ?? null,
+    customerInterestLevel: raw.customerInterestLevel ?? specMeta?.customerInterestLevel ?? null,
+    lumoMayContact: raw.lumoMayContact ?? specMeta?.lumoMayContact ?? null,
+    customerSuitability: raw.customerSuitability ?? specMeta?.customerSuitability ?? null,
+    relevantCapabilities: raw.relevantCapabilities ?? specMeta?.relevantCapabilities ?? null,
+    supportingDocuments: raw.supportingDocuments ?? specMeta?.supportingDocuments ?? null,
+    isDuplicatePotential: Boolean(raw.isDuplicatePotential ?? specMeta?.isDuplicatePotential),
+    declarationAccepted: Boolean(raw.declarationAccepted ?? specMeta?.declarationAccepted),
     merchantOrgId: raw.merchantOrgId ?? null,
     merchantName: raw.merchantName ?? null,
     createdAt: raw.createdAt instanceof Date ? raw.createdAt.toISOString() : String(raw.createdAt),
@@ -255,7 +293,7 @@ function mapPrismaTicketToDTO(raw: any): ReferralTicketDTO {
  * Enforces strict validation, duplicate prevention, and authoritative partner identity.
  */
 export async function createReferralTicket(input: CreateReferralTicketInput): Promise<ReferralTicketResult> {
-  const isCustomerReferral = input.submissionType === 'CUSTOMER_REFERRAL'
+  const isCustomerReferral = input.submissionType === 'CUSTOMER_REFERRAL' || input.submissionType === 'CUSTOMER_CONNECTION'
 
   // 1. Partner Validation
   if (!input.partnerUserId) {
@@ -266,27 +304,41 @@ export async function createReferralTicket(input: CreateReferralTicketInput): Pr
     }
   }
 
-  const normalizedPartnerPhone = normalizeTanzanianPhone(input.partnerPhone)
-  const normalizedPartnerWhatsApp = normalizeTanzanianPhone(input.partnerWhatsApp)
-
-  if (!isValidTanzanianPhone(normalizedPartnerWhatsApp)) {
-    return {
-      success: false,
-      message: 'A valid WhatsApp phone number (+255...) is required for coordination.',
-      errorCode: 'INVALID_INPUT',
-    }
-  }
+  const normalizedPartnerPhone = normalizeTanzanianPhone(input.partnerPhone || '0775717501')
+  const rawPartnerWhatsApp = input.partnerWhatsApp || input.partnerPhone || '0775717501'
+  const normalizedPartnerWhatsApp = isValidTanzanianPhone(normalizeTanzanianPhone(rawPartnerWhatsApp))
+    ? normalizeTanzanianPhone(rawPartnerWhatsApp)
+    : '+255775717501'
 
   // 2. Validate Customer Referral specific constraints
   let normalizedCustomerPhone: string | null = null
+  let finalCustomerFirstName: string | null = null
+  let finalCustomerLastName: string | null = null
+
   if (isCustomerReferral) {
-    if (!input.customerFirstName?.trim() || !input.customerLastName?.trim()) {
+    const derivedFirst =
+      input.customerFirstName?.trim() ||
+      (input.contactPerson ? input.contactPerson.trim().split(/\s+/)[0] : '') ||
+      (input.companyName ? input.companyName.trim().split(/\s+/)[0] : '') ||
+      (input.customerName ? input.customerName.trim().split(/\s+/)[0] : '')
+
+    const derivedLast =
+      input.customerLastName?.trim() ||
+      (input.contactPerson ? input.contactPerson.trim().split(/\s+/).slice(1).join(' ') : '') ||
+      (input.companyName ? input.companyName.trim().split(/\s+/).slice(1).join(' ') : '') ||
+      (input.customerName ? input.customerName.trim().split(/\s+/).slice(1).join(' ') : '') ||
+      (input.entityType && input.entityType !== 'Individual' ? input.entityType : 'Contact')
+
+    if (!derivedFirst) {
       return {
         success: false,
-        message: 'Customer first name and last name are required for referrals.',
+        message: 'Customer name or company contact person is required for connections and referrals.',
         errorCode: 'INVALID_INPUT',
       }
     }
+
+    finalCustomerFirstName = derivedFirst
+    finalCustomerLastName = derivedLast || 'Contact'
 
     if (!input.customerPhone?.trim()) {
       return {
@@ -296,10 +348,14 @@ export async function createReferralTicket(input: CreateReferralTicketInput): Pr
       }
     }
 
-    if (!isValidTanzanianPhone(input.customerPhone)) {
+    const isTanzanian = isValidTanzanianPhone(input.customerPhone)
+    const cleanPhoneDigits = input.customerPhone.replace(/\D/g, '')
+    const isInternational = cleanPhoneDigits.length >= 9 && cleanPhoneDigits.length <= 15
+
+    if (!isTanzanian && !isInternational) {
       return {
         success: false,
-        message: 'Please provide a valid Tanzanian mobile phone number for customer (e.g. 07XXXXXXXX or +255XXXXXXXXX).',
+        message: 'Please provide a valid mobile phone number for customer (at least 9-10 digits, e.g. 07XXXXXXXX or +255XXXXXXXXX).',
         errorCode: 'INVALID_INPUT',
       }
     }
@@ -312,7 +368,9 @@ export async function createReferralTicket(input: CreateReferralTicketInput): Pr
       }
     }
 
-    normalizedCustomerPhone = normalizeTanzanianPhone(input.customerPhone)
+    normalizedCustomerPhone = isTanzanian
+      ? normalizeTanzanianPhone(input.customerPhone)
+      : input.customerPhone.trim()
 
     // Prevent self-referral
     if (normalizedCustomerPhone === normalizedPartnerPhone || normalizedCustomerPhone === normalizedPartnerWhatsApp) {
@@ -371,7 +429,7 @@ export async function createReferralTicket(input: CreateReferralTicketInput): Pr
         }
         return {
           success: false,
-          message: 'This customer has already been referred for this deal by another partner. First registered referral takes precedence.',
+          message: 'This Customer may already be associated with this opportunity. LUMO will review the attribution.',
           errorCode: 'DUPLICATE_SUBMISSION',
         }
       }
@@ -393,7 +451,7 @@ export async function createReferralTicket(input: CreateReferralTicketInput): Pr
         }
         return {
           success: false,
-          message: 'This customer has already been referred for this deal by another partner. First registered referral takes precedence.',
+          message: 'This Customer may already be associated with this opportunity. LUMO will review the attribution.',
           errorCode: 'DUPLICATE_SUBMISSION',
         }
       }
@@ -401,37 +459,100 @@ export async function createReferralTicket(input: CreateReferralTicketInput): Pr
   }
 
   // 5. Generate Reference and Prepare Data
-  const ticketReference = generateTicketReference()
+  const isConnection = input.submissionType === 'CUSTOMER_CONNECTION' || input.ticketPrefix === 'LUMO-CON' || Boolean(input.entityType)
+  const ticketReference = isConnection
+    ? generateConnectionReference()
+    : generateTicketReference(input.ticketPrefix || 'LUMO-REF')
   const partnerPhoneMasked = maskPhone(normalizedPartnerPhone)
   const customerPhoneMasked = normalizedCustomerPhone ? maskPhone(normalizedCustomerPhone) : null
 
-  // Ensure internal merchant data is preserved internally
-  const merchantOrgId = input.merchantOrgId || null
-  const merchantName = input.merchantName || 'Internal Merchant Partner'
+  // Ensure internal merchant data and opportunity linkage are resolved
+  let resolvedOpportunityId =
+    input.opportunityId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input.opportunityId)
+      ? input.opportunityId
+      : null
+  let merchantOrgId = input.merchantOrgId || null
+  let merchantName = input.merchantName || 'Internal Merchant Partner'
+
+  try {
+    const isDealIdUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input.dealId)
+    const matchedOpp = await db.opportunity.findFirst({
+      where: {
+        OR: [
+          ...(resolvedOpportunityId ? [{ id: resolvedOpportunityId }] : []),
+          { slug: input.dealSlug },
+          { title: input.dealTitle },
+          ...(isDealIdUuid ? [{ id: input.dealId }] : []),
+        ],
+      },
+      include: { organization: true },
+    })
+    if (matchedOpp) {
+      resolvedOpportunityId = matchedOpp.id
+      if (!merchantOrgId && matchedOpp.organizationId) {
+        merchantOrgId = matchedOpp.organizationId
+      }
+      if (merchantName === 'Internal Merchant Partner' && matchedOpp.organization?.legalName) {
+        merchantName = matchedOpp.organization.legalName
+      }
+    }
+  } catch (oppLookupErr) {}
+
+  const parsedNumericReward = extractNumericReward(input.rewardAmountTZS, input.rewardDisplay)
+
+  const successMessage = isConnection
+    ? `Your Customer Connection has been submitted successfully and is awaiting LUMO review (Reference: ${ticketReference}).`
+    : `Your referral ticket has been created successfully (Reference: ${ticketReference}). Lumo is reviewing availability.`
+
+  const connectionMetadata = {
+    entityType: input.entityType || null,
+    customerRole: input.customerRole || null,
+    companyName: input.companyName || null,
+    contactPerson: input.contactPerson || null,
+    customerCountry: input.customerCountry || 'Tanzania',
+    customerRegion: input.customerRegion || null,
+    customerCity: input.customerCity || null,
+    customerEmail: input.customerEmail || null,
+    customerWebsite: input.customerWebsite || null,
+    relationshipWithCustomer: input.relationshipWithCustomer || null,
+    spokenToCustomer: input.spokenToCustomer || null,
+    customerInterestLevel: input.customerInterestLevel || null,
+    lumoMayContact: input.lumoMayContact || null,
+    customerSuitability: input.customerSuitability || null,
+    relevantCapabilities: Array.isArray(input.relevantCapabilities) ? input.relevantCapabilities : [],
+    supportingDocuments: Array.isArray(input.supportingDocuments) ? input.supportingDocuments : undefined,
+    isDuplicatePotential: Boolean(input.isDuplicatePotential),
+    declarationAccepted: Boolean(input.declarationAccepted),
+  }
+
+  // Specifications fallback preserves JSON metadata for any DB without the new columns yet
+  const fallbackSpecifications = input.specifications?.trim()
+    ? JSON.stringify({ ...connectionMetadata, specifications: input.specifications.trim() })
+    : JSON.stringify(connectionMetadata)
 
   try {
     const created = await db.referralTicket.create({
       data: {
         ticketReference,
         dealId: input.dealId,
-        opportunityId: input.opportunityId ?? null,
+        opportunityId: resolvedOpportunityId,
         dealTitle: input.dealTitle,
         dealSlug: input.dealSlug,
-        submissionType: input.submissionType,
+        submissionType: (input.submissionType === 'CUSTOMER_CONNECTION' ? 'CUSTOMER_REFERRAL' : input.submissionType) as any,
         partnerUserId: input.partnerUserId,
         promotionalCode: input.promotionalCode || null,
         partnerName: input.partnerName,
         partnerPhone: normalizedPartnerPhone,
         partnerWhatsApp: normalizedPartnerWhatsApp,
         partnerPhoneMasked,
-        customerFirstName: isCustomerReferral ? input.customerFirstName?.trim() || null : null,
-        customerLastName: isCustomerReferral ? input.customerLastName?.trim() || null : null,
+        customerFirstName: isCustomerReferral ? finalCustomerFirstName : null,
+        customerLastName: isCustomerReferral ? finalCustomerLastName : null,
         customerPhone: normalizedCustomerPhone,
         customerPhoneMasked,
         contactPermissionConfirmed: isCustomerReferral ? Boolean(input.contactPermissionConfirmed) : false,
         quantity: input.quantity && input.quantity > 0 ? input.quantity : 1,
         deliveryDestination: input.deliveryDestination?.trim() || null,
-        specifications: input.specifications?.trim() || null,
+        specifications: fallbackSpecifications,
         terminalOption: input.terminalOption?.trim() || null,
         additionalNotes: input.additionalNotes?.trim() || null,
         acceptedTermsVersion: input.acceptedTermsVersion || 1,
@@ -447,10 +568,11 @@ export async function createReferralTicket(input: CreateReferralTicketInput): Pr
         partnerVisibleUpdate: isCustomerReferral
           ? 'Referral ticket submitted. Lumo coordinator reviewing availability.'
           : 'Coordination enquiry submitted. Lumo coordinator reviewing specifications.',
-        rewardAmountTZS: input.rewardAmountTZS ? String(input.rewardAmountTZS) : null,
+        rewardAmountTZS: parsedNumericReward > 0 ? parsedNumericReward : (input.rewardAmountTZS ? Number(input.rewardAmountTZS) : null),
         rewardDisplay: input.rewardDisplay || null,
         rewardStatus: 'NOT_YET_EARNED',
         idempotencyKey: input.idempotencyKey || null,
+        ...connectionMetadata,
       },
     })
 
@@ -459,11 +581,67 @@ export async function createReferralTicket(input: CreateReferralTicketInput): Pr
 
     return {
       success: true,
-      message: `Your referral ticket has been created successfully (Reference: ${ticketReference}). Lumo is reviewing availability.`,
+      message: successMessage,
       ticket: sanitizeTicketForPartner(dto),
     }
   } catch (error: any) {
-    console.warn('Database referral ticket creation fallback to in-memory store:', error?.message || error)
+    // If DB has not yet applied the new column migration, retry without the new columns using fallbackSpecifications
+    try {
+      const legacyCreated = await db.referralTicket.create({
+        data: {
+          ticketReference,
+          dealId: input.dealId,
+          opportunityId: resolvedOpportunityId,
+          dealTitle: input.dealTitle,
+          dealSlug: input.dealSlug,
+          submissionType: (input.submissionType === 'CUSTOMER_CONNECTION' ? 'CUSTOMER_REFERRAL' : input.submissionType) as any,
+          partnerUserId: input.partnerUserId,
+          promotionalCode: input.promotionalCode || null,
+          partnerName: input.partnerName,
+          partnerPhone: normalizedPartnerPhone,
+          partnerWhatsApp: normalizedPartnerWhatsApp,
+          partnerPhoneMasked,
+          customerFirstName: isCustomerReferral ? finalCustomerFirstName : null,
+          customerLastName: isCustomerReferral ? finalCustomerLastName : null,
+          customerPhone: normalizedCustomerPhone,
+          customerPhoneMasked,
+          contactPermissionConfirmed: isCustomerReferral ? Boolean(input.contactPermissionConfirmed) : false,
+          quantity: input.quantity && input.quantity > 0 ? input.quantity : 1,
+          deliveryDestination: input.deliveryDestination?.trim() || null,
+          specifications: fallbackSpecifications,
+          terminalOption: input.terminalOption?.trim() || null,
+          additionalNotes: input.additionalNotes?.trim() || null,
+          acceptedTermsVersion: input.acceptedTermsVersion || 1,
+          merchantOrgId,
+          merchantName,
+          stage: 'SUBMITTED',
+          assignedCoordinator: 'Sarah (Lumo Coordination Desk)',
+          nextAction: 'Lumo Coordinator to verify details and confirm availability with merchant',
+          nextActionDueDate: 'Within 1 business day',
+          coordinatorNotes: isCustomerReferral
+            ? 'New referral submitted. Awaiting merchant availability confirmation.'
+            : 'Coordination enquiry logged. Verifying product specifications and dispatch timelines.',
+          partnerVisibleUpdate: isCustomerReferral
+            ? 'Referral ticket submitted. Lumo coordinator reviewing availability.'
+            : 'Coordination enquiry submitted. Lumo coordinator reviewing specifications.',
+          rewardAmountTZS: parsedNumericReward > 0 ? parsedNumericReward : (input.rewardAmountTZS ? Number(input.rewardAmountTZS) : null),
+          rewardDisplay: input.rewardDisplay || null,
+          rewardStatus: 'NOT_YET_EARNED',
+          idempotencyKey: input.idempotencyKey || null,
+        } as any,
+      })
+
+      const dto = mapPrismaTicketToDTO(legacyCreated)
+      inMemoryTickets = [dto, ...inMemoryTickets]
+
+      return {
+        success: true,
+        message: successMessage,
+        ticket: sanitizeTicketForPartner(dto),
+      }
+    } catch (fallbackErr: any) {
+      console.warn('Database referral ticket creation fallback to in-memory store:', fallbackErr?.message || error?.message || error)
+    }
 
     // Create in in-memory fallback
     const memTicket: ReferralTicketDTO = {
@@ -473,7 +651,7 @@ export async function createReferralTicket(input: CreateReferralTicketInput): Pr
       opportunityId: input.opportunityId ?? null,
       dealTitle: input.dealTitle,
       dealSlug: input.dealSlug,
-      submissionType: input.submissionType,
+      submissionType: input.submissionType as any,
       partnerUserId: input.partnerUserId,
       promotionalCode: input.promotionalCode || null,
       partnerName: input.partnerName,
@@ -481,8 +659,26 @@ export async function createReferralTicket(input: CreateReferralTicketInput): Pr
       partnerPhoneMasked,
       partnerWhatsApp: normalizedPartnerWhatsApp,
       partnerWhatsAppMasked: maskPhone(normalizedPartnerWhatsApp),
-      customerFirstName: isCustomerReferral ? input.customerFirstName?.trim() || null : null,
-      customerLastName: isCustomerReferral ? input.customerLastName?.trim() || null : null,
+      entityType: input.entityType || null,
+      customerRole: input.customerRole || null,
+      companyName: input.companyName || null,
+      contactPerson: input.contactPerson || null,
+      customerCountry: input.customerCountry || 'Tanzania',
+      customerRegion: input.customerRegion || null,
+      customerCity: input.customerCity || null,
+      customerEmail: input.customerEmail || null,
+      customerWebsite: input.customerWebsite || null,
+      relationshipWithCustomer: input.relationshipWithCustomer || null,
+      spokenToCustomer: input.spokenToCustomer || null,
+      customerInterestLevel: input.customerInterestLevel || null,
+      lumoMayContact: input.lumoMayContact || null,
+      customerSuitability: input.customerSuitability || null,
+      relevantCapabilities: input.relevantCapabilities || null,
+      supportingDocuments: input.supportingDocuments || null,
+      isDuplicatePotential: Boolean(input.isDuplicatePotential),
+      declarationAccepted: Boolean(input.declarationAccepted),
+      customerFirstName: isCustomerReferral ? finalCustomerFirstName : null,
+      customerLastName: isCustomerReferral ? finalCustomerLastName : null,
       customerPhone: normalizedCustomerPhone,
       customerPhoneMasked,
       contactPermissionConfirmed: isCustomerReferral ? Boolean(input.contactPermissionConfirmed) : false,
@@ -520,7 +716,7 @@ export async function createReferralTicket(input: CreateReferralTicketInput): Pr
 
     return {
       success: true,
-      message: `Your referral ticket has been created successfully (Reference: ${ticketReference}). Lumo is reviewing availability.`,
+      message: successMessage,
       ticket: sanitizeTicketForPartner(memTicket),
     }
   }
@@ -569,22 +765,44 @@ export async function getReferralTicket(
 /**
  * Lists all tickets belonging to an authenticated partner, with merchant data strictly stripped.
  */
-export async function listPartnerReferralTickets(partnerUserId: string): Promise<ReferralTicketDTO[]> {
-  try {
-    const records = await db.referralTicket.findMany({
-      where: { partnerUserId },
-      orderBy: { createdAt: 'desc' },
-    })
-    if (records.length > 0) {
-      return records.map((r) => sanitizeTicketForPartner(mapPrismaTicketToDTO(r)))
+export async function listPartnerReferralTickets(partnerUserId: string, partnerPhone?: string): Promise<ReferralTicketDTO[]> {
+  if (!partnerUserId) return []
+
+  const dbTickets: ReferralTicketDTO[] = []
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(partnerUserId)
+  if (process.env.DATABASE_URL?.trim() && isUuid) {
+    try {
+      const records = await db.referralTicket.findMany({
+        where: {
+          partnerUserId,
+        },
+        orderBy: { createdAt: 'desc' },
+      })
+      for (const r of records) {
+        dbTickets.push(sanitizeTicketForPartner(mapPrismaTicketToDTO(r)))
+      }
+    } catch (err) {
+      console.error('listPartnerReferralTickets DB error:', err)
     }
-  } catch {
-    // Fallback
   }
 
-  return inMemoryTickets
-    .filter((t) => t.partnerUserId === partnerUserId || partnerUserId === 'all' || !partnerUserId)
+  const memoryTickets = inMemoryTickets
+    .filter((t) => t.partnerUserId === partnerUserId)
     .map(sanitizeTicketForPartner)
+
+  const ticketMap = new Map<string, ReferralTicketDTO>()
+  for (const t of memoryTickets) {
+    ticketMap.set(t.id, t)
+    if (t.ticketReference) ticketMap.set(t.ticketReference, t)
+  }
+  for (const t of dbTickets) {
+    ticketMap.set(t.id, t)
+    if (t.ticketReference) ticketMap.set(t.ticketReference, t)
+  }
+
+  return Array.from(new Set(ticketMap.values())).sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  )
 }
 
 /**
@@ -659,31 +877,349 @@ export async function updateReferralTicketStage(
     nextActionDueDate?: string
     coordinatorNotes?: string
     partnerVisibleUpdate?: string
-    closureReason?: ReferralClosureReason
+    closureReason?: ReferralClosureReason | string
     rewardStatus?: string
+    requestedInfoNotes?: string
+    rejectionReasonNotes?: string
+    partnerResubmissionNotes?: string
+    customerEmail?: string
+    customerPhone?: string
+    relationshipWithCustomer?: string
+    payoutId?: string
+    payoutReference?: string
   }
 ): Promise<boolean> {
   const stageUpdatedAt = new Date()
 
+  // Determine inferred rewardStatus based on stage if not explicitly passed
+  let inferredRewardStatus = details?.rewardStatus
+  if (!inferredRewardStatus) {
+    if (stage === 'REWARD_PAID') {
+      inferredRewardStatus = 'PAID'
+    } else if (stage === 'REWARD_APPROVED') {
+      inferredRewardStatus = 'APPROVED'
+    } else if (stage === 'REWARD_PENDING') {
+      inferredRewardStatus = 'PENDING'
+    } else if (stage === 'SUCCESSFUL') {
+      inferredRewardStatus = 'APPROVED'
+    } else if (stage === 'COMPLETED') {
+      inferredRewardStatus = 'PARTNER_CONFIRMS_RECEIPT'
+    }
+  }
+
+  let effectiveRewardAmount = 0
+
+  // Standardize notes and messages for info requests, rejections, resubmission, and payout requests
+  let effectivePartnerVisibleUpdate = details?.partnerVisibleUpdate
+  let effectiveCoordinatorNotes = details?.coordinatorNotes
+
+  if (stage === 'MORE_INFO_REQUIRED' && details?.requestedInfoNotes) {
+    if (!effectivePartnerVisibleUpdate) {
+      effectivePartnerVisibleUpdate = `Information Required by LUMO: ${details.requestedInfoNotes}`
+    }
+    if (!effectiveCoordinatorNotes) {
+      effectiveCoordinatorNotes = `Admin requested additional info: ${details.requestedInfoNotes}`
+    }
+  } else if (stage === 'REJECTED' && details?.rejectionReasonNotes) {
+    if (!effectivePartnerVisibleUpdate) {
+      effectivePartnerVisibleUpdate = `Connection rejected: ${details.rejectionReasonNotes}`
+    }
+    if (!effectiveCoordinatorNotes) {
+      effectiveCoordinatorNotes = `Connection rejected (${details.closureReason || 'OTHER'}): ${details.rejectionReasonNotes}`
+    }
+  } else if (details?.partnerResubmissionNotes) {
+    if (!effectivePartnerVisibleUpdate) {
+      effectivePartnerVisibleUpdate = `Additional information submitted by Partner. Under review by LUMO Desk.`
+    }
+    if (!effectiveCoordinatorNotes) {
+      effectiveCoordinatorNotes = `Partner provided requested information: "${details.partnerResubmissionNotes}". Ready for review.`
+    }
+  } else if (stage === 'REWARD_PENDING') {
+    if (!effectivePartnerVisibleUpdate) {
+      effectivePartnerVisibleUpdate = details?.payoutReference
+        ? `Payout request submitted (${details.payoutReference}). Awaiting LUMO Finance verification & disbursal.`
+        : `Payout request submitted. Awaiting LUMO Finance verification & disbursal.`
+    }
+    if (!effectiveCoordinatorNotes) {
+      effectiveCoordinatorNotes = details?.payoutReference
+        ? `Partner requested reward payout (${details.payoutReference}). Queued for disbursal.`
+        : `Partner requested reward payout. Queued for disbursal.`
+    }
+  }
+
   try {
-    await db.referralTicket.updateMany({
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrRef)
+    const existingTicket = await db.referralTicket.findFirst({
       where: {
-        OR: [{ id: idOrRef.length === 36 ? idOrRef : undefined }, { ticketReference: idOrRef }].filter(Boolean) as any,
-      },
-      data: {
-        stage,
-        stageUpdatedAt,
-        ...(details?.assignedCoordinator ? { assignedCoordinator: details.assignedCoordinator } : {}),
-        ...(details?.nextAction ? { nextAction: details.nextAction } : {}),
-        ...(details?.nextActionDueDate ? { nextActionDueDate: details.nextActionDueDate } : {}),
-        ...(details?.coordinatorNotes ? { coordinatorNotes: details.coordinatorNotes } : {}),
-        ...(details?.partnerVisibleUpdate ? { partnerVisibleUpdate: details.partnerVisibleUpdate } : {}),
-        ...(details?.closureReason ? { closureReason: details.closureReason } : {}),
-        ...(details?.rewardStatus ? { rewardStatus: details.rewardStatus } : {}),
+        OR: [
+          ...(isUuid ? [{ id: idOrRef }] : []),
+          { ticketReference: idOrRef },
+          { id: idOrRef },
+        ],
       },
     })
-  } catch {
-    // Continue to sync in-memory
+
+    if (existingTicket) {
+      // Calculate reward amount if missing
+      effectiveRewardAmount = extractNumericReward(existingTicket.rewardAmountTZS, existingTicket.rewardDisplay)
+
+      // Resolve opportunity & merchant linkage if missing
+      let resolvedOpportunityId = existingTicket.opportunityId
+      let resolvedMerchantOrgId = existingTicket.merchantOrgId
+      let resolvedMerchantName = existingTicket.merchantName
+
+      try {
+        const isDealIdUuid = existingTicket.dealId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(existingTicket.dealId)
+        const matchedOpp = await db.opportunity.findFirst({
+          where: {
+            OR: [
+              ...(resolvedOpportunityId ? [{ id: resolvedOpportunityId }] : []),
+              { slug: existingTicket.dealSlug },
+              { title: existingTicket.dealTitle },
+              ...(isDealIdUuid ? [{ id: existingTicket.dealId }] : []),
+            ],
+          },
+          include: { organization: true, publishedVersion: true },
+        })
+
+        if (matchedOpp) {
+          if (!resolvedOpportunityId) resolvedOpportunityId = matchedOpp.id
+          if (!resolvedMerchantOrgId && matchedOpp.organizationId) resolvedMerchantOrgId = matchedOpp.organizationId
+          if (!resolvedMerchantName && matchedOpp.organization?.legalName) resolvedMerchantName = matchedOpp.organization.legalName
+          if (effectiveRewardAmount <= 0) {
+            if (matchedOpp.fixedRewardAmountMinor) {
+              effectiveRewardAmount = Number(matchedOpp.fixedRewardAmountMinor) / 100
+            } else if (matchedOpp.publishedVersion?.rewardSummary) {
+              effectiveRewardAmount = extractNumericReward(null, matchedOpp.publishedVersion.rewardSummary)
+            }
+          }
+        }
+      } catch (oppLookupErr) {
+        console.warn('Opp lookup failed during ticket stage update:', oppLookupErr)
+      }
+
+      // Merge metadata into specifications JSON for resilient storage
+      let updatedSpecifications: string | undefined = undefined
+      try {
+        let currentMeta: any = {}
+        if (existingTicket.specifications && existingTicket.specifications.startsWith('{')) {
+          currentMeta = JSON.parse(existingTicket.specifications)
+        }
+        if (details?.requestedInfoNotes !== undefined) {
+          currentMeta.requestedInfoNotes = details.requestedInfoNotes
+        }
+        if (details?.rejectionReasonNotes !== undefined) {
+          currentMeta.rejectionReasonNotes = details.rejectionReasonNotes
+        }
+        if (details?.closureReason !== undefined) {
+          currentMeta.closureReason = details.closureReason
+        }
+        if (details?.partnerResubmissionNotes !== undefined) {
+          currentMeta.partnerResubmissionNotes = details.partnerResubmissionNotes
+          currentMeta.requestedInfoNotes = null
+        }
+        if (details?.payoutId !== undefined) {
+          currentMeta.payoutId = details.payoutId
+        }
+        if (details?.payoutReference !== undefined) {
+          currentMeta.payoutReference = details.payoutReference
+        }
+        updatedSpecifications = JSON.stringify(currentMeta)
+      } catch {}
+
+      let updatedAdditionalNotes: string | undefined = undefined
+      if (details?.partnerResubmissionNotes) {
+        const timestamp = new Date().toLocaleDateString('en-GB')
+        updatedAdditionalNotes = existingTicket.additionalNotes
+          ? `${existingTicket.additionalNotes}\n\n[Partner Resubmission ${timestamp}]: ${details.partnerResubmissionNotes}`
+          : `[Partner Resubmission ${timestamp}]: ${details.partnerResubmissionNotes}`
+      }
+
+      const validPrismaClosureReasons = ['UNAVAILABLE', 'DUPLICATE', 'CANCELLED', 'UNSUCCESSFUL', 'OTHER']
+      let prismaClosureReason: any = undefined
+      if (details?.closureReason) {
+        if (validPrismaClosureReasons.includes(details.closureReason)) {
+          prismaClosureReason = details.closureReason
+        } else if (details.closureReason === 'CUSTOMER_NOT_INTERESTED' || details.closureReason === 'OUT_OF_SCOPE') {
+          prismaClosureReason = 'UNSUCCESSFUL'
+        } else if (details.closureReason === 'INVALID_CONTACT') {
+          prismaClosureReason = 'UNAVAILABLE'
+        } else {
+          prismaClosureReason = 'OTHER'
+        }
+      }
+
+      await db.referralTicket.update({
+        where: { id: existingTicket.id },
+        data: {
+          stage: stage as any,
+          stageUpdatedAt,
+          ...(inferredRewardStatus ? { rewardStatus: inferredRewardStatus } : {}),
+          ...(effectiveRewardAmount > 0 ? { rewardAmountTZS: effectiveRewardAmount } : {}),
+          ...(resolvedOpportunityId ? { opportunityId: resolvedOpportunityId } : {}),
+          ...(resolvedMerchantOrgId ? { merchantOrgId: resolvedMerchantOrgId } : {}),
+          ...(resolvedMerchantName ? { merchantName: resolvedMerchantName } : {}),
+          ...(details?.assignedCoordinator !== undefined ? { assignedCoordinator: details.assignedCoordinator } : {}),
+          ...(details?.nextAction !== undefined ? { nextAction: details.nextAction } : {}),
+          ...(details?.nextActionDueDate !== undefined ? { nextActionDueDate: details.nextActionDueDate } : {}),
+          ...(effectiveCoordinatorNotes !== undefined ? { coordinatorNotes: effectiveCoordinatorNotes } : {}),
+          ...(effectivePartnerVisibleUpdate !== undefined ? { partnerVisibleUpdate: effectivePartnerVisibleUpdate } : {}),
+          ...(prismaClosureReason !== undefined ? { closureReason: prismaClosureReason } : {}),
+          ...(updatedSpecifications ? { specifications: updatedSpecifications } : {}),
+          ...(updatedAdditionalNotes ? { additionalNotes: updatedAdditionalNotes } : {}),
+          ...(details?.customerEmail ? { customerEmail: details.customerEmail } : {}),
+          ...(details?.customerPhone ? { customerPhone: details.customerPhone } : {}),
+          ...(details?.relationshipWithCustomer ? { relationshipWithCustomer: details.relationshipWithCustomer } : {}),
+        },
+      })
+
+      // If stage transitioned to REWARD_PAID, ensure a payout record is created/marked PAID and opportunity spent budget incremented
+      if ((stage === 'REWARD_PAID' || inferredRewardStatus === 'PAID') && effectiveRewardAmount > 0) {
+        if (resolvedOpportunityId) {
+          try {
+            await db.opportunity.update({
+              where: { id: resolvedOpportunityId },
+              data: {
+                spentBudgetMinor: {
+                  increment: BigInt(Math.round(effectiveRewardAmount * 100)),
+                },
+              },
+            })
+          } catch (budgetErr) {
+            console.warn('Failed to increment spentBudgetMinor:', budgetErr)
+          }
+        }
+
+        if (existingTicket.partnerUserId) {
+          try {
+            const { createPartnerPayoutRequest, updatePayoutStatus } = await import('@/modules/payouts/payout-store')
+            const gross = effectiveRewardAmount
+            const fee = Math.round(gross * 0.03)
+            const tax = Math.round(gross * 0.05)
+            const net = Math.max(0, gross - fee - tax)
+
+            const payout = await createPartnerPayoutRequest({
+              partnerUserId: existingTicket.partnerUserId,
+              partnerName: existingTicket.partnerName || 'Partner',
+              partnerPhone: existingTicket.partnerPhone || '—',
+              payoutChannel: 'MOBILE_MONEY',
+              accountNumber: existingTicket.partnerPhone || '—',
+              grossAmountTZS: gross,
+              platformFeeTZS: fee,
+              taxWithheldTZS: tax,
+              netAmountTZS: net,
+              notes: `Disbursement for ${existingTicket.ticketReference} - ${existingTicket.dealTitle}`,
+            })
+
+            await updatePayoutStatus({
+              payoutId: payout.id,
+              action: 'DISBURSE',
+              adminActor: details?.assignedCoordinator || 'Admin Coordination Desk',
+              disbursalReference: `PAY-${existingTicket.ticketReference}`,
+              notes: `Auto-disbursed upon REWARD_PAID stage transition.`,
+            })
+          } catch (payoutErr) {
+            console.warn('Failed to auto-create payout for REWARD_PAID ticket:', payoutErr)
+          }
+        }
+      }
+
+      // Send In-App notification to the partner user
+      if (existingTicket.partnerUserId) {
+        try {
+          const stageNames: Record<string, string> = {
+            SUBMITTED: 'Submitted',
+            UNDER_REVIEW: 'Under Review',
+            MORE_INFO_REQUIRED: 'Action Needed: More Info Required',
+            REJECTED: 'Connection Rejected',
+            AVAILABILITY_CONFIRMED: 'Availability Confirmed',
+            IN_PROGRESS: 'In Progress',
+            COMPLETED: 'Completed',
+            REWARD_PENDING: 'Reward Pending',
+            REWARD_APPROVED: 'Reward Approved',
+            REWARD_PAID: 'Reward Paid',
+            CLOSED: 'Closed',
+          }
+          const stageLabel = stageNames[stage] || stage
+          const updateTitle =
+            stage === 'MORE_INFO_REQUIRED'
+              ? 'LUMO: Additional Information Required'
+              : stage === 'REJECTED'
+              ? 'LUMO: Connection Not Approved'
+              : `Referral Updated: ${stageLabel}`
+
+          const updateText =
+            effectivePartnerVisibleUpdate ||
+            `Your referral (${existingTicket.ticketReference}) for "${existingTicket.dealTitle}" is now: ${stageLabel}. Next Action: ${details?.nextAction || 'Completed'}.`
+
+          await db.notification.create({
+            data: {
+              userId: existingTicket.partnerUserId,
+              channel: 'IN_APP',
+              title: updateTitle,
+              body: updateText,
+              linkUrl: '/partner?tab=leads_referrals',
+            },
+          })
+        } catch (notifError) {
+          console.warn('Could not create notification for partner:', notifError)
+        }
+      }
+
+      // If partner resubmitted information, alert the admin team
+      if (details?.partnerResubmissionNotes) {
+        try {
+          const adminUser = await db.user.findFirst({
+            where: { email: 'admin@lumo.co.tz' },
+            select: { id: true },
+          })
+          if (adminUser) {
+            await db.notification.create({
+              data: {
+                userId: adminUser.id,
+                channel: 'IN_APP',
+                title: 'Connection Info Resubmitted',
+                body: `Partner ${existingTicket.partnerName} resubmitted requested information for connection ${existingTicket.ticketReference}.`,
+                linkUrl: '/admin?tab=referrals',
+              },
+            })
+          }
+        } catch (adminNotifErr) {
+          console.warn('Could not notify admin on partner resubmission:', adminNotifErr)
+        }
+      }
+
+      // If partner phone exists, optionally dispatch SMS notification
+      if (existingTicket.partnerPhone) {
+        try {
+          await providers.sms.sendSms({
+            recipientPhone: existingTicket.partnerPhone,
+            messageText: `[LUMO] Rufaa #${existingTicket.ticketReference} imeboreshwa: ${effectivePartnerVisibleUpdate || stage}. Ingia kwenye Lumo kufuatilia hatua inayofuata.`,
+          })
+        } catch (smsError) {
+          console.warn('SMS alert failed (non-blocking):', smsError)
+        }
+      }
+    } else {
+      await db.referralTicket.updateMany({
+        where: {
+          OR: [{ id: idOrRef.length === 36 ? idOrRef : undefined }, { ticketReference: idOrRef }].filter(Boolean) as any,
+        },
+        data: {
+          stage: stage as any,
+          stageUpdatedAt,
+          ...(inferredRewardStatus ? { rewardStatus: inferredRewardStatus } : {}),
+          ...(details?.assignedCoordinator ? { assignedCoordinator: details.assignedCoordinator } : {}),
+          ...(details?.nextAction ? { nextAction: details.nextAction } : {}),
+          ...(details?.nextActionDueDate ? { nextActionDueDate: details.nextActionDueDate } : {}),
+          ...(effectiveCoordinatorNotes ? { coordinatorNotes: effectiveCoordinatorNotes } : {}),
+          ...(effectivePartnerVisibleUpdate ? { partnerVisibleUpdate: effectivePartnerVisibleUpdate } : {}),
+          ...(details?.closureReason ? { closureReason: details.closureReason as any } : {}),
+        },
+      })
+    }
+  } catch (err) {
+    console.error('updateReferralTicketStage db error:', err)
   }
 
   const target = inMemoryTickets.find(
@@ -693,13 +1229,58 @@ export async function updateReferralTicketStage(
     target.stage = stage
     target.stageUpdatedAt = stageUpdatedAt.toISOString()
     target.updatedAt = stageUpdatedAt.toISOString()
+    if (inferredRewardStatus) target.rewardStatus = inferredRewardStatus
+    if (effectiveRewardAmount > 0) target.rewardAmountTZS = effectiveRewardAmount
     if (details?.assignedCoordinator) target.assignedCoordinator = details.assignedCoordinator
     if (details?.nextAction) target.nextAction = details.nextAction
     if (details?.nextActionDueDate) target.nextActionDueDate = details.nextActionDueDate
-    if (details?.coordinatorNotes) target.coordinatorNotes = details.coordinatorNotes
-    if (details?.partnerVisibleUpdate) target.partnerVisibleUpdate = details.partnerVisibleUpdate
+    if (effectiveCoordinatorNotes) target.coordinatorNotes = effectiveCoordinatorNotes
+    if (effectivePartnerVisibleUpdate) target.partnerVisibleUpdate = effectivePartnerVisibleUpdate
     if (details?.closureReason) target.closureReason = details.closureReason
-    if (details?.rewardStatus) target.rewardStatus = details.rewardStatus
+    if (details?.requestedInfoNotes !== undefined) target.requestedInfoNotes = details.requestedInfoNotes
+    if (details?.rejectionReasonNotes !== undefined) target.rejectionReasonNotes = details.rejectionReasonNotes
+    if (details?.partnerResubmissionNotes) {
+      target.requestedInfoNotes = null
+      target.additionalNotes = target.additionalNotes
+        ? `${target.additionalNotes}\n\n[Partner Resubmission]: ${details.partnerResubmissionNotes}`
+        : `[Partner Resubmission]: ${details.partnerResubmissionNotes}`
+    }
+    if (details?.customerEmail) target.customerEmail = details.customerEmail
+    if (details?.customerPhone) target.customerPhone = details.customerPhone
+    if (details?.relationshipWithCustomer) target.relationshipWithCustomer = details.relationshipWithCustomer
+
+    if ((stage === 'REWARD_PAID' || inferredRewardStatus === 'PAID') && (target.rewardAmountTZS || 0) > 0) {
+      try {
+        const { createPartnerPayoutRequest, updatePayoutStatus } = await import('@/modules/payouts/payout-store')
+        const gross = target.rewardAmountTZS || 0
+        const fee = Math.round(gross * 0.03)
+        const tax = Math.round(gross * 0.05)
+        const net = Math.max(0, gross - fee - tax)
+
+        const payout = await createPartnerPayoutRequest({
+          partnerUserId: target.partnerUserId,
+          partnerName: target.partnerName || 'Partner',
+          partnerPhone: target.partnerPhone || '—',
+          payoutChannel: 'MOBILE_MONEY',
+          accountNumber: target.partnerPhone || '—',
+          grossAmountTZS: gross,
+          platformFeeTZS: fee,
+          taxWithheldTZS: tax,
+          netAmountTZS: net,
+          notes: `Disbursement for ${target.ticketReference} - ${target.dealTitle}`,
+        })
+
+        await updatePayoutStatus({
+          payoutId: payout.id,
+          action: 'DISBURSE',
+          adminActor: details?.assignedCoordinator || 'Admin Coordination Desk',
+          disbursalReference: `PAY-${target.ticketReference}`,
+          notes: `Auto-disbursed upon REWARD_PAID stage transition.`,
+        })
+      } catch (payoutErr) {
+        console.warn('Memory payout creation fallback failed:', payoutErr)
+      }
+    }
   }
 
   return true
@@ -808,7 +1389,7 @@ export function submitCustomerReferral(input: SubmitReferralInput): {
   // Also add to inMemoryTickets
   inMemoryTickets = [
     {
-      ...legacyCase,
+      ...(legacyCase as any),
       ticketReference,
       submissionType: 'CUSTOMER_REFERRAL',
       quantity: 1,
@@ -888,7 +1469,7 @@ export function listAdminReferralCases(): ReferralCase[] {
     nextActionDueDate: c.nextActionDueDate || undefined,
     coordinatorNotes: c.coordinatorNotes || undefined,
     partnerVisibleUpdate: c.partnerVisibleUpdate || undefined,
-    closureReason: c.closureReason || undefined,
+    closureReason: (c.closureReason as any) || undefined,
     rewardAmountTZS: c.rewardAmountTZS || 0,
     rewardDisplay: c.rewardDisplay || 'Commercial Reward Direct from Merchant',
     rewardStatus: (c.rewardStatus as DirectRewardStatus) || 'NOT_YET_EARNED',
@@ -921,7 +1502,7 @@ export function updateReferralCaseStage(
     (t) => t.id === caseId || t.ticketReference.toLowerCase() === caseId.toLowerCase()
   )
   if (!target) return false
-  target.stage = stage
+  target.stage = stage as any
   target.stageUpdatedAt = new Date().toISOString()
   target.updatedAt = new Date().toISOString()
   if (details?.assignedCoordinator) target.assignedCoordinator = details.assignedCoordinator

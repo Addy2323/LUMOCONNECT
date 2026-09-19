@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useRef, useEffect } from 'react'
+import { uploadOpportunityImage, readApiResponse } from '@/lib/opportunity-media'
 import {
   X,
   ChevronRight,
@@ -72,6 +73,7 @@ interface CreateOpportunityWizardModalProps {
   isOpen: boolean
   onClose: () => void
   onOpportunityCreated: (opp: BusinessOpportunityItem) => void
+  initialDeal?: any
 }
 
 
@@ -251,16 +253,16 @@ export const CATEGORY_REWARD_CONFIG: Record<string, CategoryRewardConfig> = {
     modelId: 'FIXED_REWARD',
     modelTitle: 'Fixed Cash Bounty',
     baselinePriceLabel: 'Asset Valuation & Vehicle Price',
-    defaultBaselinePriceTZS: 180000000,
+    defaultBaselinePriceTZS: 0,
     baselineCurrency: 'TZS',
-    defaultRewardValueTZS: 2000000,
-    defaultRewardPercent: 1.1,
-    rewardCalculationSummary: 'Fixed TZS 2,000,000 (or 1.1% of baseline asset value)',
-    defaultDisplayLabel: 'Asset Price: TZS 180,000,000 | Finder Bounty: TZS 2,000,000',
-    triggerPreset: 'per signed dealer contract',
-    practicalDealExample: 'A car dealership lists a Toyota Land Cruiser for TZS 180,000,000 with a dedicated "Find Buyer & Earn" button.',
-    commercialTermsBreakdown: 'The partner shares the vehicle link or refers a direct buyer. A fixed finder reward of TZS 2,000,000 is credited once the dealer contract is completed and funds clear.',
-    detailedDealFlow: 'A car dealership sets the selling price of an imported vehicle at TZS 180M. The platform dynamically displays two paths: buyers see a "Buy Now" button at TZS 180M, while partners see a "Find Buyer & Earn TZS 2M" button. When an agent shares the attributable link/QR code and a buyer completes payment and registration transfer, the system releases the TZS 2,000,000 bounty after deducting applicable tax withholding.',
+    defaultRewardValueTZS: 0,
+    defaultRewardPercent: 0,
+    rewardCalculationSummary: '',
+    defaultDisplayLabel: '',
+    triggerPreset: '',
+    practicalDealExample: '',
+    commercialTermsBreakdown: '',
+    detailedDealFlow: '',
     icon: 'Automotive & Transportation',
   },
   'Real Estate & Property': {
@@ -269,16 +271,16 @@ export const CATEGORY_REWARD_CONFIG: Record<string, CategoryRewardConfig> = {
     modelId: 'HYBRID_COMPENSATION',
     modelTitle: 'Hybrid (Base + %)',
     baselinePriceLabel: 'Property Valuation & Listing Price',
-    defaultBaselinePriceTZS: 120000000,
+    defaultBaselinePriceTZS: 0,
     baselineCurrency: 'TZS',
-    defaultRewardValueTZS: 500000,
-    defaultRewardPercent: 2,
-    rewardCalculationSummary: 'TZS 500,000 base inspection fee + 2% closing commission (TZS 2,400,000)',
-    defaultDisplayLabel: 'Listing Price: TZS 120M | Total Max Earning: TZS 2,900,000',
-    triggerPreset: 'per signed property contract',
-    practicalDealExample: 'A real estate developer lists a commercial building or prime residential plot in Kigamboni valued at TZS 120,000,000.',
-    commercialTermsBreakdown: 'The partner facilitates buyer inspection and site visits. Upon legal execution of the title deed/sales contract and initial deposit clearance, LUMO automatically disburses the TZS 2,900,000 deal bounty.',
-    detailedDealFlow: 'A real estate developer defines the property baseline at TZS 120M. The system uses this baseline to calculate variable commissions. An independent property agent schedules a client site visit, unlocking the TZS 500,000 base fee upon verified physical check-in. When the land purchase contract is officially executed and the deposit is cleared, the remaining 2% commission (TZS 2.4M) transitions from pending to approved in the partner’s LUMO dashboard.',
+    defaultRewardValueTZS: 0,
+    defaultRewardPercent: 0,
+    rewardCalculationSummary: '',
+    defaultDisplayLabel: '',
+    triggerPreset: '',
+    practicalDealExample: '',
+    commercialTermsBreakdown: '',
+    detailedDealFlow: '',
     icon: 'Real Estate & Property',
   },
   'Sourcing & Supply Chain Services': {
@@ -287,16 +289,16 @@ export const CATEGORY_REWARD_CONFIG: Record<string, CategoryRewardConfig> = {
     modelId: 'CUSTOM_DEAL_TERMS',
     modelTitle: 'Custom Deal Terms',
     baselinePriceLabel: 'Contract & Sourcing Procurement Budget',
-    defaultBaselinePriceTZS: 2080000000, // USD 800,000 equivalent
+    defaultBaselinePriceTZS: 0, // USD 800,000 equivalent
     baselineCurrency: 'USD',
-    defaultRewardValueTZS: 13000000, // USD 5,000 equivalent
+    defaultRewardValueTZS: 0, // USD 5,000 equivalent
     defaultRewardPercent: 0,
-    rewardCalculationSummary: 'Fixed USD 5,000 (approx. TZS 13,000,000) on USD 800,000 procurement requirement',
-    defaultDisplayLabel: 'Procurement Budget: USD 800,000 | Sourcing Reward: USD 5,000',
-    triggerPreset: 'per verified trade match & supply sign-off',
-    practicalDealExample: 'A commercial firm posts a reverse requirement: "Source 50,000 Solar Panels with total budget USD 800,000."',
-    commercialTermsBreakdown: 'The merchant allocates a fixed reward of USD 5,000 (TZS 13M). The partner submits the verified manufacturer credentials, certification documents, and contract agreement. Approved upon countersigned supply contract.',
-    detailedDealFlow: 'A commercial firm posts a reverse requirement stating their total purchase budget of USD 800K for 50,000 solar units. A procurement consultant or trade partner connects the buyer with an accredited international manufacturer. Once the supplier’s trade licenses, pricing quote, and formal supply contract are verified through the LUMO Deal Room, the USD 5,000 sourcing bounty is approved for settlement.',
+    rewardCalculationSummary: '',
+    defaultDisplayLabel: '',
+    triggerPreset: '',
+    practicalDealExample: '',
+    commercialTermsBreakdown: '',
+    detailedDealFlow: '',
     icon: 'Sourcing & Supply Chain Services',
   },
   'Technology & Consumer Electronics': {
@@ -305,16 +307,16 @@ export const CATEGORY_REWARD_CONFIG: Record<string, CategoryRewardConfig> = {
     modelId: 'HYBRID_COMPENSATION',
     modelTitle: 'Percentage + Volume Bonus',
     baselinePriceLabel: 'Unit Retail Price',
-    defaultBaselinePriceTZS: 1200000,
+    defaultBaselinePriceTZS: 0,
     baselineCurrency: 'TZS',
-    defaultRewardValueTZS: 1500000,
-    defaultRewardPercent: 5,
-    rewardCalculationSummary: '5% base per unit (TZS 60,000/sale) + TZS 500,000 bonus at 25 units + TZS 1,500,000 bonus at 50 units',
-    defaultDisplayLabel: 'Retail Price: TZS 1.2M | Earn 5% (TZS 60K/sale) + Up to TZS 2M in Bonuses',
-    triggerPreset: 'on completed order total',
-    practicalDealExample: 'An electronics distributor runs a seasonal push: "Sell 50 Laptops across Dar es Salaam at TZS 1.2M each."',
-    commercialTermsBreakdown: 'Partners earn a standard 5% commission (TZS 60K) on every laptop sold, plus unlock tiered milestone bonuses: TZS 500,000 at 25 units sold, and an additional TZS 1,500,000 at 50 units sold.',
-    detailedDealFlow: 'A tech merchant enters the per-unit retail price of TZS 1.2M and sets up a volume target of 50 laptops. Because the unit price is defined, LUMO automatically calculates that 50 units equal TZS 60M in Gross Merchandise Value (GMV). Affiliates and creators earn a direct TZS 60K on each purchase made via their tracking links, and when a partner reaches 25 verified unit sales, the engine automatically adds the TZS 500,000 milestone bonus to their approved balance.',
+    defaultRewardValueTZS: 0,
+    defaultRewardPercent: 0,
+    rewardCalculationSummary: '',
+    defaultDisplayLabel: '',
+    triggerPreset: '',
+    practicalDealExample: '',
+    commercialTermsBreakdown: '',
+    detailedDealFlow: '',
     icon: 'Technology & Consumer Electronics',
   },
   'Farming, Agriculture & Food': {
@@ -323,16 +325,16 @@ export const CATEGORY_REWARD_CONFIG: Record<string, CategoryRewardConfig> = {
     modelId: 'CUSTOM_DEAL_TERMS',
     modelTitle: 'Custom Deal Terms',
     baselinePriceLabel: 'Minimum Order Value (MOV) / Deal Batch Value',
-    defaultBaselinePriceTZS: 25000000,
+    defaultBaselinePriceTZS: 0,
     baselineCurrency: 'TZS',
-    defaultRewardValueTZS: 750000,
+    defaultRewardValueTZS: 0,
     defaultRewardPercent: 0,
-    rewardCalculationSummary: 'Fixed TZS 750,000 per fulfilled batch off-take contract',
-    defaultDisplayLabel: 'Deal Batch Value: TZS 25,000,000 | Aggregator Bounty: TZS 750,000',
-    triggerPreset: 'per verified delivery sign-off',
-    practicalDealExample: 'A food processor seeks bulk supply: "10 Metric Tons of organic maize valued at TZS 25,000,000."',
-    commercialTermsBreakdown: 'Aggregators and rural agents receive a TZS 750,000 sourcing reward once quality inspection passes and the off-take agreement is finalized and verified through LUMO.',
-    detailedDealFlow: 'A grain processing plant publishes a requirement for raw commodities with a minimum contract value of TZS 25M. An agricultural broker connects rural farmer cooperatives to fulfill the batch. When the delivery arrives, quality inspection passes, and the off-take invoice is cleared, LUMO calculates platform fees and issues the TZS 750,000 partner payout.',
+    rewardCalculationSummary: '',
+    defaultDisplayLabel: '',
+    triggerPreset: '',
+    practicalDealExample: '',
+    commercialTermsBreakdown: '',
+    detailedDealFlow: '',
     icon: 'Farming, Agriculture & Food',
   },
   'Market Finder & Trade Insights': {
@@ -341,16 +343,16 @@ export const CATEGORY_REWARD_CONFIG: Record<string, CategoryRewardConfig> = {
     modelId: 'CUSTOM_DEAL_TERMS',
     modelTitle: 'Custom Deal Terms',
     baselinePriceLabel: 'Consignment Trade Value',
-    defaultBaselinePriceTZS: 50000000,
+    defaultBaselinePriceTZS: 0,
     baselineCurrency: 'TZS',
-    defaultRewardValueTZS: 50000,
+    defaultRewardValueTZS: 0,
     defaultRewardPercent: 0,
-    rewardCalculationSummary: 'TZS 50,000 per verified pre-screened import/export trade match',
-    defaultDisplayLabel: 'Trade Batch: TZS 50M | Match Reward: TZS 50,000 per Verified Buyer',
-    triggerPreset: 'per verified trade match & purchase intent',
-    practicalDealExample: 'An export firm seeks wholesale cashew buyers across East Africa for a TZS 50M consignment.',
-    commercialTermsBreakdown: 'A partner earns TZS 50,000 for each verified import/export trade match that submits formal purchase intent with verified procurement capacity.',
-    detailedDealFlow: 'An export firm seeks bulk buyers across East Africa for Tanzanian raw cashews. A trade partner earns TZS 50,000 for each pre-screened international buyer submitting formal procurement intent. Payout is released upon direct capacity verification in LUMO.',
+    rewardCalculationSummary: '',
+    defaultDisplayLabel: '',
+    triggerPreset: '',
+    practicalDealExample: '',
+    commercialTermsBreakdown: '',
+    detailedDealFlow: '',
     icon: 'Market Finder & Trade Insights',
   },
   'Advertising, Media & Marketing': {
@@ -359,16 +361,16 @@ export const CATEGORY_REWARD_CONFIG: Record<string, CategoryRewardConfig> = {
     modelId: 'HYBRID_COMPENSATION',
     modelTitle: 'Hybrid (Base + %)',
     baselinePriceLabel: 'Campaign Projected Sales Target',
-    defaultBaselinePriceTZS: 8000000,
+    defaultBaselinePriceTZS: 0,
     baselineCurrency: 'TZS',
-    defaultRewardValueTZS: 400000,
-    defaultRewardPercent: 5,
-    rewardCalculationSummary: 'TZS 400,000 guaranteed base + 5% sales commission + TZS 1,000,000 bonus at 50 sales',
-    defaultDisplayLabel: 'Campaign Base: TZS 400,000 + 5% Commission (Up to TZS 1.4M Total)',
-    triggerPreset: 'per verified completion & content approval',
-    practicalDealExample: 'A retail brand launches an awareness campaign recruiting 20 creators to produce video content.',
-    commercialTermsBreakdown: 'Guaranteed base fee of TZS 400,000 upon content approval + 5% commission on attributable sales + TZS 1M bonus at 50 sales.',
-    detailedDealFlow: 'A retail brand recruits 20 creators to produce video campaigns. Creators earn a guaranteed base fee of TZS 400,000 upon content approval, plus a 5% commission on all attributable sales generated through their tracking link, with a TZS 1,000,000 performance bonus unlocked after 50 verified sales.',
+    defaultRewardValueTZS: 0,
+    defaultRewardPercent: 0,
+    rewardCalculationSummary: '',
+    defaultDisplayLabel: '',
+    triggerPreset: '',
+    practicalDealExample: '',
+    commercialTermsBreakdown: '',
+    detailedDealFlow: '',
     icon: 'Advertising, Media & Marketing',
   },
   'IT & Software Services': {
@@ -377,16 +379,16 @@ export const CATEGORY_REWARD_CONFIG: Record<string, CategoryRewardConfig> = {
     modelId: 'COST_PER_LEAD',
     modelTitle: 'Cost Per Lead (CPL)',
     baselinePriceLabel: 'Annual License / Subscription Value',
-    defaultBaselinePriceTZS: 1200000,
+    defaultBaselinePriceTZS: 0,
     baselineCurrency: 'TZS',
-    defaultRewardValueTZS: 20000,
+    defaultRewardValueTZS: 0,
     defaultRewardPercent: 0,
-    rewardCalculationSummary: 'TZS 20,000 per qualified demo + TZS 200,000 bonus on converted annual subscription',
-    defaultDisplayLabel: 'License Value: TZS 1.2M | Lead Bounty: TZS 20,000 (Demo) + TZS 200K (Paid Sub)',
-    triggerPreset: 'per qualified customer demo',
-    practicalDealExample: 'A B2B SaaS platform acquires local retail shops for inventory management software.',
-    commercialTermsBreakdown: 'TZS 20,000 awarded for every business attending an onboarding demo + TZS 200,000 milestone bonus upon paid subscription conversion.',
-    detailedDealFlow: 'A B2B SaaS platform acquires retail shops for cloud inventory software. TZS 20,000 is awarded for every business that attends an onboarding demo, with a bonus milestone of TZS 200,000 when that referred shop converts to a paid annual subscription.',
+    rewardCalculationSummary: '',
+    defaultDisplayLabel: '',
+    triggerPreset: '',
+    practicalDealExample: '',
+    commercialTermsBreakdown: '',
+    detailedDealFlow: '',
     icon: 'IT & Software Services',
   },
   'Gaming, Toys & Entertainment': {
@@ -395,16 +397,16 @@ export const CATEGORY_REWARD_CONFIG: Record<string, CategoryRewardConfig> = {
     modelId: 'HYBRID_COMPENSATION',
     modelTitle: 'Hybrid (Base + %)',
     baselinePriceLabel: 'Campaign Sponsorship & Merch Pool',
-    defaultBaselinePriceTZS: 2500000,
+    defaultBaselinePriceTZS: 0,
     baselineCurrency: 'TZS',
-    defaultRewardValueTZS: 250000,
-    defaultRewardPercent: 10,
-    rewardCalculationSummary: 'TZS 250,000 flat live stream fee + 10% in-app/ticket purchase revenue share',
-    defaultDisplayLabel: 'Stream Base: TZS 250,000 + 10% In-App Purchase Share',
-    triggerPreset: 'per verified stream & promo completion',
-    practicalDealExample: 'An esports tournament organizer seeks streamers to review hardware and drive event registrations.',
-    commercialTermsBreakdown: 'Streamer receives flat TZS 250,000 fee for live stream and earns 10% on digital tickets and merch orders tracked via creator code.',
-    detailedDealFlow: 'A gaming studio seeks streamers to review hardware and drive event registrations. The streamer receives a flat TZS 250,000 fee for a dedicated live stream and earns a recurring 10% cut on all digital tickets or merch orders tracked through their unique creator promo code.',
+    defaultRewardValueTZS: 0,
+    defaultRewardPercent: 0,
+    rewardCalculationSummary: '',
+    defaultDisplayLabel: '',
+    triggerPreset: '',
+    practicalDealExample: '',
+    commercialTermsBreakdown: '',
+    detailedDealFlow: '',
     icon: 'Gaming, Toys & Entertainment',
   },
   'Apparel & Fashion': {
@@ -413,16 +415,16 @@ export const CATEGORY_REWARD_CONFIG: Record<string, CategoryRewardConfig> = {
     modelId: 'PERCENTAGE_COMMISSION',
     modelTitle: 'Percentage Share (%)',
     baselinePriceLabel: 'Average Order Value (AOV)',
-    defaultBaselinePriceTZS: 150000,
+    defaultBaselinePriceTZS: 0,
     baselineCurrency: 'TZS',
     defaultRewardValueTZS: 0,
-    defaultRewardPercent: 7,
-    rewardCalculationSummary: '7% baseline sales commission (escalating to 10% on exceeding TZS 5M monthly revenue)',
-    defaultDisplayLabel: 'Basket AOV: TZS 150,000 | Earn 7% - 10% Commission + Monthly Tier Bonus',
-    triggerPreset: 'on completed order total',
-    practicalDealExample: 'A boutique clothing brand builds an ongoing brand ambassador network.',
-    commercialTermsBreakdown: 'Partners curate digital storefronts and receive 7% commission on checkout totals with 30-day attribution, escalating to 10% on high volume.',
-    detailedDealFlow: 'A boutique clothing brand builds an ambassador network. Partners curate digital storefronts and receive 7% commission on checkout totals with a 30-day attribution window, escalating to 10% once monthly gross sales surpass TZS 5,000,000.',
+    defaultRewardPercent: 0,
+    rewardCalculationSummary: '',
+    defaultDisplayLabel: '',
+    triggerPreset: '',
+    practicalDealExample: '',
+    commercialTermsBreakdown: '',
+    detailedDealFlow: '',
     icon: 'Apparel & Fashion',
   },
   'Industrial Machinery & Tools': {
@@ -431,16 +433,16 @@ export const CATEGORY_REWARD_CONFIG: Record<string, CategoryRewardConfig> = {
     modelId: 'FIXED_REWARD',
     modelTitle: 'Fixed Cash Bounty',
     baselinePriceLabel: 'Equipment Valuation / Machine Price',
-    defaultBaselinePriceTZS: 85000000,
+    defaultBaselinePriceTZS: 0,
     baselineCurrency: 'TZS',
-    defaultRewardValueTZS: 1500000,
-    defaultRewardPercent: 1.76,
-    rewardCalculationSummary: 'Fixed TZS 1,500,000 closing bounty (approx 1.76% of machine selling price)',
-    defaultDisplayLabel: 'Equipment Price: TZS 85,000,000 | Closing Bounty: TZS 1,500,000',
-    triggerPreset: 'per signed dealer contract & delivery',
-    practicalDealExample: 'A heavy equipment vendor promotes commercial generators, backhoes, and packaging machinery.',
-    commercialTermsBreakdown: 'Sales partners refer commercial contractors; upon invoice settlement and delivery acceptance, the TZS 1,500,000 bounty is released.',
-    detailedDealFlow: 'A heavy equipment vendor promotes commercial generators and backhoes. Sales partners refer commercial contractors; upon verification of invoice payment and signed delivery acceptance, the TZS 1,500,000 reward transitions from pending to payable.',
+    defaultRewardValueTZS: 0,
+    defaultRewardPercent: 0,
+    rewardCalculationSummary: '',
+    defaultDisplayLabel: '',
+    triggerPreset: '',
+    practicalDealExample: '',
+    commercialTermsBreakdown: '',
+    detailedDealFlow: '',
     icon: 'Industrial Machinery & Tools',
   },
   'General & Professional Services': {
@@ -449,16 +451,16 @@ export const CATEGORY_REWARD_CONFIG: Record<string, CategoryRewardConfig> = {
     modelId: 'CUSTOM_DEAL_TERMS',
     modelTitle: 'Custom Deal Terms',
     baselinePriceLabel: 'Annual Corporate Retainer Value',
-    defaultBaselinePriceTZS: 10000000,
+    defaultBaselinePriceTZS: 0,
     baselineCurrency: 'TZS',
-    defaultRewardValueTZS: 300000,
-    defaultRewardPercent: 3,
-    rewardCalculationSummary: 'Fixed TZS 300,000 referral fee or agreed 3% contract bonus',
-    defaultDisplayLabel: 'Retainer: TZS 10,000,000 | Referral Reward: TZS 300,000',
-    triggerPreset: 'per verified contract sign-off',
-    practicalDealExample: 'A legal or corporate consulting firm looks for corporate retainers.',
-    commercialTermsBreakdown: 'Business consultant introduces a corporate client; when the client signs an annual retainer, a one-off TZS 300,000 fee is awarded.',
-    detailedDealFlow: 'A corporate consulting firm looks for corporate retainers. A business consultant introduces a client; when the client signs an annual retainer, the partner is awarded a one-off TZS 300,000 introduction fee or an agreed recurring percentage.',
+    defaultRewardValueTZS: 0,
+    defaultRewardPercent: 0,
+    rewardCalculationSummary: '',
+    defaultDisplayLabel: '',
+    triggerPreset: '',
+    practicalDealExample: '',
+    commercialTermsBreakdown: '',
+    detailedDealFlow: '',
     icon: 'General & Professional Services',
   },
   'Health & Personal Care': {
@@ -467,16 +469,16 @@ export const CATEGORY_REWARD_CONFIG: Record<string, CategoryRewardConfig> = {
     modelId: 'HYBRID_COMPENSATION',
     modelTitle: 'Hybrid (Base + %)',
     baselinePriceLabel: 'Product Bundle / Basket Price',
-    defaultBaselinePriceTZS: 80000,
+    defaultBaselinePriceTZS: 0,
     baselineCurrency: 'TZS',
-    defaultRewardValueTZS: 150000,
-    defaultRewardPercent: 8,
-    rewardCalculationSummary: 'TZS 150,000 video production fee + 8% sales commission on tracked conversions',
-    defaultDisplayLabel: 'Product Price: TZS 80,000 | Creator Base: TZS 150K + 8% Commission',
-    triggerPreset: 'on completed order total',
-    practicalDealExample: 'A skincare and wellness brand promotes an organic cosmetics line across social channels.',
-    commercialTermsBreakdown: 'Beauty creators earn TZS 150,000 per approved product review video and 8% commission on tracked conversions.',
-    detailedDealFlow: 'A skincare and wellness brand promotes an organic cosmetics line. Beauty creators earn TZS 150,000 per approved product review video and a continuous 8% commission on tracked conversions, subject to return and cancellation verification.',
+    defaultRewardValueTZS: 0,
+    defaultRewardPercent: 0,
+    rewardCalculationSummary: '',
+    defaultDisplayLabel: '',
+    triggerPreset: '',
+    practicalDealExample: '',
+    commercialTermsBreakdown: '',
+    detailedDealFlow: '',
     icon: 'Health & Personal Care',
   },
   'Home & Garden': {
@@ -485,16 +487,16 @@ export const CATEGORY_REWARD_CONFIG: Record<string, CategoryRewardConfig> = {
     modelId: 'PERCENTAGE_COMMISSION',
     modelTitle: 'Percentage Share (%)',
     baselinePriceLabel: 'Interior Package Price',
-    defaultBaselinePriceTZS: 5000000,
+    defaultBaselinePriceTZS: 0,
     baselineCurrency: 'TZS',
-    defaultRewardValueTZS: 300000,
-    defaultRewardPercent: 6,
-    rewardCalculationSummary: '6% base commission (TZS 300,000/package) + TZS 300,000 bonus at 25 orders',
-    defaultDisplayLabel: 'Package Price: TZS 5M | Earn 6% (TZS 300K/sale) + TZS 300K Volume Bonus',
-    triggerPreset: 'on completed order total',
-    practicalDealExample: 'A home decor and furniture retailer drives bulk interior package sales.',
-    commercialTermsBreakdown: 'Interior designers and affiliates earn 6% on every verified order, with an automated TZS 300,000 cash bonus triggered at 25 orders.',
-    detailedDealFlow: 'A furniture retailer drives bulk interior package sales. Interior designers and affiliates earn 6% on every verified order, with an automated TZS 300,000 cash bonus triggered when their attributed monthly sales hit 25 orders.',
+    defaultRewardValueTZS: 0,
+    defaultRewardPercent: 0,
+    rewardCalculationSummary: '',
+    defaultDisplayLabel: '',
+    triggerPreset: '',
+    practicalDealExample: '',
+    commercialTermsBreakdown: '',
+    detailedDealFlow: '',
     icon: 'Home & Garden',
   },
 }
@@ -503,10 +505,15 @@ export function CreateOpportunityWizardModal({
   isOpen,
   onClose,
   onOpportunityCreated,
+  initialDeal,
 }: CreateOpportunityWizardModalProps) {
   const { showToast } = useBusinessToast()
 
   const [currentStep, setCurrentStep] = useState<number>(1)
+  const [draftId, setDraftId] = useState<string | null>(initialDeal?.id || null)
+  const [isSavingDraft, setIsSavingDraft] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [uploadsPending, setUploadsPending] = useState(0)
   const [previewDevice, setPreviewDevice] = useState<'DESKTOP' | 'MOBILE'>('DESKTOP')
   const [previewMediaMode, setPreviewMediaMode] = useState<'IMAGE' | 'VIDEO'>('IMAGE')
   const [mediaUploadTab, setMediaUploadTab] = useState<'UPLOAD' | 'URL'>('UPLOAD')
@@ -603,6 +610,7 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
 
   // Wizard Form State
   const [formData, setFormData] = useState({
+    commercialValueTZS: '',
     // Step 1: Type
     type: 'COMMERCIAL_DEAL' as OpportunityType,
 
@@ -612,156 +620,152 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
     subscriberDescription: '',
     category: initialCat,
     subcategory: '',
-    region: 'Dar es Salaam',
-    selectedRegions: ['Dar es Salaam'] as string[],
-    startDate: new Date().toISOString().split('T')[0],
-    endDate: '2026-12-31',
-    contactPersonName: 'Amina Salum',
-    contactPersonPhone: '+255 754 123 456',
-    contactPersonEmail: 'business@lumoconnect.com',
+    region: '',
+    selectedRegions: [] as string[],
+    startDate: '',
+    endDate: '',
+    contactPersonName: '',
+    contactPersonPhone: '',
+    contactPersonEmail: '',
     visibility: 'PUBLIC' as 'PUBLIC' | 'PRIVATE', // PUBLIC: Open access | PRIVATE: Approval required
-    eligibility: 'Open to verified Sales Agents, Affiliates, and Community Leaders.',
+    eligibility: '',
 
     // Step 2 Type-Specific Form Parameters
     // 1. Commercial Deal
     commercialProductName: '',
     commercialSpecs: '',
-    commercialUnitPriceTZS: 1200000,
-    commercialQuantityAvailable: 50,
-    commercialDeliveryTerms: 'FOB Dar es Salaam Port / Nationwide Courier',
-    commercialWarrantyTerms: '12 Months Manufacturer Warranty',
-    warrantySpecDocName: 'Commercial_Spec_Sheet_v2026.pdf',
+    commercialUnitPriceTZS: 0,
+    commercialQuantityAvailable: 0,
+    commercialDeliveryTerms: '',
+    commercialWarrantyTerms: '',
+    warrantySpecDocName: '',
 
     // 2. Advertising Campaign
-    campaignObjective: 'Brand Awareness & Direct Conversions',
-    targetAudience: 'Youth & Tech Enthusiasts (18-35 yrs)',
-    socialPlatforms: ['TikTok', 'Instagram'] as string[],
-    contentFormat: 'Short-Form Video (Reel/TikTok)',
-    postCountRequired: 2,
-    campaignStartDate: '2026-10-01',
-    campaignEndDate: '2026-11-30',
-    brandAssetsUrl: 'https://drive.google.com/brand-assets',
-    requiredKeyMessages: 'Mention 100% genuine warranty, same-day Dar delivery, and use promo code.',
-    prohibitedClaims: 'Do not claim unauthorized medical or financial guarantees.',
+    campaignObjective: '',
+    targetAudience: '',
+    socialPlatforms: [] as string[],
+    contentFormat: '',
+    postCountRequired: 0,
+    campaignStartDate: '',
+    campaignEndDate: '',
+    brandAssetsUrl: '',
+    requiredKeyMessages: '',
+    prohibitedClaims: '',
     requiresContentApproval: true,
-    targetDeliverableChannels: ['TikTok Video', 'Instagram Reel'] as string[],
-    minCreatorFollowers: 10000,
-    creatorTargetRegion: 'Tanzania / East Africa',
+    targetDeliverableChannels: [] as string[],
+    minCreatorFollowers: 0,
+    creatorTargetRegion: '',
     creativeBriefText: '',
 
     // 3. Affiliate Programme
-    affiliatePromotedProducts: 'Full Store Catalog & Electronics Line',
-    affiliateProductPrices: 'TZS 50,000 - TZS 2,500,000',
-    affiliateApprovedChannels: ['Partner Storefronts', 'WhatsApp Links', 'Promo Codes'] as string[],
-    affiliatePromoMaterialsUrl: 'https://lumoconnect.com/assets/banner-pack',
-    affiliatePromoCodePrefix: 'LUMO-',
-    affiliateProgrammeDuration: 'Ongoing Annual Programme',
-    affiliateAttributionWindow: '30 Days Cookie / First-Party Tracking',
-    distributionChannels: ['Partner Storefronts', 'WhatsApp Links', 'Promo Codes'] as string[],
+    affiliatePromotedProducts: '',
+    affiliateProductPrices: '',
+    affiliateApprovedChannels: [] as string[],
+    affiliatePromoMaterialsUrl: '',
+    affiliatePromoCodePrefix: '',
+    affiliateProgrammeDuration: '',
+    affiliateAttributionWindow: '',
+    distributionChannels: [] as string[],
 
     // 4. Customer Acquisition
-    targetCustomerProfile: 'Urban SMEs & Retail Shop Owners',
-    acquisitionEligibleLocations: ['Dar es Salaam', 'Arusha', 'Mwanza'] as string[],
-    acquisitionProductOffered: 'LUMO Merchant POS App',
-    acquisitionOnboardingSteps: '1. App Download -> 2. NIDA Verification -> 3. First Deposit TZS 10k',
-    acquisitionExclusions: 'Existing registered LUMO merchants or duplicate NIDA numbers.',
-    acquisitionPermittedChannels: ['Direct Field Sales', 'WhatsApp Referral', 'Social Media'],
-    targetAcquisitionGoal: 1000,
-    verificationTriggerCondition: 'KYC Approved + Minimum Deposit TZS 10,000',
+    targetCustomerProfile: '',
+    acquisitionEligibleLocations: [] as string[],
+    acquisitionProductOffered: '',
+    acquisitionOnboardingSteps: '',
+    acquisitionExclusions: '',
+    acquisitionPermittedChannels: [] as string[],
+    targetAcquisitionGoal: 0,
+    verificationTriggerCondition: '',
 
     // 5. Lead Generation
-    leadTargetCustomerProfile: 'Registered SME Decision Makers (CEOs, Owners)',
-    leadQualifyingQuestions: 'Do you operate a physical store? What is your monthly sales volume?',
-    leadRequiredFields: ['Full Name', 'Phone / WhatsApp', 'Business Name', 'Location'] as string[],
-    leadGeographicCoverage: 'Nationwide (Tanzania)',
-    leadConsentRequirements: 'Lead must explicitly consent to phone callback.',
-    leadExcludedCriteria: 'Incomplete contact details or inactive phone numbers.',
-    leadQualificationCriteria: ['Verified Business Name', 'Active Phone / WhatsApp', 'Registered Taxpayer / SME'] as string[],
-    targetIndustryNiche: 'Retail & POS',
+    leadTargetCustomerProfile: '',
+    leadQualifyingQuestions: '',
+    leadRequiredFields: [] as string[],
+    leadGeographicCoverage: '',
+    leadConsentRequirements: '',
+    leadExcludedCriteria: '',
+    leadQualificationCriteria: [] as string[],
+    targetIndustryNiche: '',
 
     // 6. B2B Introduction
-    b2bTargetIndustries: ['Renewable Energy', 'Agriculture', 'Construction'] as string[],
-    b2bCompanySize: '10-50 Employees / Annual Revenue > TZS 100M',
-    b2bTargetLocations: 'Dar es Salaam & Regional Capitals',
-    b2bDecisionMakerRoles: ['Managing Director', 'Procurement Head', 'Chief Operating Officer'] as string[],
-    b2bProposedPartnership: 'Distributor Contract / Bulk Off-Take Agreement',
-    b2bExcludedRelationships: 'Current active clients or open RFQs.',
-    dealValuationBudgetTZS: 100000000,
-    partnerEligibilityRoles: ['Corporate Consultants', 'Trade Brokers', 'Business Networks'] as string[],
+    b2bTargetIndustries: [] as string[],
+    b2bCompanySize: '',
+    b2bTargetLocations: '',
+    b2bDecisionMakerRoles: [] as string[],
+    b2bProposedPartnership: '',
+    b2bExcludedRelationships: '',
+    dealValuationBudgetTZS: 0,
+    partnerEligibilityRoles: [] as string[],
 
     // 7. Product Opportunity
-    productSampleName: 'Organic Skincare Trial Kit (50ml)',
-    productSampleQuantity: 100,
-    productParticipantEligibility: 'Verified Beauty & Wellness Creators in Tanzania',
-    productDeliveryArrangements: 'Free Courier Delivery to Partner Address',
-    productTestingInstructions: 'Test for 7 days and post unboxing & review video',
-    productFeedbackQuestions: 'Rate packaging quality, scent, texture, and customer reaction',
-    productSubmissionDeadline: '2026-11-15',
-    assetListingPriceTZS: 180000000,
-    inspectionLocation: 'Dar es Salaam, Masaki Showroom / Plot Coordinates',
+    productSampleName: '',
+    productSampleQuantity: 0,
+    productParticipantEligibility: '',
+    productDeliveryArrangements: '',
+    productTestingInstructions: '',
+    productFeedbackQuestions: '',
+    productSubmissionDeadline: '',
+    assetListingPriceTZS: 0,
+    inspectionLocation: '',
 
     // 8. Reverse Opportunity
-    reverseItemSought: '50,000 Tier-1 Solar Panels (550W Monocrystalline)',
-    reverseSpecifications: 'IEC certified, minimum 21% efficiency, 25-year warranty',
-    reverseAcceptableCondition: 'Brand New (Factory Sealed)',
-    reverseQuantitySought: 50000,
-    reverseBudgetRange: 'USD 500,000 - USD 800,000',
-    reversePreferredLocation: 'Dar es Salaam Port',
-    reverseSourcingDeadline: '2026-11-30',
-    reverseSupportingReferences: 'https://lumoconnect.com/rfq/solar-50k-spec.pdf',
-    totalSourcingBudget: 'USD 800,000',
-    deliveryTimelineDestination: 'Dar es Salaam Port — Within 60 Days',
+    reverseItemSought: '',
+    reverseSpecifications: '',
+    reverseAcceptableCondition: '',
+    reverseQuantitySought: 0,
+    reverseBudgetRange: '',
+    reversePreferredLocation: '',
+    reverseSourcingDeadline: '',
+    reverseSupportingReferences: '',
+    totalSourcingBudget: '',
+    deliveryTimelineDestination: '',
 
     // Media & Video
     coverImageUrl: '',
     promoVideoUrl: '',
     galleryImageUrls: [] as string[],
-    marketingAssets: [
-      { id: 'ast_1', name: 'Product_Brochure_Tanzania_2026.pdf', url: '#', size: '2.4 MB', type: 'PDF' as const },
-    ],
+    marketingAssets: [] as { id: string; name: string; url: string; size: string; type: 'PDF' }[],
 
     // Step 3: Commercial Result
     commercialResult: 'COMPLETED_SALE' as CommercialResultType,
-    successConditionDefinition: 'Verified payment cleared & goods delivered to customer',
-    verificationEvidenceType: 'Tax Invoice / Electronic Delivery Note',
-    cancellationRefundRules: 'Standard 7-day refund window; reward reversed on canceled orders.',
+    successConditionDefinition: '',
+    verificationEvidenceType: '',
+    cancellationRefundRules: '',
     verificationDeadlineDays: 14,
 
     // Step 4: Reward Structure & Customization
     rewardStructure: initialConf.modelId,
-    baselinePriceTZS: initialConf.defaultBaselinePriceTZS,
+    baselinePriceTZS: 0,
     baselineCurrency: initialConf.baselineCurrency,
-    rewardValueTZS: initialConf.defaultRewardValueTZS,
-    rewardPercent: initialConf.defaultRewardPercent,
-    maxCapQuantity: 50,
-    totalBudgetCapTZS: 25000000,
+    rewardValueTZS: 0,
+    rewardPercent: 0,
+    maxCapQuantity: 0,
+    totalBudgetCapTZS: 0,
     customRewardDisplay: '',
-    customRewardDetail: initialConf.triggerPreset,
-    customFormulaDescription: initialConf.detailedDealFlow,
+    customRewardDetail: '',
+    customFormulaDescription: '',
 
     // Step 5: Tracking Method & Execution Settings
     trackingMethod: 'QR_CODE' as TrackingMethod,
 
     // Funding & Payment
-    estimatedBudgetTZS: 25000000,
-    maxCommittedAmountTZS: 25000000,
+    estimatedBudgetTZS: 0,
+    maxCommittedAmountTZS: 0,
     payoutSchedule: 'WEEKLY_FRIDAY',
-    refundReversalConditions: '7-day customer cooling off period applies before payout settlement.',
+    refundReversalConditions: '',
 
     // Terms & Evidence
-    partnerDeliverables: 'Verified installation with customer National ID (NIDA) copy and first STK installment payment.',
-    evidenceRequired: 'Installation contract reference and technician activation code.',
+    partnerDeliverables: '',
+    evidenceRequired: '',
     attributionWindowDays: 30,
-    cancellationTerms: 'Standard LUMO Deal Room commercial terms apply.',
-    disputeProcedure: 'Platform mediation through LUMO disputes resolution board within 14 days.',
+    cancellationTerms: '',
+    disputeProcedure: '',
 
     // Declarations
     confirmAccurate: false,
     confirmFundingReady: false,
     confirmNoSilentChanges: false,
   })
-
-  if (!isOpen) return null
 
   const stepsList = [
     { num: 1, title: 'Opportunity Type' },
@@ -799,7 +803,7 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
         return `Deal Batch Value: TZS ${formData.baselinePriceTZS.toLocaleString()} | Aggregator Bounty: TZS ${formData.rewardValueTZS.toLocaleString()}`
       }
       if (formData.category === 'Sourcing & Supply Chain Services') {
-        return `Procurement Budget: USD 800,000 | Sourcing Reward: USD 5,000`
+        return `Enter your procurement budget and sourcing reward`
       }
       if (formData.rewardStructure === 'CUSTOM_DEAL_TERMS' || formData.rewardStructure === 'FIXED_REWARD') {
         return currentCategoryConfig.defaultDisplayLabel.replace(/\b[\d,]+/, formData.rewardValueTZS.toLocaleString())
@@ -849,6 +853,93 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
   const effectiveRewardDetail = formData.customRewardDetail.trim() || computedAutoRewardDetail
   const videoInfo = getVideoEmbedInfo(formData.promoVideoUrl)
 
+  useEffect(() => {
+    if (initialDeal) {
+      setDraftId(initialDeal.id)
+      setFormData((prev) => ({
+        ...prev,
+        title: initialDeal.title || '',
+        publicSummary: initialDeal.publicSummary || initialDeal.summary || '',
+        subscriberDescription: initialDeal.subscriberDescription || initialDeal.description || '',
+        type: initialDeal.type || 'COMMERCIAL_DEAL',
+        category: initialDeal.category || initialCat,
+        region: initialDeal.region || '',
+        rewardValueTZS: initialDeal.rewardValueTZS || 0,
+        rewardPercent: initialDeal.rewardPercentage || initialDeal.rewardPercent || 0,
+        estimatedBudgetTZS: initialDeal.budgetTZS || 0,
+        coverImageUrl: initialDeal.coverImageUrl || initialDeal.featuredImageUrl || initialDeal.bannerUrl || '',
+        promoVideoUrl: initialDeal.promoVideoUrl || '',
+        galleryImageUrls: initialDeal.galleryImageUrls || initialDeal.mediaUrls || [],
+        commercialValueTZS: initialDeal.commercialValueTZS ? String(initialDeal.commercialValueTZS) : '',
+        partnerDeliverables: initialDeal.deliverables ? (Array.isArray(initialDeal.deliverables) ? initialDeal.deliverables.join(', ') : initialDeal.deliverables) : (initialDeal.partnerDeliverables || ''),
+        evidenceRequired: initialDeal.verificationEvidence || initialDeal.evidenceRequired || '',
+        attributionWindowDays: initialDeal.attributionWindowDays || 30,
+      }))
+    } else if (isOpen) {
+      try {
+        const saved = localStorage.getItem('lumo_business_opportunity_draft')
+        if (saved) {
+          const parsed = JSON.parse(saved)
+          if (parsed && parsed.title && !formData.title) {
+            if (parsed.draftId) setDraftId(parsed.draftId)
+            setFormData((prev) => ({ ...prev, ...parsed }))
+          }
+        }
+      } catch {}
+    }
+  }, [isOpen, initialDeal])
+
+  const autoSaveDraft = async (showUserToast = false) => {
+    if (!formData.title?.trim()) return
+    setIsSavingDraft(true)
+    try {
+      localStorage.setItem('lumo_business_opportunity_draft', JSON.stringify({ ...formData, draftId }))
+      const response = await fetch('/api/business/opportunities', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          draftId: draftId || initialDeal?.id,
+          commercialValueTZS: formData.commercialValueTZS || null,
+          title: formData.title,
+          publicSummary: formData.publicSummary || formData.title,
+          subscriberDescription: formData.subscriberDescription || formData.publicSummary || formData.title,
+          type: formData.type,
+          category: formData.category || 'Renewable Energy',
+          region: formData.region || 'All Tanzania',
+          commercialResult: formData.commercialResult,
+          rewardType: formData.rewardStructure === 'PERCENTAGE_COMMISSION' ? 'PERCENTAGE' : 'FIXED',
+          rewardStructure: formData.rewardStructure,
+          rewardValueTZS: Number(formData.rewardValueTZS) || 0,
+          rewardPercent: Number(formData.rewardPercent) || 0,
+          customRewardDisplay: effectiveRewardDisplay,
+          customRewardDetail: effectiveRewardDetail,
+          customFormulaDescription: formData.customFormulaDescription,
+          estimatedBudgetTZS: Number(formData.estimatedBudgetTZS) || 0,
+          attributionWindowDays: Number(formData.attributionWindowDays) || 30,
+          partnerDeliverables: formData.partnerDeliverables,
+          evidenceRequired: formData.evidenceRequired,
+          cancellationTerms: formData.cancellationTerms,
+          coverImageUrl: formData.coverImageUrl,
+          promoVideoUrl: formData.promoVideoUrl,
+          galleryImageUrls: formData.galleryImageUrls,
+          marketingAssets: formData.marketingAssets,
+          status: 'DRAFT',
+        }),
+      })
+      const result = await readApiResponse(response)
+      if (response.ok && result.success && result.opportunity?.id) {
+        setDraftId(result.opportunity.id)
+        if (showUserToast) {
+          showToast('info', 'Draft Saved', 'Your opportunity draft has been saved.')
+        }
+      }
+    } catch (e) {
+      console.warn('Autosave error:', e)
+    } finally {
+      setIsSavingDraft(false)
+    }
+  }
+
   const handleNext = () => {
     if (currentStep === 2 && !formData.title.trim()) {
       showToast('error', 'Validation Error', 'Opportunity title is required to continue.')
@@ -856,6 +947,7 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
     }
     if (currentStep < stepsList.length) {
       setCurrentStep(currentStep + 1)
+      void autoSaveDraft(false)
     }
   }
 
@@ -865,56 +957,31 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
     }
   }
 
-  // Handle local file upload for cover image
-  const handleImageFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onload = (event) => {
-        const result = event.target?.result as string
-        setFormData({ ...formData, coverImageUrl: result })
-        showToast('success', 'Image Uploaded', `${file.name} imported as featured banner.`)
+  const uploadImages = async (files: File[], gallery: boolean) => {
+    setUploadsPending(count => count + 1)
+    try {
+      for (const file of files) {
+        const url = await uploadOpportunityImage(file)
+        setFormData(previous => gallery ? { ...previous, galleryImageUrls: [...previous.galleryImageUrls, url] } : { ...previous, coverImageUrl: url })
       }
-      reader.readAsDataURL(file)
-    }
+      showToast('success', 'Images uploaded', 'Your images are saved and ready for submission.')
+    } catch (error) { showToast('error', 'Upload failed', error instanceof Error ? error.message : 'Please try again.') }
+    finally { setUploadsPending(count => count - 1) }
   }
-
-  // Handle local file upload for gallery images
-  const handleGalleryUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
-    if (files && files.length > 0) {
-      const fileList = Array.from(files)
-      fileList.forEach((file) => {
-        const reader = new FileReader()
-        reader.onload = (event) => {
-          const result = event.target?.result as string
-          setFormData((prev) => ({
-            ...prev,
-            galleryImageUrls: [...prev.galleryImageUrls, result],
-          }))
-        }
-        reader.readAsDataURL(file)
-      })
-      showToast('success', 'Gallery Images Added', `${fileList.length} photos added to opportunity carousel.`)
-    }
+  const handleImageFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]; if (file) void uploadImages([file], false)
+    event.target.value = ''
   }
-
-  // Handle local file upload for video
-  const handleVideoFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onload = (event) => {
-        const result = event.target?.result as string
-        setFormData({ ...formData, promoVideoUrl: result })
-        showToast('success', 'Video Attached', `${file.name} imported as promotional video.`)
-      }
-      reader.readAsDataURL(file)
-    }
+  const handleGalleryUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? [])
+    if (files.length + formData.galleryImageUrls.length > 10) { showToast('error', 'Gallery limit', 'Use up to 10 images.'); return }
+    void uploadImages(files, true); event.target.value = ''
   }
+  
 
-
-  const handleSubmitToLumo = () => {
+  const handleSubmitToLumo = async () => {
+    if (isSubmitting) return
+    if (uploadsPending) { showToast('info', 'Images uploading', 'Please wait for your images to finish uploading.'); return }
     if (!formData.confirmAccurate || !formData.confirmNoSilentChanges) {
       showToast('error', 'Declaration Required', 'Please confirm all compliance declarations before submitting to LUMO.')
       return
@@ -956,52 +1023,72 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
       createdAt: 'Today',
     }
 
-    createDealOpportunity(
-      {
-        title: formData.title,
-        opportunityType: (formData.type as any) || 'CUSTOMER_ACQUISITION',
-        category: formData.category || 'Renewable Energy',
-        subcategory: formData.subcategory || undefined,
-        summary: formData.publicSummary || formData.title,
-        description: formData.subscriberDescription || formData.publicSummary || formData.title,
-        rewardType:
-          formData.rewardStructure === 'PERCENTAGE_COMMISSION'
-            ? 'PERCENTAGE_COMMISSION'
-            : formData.rewardStructure === 'CUSTOM_DEAL_TERMS'
-            ? 'CUSTOM_DEAL_TERMS'
-            : formData.rewardStructure === 'HYBRID_COMPENSATION'
-            ? 'HYBRID'
-            : formData.rewardStructure === 'MILESTONE_BONUS'
-            ? 'MILESTONE_BONUS'
-            : 'COST_PER_ACQUISITION',
-        baseRewardValue: Number(formData.rewardValueTZS) || 50000,
-        currency: 'TZS',
-        customRewardDisplay: effectiveRewardDisplay,
-        customRewardDetail: effectiveRewardDetail,
-        customFormulaDescription: formData.customFormulaDescription,
-        attributionWindowDays: Number(formData.attributionWindowDays) || 30,
-        percentageBps: Number(formData.rewardPercent) ? Number(formData.rewardPercent) * 100 : undefined,
-        totalBudgetTZS: Number(formData.estimatedBudgetTZS) || 10000000,
-        maxPartners: 50,
-        region: formData.region || 'All Tanzania',
-        termsAndConditions: formData.cancellationTerms || 'Reward is validated upon delivery note and verification.',
-        requiresApproval: true,
-        featuredImageUrl: formData.coverImageUrl,
-        promoVideoUrl: formData.promoVideoUrl,
-      },
-      'org_current',
-      'Lumo Deals',
-      'PENDING_REVIEW'
-    )
+    try {
+      setIsSubmitting(true)
+      const response = await fetch('/api/business/opportunities', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          draftId: draftId || initialDeal?.id,
+          commercialValueTZS: formData.commercialValueTZS || null,
+          title: formData.title,
+          publicSummary: formData.publicSummary || formData.title,
+          subscriberDescription: formData.subscriberDescription || formData.publicSummary || formData.title,
+          type: formData.type,
+          category: formData.category || 'Renewable Energy',
+          region: formData.region || 'All Tanzania',
+          commercialResult: formData.commercialResult,
+          rewardType: formData.rewardStructure === 'PERCENTAGE_COMMISSION' ? 'PERCENTAGE' : 'FIXED',
+          rewardStructure: formData.rewardStructure,
+          rewardValueTZS: Number(formData.rewardValueTZS) || 0,
+          rewardPercent: Number(formData.rewardPercent) || 0,
+          customRewardDisplay: effectiveRewardDisplay,
+          customRewardDetail: effectiveRewardDetail,
+          customFormulaDescription: formData.customFormulaDescription,
+          estimatedBudgetTZS: Number(formData.estimatedBudgetTZS) || 0,
+          attributionWindowDays: Number(formData.attributionWindowDays) || 30,
+          partnerDeliverables: formData.partnerDeliverables,
+          evidenceRequired: formData.evidenceRequired,
+          cancellationTerms: formData.cancellationTerms,
+          coverImageUrl: formData.coverImageUrl,
+          promoVideoUrl: formData.promoVideoUrl,
+          galleryImageUrls: formData.galleryImageUrls,
+          marketingAssets: formData.marketingAssets,
+          status: 'UNDER_REVIEW',
+        }),
+      })
 
-    onOpportunityCreated(created)
-    onClose()
-    showToast(
-      'success',
-      'Opportunity Submitted to LUMO Review',
-      `"${created.title}" with rich media assets is now in the Admin Maker-Checker review queue.`
-    )
+      const result = await readApiResponse(response)
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Failed to create opportunity')
+      }
+
+      const createdItem: BusinessOpportunityItem = {
+        ...created,
+        id: result.opportunity.id,
+        slug: result.opportunity.slug || created.slug,
+        status: result.opportunity.status,
+      }
+
+      try {
+        localStorage.removeItem('lumo_business_opportunity_draft')
+      } catch {}
+
+      onOpportunityCreated(createdItem)
+      onClose()
+      showToast(
+        'success',
+        'Opportunity Submitted to LUMO Review',
+        `"${created.title}" with rich media assets is now in the Admin Maker-Checker review queue.`
+      )
+    } catch (err: any) {
+      showToast('error', 'Submission Failed', err.message || 'Error creating opportunity')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
+
+  if (!isOpen) return null
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/75 backdrop-blur-xs animate-in fade-in duration-200">
@@ -1119,6 +1206,10 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
             return (
               <div className="space-y-4">
                 <div>
+                  <label className="font-bold block mb-1">Commercial deal value (TZS, optional)
+                    <input type="number" min="0" step="0.01" value={formData.commercialValueTZS} onChange={event => setFormData({ ...formData, commercialValueTZS: event.target.value })} className="block w-full rounded-lg border p-3 my-2" placeholder="Total commercial value of this opportunity" />
+                  </label>
+                  <p className="text-xs text-slate-500 mb-4">Enter the total value of the goods or services offered. Leave blank if unknown. Do not enter the partner reward budget.</p>
                   <label className="font-bold block mb-1">Opportunity Title <span className="text-red-500">*</span></label>
                   <input
                     type="text"
@@ -1695,16 +1786,7 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <label className="flex-1 py-2 px-3 bg-white dark:bg-slate-900 border rounded-xl font-bold text-center cursor-pointer hover:bg-slate-100 flex items-center justify-center gap-1.5 text-slate-700 dark:text-slate-200">
-                        <Video className="w-3.5 h-3.5 text-purple-600" />
-                        <span>Upload Video (.mp4)</span>
-                        <input
-                          type="file"
-                          accept="video/*"
-                          onChange={handleVideoFileUpload}
-                          className="hidden"
-                        />
-                      </label>
+                      <p className="text-xs text-slate-500">For videos, paste a hosted video URL above.</p>
                     </div>
                   </div>
 
@@ -1938,7 +2020,7 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
                         type="text"
                         value={formData.contactPersonName}
                         onChange={(e) => setFormData({ ...formData, contactPersonName: e.target.value })}
-                        placeholder="Amina Salum"
+                        placeholder="Contact person name"
                         className="w-full p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium"
                       />
                     </div>
@@ -2489,7 +2571,7 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
                           : {
                               modelId: 'CUSTOM_DEAL_TERMS' as RewardStructureType,
                               modelTitle: 'Custom Deal Terms',
-                              templateLabel: 'TZS 3,000,000 Sourcing / Distributor Reward',
+                              templateLabel: 'Enter your reward terms',
                               triggerPreset: 'per verified completion',
                               isRecommended: false,
                             },
@@ -2509,7 +2591,7 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
                           : {
                               modelId: 'HYBRID_COMPENSATION' as RewardStructureType,
                               modelTitle: 'Hybrid (Base + %)',
-                              templateLabel: 'TZS 400,000 Base + 5% Sales Commission',
+                              templateLabel: 'Enter your reward terms',
                               triggerPreset: 'per verified completion',
                               isRecommended: false,
                             },
@@ -2529,7 +2611,7 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
                           : {
                               modelId: 'COST_PER_LEAD' as RewardStructureType,
                               modelTitle: 'Cost Per Lead (CPL)',
-                              templateLabel: 'TZS 20,000 per Qualified SME Lead',
+                              templateLabel: 'Enter your reward terms',
                               triggerPreset: 'per qualified customer demo',
                               isRecommended: false,
                             },
@@ -2549,7 +2631,7 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
                           : {
                               modelId: 'FIXED_REWARD' as RewardStructureType,
                               modelTitle: 'Fixed Cash Bounty',
-                              templateLabel: 'TZS 2,000,000 Vehicle Finder / Deal Reward',
+                              templateLabel: 'Enter your reward terms',
                               triggerPreset: 'per signed dealer contract',
                               isRecommended: false,
                             },
@@ -3108,11 +3190,20 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
             <span>Back</span>
           </button>
 
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void autoSaveDraft(true)}
+              disabled={isSavingDraft || !formData.title.trim()}
+              className="py-2.5 px-4 rounded-xl text-xs font-bold border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors disabled:opacity-40 cursor-pointer"
+            >
+              <span>{isSavingDraft ? 'Saving Draft…' : 'Save as Draft'}</span>
+            </button>
+
             {currentStep < stepsList.length ? (
               <button
                 onClick={handleNext}
-                className="py-2.5 px-6 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold rounded-xl text-xs shadow-xs flex items-center gap-1.5"
+                className="py-2.5 px-6 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold rounded-xl text-xs shadow-xs flex items-center gap-1.5 cursor-pointer"
               >
                 <span>Continue to Step {currentStep + 1}</span>
                 <ChevronRight className="w-4 h-4" />
@@ -3120,10 +3211,11 @@ const OPPORTUNITY_MODEL_DEFAULTS: Record<
             ) : (
               <button
                 onClick={handleSubmitToLumo}
+                disabled={isSubmitting || uploadsPending > 0}
                 className="py-2.5 px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl text-xs shadow-xs flex items-center gap-1.5"
               >
                 <ShieldCheck className="w-4 h-4" />
-                <span>Submit Opportunity with Media</span>
+                <span>{uploadsPending ? 'Uploading images…' : isSubmitting ? 'Submitting…' : 'Submit Opportunity with Media'}</span>
               </button>
             )}
           </div>

@@ -21,11 +21,13 @@ import {
 } from '@/components/promotional-toolkit/PromotionalCardCanvas'
 import { getTemplateForCategory } from '@/modules/promotional-toolkit/templates'
 import { recordPromoInteraction } from '@/modules/promotional-toolkit/analytics'
+import { buildPublicDealUrl } from '@/modules/promotional-toolkit/links'
 
 interface PromotionalToolkitModalProps {
   dealTitle: string
   companyName: string
   trackingCode: string
+  dealIdentifier?: string
   rewardDisplay?: string
   category?: string
   region?: string
@@ -40,6 +42,7 @@ export function PromotionalToolkitModal({
   dealTitle,
   companyName,
   trackingCode,
+  dealIdentifier,
   category = 'Products',
   region = 'Tanzania',
   priceDisplay = '',
@@ -56,8 +59,7 @@ export function PromotionalToolkitModal({
   const [renderedCardDataUrl, setRenderedCardDataUrl] = useState<string>('')
 
   const activeTemplate = getTemplateForCategory(category)
-  const langQuery = selectedLanguage === 'SW' ? '?lang=sw' : '?lang=en'
-  const referralUrl = `https://lumo.co.tz/p/${trackingCode}${langQuery}`
+  const referralUrl = buildPublicDealUrl(dealIdentifier || trackingCode, dealIdentifier ? trackingCode : '', selectedLanguage === 'SW' ? 'sw' : 'en')
 
   const swahiliCaption = `Habari! Kama unahitaji "${dealTitle}", fursa hii imethibitishwa na kuratibiwa kupitia Lumo Dealers.\n\nTazama maelezo kamili na ungana nasi hapa:\nLink: ${referralUrl}\n\nUratibu wa moja kwa moja na fursa halisi Tanzania nzima.`
 

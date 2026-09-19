@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { usePlatformConfig } from '@/lib/platformConfig'
 import { useAdminToast } from '../AdminToast'
+import { RecentEarnersSettings } from './RecentEarnersSettings'
 
 export function SystemSettingsTab() {
   const { showToast } = useAdminToast()
@@ -80,6 +81,7 @@ export function SystemSettingsTab() {
 
   return (
     <div className="space-y-5 bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-4 sm:p-6 shadow-xs">
+      <RecentEarnersSettings />
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
         <div>
           <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">

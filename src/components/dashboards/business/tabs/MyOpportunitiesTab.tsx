@@ -27,7 +27,7 @@ import { useBusinessToast } from '../BusinessToast'
 interface MyOpportunitiesTabProps {
   opportunities: BusinessOpportunityItem[]
   setOpportunities: React.Dispatch<React.SetStateAction<BusinessOpportunityItem[]>>
-  onOpenCreateWizard: () => void
+  onOpenCreateWizard: (initialDeal?: any) => void
 }
 
 export function MyOpportunitiesTab({
@@ -44,6 +44,21 @@ export function MyOpportunitiesTab({
   const [versioningModal, setVersioningModal] = useState<BusinessOpportunityItem | null>(null)
   const [amendmentReason, setAmendmentReason] = useState('')
   const [newRewardValue, setNewRewardValue] = useState<number>(0)
+  const [valueEdit, setValueEdit] = useState<{ id: string; value: string } | null>(null)
+  const [savingValue, setSavingValue] = useState(false)
+
+  const saveCommercialValue = async () => {
+    if (!valueEdit || savingValue) return
+    setSavingValue(true)
+    try {
+      const response = await fetch(`/api/business/opportunities/${valueEdit.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ commercialValueTZS: valueEdit.value || null }) })
+      if (!response.ok) throw new Error('Could not save commercial value')
+      setOpportunities(previous => previous.map(item => item.id === valueEdit.id ? { ...item, commercialValueTZS: valueEdit.value ? Number(valueEdit.value) : null } : item))
+      setValueEdit(null)
+      showToast('success', 'Commercial value updated', 'The public total will refresh automatically for eligible published deals.')
+    } catch { showToast('error', 'Update failed', 'Enter a valid non-negative amount with at most two decimals.') }
+    finally { setSavingValue(false) }
+  }
 
   const filtered = opportunities.filter((o) => {
     const matchesSearch =
@@ -61,87 +76,159 @@ export function MyOpportunitiesTab({
     return matchesSearch && matchesStatus && matchesPrice
   })
 
-  const handleTogglePause = (opp: BusinessOpportunityItem) => {
+  const handleTogglePause = async (opp: BusinessOpportunityItem) => {
     const nextStatus = opp.status === 'PUBLISHED' ? 'PAUSED' : 'PUBLISHED'
-    setOpportunities((prev) =>
-      prev.map((o) => (o.id === opp.id ? { ...o, status: nextStatus } : o))
-    )
-    showToast(
-      'info',
-      `Opportunity ${nextStatus === 'PUBLISHED' ? 'Resumed' : 'Paused'}`,
-      `"${opp.title}" is now ${nextStatus.toLowerCase()}.`
-    )
-  }
+    try {
+      const res = await fetch(`/api/business/opportunities/${opp.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: nextStatus }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to update status')
+      }
 
-  const handleArchive = (opp: BusinessOpportunityItem) => {
-    setOpportunities((prev) =>
-      prev.map((o) => (o.id === opp.id ? { ...o, status: 'ARCHIVED' } : o))
-    )
-    showToast('info', 'Opportunity Archived', `"${opp.title}" has been archived. Existing earned rewards remain payable.`)
-  }
-
-  const handleDuplicate = (opp: BusinessOpportunityItem) => {
-    const duplicated: BusinessOpportunityItem = {
-      ...opp,
-      id: `opp_${Date.now()}`,
-      slug: `${opp.slug}-copy`,
-      title: `${opp.title} (Copy)`,
-      status: 'DRAFT',
-      version: 1,
-      activePartners: 0,
-      totalConversions: 0,
-      spentTZS: 0,
-      createdAt: 'Today',
-      versionHistory: [],
+      setOpportunities((prev) =>
+        prev.map((o) => (o.id === opp.id ? { ...o, status: nextStatus } : o))
+      )
+      showToast(
+        'info',
+        `Opportunity ${nextStatus === 'PUBLISHED' ? 'Resumed' : 'Paused'}`,
+        `"${opp.title}" is now ${nextStatus.toLowerCase()}.`
+      )
+    } catch (err: any) {
+      showToast('error', 'Update Failed', err.message || 'Error updating status')
     }
-    setOpportunities([duplicated, ...opportunities])
-    showToast('success', 'Opportunity Duplicated', `Created draft copy: "${duplicated.title}".`)
   }
 
-  const handleDeleteDraft = (opp: BusinessOpportunityItem) => {
+  const handleArchive = async (opp: BusinessOpportunityItem) => {
+    try {
+      const res = await fetch(`/api/business/opportunities/${opp.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'ARCHIVED' }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to archive opportunity')
+      }
+
+      setOpportunities((prev) =>
+        prev.map((o) => (o.id === opp.id ? { ...o, status: 'ARCHIVED' } : o))
+      )
+      showToast('info', 'Opportunity Archived', `"${opp.title}" has been archived. Existing earned rewards remain payable.`)
+    } catch (err: any) {
+      showToast('error', 'Archive Failed', err.message || 'Error archiving opportunity')
+    }
+  }
+
+  const handleDuplicate = async (opp: BusinessOpportunityItem) => {
+    try {
+      const res = await fetch(`/api/business/opportunities/${opp.id}/duplicate`, {
+        method: 'POST',
+      })
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to duplicate opportunity')
+      }
+
+      const duplicated: BusinessOpportunityItem = {
+        ...opp,
+        id: data.data.id,
+        slug: data.data.slug,
+        title: data.data.title,
+        status: 'DRAFT',
+        version: 1,
+        activePartners: 0,
+        totalConversions: 0,
+        spentTZS: 0,
+        createdAt: 'Today',
+        versionHistory: [],
+      }
+      setOpportunities([duplicated, ...opportunities])
+      showToast('success', 'Opportunity Duplicated', `Created draft copy: "${duplicated.title}".`)
+    } catch (err: any) {
+      showToast('error', 'Duplication Failed', err.message || 'Error duplicating opportunity')
+    }
+  }
+
+  const handleDeleteDraft = async (opp: BusinessOpportunityItem) => {
     if (opp.status !== 'DRAFT') {
       showToast('error', 'Immutability Guard', 'Only unpublished Drafts can be deleted. Published opportunities must be paused or archived.')
       return
     }
-    setOpportunities((prev) => prev.filter((o) => o.id !== opp.id))
-    showToast('info', 'Draft Deleted', `Draft "${opp.title}" removed.`)
+    try {
+      const res = await fetch(`/api/business/opportunities/${opp.id}`, {
+        method: 'DELETE',
+      })
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to delete draft')
+      }
+
+      setOpportunities((prev) => prev.filter((o) => o.id !== opp.id))
+      showToast('info', 'Draft Deleted', `Draft "${opp.title}" removed.`)
+    } catch (err: any) {
+      showToast('error', 'Delete Failed', err.message || 'Error deleting draft')
+    }
   }
 
-  const handleCreateNewVersion = () => {
+  const handleCreateNewVersion = async () => {
     if (!versioningModal || !amendmentReason.trim()) {
       showToast('error', 'Validation Error', 'You must document the commercial justification for creating a new version.')
       return
     }
 
-    const nextVer = versioningModal.version + 1
-    const updated: BusinessOpportunityItem = {
-      ...versioningModal,
-      version: nextVer,
-      rewardValueTZS: newRewardValue > 0 ? newRewardValue : versioningModal.rewardValueTZS,
-      status: 'UNDER_REVIEW', // Material changes require LUMO checker re-verification
-      versionHistory: [
-        ...(versioningModal.versionHistory || []),
-        {
-          version: nextVer,
-          amendedAt: 'Today',
-          changesDescription: amendmentReason,
-          partnerConsentRequired: versioningModal.activePartners > 0,
-        },
-      ],
+    try {
+      const nextVer = versioningModal.version + 1
+      const res = await fetch(`/api/business/opportunities/${versioningModal.id}/version`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          changelogReason: amendmentReason,
+          payload: {
+            rewardValueTZS: newRewardValue > 0 ? newRewardValue : versioningModal.rewardValueTZS,
+          },
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to create new version')
+      }
+
+      const updated: BusinessOpportunityItem = {
+        ...versioningModal,
+        version: data.data.versionNumber || nextVer,
+        rewardValueTZS: newRewardValue > 0 ? newRewardValue : versioningModal.rewardValueTZS,
+        status: 'UNDER_REVIEW',
+        versionHistory: [
+          ...(versioningModal.versionHistory || []),
+          {
+            version: data.data.versionNumber || nextVer,
+            amendedAt: 'Today',
+            changesDescription: amendmentReason,
+            partnerConsentRequired: versioningModal.activePartners > 0,
+          },
+        ],
+      }
+
+      setOpportunities((prev) =>
+        prev.map((o) => (o.id === versioningModal.id ? updated : o))
+      )
+
+      showToast(
+        'success',
+        `Version ${updated.version} Submitted for Review`,
+        `Commercial term changes submitted to LUMO Compliance Checkers. Existing enrolled Partners will receive a consent update notification.`
+      )
+      setVersioningModal(null)
+      setAmendmentReason('')
+      setNewRewardValue(0)
+    } catch (err: any) {
+      showToast('error', 'Versioning Failed', err.message || 'Error creating new version')
     }
-
-    setOpportunities((prev) =>
-      prev.map((o) => (o.id === versioningModal.id ? updated : o))
-    )
-
-    showToast(
-      'success',
-      `Version ${nextVer} Submitted for Review`,
-      `Commercial term changes submitted to LUMO Compliance Checkers. Existing enrolled Partners will receive a consent update notification.`
-    )
-    setVersioningModal(null)
-    setAmendmentReason('')
-    setNewRewardValue(0)
   }
 
   return (
@@ -169,6 +256,14 @@ export function MyOpportunitiesTab({
         </button>
       </div>
 
+      {valueEdit && <div className="rounded-xl border p-4 space-y-3">
+        <label className="block font-bold">Total commercial deal value (TZS)
+          <input type="number" min="0" step="0.01" value={valueEdit.value} onChange={event => setValueEdit({ ...valueEdit, value: event.target.value })} className="block rounded border p-2 mt-2" />
+        </label>
+        <p className="text-sm">Total goods or services value, excluding partner rewards. Leave blank if unknown.</p>
+        <button disabled={savingValue} onClick={saveCommercialValue} className="rounded bg-orange-600 text-white px-4 py-2">{savingValue ? 'Saving…' : 'Save value'}</button>
+        <button disabled={savingValue} onClick={() => setValueEdit(null)} className="px-4 py-2">Cancel</button>
+      </div>}
       {/* Editing & Immutability Rules Callout */}
       <div className="p-3.5 rounded-2xl bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-900 text-xs text-purple-900 dark:text-purple-200 flex items-start gap-2.5">
         <Lock className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
@@ -273,12 +368,14 @@ export function MyOpportunitiesTab({
                             ? 'bg-emerald-100 text-emerald-700'
                             : opp.status === 'UNDER_REVIEW'
                             ? 'bg-purple-100 text-purple-700'
+                            : opp.status === 'CHANGES_REQUESTED'
+                            ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
                             : opp.status === 'DRAFT'
                             ? 'bg-slate-200 text-slate-700'
-                            : 'bg-amber-100 text-amber-700'
+                            : 'bg-slate-100 text-slate-700'
                         }`}
                       >
-                        {opp.status}
+                        {opp.status.replace('_', ' ')}
                       </span>
                       <span className="text-[10px] font-mono font-bold bg-white dark:bg-slate-900 px-2 py-0.5 rounded border text-slate-500">
                         Version {opp.version}
@@ -304,6 +401,24 @@ export function MyOpportunitiesTab({
               </div>
             </div>
 
+            {/* Checker Feedback Notice for CHANGES_REQUESTED */}
+            {opp.status === 'CHANGES_REQUESTED' && (
+              <div className="p-3.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-2xl text-xs space-y-1.5">
+                <div className="font-extrabold text-amber-900 dark:text-amber-200 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>Compliance Checker Feedback:</span>
+                  </span>
+                  <span className="text-[10px] font-mono uppercase bg-amber-200 dark:bg-amber-900 px-2 py-0.5 rounded text-amber-950 dark:text-amber-100">
+                    Action Required
+                  </span>
+                </div>
+                <p className="text-amber-800 dark:text-amber-300 text-[11px] leading-relaxed">
+                  {(opp as any).reviewerComments || 'Compliance checker requested modifications before approving this opportunity. Please click "Edit & Resubmit" to make amendments.'}
+                </p>
+              </div>
+            )}
+
             {/* Metrics Row */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-700">
               <div>
@@ -317,6 +432,7 @@ export function MyOpportunitiesTab({
               <div>
                 <span className="text-slate-400 text-[10px] font-bold block">Budget Allocated</span>
                 <span className="font-mono font-bold">TZS {opp.budgetTZS.toLocaleString()}</span>
+                <button type="button" className="text-xs text-orange-600 underline" onClick={() => setValueEdit({ id: opp.id, value: opp.commercialValueTZS?.toString() ?? '' })}>Set commercial value</button>
               </div>
               <div>
                 <span className="text-slate-400 text-[10px] font-bold block">Tracking Method</span>
@@ -327,6 +443,16 @@ export function MyOpportunitiesTab({
             {/* Action Bar */}
             <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
               <div className="flex items-center gap-2">
+                {opp.status === 'CHANGES_REQUESTED' && (
+                  <button
+                    onClick={() => onOpenCreateWizard(opp)}
+                    className="py-1.5 px-3 bg-[#FF6A00] hover:bg-[#e05d00] text-white rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer shadow-xs"
+                  >
+                    <Edit className="w-3.5 h-3.5" />
+                    <span>Edit & Resubmit</span>
+                  </button>
+                )}
+
                 {opp.status === 'PUBLISHED' && (
                   <button
                     onClick={() => {
@@ -342,8 +468,8 @@ export function MyOpportunitiesTab({
 
                 {opp.status === 'DRAFT' && (
                   <button
-                    onClick={() => onOpenCreateWizard()}
-                    className="py-1.5 px-3 bg-[#FF6A00] text-white rounded-xl text-xs font-bold flex items-center gap-1"
+                    onClick={() => onOpenCreateWizard(opp)}
+                    className="py-1.5 px-3 bg-[#FF6A00] text-white rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer shadow-xs"
                   >
                     <Edit className="w-3.5 h-3.5" />
                     <span>Edit Draft</span>
@@ -351,8 +477,17 @@ export function MyOpportunitiesTab({
                 )}
 
                 <button
+                  onClick={() => setSelectedOpp(opp)}
+                  className="py-1.5 px-3 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold hover:bg-white dark:hover:bg-slate-800 flex items-center gap-1 cursor-pointer"
+                  title="View complete opportunity terms and media"
+                >
+                  <Eye className="w-3.5 h-3.5 text-blue-600" />
+                  <span>View Details</span>
+                </button>
+
+                <button
                   onClick={() => handleDuplicate(opp)}
-                  className="py-1.5 px-3 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold hover:bg-white dark:hover:bg-slate-800 flex items-center gap-1"
+                  className="py-1.5 px-3 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold hover:bg-white dark:hover:bg-slate-800 flex items-center gap-1 cursor-pointer"
                 >
                   <Copy className="w-3.5 h-3.5" />
                   <span>Duplicate</span>
@@ -363,7 +498,7 @@ export function MyOpportunitiesTab({
                 {(opp.status === 'PUBLISHED' || opp.status === 'PAUSED') && (
                   <button
                     onClick={() => handleTogglePause(opp)}
-                    className="p-1.5 border rounded-lg hover:bg-white dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300"
+                    className="p-1.5 border rounded-lg hover:bg-white dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer"
                     title={opp.status === 'PUBLISHED' ? 'Pause Campaign' : 'Resume Campaign'}
                   >
                     {opp.status === 'PUBLISHED' ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 text-emerald-600" />}
@@ -373,7 +508,7 @@ export function MyOpportunitiesTab({
                 {opp.status === 'DRAFT' && (
                   <button
                     onClick={() => handleDeleteDraft(opp)}
-                    className="py-1 px-2.5 border border-red-200 text-red-600 rounded-lg text-xs font-bold hover:bg-red-50"
+                    className="py-1 px-2.5 border border-red-200 text-red-600 rounded-lg text-xs font-bold hover:bg-red-50 cursor-pointer"
                   >
                     Delete Draft
                   </button>
@@ -382,7 +517,7 @@ export function MyOpportunitiesTab({
                 {opp.status !== 'ARCHIVED' && opp.status !== 'DRAFT' && (
                   <button
                     onClick={() => handleArchive(opp)}
-                    className="p-1.5 border rounded-lg hover:bg-white dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600"
+                    className="p-1.5 border rounded-lg hover:bg-white dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 cursor-pointer"
                     title="Archive Opportunity"
                   >
                     <Archive className="w-3.5 h-3.5" />
@@ -393,6 +528,106 @@ export function MyOpportunitiesTab({
           </div>
         )))}
       </div>
+
+      {/* INSPECT OPPORTUNITY DETAILS MODAL */}
+      {selectedOpp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-2xl bg-orange-50 dark:bg-orange-950/50 text-[#FF6A00] flex items-center justify-center font-black">
+                  <Briefcase className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900 dark:text-white">
+                    {selectedOpp.title}
+                  </h3>
+                  <div className="text-xs text-slate-500">
+                    Category: {selectedOpp.category} · Status: <span className="font-bold text-[#FF6A00]">{selectedOpp.status}</span>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setSelectedOpp(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Media Banner Preview */}
+            {selectedOpp.coverImageUrl && (
+              <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 aspect-video max-h-56 relative">
+                <img
+                  src={selectedOpp.coverImageUrl}
+                  alt={selectedOpp.title}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            )}
+
+            {/* Commercial terms summary */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-200/80 dark:border-slate-700">
+                <div className="text-[10px] text-slate-400 font-bold uppercase">Partner Reward</div>
+                <div className="text-sm font-black text-[#FF6A00] font-mono mt-0.5">
+                  TZS {selectedOpp.rewardValueTZS.toLocaleString()}
+                </div>
+              </div>
+
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-200/80 dark:border-slate-700">
+                <div className="text-[10px] text-slate-400 font-bold uppercase">Budget Cap</div>
+                <div className="text-sm font-black text-slate-900 dark:text-white font-mono mt-0.5">
+                  TZS {selectedOpp.budgetTZS.toLocaleString()}
+                </div>
+              </div>
+
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-200/80 dark:border-slate-700 col-span-2 sm:col-span-1">
+                <div className="text-[10px] text-slate-400 font-bold uppercase">Attribution Window</div>
+                <div className="text-sm font-black text-slate-900 dark:text-white mt-0.5">
+                  {selectedOpp.attributionWindowDays || 30} Days
+                </div>
+              </div>
+            </div>
+
+            {/* Summary & Description */}
+            <div className="space-y-1.5 text-xs">
+              <div className="font-bold text-slate-800 dark:text-slate-200">Public Commercial Summary:</div>
+              <p className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 leading-relaxed text-[11px]">
+                {selectedOpp.subscriberDescription || selectedOpp.publicSummary}
+              </p>
+            </div>
+
+            {/* Deliverables and Requirements */}
+            {(selectedOpp.partnerDeliverables || selectedOpp.evidenceRequired) && (
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 text-xs space-y-2">
+                {selectedOpp.partnerDeliverables && (
+                  <div>
+                    <span className="font-bold text-slate-800 dark:text-slate-200 block">Deliverables Required:</span>
+                    <span className="text-slate-600 dark:text-slate-400 text-[11px]">{selectedOpp.partnerDeliverables}</span>
+                  </div>
+                )}
+                {selectedOpp.evidenceRequired && (
+                  <div>
+                    <span className="font-bold text-slate-800 dark:text-slate-200 block">Verification Evidence:</span>
+                    <span className="text-slate-600 dark:text-slate-400 text-[11px]">{selectedOpp.evidenceRequired}</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="flex justify-end pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                onClick={() => setSelectedOpp(null)}
+                className="py-2 px-5 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-bold text-xs rounded-xl cursor-pointer"
+              >
+                Close Details
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* CREATE NEW VERSION MODAL */}
       {versioningModal && (

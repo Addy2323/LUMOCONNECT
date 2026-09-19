@@ -1,7 +1,7 @@
 'use client'
 
 import { BackToHomeButton } from '@/components/shared/BackToHomeButton'
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
   Search,
   Bell,
@@ -32,7 +32,7 @@ import { SubscriptionsTab } from './admin/tabs/SubscriptionsTab'
 import { PaymentsTab } from './admin/tabs/PaymentsTab'
 import { RewardsPayoutsTab } from './admin/tabs/RewardsPayoutsTab'
 import { ReconciliationTab } from './admin/tabs/ReconciliationTab'
-import { TaxStatementsTab } from './admin/tabs/TaxStatementsTab'
+import { FinancialReportsRecordsTab } from './admin/tabs/FinancialReportsRecordsTab'
 import { KycComplianceTab } from './admin/tabs/KycComplianceTab'
 import { FraudRiskTab } from './admin/tabs/FraudRiskTab'
 import { DisputesComplaintsTab } from './admin/tabs/DisputesComplaintsTab'
@@ -45,6 +45,7 @@ import { RolesPermissionsTab } from './admin/tabs/RolesPermissionsTab'
 import { IntegrationsWebhooksTab } from './admin/tabs/IntegrationsWebhooksTab'
 import { SystemSettingsTab } from './admin/tabs/SystemSettingsTab'
 import { ReferralsCoordinationTab } from './admin/tabs/ReferralsCoordinationTab'
+import { AdminInternationalDeskTab } from './admin/tabs/AdminInternationalDeskTab'
 
 interface AdminDashboardViewProps {
   adminName?: string
@@ -60,6 +61,10 @@ export function AdminDashboardView({
   onSignOut,
 }: AdminDashboardViewProps) {
   const [activeTab, setActiveTab] = useState<AdminSidebarSection>('overview')
+  const contentScrollRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    contentScrollRef.current?.scrollTo({ top: 0, behavior: 'instant' })
+  }, [activeTab])
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [showStatusModal, setShowStatusModal] = useState(false)
   const [showProfileModal, setShowProfileModal] = useState(false)
@@ -67,6 +72,30 @@ export function AdminDashboardView({
   const [reviewFilter, setReviewFilter] = useState<'ALL' | 'VERIFICATIONS' | 'DEALS' | 'REWARDS' | 'FLAGGED'>('ALL')
   const [currentAdminRole, setCurrentAdminRole] = useState<AdminRole>('SUPER_ADMIN')
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+  const [pendingDealsCount, setPendingDealsCount] = useState(0)
+
+  useEffect(() => {
+    let mounted = true
+    const fetchPendingCount = async () => {
+      try {
+        const res = await fetch('/api/admin/approvals?status=pending')
+        if (res.ok) {
+          const data = await res.json()
+          if (mounted && data?.counts?.pending !== undefined) {
+            setPendingDealsCount(data.counts.pending)
+          }
+        }
+      } catch {
+        // silent fallback
+      }
+    }
+    fetchPendingCount()
+    const interval = setInterval(fetchPendingCount, 15000)
+    return () => {
+      mounted = false
+      clearInterval(interval)
+    }
+  }, [activeTab])
 
   const adminRoleLabel =
     currentAdminRole === 'SUPER_ADMIN'
@@ -86,7 +115,7 @@ export function AdminDashboardView({
 
   return (
     <AdminToastProvider>
-      <div className="dashboard-shell w-full bg-[#F8FAFC] dark:bg-[#0B1220] min-h-screen text-[#0F172A] dark:text-slate-100 flex flex-col lg:flex-row transition-colors">
+      <div className="dashboard-shell dashboard-viewport w-full bg-[#F8FAFC] dark:bg-[#0B1220] text-[#0F172A] dark:text-slate-100 flex flex-col lg:flex-row transition-colors">
       {/* ========================================================================= */}
       {/* DESKTOP 4-GROUP STRUCTURED ADMIN SIDEBAR                                  */}
       {/* ========================================================================= */}
@@ -100,7 +129,7 @@ export function AdminDashboardView({
         onOpenSystemStatus={() => setShowStatusModal(true)}
         onOpenAdminProfile={() => setShowProfileModal(true)}
         pendingVerificationsCount={0}
-        pendingDealsCount={0}
+        pendingDealsCount={pendingDealsCount}
         flaggedRiskCount={0}
         openDisputesCount={0}
       />
@@ -115,7 +144,7 @@ export function AdminDashboardView({
         onOpenSystemStatus={() => setShowStatusModal(true)}
         onOpenAdminProfile={() => setShowProfileModal(true)}
         pendingVerificationsCount={0}
-        pendingDealsCount={0}
+        pendingDealsCount={pendingDealsCount}
         flaggedRiskCount={0}
         openDisputesCount={0}
         onBrowseMarketplace={onExploreDeals}
@@ -125,7 +154,7 @@ export function AdminDashboardView({
       {/* ========================================================================= */}
       {/* MAIN DASHBOARD CONTENT AREA                                               */}
       {/* ========================================================================= */}
-      <main className="dashboard-main min-w-0 flex-1 w-full space-y-5 sm:space-y-6">
+      <main className="dashboard-main min-w-0 flex-1 w-full">
         {/* Top Header Bar */}
         <div className="dashboard-topbar bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 flex items-center justify-between gap-3">
           <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -139,22 +168,22 @@ export function AdminDashboardView({
               <Menu className="h-5 w-5" />
             </button>
             <h1 className="min-w-0 truncate text-sm font-black text-[#0F172A] dark:text-white sm:text-xl">
-              {activeTab === 'overview' && 'Admin Overview'}
+              {activeTab === 'overview' && 'Overview'}
               {activeTab === 'users' && 'Users, Access & Role Management'}
               {activeTab === 'verifications' && 'Business KYB Document Approvals'}
-              {activeTab === 'deals' && 'Deals & Opportunities Repository'}
-              {activeTab === 'approvals' && 'Pending Deal Approvals (Dual Control)'}
+              {activeTab === 'deals' && 'Deals & Opportunities'}
+              {activeTab === 'approvals' && 'Deal Approvals'}
               {activeTab === 'conversions' && 'Conversions & Attribution Engine'}
-              {activeTab === 'referrals' && 'Referrals & Coordination Desk'}
+              {activeTab === 'referrals' && 'Connection Review'}
               {activeTab === 'subscriptions' && 'Partner Subscriptions & Plans'}
               {activeTab === 'payments' && 'Incoming Payments & Settlement Ledger'}
-              {activeTab === 'payouts' && 'Rewards & Partner Payout Batches'}
+              {activeTab === 'payouts' && 'Rewards & Payouts'}
               {activeTab === 'reconciliation' && 'Payment Provider Reconciliation'}
-              {activeTab === 'tax' && 'Tax Rules & Settlement Statements'}
+              {activeTab === 'tax' && 'Financial Reports, Records & Reporting Calendar'}
               {activeTab === 'kyc' && 'KYC & Identity Compliance'}
               {activeTab === 'risk' && 'Fraud Engine & Anomaly Case Management'}
               {activeTab === 'disputes' && 'Disputes, Complaints & Mediation'}
-              {activeTab === 'logs' && 'Immutable Platform Audit Ledger'}
+              {activeTab === 'logs' && 'Audit & Compliance'}
               {activeTab === 'notifications' && 'Automated Communications & Notifications'}
               {activeTab === 'sms' && 'SMS Operations Centre'}
               {activeTab === 'content' && 'Promotions, Banners & Featured Content'}
@@ -193,6 +222,7 @@ export function AdminDashboardView({
         {/* TAB ROUTING RENDERER                                                      */}
         {/* ========================================================================= */}
         {/* GROUP 1: PLATFORM */}
+        <div ref={contentScrollRef} className="dashboard-content space-y-5 sm:space-y-6" role="region" aria-label="Admin dashboard content" tabIndex={0}>
         {activeTab === 'overview' && (
           <OverviewTab
             adminName={adminName}
@@ -206,13 +236,14 @@ export function AdminDashboardView({
         {activeTab === 'approvals' && <DealApprovalsTab />}
         {activeTab === 'conversions' && <ConversionsAttributionTab />}
         {activeTab === 'referrals' && <ReferralsCoordinationTab />}
+        {activeTab === 'international' && <AdminInternationalDeskTab />}
 
         {/* GROUP 2: FINANCIAL OPERATIONS */}
         {activeTab === 'subscriptions' && <SubscriptionsTab />}
         {activeTab === 'payments' && <PaymentsTab onNavigateToSubscriptions={() => setActiveTab('subscriptions')} />}
         {activeTab === 'payouts' && <RewardsPayoutsTab />}
         {activeTab === 'reconciliation' && <ReconciliationTab />}
-        {activeTab === 'tax' && <TaxStatementsTab />}
+        {activeTab === 'tax' && <FinancialReportsRecordsTab />}
 
         {/* GROUP 3: RISK & SUPPORT */}
         {activeTab === 'kyc' && <KycComplianceTab />}
@@ -228,6 +259,7 @@ export function AdminDashboardView({
         {activeTab === 'roles' && <RolesPermissionsTab />}
         {activeTab === 'integrations' && <IntegrationsWebhooksTab />}
         {activeTab === 'settings' && <SystemSettingsTab />}
+        </div>
       </main>
 
       {/* ========================================================================= */}

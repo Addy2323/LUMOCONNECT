@@ -1,13 +1,15 @@
-import { INITIAL_OPPORTUNITIES } from './mock-data'
 import type { OpportunityItem, DealCreateInput } from './types'
 import { toMinorUnits } from '@/lib/money'
 import { requireActiveDealSubscription } from '@/modules/subscriptions/authorization'
 import type { DealAccessDecision } from '@/modules/subscriptions/types'
 import { matchesOpportunityCategory } from './taxonomy'
 
-let inMemoryOpportunities: OpportunityItem[] = [...INITIAL_OPPORTUNITIES]
+let inMemoryOpportunities: OpportunityItem[] = []
 
 const RETIRED_BUNDLED_OPPORTUNITY_IDS = new Set([
+  'opp_cement_bulk_01', 'opp_hiace_tz_02', 'opp_farmland_03',
+  'opp_smartphones_04', 'opp_zanzibar_hotel_05', 'opp_clothing_06',
+  'opp_import_supplier_07', 'opp_vip_solar_hybrid_08', 'opp_vip_macbook_fleet_09',
   'opp_solar_tz_01',
   'opp_agrotech_tz_02',
   'opp_fintech_pos_03',
@@ -15,6 +17,10 @@ const RETIRED_BUNDLED_OPPORTUNITY_IDS = new Set([
   'opp_safari_tourism_05',
   'opp_afyabora_health_06',
   'opp_emobility_boda_07',
+  'opp_cargo_inspection_swiss_01',
+  'opp_cement_dar_500_bags_02',
+  'opp_housing_jv_dar_03',
+  'opp_residential_housing_dar_03',
 ])
 
 // Load from localStorage in browser environment
@@ -22,45 +28,24 @@ function loadFromStorage() {
   if (typeof window !== 'undefined') {
     try {
       const stored = localStorage.getItem('lumo_deals')
-      if (stored) {
+      if (stored !== null) {
         const parsed = JSON.parse(stored)
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const activeStored = parsed.filter(
-            (item: OpportunityItem) => !RETIRED_BUNDLED_OPPORTUNITY_IDS.has(item.id)
-          )
-          const storedIds = new Set(activeStored.map((p: OpportunityItem) => p.id))
-          const missingInitial = INITIAL_OPPORTUNITIES.filter((init) => !storedIds.has(init.id))
-          // Refresh presentation content for bundled opportunities while preserving
-          // user-created deals and live participation/budget state.
-          const refreshedStored = activeStored.map((storedItem: OpportunityItem) => {
-            const bundledItem = INITIAL_OPPORTUNITIES.find((item) => item.id === storedItem.id)
-            if (!bundledItem) return storedItem
+        if (Array.isArray(parsed)) {
+          const seenIds = new Set<string>()
+          const activeStored: OpportunityItem[] = []
+          for (const item of parsed) {
+            if (!item || !item.id) continue
+            if (RETIRED_BUNDLED_OPPORTUNITY_IDS.has(item.id)) continue
+            if (seenIds.has(item.id)) continue
+            seenIds.add(item.id)
+            activeStored.push(item)
+          }
 
-            return {
-              ...storedItem,
-              title: bundledItem.title,
-              summary: bundledItem.summary,
-              description: bundledItem.description,
-              principalPriceDisplay: bundledItem.principalPriceDisplay,
-              featuredImageUrl: bundledItem.featuredImageUrl,
-              galleryImageUrls: bundledItem.galleryImageUrls,
-              expiryDate: bundledItem.expiryDate,
-              isGoldenVip: bundledItem.isGoldenVip ?? storedItem.isGoldenVip,
-              vipAccessStartAt: bundledItem.vipAccessStartAt ?? storedItem.vipAccessStartAt,
-              vipReleaseAt: bundledItem.vipReleaseAt ?? storedItem.vipReleaseAt,
-              wholesalePriceTZS: bundledItem.wholesalePriceTZS ?? storedItem.wholesalePriceTZS,
-              minOrderQuantity: bundledItem.minOrderQuantity ?? storedItem.minOrderQuantity,
-              productCondition: bundledItem.productCondition ?? storedItem.productCondition,
-              warrantyPeriod: bundledItem.warrantyPeriod ?? storedItem.warrantyPeriod,
-              inspectionWindowHours: bundledItem.inspectionWindowHours ?? storedItem.inspectionWindowHours,
-              qualityScore: bundledItem.qualityScore ?? storedItem.qualityScore,
-              sellerPhone: bundledItem.sellerPhone ?? storedItem.sellerPhone,
-              sellerWhatsApp: bundledItem.sellerWhatsApp ?? storedItem.sellerWhatsApp,
-              sellerLocation: bundledItem.sellerLocation ?? storedItem.sellerLocation,
-            }
-          })
-          const combined = [...refreshedStored, ...missingInitial]
-          inMemoryOpportunities = combined.map((item) => ({
+          // Purge retired samples and deduplicate in storage if duplicates or retired items were found
+          if (activeStored.length !== parsed.length) {
+            localStorage.setItem('lumo_deals', JSON.stringify(activeStored))
+          }
+          inMemoryOpportunities = activeStored.map((item) => ({
             ...item,
             createdAt: new Date(item.createdAt),
             completedAt: item.completedAt ? new Date(item.completedAt) : undefined,
@@ -72,6 +57,10 @@ function loadFromStorage() {
           }))
           return
         }
+      } else {
+        // Zero demo or hardcoded products: start clean and synchronize genuine database records
+        inMemoryOpportunities = []
+        return
       }
     } catch (e) {
       console.warn('Could not load deals from localStorage', e)
@@ -82,6 +71,15 @@ function loadFromStorage() {
 function syncToStorage() {
   if (typeof window !== 'undefined') {
     try {
+      const seenIds = new Set<string>()
+      const uniqueItems: OpportunityItem[] = []
+      for (const item of inMemoryOpportunities) {
+        if (!item || !item.id || seenIds.has(item.id)) continue
+        seenIds.add(item.id)
+        uniqueItems.push(item)
+      }
+      inMemoryOpportunities = uniqueItems
+
       const serialized = inMemoryOpportunities.map((item) => ({
         ...item,
         totalBudgetTZS: item.totalBudgetTZS ? item.totalBudgetTZS.toString() : undefined,
@@ -155,7 +153,7 @@ export function listOpportunities(filters?: OpportunityFilterParams): Opportunit
     const TWO_HOURS_MS = 2 * 60 * 60 * 1000 // 2 hours = 7,200,000 ms
 
     items = items.filter((item) => {
-      if (item.status === 'PUBLISHED') return true
+      if (item.status === 'PUBLISHED' || (item.status as any) === 'APPROVED') return true
       if (item.status === 'COMPLETED') {
         const completedTime = item.completedAt ? new Date(item.completedAt).getTime() : item.createdAt.getTime()
         const elapsed = nowMs - completedTime
@@ -216,7 +214,12 @@ export function listOpportunities(filters?: OpportunityFilterParams): Opportunit
     items.sort((a, b) => (a.expiryDate?.getTime() ?? Number.MAX_SAFE_INTEGER) - (b.expiryDate?.getTime() ?? Number.MAX_SAFE_INTEGER))
   }
 
-  return items
+  const seenIds = new Set<string>()
+  return items.filter((item) => {
+    if (!item?.id || seenIds.has(item.id)) return false
+    seenIds.add(item.id)
+    return true
+  })
 }
 
 export function getOpportunityById(id: string): OpportunityItem | null {
@@ -475,35 +478,18 @@ export const joinDeal = joinOpportunityDeal
  * Checks whether a user has already enrolled in / joined an opportunity deal.
  */
 export function isUserEnrolledInDeal(dealIdOrSlug: string, userId?: string): boolean {
+  if (userId === '') return false
   loadFromStorage()
   const opp = inMemoryOpportunities.find((o) => o.id === dealIdOrSlug || o.slug === dealIdOrSlug)
   const oppId = opp?.id || dealIdOrSlug
 
-  // 1. Check inMemoryEnrollments
   if (userId) {
     const enrolled = inMemoryEnrollments.get(oppId)
-    if (enrolled?.has(userId)) return true
+    return Boolean(enrolled?.has(userId))
   }
 
-  // 2. Check localStorage 'lumo_partner_joined_deals'
-  if (typeof window !== 'undefined' || typeof localStorage !== 'undefined') {
-    try {
-      const storage = typeof window !== 'undefined' ? window.localStorage : (typeof localStorage !== 'undefined' ? localStorage : null)
-      if (storage) {
-        const existingJoined: any[] = JSON.parse(storage.getItem('lumo_partner_joined_deals') || '[]')
-        return existingJoined.some(
-          (d) =>
-            d.opportunityId === oppId ||
-            d.id === oppId ||
-            (opp && (d.opportunityId === opp.slug || d.slug === opp.slug))
-        )
-      }
-    } catch {
-      return false
-    }
-  }
-
-  return false
+  // Fallback for legacy no-argument calls in tests
+  return getUserEnrolledDealIds().has(oppId) || (opp?.slug ? getUserEnrolledDealIds().has(opp.slug) : false)
 }
 
 /**
@@ -511,19 +497,8 @@ export function isUserEnrolledInDeal(dealIdOrSlug: string, userId?: string): boo
  */
 export function getUserEnrolledDealIds(userId?: string): Set<string> {
   const ids = new Set<string>()
-  if (typeof window !== 'undefined' || typeof localStorage !== 'undefined') {
-    try {
-      const storage = typeof window !== 'undefined' ? window.localStorage : (typeof localStorage !== 'undefined' ? localStorage : null)
-      if (storage) {
-        const existingJoined: any[] = JSON.parse(storage.getItem('lumo_partner_joined_deals') || '[]')
-        existingJoined.forEach((d) => {
-          if (d.opportunityId) ids.add(d.opportunityId)
-          if (d.id) ids.add(d.id)
-          if (d.slug) ids.add(d.slug)
-        })
-      }
-    } catch {}
-  }
+  if (userId === '') return ids
+
   if (userId) {
     inMemoryEnrollments.forEach((users, oppId) => {
       if (users.has(userId)) {
@@ -532,7 +507,31 @@ export function getUserEnrolledDealIds(userId?: string): Set<string> {
         if (opp?.slug) ids.add(opp.slug)
       }
     })
+    return ids
   }
+
+  // Fallback for legacy no-argument calls in tests
+  if (typeof window !== 'undefined' || typeof localStorage !== 'undefined') {
+    try {
+      const storage = typeof window !== 'undefined' ? window.localStorage : (typeof localStorage !== 'undefined' ? localStorage : null)
+      if (storage) {
+        const stored = storage.getItem('lumo_partner_joined_deals')
+        if (stored) {
+          const parsed = JSON.parse(stored)
+          if (Array.isArray(parsed)) {
+            parsed.forEach((d: any) => {
+              if (d.opportunityId) ids.add(d.opportunityId)
+              if (d.id) ids.add(d.id)
+              if (d.slug) ids.add(d.slug)
+            })
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Could not read enrolled deals from localStorage', e)
+    }
+  }
+
   return ids
 }
 
@@ -677,6 +676,59 @@ export function updateDealStatus(
 }
 
 export const createOpportunity = createDealOpportunity
+
+export function setOpportunitiesInStore(items: OpportunityItem[]): void {
+  const byId = new Map<string, OpportunityItem>()
+  const slugToId = new Map<string, string>()
+
+  // Keep whatever is currently in memory (local updates, created deals, enrollment counts)
+  for (const item of inMemoryOpportunities) {
+    if (!item || !item.id) continue
+    byId.set(item.id, item)
+    if (item.slug) slugToId.set(item.slug, item.id)
+  }
+
+  // Incorporate server items
+  for (const item of items) {
+    if (!item || !item.id) continue
+    const matchedId = byId.has(item.id) ? item.id : (item.slug ? slugToId.get(item.slug) : undefined)
+    const existing = matchedId ? byId.get(matchedId) : undefined
+    const merged = existing ? { ...existing, ...item, id: existing.id } : item
+
+    byId.set(merged.id, merged)
+    if (merged.slug) slugToId.set(merged.slug, merged.id)
+  }
+
+  inMemoryOpportunities = Array.from(byId.values()).map((item) => ({
+    ...item,
+    createdAt: new Date(item.createdAt),
+    completedAt: item.completedAt ? new Date(item.completedAt) : undefined,
+    expiryDate: item.expiryDate ? new Date(item.expiryDate) : undefined,
+    vipAccessStartAt: item.vipAccessStartAt ? new Date(item.vipAccessStartAt) : undefined,
+    vipReleaseAt: item.vipReleaseAt ? new Date(item.vipReleaseAt) : undefined,
+    totalBudgetTZS: item.totalBudgetTZS ? BigInt(item.totalBudgetTZS) : undefined,
+    spentBudgetTZS: item.spentBudgetTZS ? BigInt(item.spentBudgetTZS) : BigInt(0),
+  }))
+  syncToStorage()
+}
+
+export async function syncOpportunitiesFromServer(): Promise<OpportunityItem[]> {
+  if (typeof window === 'undefined') return inMemoryOpportunities
+  try {
+    const res = await fetch('/api/opportunities')
+    if (res.ok) {
+      const data = await res.json()
+      const opps = data.opportunities || data.data || []
+      if (Array.isArray(opps)) {
+        setOpportunitiesInStore(opps)
+        return inMemoryOpportunities
+      }
+    }
+  } catch (e) {
+    console.warn('Could not sync opportunities from server', e)
+  }
+  return inMemoryOpportunities
+}
 
 export function resetOpportunities(items: OpportunityItem[] = []): void {
   inMemoryOpportunities = [...items]

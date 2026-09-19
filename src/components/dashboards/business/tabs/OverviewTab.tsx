@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import {
   Briefcase,
   Users,
@@ -20,6 +20,7 @@ import {
   PackageCheck,
   Building2,
   AlertCircle,
+  Download,
 } from 'lucide-react'
 import {
   ResponsiveContainer,
@@ -33,6 +34,7 @@ import {
 import { BusinessOpportunityItem, RewardFundingBalance, BusinessPartnerItem } from '../types'
 import { useBusinessToast } from '../BusinessToast'
 import { EscrowInquiry } from '@/components/marketplace/WhatsAppMiddlemanModal'
+import { generateDateBuckets, mergeEventSeries, RawEventItem } from '@/lib/dynamicDateRange'
 
 interface OverviewTabProps {
   businessName: string
@@ -42,69 +44,6 @@ interface OverviewTabProps {
   onOpenCreateWizard: () => void
   onNavigateTab: (tab: any) => void
 }
-
-const PERFORMANCE_DATA_7D = [
-  { date: '18 Aug', value: 0 },
-  { date: '19 Aug', value: 0 },
-  { date: '20 Aug', value: 0 },
-  { date: '21 Aug', value: 0 },
-  { date: '22 Aug', value: 0 },
-  { date: '23 Aug', value: 0 },
-  { date: '24 Aug', value: 0 },
-]
-
-const PERFORMANCE_DATA_30D = [
-  { date: 'W1', value: 0 },
-  { date: 'W2', value: 0 },
-  { date: 'W3', value: 0 },
-  { date: 'W4', value: 0 },
-]
-
-const PERFORMANCE_DATA_6M = [
-  { date: 'Mar', value: 0 },
-  { date: 'Apr', value: 0 },
-  { date: 'May', value: 0 },
-  { date: 'Jun', value: 0 },
-  { date: 'Jul', value: 0 },
-  { date: 'Aug', value: 0 },
-]
-
-const DEFAULT_MOCK_INQUIRIES: EscrowInquiry[] = [
-  {
-    id: 'inq_vip_solar_01',
-    ticketCode: 'LUMO-REF-793412',
-    dealId: 'opp_vip_solar_hybrid_08',
-    dealTitle: 'VIP: 5kW Commercial Solar Hybrid Inverters (Container Lot)',
-    dealSlug: '5kw-commercial-solar-hybrid-inverter',
-    sellerCompany: 'Kilimanjaro Solar & Power Ltd',
-    sellerPhone: '+255 784 112 233',
-    sellerWhatsApp: '255784112233',
-    buyerName: 'David Moshi',
-    buyerPhone: '+255714902311',
-    quantity: 10,
-    deliveryLocation: 'Arusha Hub',
-    notes: 'Requires fiscalised receipt and delivery verification.',
-    escrowStatus: 'DELIVERY_INSPECTION',
-    createdAt: new Date(Date.now() - 3600000 * 4).toISOString(),
-  },
-  {
-    id: 'inq_vip_macbook_02',
-    ticketCode: 'LUMO-REF-610482',
-    dealId: 'opp_vip_macbook_fleet_09',
-    dealTitle: 'VIP: M3 Pro 16" Enterprise Fleet Lot (Sealed Units)',
-    dealSlug: 'm3-pro-16-inch-enterprise-fleet-sealed',
-    sellerCompany: 'Silicon Zanzibar Hardware Supply',
-    sellerPhone: '+255 768 990 011',
-    sellerWhatsApp: '255768990011',
-    buyerName: 'Amina Kassim',
-    buyerPhone: '+255755123984',
-    quantity: 5,
-    deliveryLocation: 'Dar es Salaam (Posta)',
-    notes: 'Golden VIP buyer requesting same-day direct courier pickup.',
-    escrowStatus: 'FUNDS_HELD_IN_ESCROW',
-    createdAt: new Date(Date.now() - 3600000 * 8).toISOString(),
-  },
-]
 
 export function OverviewTab({
   businessName,
@@ -117,44 +56,111 @@ export function OverviewTab({
   const { showToast } = useBusinessToast()
   const [timeRange, setTimeRange] = useState<'7D' | '30D' | '6M'>('7D')
   const [escrowInquiries, setEscrowInquiries] = useState<EscrowInquiry[]>([])
+  const [serverSeries, setServerSeries] = useState<any[] | null>(null)
+  const [serverMetrics, setServerMetrics] = useState<any | null>(null)
 
   useEffect(() => {
-    const loadInquiries = () => {
-      try {
-        const stored = localStorage.getItem('lumo_escrow_inquiries')
-        if (stored) {
-          const parsed: EscrowInquiry[] = JSON.parse(stored)
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setEscrowInquiries(parsed)
-            return
+    fetch(`/api/business/overview?period=${timeRange}`, { credentials: 'include' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.success) {
+          if (Array.isArray(data.series)) {
+            setServerSeries(data.series)
+          }
+          if (data.metrics) {
+            setServerMetrics(data.metrics)
           }
         }
-      } catch (e) {
-        console.error('Failed to load escrow inquiries', e)
+      })
+      .catch((err) => console.warn('Could not fetch server business series:', err))
+  }, [timeRange])
+
+  const chartData = useMemo(() => {
+    if (serverSeries && serverSeries.length > 0) {
+      return serverSeries
+    }
+    const buckets = generateDateBuckets(timeRange)
+    const rawEvents: RawEventItem[] = []
+
+    partners.forEach((p) => {
+      if (p.totalEarnedTZS && p.joinedProgramDate) {
+        rawEvents.push({
+          timestamp: p.joinedProgramDate,
+          type: 'TRANSACTION',
+          amountTZS: p.totalEarnedTZS,
+        })
       }
-      setEscrowInquiries(DEFAULT_MOCK_INQUIRIES)
-    }
+    })
 
-    loadInquiries()
-    const handleUpdate = () => loadInquiries()
-    window.addEventListener('lumo:escrow-inquiries-updated', handleUpdate)
-    window.addEventListener('storage', handleUpdate)
-    return () => {
-      window.removeEventListener('lumo:escrow-inquiries-updated', handleUpdate)
-      window.removeEventListener('storage', handleUpdate)
-    }
-  }, [])
+    return mergeEventSeries(buckets, rawEvents, timeRange).map((b) => ({
+      ...b,
+      day: b.label,
+      pipelineRevenueTZS: b.pipelineRevenueTZS || 0,
+    }))
+  }, [timeRange, partners, serverSeries])
 
-  const chartData =
-    timeRange === '7D'
-      ? PERFORMANCE_DATA_7D
-      : timeRange === '30D'
-      ? PERFORMANCE_DATA_30D
-      : PERFORMANCE_DATA_6M
-
+  const maxPipelineRevenue = Math.max(0, ...chartData.map((d: any) => d.pipelineRevenueTZS || 0))
+  const hasRevenueActivity = maxPipelineRevenue > 0
   const liveOpportunities = opportunities.filter((o) => o.status === 'PUBLISHED')
-  const totalActivePartners = partners.filter((p) => p.status === 'ACTIVE').length
-  const totalVerifiedConversions = opportunities.reduce((acc, o) => acc + o.totalConversions, 0)
+  const liveCount = serverMetrics?.liveOpportunitiesCount ?? liveOpportunities.length
+  const activePartnersCount = serverMetrics?.activePartnersCount ?? partners.filter((p) => p.status === 'ACTIVE').length
+  const verifiedConversionsCount = serverMetrics?.totalConversions ?? opportunities.reduce((acc, o) => acc + o.totalConversions, 0)
+
+  const handleExportBusinessAnalytics = () => {
+    try {
+      const now = new Date()
+      const dateStr = now.toISOString().split('T')[0]
+      const fileName = `lumo-merchant-analytics-${timeRange.toLowerCase()}-${dateStr}.csv`
+
+      const csvRows = [
+        ['"LUMO DEALS - MERCHANT OVERVIEW & PIPELINE REVENUE REPORT"'],
+        [`"Merchant Name"`, `"${businessName}"`],
+        [`"Generated At"`, `"${now.toLocaleString('en-GB')}"`],
+        [`"Reporting Period"`, `"${timeRange}"`],
+        [''],
+        ['"COMMERCIAL SUMMARY METRICS"', '"VALUE"'],
+        ['"Live Published Opportunities"', liveCount],
+        ['"Active Enrolled Partners"', activePartnersCount],
+        ['"Verified Customer Conversions"', verifiedConversionsCount],
+        [''],
+        ['"ROLLING PIPELINE REVENUE BREAKDOWN"'],
+        ['"Date Key"', '"Label"', '"Pipeline Revenue (TZS)"', '"Recorded Transactions"', '"Conversions"'],
+        ...chartData.map((pt: any) => [
+          `"${pt.dateKey}"`,
+          `"${pt.label}"`,
+          pt.pipelineRevenueTZS || 0,
+          pt.count || 0,
+          pt.conversions || 0,
+        ]),
+        [''],
+        ['"ACTIVE OPPORTUNITIES PERFORMANCE"'],
+        ['"Opportunity Title"', '"Category"', '"Region"', '"Reward (TZS)"', '"Partners"', '"Conversions"'],
+        ...(opportunities.length > 0
+          ? opportunities.map((opp) => [
+              `"${opp.title}"`,
+              `"${opp.category}"`,
+              `"${opp.region}"`,
+              opp.rewardValueTZS,
+              opp.activePartners || 0,
+              opp.totalConversions || 0,
+            ])
+          : [['"No active campaigns published"', '—', '—', 0, 0, 0]]),
+      ]
+
+      const csvContent = 'data:text/csv;charset=utf-8,' + csvRows.map((e) => e.join(',')).join('\n')
+      const encodedUri = encodeURI(csvContent)
+      const link = document.createElement('a')
+      link.setAttribute('href', encodedUri)
+      link.setAttribute('download', fileName)
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+
+      showToast('success', 'Merchant Analytics Exported', `CSV statement downloaded: ${fileName}`)
+    } catch (err) {
+      showToast('error', 'Export Failed', 'Unable to generate CSV export.')
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -177,8 +183,16 @@ export function OverviewTab({
 
         <div className="flex items-center gap-2 shrink-0">
           <button
+            onClick={handleExportBusinessAnalytics}
+            className="py-2.5 px-4 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-extrabold text-xs rounded-xl shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer"
+          >
+            <Download className="w-4 h-4 text-[#FF6A00]" />
+            <span>Export Analytics (CSV)</span>
+          </button>
+
+          <button
             onClick={onOpenCreateWizard}
-            className="py-2.5 px-5 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold text-xs rounded-xl shadow-xs transition-all flex items-center gap-2 active:scale-[0.99]"
+            className="py-2.5 px-5 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold text-xs rounded-xl shadow-xs transition-all flex items-center gap-2 active:scale-[0.99] cursor-pointer"
           >
             <Sparkles className="w-4 h-4" />
             <span>Create Opportunity</span>
@@ -197,7 +211,7 @@ export function OverviewTab({
             <div className="space-y-1">
               <span className="text-[11px] sm:text-xs font-bold text-slate-500">Live Opportunities</span>
               <div className="text-2xl sm:text-3xl font-black text-[#0F172A] dark:text-white">
-                {liveOpportunities.length}
+                {liveCount}
               </div>
             </div>
             <div className="w-10 h-10 rounded-2xl bg-orange-50 dark:bg-orange-950/40 text-[#FF6A00] flex items-center justify-center shrink-0">
@@ -218,7 +232,7 @@ export function OverviewTab({
             <div className="space-y-1">
               <span className="text-[11px] sm:text-xs font-bold text-slate-500">Active Partners</span>
               <div className="text-2xl sm:text-3xl font-black text-[#0F172A] dark:text-white">
-                {totalActivePartners}
+                {activePartnersCount}
               </div>
             </div>
             <div className="w-10 h-10 rounded-2xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 flex items-center justify-center shrink-0">
@@ -239,7 +253,7 @@ export function OverviewTab({
             <div className="space-y-1">
               <span className="text-[11px] sm:text-xs font-bold text-slate-500">Verified Conversions</span>
               <div className="text-2xl sm:text-3xl font-black text-[#0F172A] dark:text-white">
-                {totalVerifiedConversions}
+                {verifiedConversionsCount}
               </div>
             </div>
             <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center shrink-0">
@@ -258,9 +272,9 @@ export function OverviewTab({
         >
           <div className="flex items-start justify-between">
             <div className="space-y-1">
-              <span className="text-[11px] sm:text-xs font-bold text-slate-500">Secured Reward Budget</span>
+              <span className="text-[11px] sm:text-xs font-bold text-slate-500">Recorded Reward Budgets</span>
               <div className="text-xl sm:text-2xl font-black text-[#0F172A] dark:text-white font-mono">
-                TZS {(fundingBalance.committedToActiveDealsTZS / 1000000).toFixed(1)}M
+                TZS {(opportunities.reduce((sum, opportunity) => sum + (opportunity.budgetTZS || 0), 0) / 1000000).toFixed(1)}M
               </div>
             </div>
             <div className="w-10 h-10 rounded-2xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 flex items-center justify-center shrink-0">
@@ -268,7 +282,7 @@ export function OverviewTab({
             </div>
           </div>
           <div className="text-[11px] text-purple-600 font-bold flex items-center gap-1">
-            <span>Manage wallet & payouts →</span>
+            <span>View payment records →</span>
           </div>
         </div>
       </div>
@@ -284,9 +298,35 @@ export function OverviewTab({
               </h3>
               <p className="text-xs text-slate-500">Weekly attributable deal pipeline and verified outcome volumes.</p>
             </div>
+
+            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl self-start sm:self-auto text-xs font-bold">
+              {(['7D', '30D', '6M'] as const).map((r) => (
+                <button
+                  key={r}
+                  onClick={() => setTimeRange(r)}
+                  className={`px-3 py-1 rounded-lg transition-all ${
+                    timeRange === r
+                      ? 'bg-white dark:bg-slate-900 text-[#FF6A00] shadow-2xs font-extrabold'
+                      : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  {r}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="h-64 sm:h-72 w-full pt-4">
+          <div className="relative h-64 sm:h-72 w-full pt-4">
+            {!hasRevenueActivity && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/70 dark:bg-slate-900/70 backdrop-blur-[1px] pointer-events-none z-10 rounded-2xl">
+                <p className="text-xs font-bold text-slate-600 dark:text-slate-300">
+                  No commercial conversion velocity recorded for this period.
+                </p>
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+                  Active partner referrals and verified sales will chart your revenue pipeline here.
+                </p>
+              </div>
+            )}
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData}>
                 <defs>
@@ -301,7 +341,8 @@ export function OverviewTab({
                   tick={{ fontSize: 11 }}
                   axisLine={false}
                   tickLine={false}
-                  tickFormatter={(val) => `TZS ${(val / 1000000).toFixed(0)}M`}
+                  domain={[0, maxPipelineRevenue > 0 ? 'auto' : 5000000]}
+                  tickFormatter={(val) => (val === 0 ? '0' : `TZS ${(val / 1000000).toFixed(0)}M`)}
                 />
                 <Tooltip
                   formatter={(val: any) => [`TZS ${Number(val).toLocaleString()}`, 'Pipeline Value']}
@@ -327,61 +368,7 @@ export function OverviewTab({
         </div>
 
         {/* Financial Widget (4 Cols) */}
-        <div className="lg:col-span-4 bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-4 sm:p-5 shadow-xs space-y-4 flex flex-col justify-between">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between border-b pb-3 dark:border-slate-800">
-              <h3 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
-                <Wallet className="w-4 h-4 text-[#FF6A00]" />
-                <span>Secured Wallet Balance</span>
-              </h3>
-              <span className="text-[10px] bg-emerald-100 text-emerald-800 font-mono font-bold px-2 py-0.5 rounded-full">
-                Funds Are Secured
-              </span>
-            </div>
-
-            <div className="space-y-2 text-xs">
-              <div className="flex justify-between py-1 border-b dark:border-slate-800/60">
-                <span className="text-slate-500">Available Wallet Balance:</span>
-                <span className="font-mono font-black text-slate-900 dark:text-white">
-                  TZS {fundingBalance.availableBalanceTZS.toLocaleString()}
-                </span>
-              </div>
-              <div className="flex justify-between py-1 border-b dark:border-slate-800/60">
-                <span className="text-slate-500">Committed to Active Deals:</span>
-                <span className="font-mono font-bold text-slate-700 dark:text-slate-300">
-                  TZS {fundingBalance.committedToActiveDealsTZS.toLocaleString()}
-                </span>
-              </div>
-              <div className="flex justify-between py-1 border-b dark:border-slate-800/60">
-                <span className="text-slate-500">Pending Inspections:</span>
-                <span className="font-mono font-bold text-amber-600">
-                  TZS {fundingBalance.pendingConfirmationTZS.toLocaleString()}
-                </span>
-              </div>
-              <div className="flex justify-between py-1">
-                <span className="text-slate-500">Total Rewards Paid Out:</span>
-                <span className="font-mono font-bold text-emerald-600">
-                  TZS {fundingBalance.rewardsPaidTZS.toLocaleString()}
-                </span>
-              </div>
-            </div>
-
-            {/* Safeguarding Legal Notice */}
-            <div className="p-2.5 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200/60 text-[10px] text-emerald-900 dark:text-emerald-300 leading-snug flex items-start gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
-              <span>
-                <strong>Funds Are Secured:</strong> Reward funds are processed and protected through LUMO’s licensed payment partner ({fundingBalance.safeguardingProvider}).
-              </span>
-            </div>
-          </div>
-
-          <button
-            onClick={() => onNavigateTab('payments_funding')}
-            className="w-full py-2.5 bg-[#0B132B] hover:bg-slate-800 text-white font-extrabold text-xs rounded-xl shadow-xs transition-colors text-center"
-          >
-            Manage Wallet & Review Payouts
-          </button>
-        </div>
+        <div className="lg:col-span-4 rounded-3xl border bg-white dark:bg-slate-900 p-5 space-y-3"><h3 className="font-bold">Partner payments</h3><p className="text-sm text-slate-500">View recorded reward obligations and payment status for your business.</p><button onClick={() => onNavigateTab('payments_funding')} className="rounded-lg bg-orange-600 text-white px-4 py-2">View payment records</button></div>
       </div>
 
       {/* WhatsApp Protected Inquiries & 48-Hour Inspection Holds */}

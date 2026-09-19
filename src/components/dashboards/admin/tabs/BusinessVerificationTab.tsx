@@ -19,14 +19,15 @@ import {
   Eye,
   X,
   FileSpreadsheet,
+  Trash2,
 } from 'lucide-react'
 import {
-  listVerificationRecords,
   updateVerificationRecordStatus,
   type VerificationRecord,
   type VerificationDocument,
 } from '@/modules/identity/service'
 import { useAdminToast } from '../AdminToast'
+import { DeleteMerchantDialog } from '../DeleteMerchantDialog'
 
 export function BusinessVerificationTab() {
   const { showToast } = useAdminToast()
@@ -40,19 +41,23 @@ export function BusinessVerificationTab() {
     item: VerificationRecord
   } | null>(null)
   const [decisionReason, setDecisionReason] = useState('')
+  const [deleteMerchantId, setDeleteMerchantId] = useState<string | null>(null)
 
   const loadData = () => {
-    fetch('/api/admin/overview')
-      .then((res) => res.json())
+    fetch('/api/admin/overview', { cache: 'no-store' })
+      .then((res) => {
+        if (!res.ok) throw new Error('Unable to load merchants')
+        return res.json()
+      })
       .then((data) => {
-        if (data.verifications && data.verifications.length > 0) {
+        if (Array.isArray(data.verifications)) {
           setVerifications(data.verifications)
         } else {
-          setVerifications(listVerificationRecords())
+          throw new Error('Invalid merchant response')
         }
       })
       .catch(() => {
-        setVerifications(listVerificationRecords())
+        showToast('error', 'Could not load merchants', 'Please refresh and try again.')
       })
   }
 
@@ -336,6 +341,9 @@ export function BusinessVerificationTab() {
 
               {/* Action Buttons */}
               <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex gap-1.5 flex-wrap">
+                {item.organizationId && <button type="button" onClick={() => setDeleteMerchantId(item.organizationId!)} className="w-full mb-1 flex items-center justify-center gap-1.5 rounded-xl border border-red-200 py-2 text-xs font-bold text-red-600 hover:bg-red-50">
+                  <Trash2 className="h-3.5 w-3.5" /> Delete Merchant
+                </button>}
                 <button
                   onClick={() => setSelectedItem(item)}
                   className="py-1.5 px-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold hover:bg-slate-200 flex items-center gap-1 flex-1 justify-center cursor-pointer"
@@ -373,6 +381,14 @@ export function BusinessVerificationTab() {
       )}
 
       {/* DOCUMENT PREVIEW MODAL */}
+      {deleteMerchantId && <DeleteMerchantDialog key={deleteMerchantId} organizationId={deleteMerchantId} onClose={() => setDeleteMerchantId(null)} onDeleted={(pendingFiles) => {
+        setVerifications((items) => items.filter((item) => item.organizationId !== deleteMerchantId))
+        if (selectedItem?.organizationId === deleteMerchantId) setSelectedItem(null)
+        setDeleteMerchantId(null)
+        showToast('success', 'Merchant deleted', pendingFiles ? 'Merchant records were removed. Document storage cleanup is queued for retry.' : 'The merchant and the selected related records were permanently removed.')
+        window.dispatchEvent(new Event('lumo:deals-updated'))
+        loadData()
+      }} />}
       {previewDoc && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto relative">

@@ -9,6 +9,8 @@ export type AdminSidebarSection =
   | 'approvals'
   | 'conversions'
   | 'referrals'
+  // Group: International Desk
+  | 'international'
   // Group 2: Financial Operations
   | 'subscriptions'
   | 'payments'
@@ -75,18 +77,32 @@ export interface BusinessVerificationItem {
 }
 
 export interface AdminDealItem {
+  rewardDisplay?: string
+  budgetRecorded?: boolean
   merchantTIN?: string
   makerOperator?: string
   id: string
   slug: string
   title: string
   businessName: string
+  organizationLegalName?: string
+  organizationTradingName?: string
+  organizationTin?: string
   category: string
   type: string
+  currency?: string
   rewardValueTZS: number
   budgetTZS: number
   spentTZS: number
-  status: 'DRAFT' | 'SUBMITTED' | 'UNDER_REVIEW' | 'APPROVED' | 'PUBLISHED' | 'PAUSED' | 'CLOSED' | 'ARCHIVED'
+  totalBudgetMinor?: string
+  originalCurrency?: string
+  originalDealValueMinor?: string
+  referenceCurrency?: string
+  referenceValueMinor?: string
+  exchangeRateUsed?: number
+  commissionModel?: string
+  payoutStructure?: string
+  status: 'DRAFT' | 'SUBMITTED' | 'UNDER_REVIEW' | 'APPROVED' | 'PUBLISHED' | 'PAUSED' | 'CLOSED' | 'ARCHIVED' | 'CHANGES_REQUESTED' | 'REJECTED'
   version: number
   activePartners: number
   createdAt: string
@@ -95,9 +111,32 @@ export interface AdminDealItem {
   featuredImageUrl?: string
   promoVideoUrl?: string
   galleryImageUrls?: string[]
+  mediaUrls?: string[]
   summary?: string
   description?: string
   termsAndConditions?: string
+  requirements?: string[]
+  targetAudience?: string[]
+  deliverables?: string[]
+  contactPersonName?: string
+  contactEmail?: string
+  contactPhone?: string
+  visibility?: string
+  featured?: boolean
+  versions?: any[]
+  makerUser?: { id: string; name: string; email: string } | null
+  subcategory?: string
+  region?: string
+  commercialResultType?: string
+  rewardTrigger?: string
+  successCondition?: string
+  closingDate?: string | null
+  commercialValueMinor?: string
+  termsHash?: string
+  attributionWindowDays?: number
+  originalDealValue?: number | null
+  rewardPercentage?: number | null
+  fixedRewardAmountMinor?: string | null
 }
 
 export interface ConversionRecord {
@@ -131,12 +170,17 @@ export interface SubscriptionTransaction {
   startsAt: string
   expiresAt: string
   daysRemaining?: number
+  hoursRemaining?: number
+  startsAtISO?: string
+  expiresAtISO?: string
+  remainingMilliseconds?: number
   isGoldenVip?: boolean
   autoRenew?: boolean
   createdAt?: string
 }
 
 export interface PaymentLedgerItem {
+  currency?: string
   id: string
   reference: string
   payerName: string
@@ -146,8 +190,8 @@ export interface PaymentLedgerItem {
   subscriptionType?: 'NORMAL' | 'GOLDEN_VIP_PRIVATE'
   subscriptionTier?: 'STARTER' | 'STANDARD' | 'GOLDEN_VIP' | 'ANNUAL' | 'ENTERPRISE'
   grossAmountTZS: number
-  processingFeeTZS: number
-  netAmountTZS: number
+  processingFeeTZS: number | null
+  netAmountTZS: number | null
   status: 'CREATED' | 'PENDING' | 'PROCESSING' | 'SUCCESSFUL' | 'FAILED' | 'EXPIRED' | 'REFUNDED'
   createdAt: string
   verifiedAt?: string

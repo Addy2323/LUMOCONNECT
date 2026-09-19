@@ -17,10 +17,11 @@ import {
 } from './partner/types'
 import { PartnerToastProvider } from './partner/PartnerToast'
 import { PartnerMobileSidebar, PartnerSidebar } from './partner/PartnerSidebar'
+import { useSubscriptionCountdown } from './partner/useSubscriptionCountdown'
 import { ThemeToggle } from '@/components/theme/ThemeToggle'
 
 // Tab components
-import { OverviewTab } from './partner/tabs/OverviewTab'
+import { OverviewTab, type PartnerOverviewPayoutSummary } from './partner/tabs/OverviewTab'
 import { DiscoverOpportunitiesTab } from './partner/tabs/DiscoverOpportunitiesTab'
 import { SavedOpportunitiesTab } from './partner/tabs/SavedOpportunitiesTab'
 import { MyDealsTab } from './partner/tabs/MyDealsTab'
@@ -34,7 +35,7 @@ import { SettingsSecurityTab } from './partner/tabs/SettingsSecurityTab'
 import { HelpSupportTab } from './partner/tabs/HelpSupportTab'
 
 // Services
-import { listOpportunities } from '@/modules/deals/service'
+import { listOpportunities, setOpportunitiesInStore } from '@/modules/deals/service'
 import { getUserSubscription, setUserSubscription } from '@/modules/subscriptions/service'
 import type { OpportunityItem } from '@/modules/deals/types'
 
@@ -66,18 +67,32 @@ function mapOpportunityToPartnerSummary(
   opp: OpportunityItem,
   savedSet: Set<string>
 ): PartnerOpportunitySummary {
+  const oppAny = opp as any
+  const fixedRewardNum = oppAny.rewardValueTZS ? Number(oppAny.rewardValueTZS) : 0
+  const parsedReward = fixedRewardNum > 0 ? fixedRewardNum : (oppAny.baseRewardValue || oppAny.rewardValue || 0)
+
+  const commValDisplay =
+    oppAny.principalPriceDisplay ||
+    oppAny.commercialValue ||
+    (oppAny.originalDealValue ? `${oppAny.originalCurrency || 'TZS'} ${Number(oppAny.originalDealValue).toLocaleString()}` : undefined)
+
   return {
     id: opp.id,
     slug: opp.slug,
     title: opp.title,
-    businessName: 'Lumo Deals',
+    businessName: opp.companyName || 'Lumo Deals',
     businessLogo: opp.companyLogo || 'LD',
     isBusinessVerified: opp.isVerified,
     category: opp.category,
+    subcategory: opp.subcategory,
     region: opp.region,
     type: (opp.type as any) || 'CUSTOMER_ACQUISITION',
     rewardDisplay: opp.rewardDisplay,
-    rewardValueTZS: Number((opp as any).baseRewardValue || (opp as any).rewardValue || 50000),
+    rewardValueTZS: parsedReward > 0 ? parsedReward : 50000,
+    principalPriceDisplay: commValDisplay,
+    commercialValue: commValDisplay,
+    originalDealValue: oppAny.originalDealValue ? Number(oppAny.originalDealValue) : undefined,
+    originalCurrency: oppAny.originalCurrency || 'TZS',
     activePartnersCount: opp.activePartnerCount || 0,
     closingDate: 'Open Access',
     isSaved: savedSet.has(opp.id),
@@ -124,26 +139,48 @@ export function PartnerDashboardView({
   )
 
   const [subscription, setSubscription] = useState<PartnerSubscriptionPlan>(MOCK_PARTNER_SUBSCRIPTION)
+  const countdown = useSubscriptionCountdown(subscription)
   const [opportunities, setOpportunities] = useState<PartnerOpportunitySummary[]>([])
-  const [joinedDeals, setJoinedDeals] = useState<JoinedDealItem[]>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('lumo_partner_joined_deals')
-        if (saved) return JSON.parse(saved)
-      } catch (e) {
-        console.warn('Could not read joined deals from localStorage', e)
-      }
-    }
-    return MOCK_JOINED_DEALS
-  })
+  const [joinedDeals, setJoinedDeals] = useState<JoinedDealItem[]>([])
   const [leads, setLeads] = useState<PartnerLeadItem[]>(MOCK_PARTNER_LEADS)
   const [performance, setPerformance] = useState<PartnerPerformanceMetrics>(MOCK_PARTNER_PERFORMANCE)
+  const [payoutSummary, setPayoutSummary] = useState<PartnerOverviewPayoutSummary | null>(null)
+
+  // Reload Overview metrics and payout summary from authenticated server
+  const reloadOverview = useCallback(() => {
+    fetch('/api/partner/overview', { credentials: 'include' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.success) {
+          if (data.payoutSummary) {
+            setPayoutSummary(data.payoutSummary)
+          }
+          if (data.metrics) {
+            setPerformance((prev) => ({
+              ...prev,
+              approvedRewardsTZS: data.metrics.availableEarningsTZS ?? prev.approvedRewardsTZS,
+              qualifiedLeads: data.metrics.qualifiedLeadsCount ?? prev.qualifiedLeads,
+              verifiedConversions: data.metrics.verifiedConversionsCount ?? prev.verifiedConversions,
+            }))
+          }
+        }
+      })
+      .catch((err) => console.warn('Could not fetch partner overview:', err))
+  }, [])
 
   // Submit Lead Modal Trigger
   const [showSubmitLeadModal, setShowSubmitLeadModal] = useState(false)
   const [selectedDealForLead, setSelectedDealForLead] = useState<JoinedDealItem | null>(null)
+  const [selectedOppForDetail, setSelectedOppForDetail] = useState<PartnerOpportunitySummary | null>(null)
 
-  // Reload Opportunities from shared storage
+  const handleSelectTab = (tab: PartnerSidebarSection) => {
+    if (tab !== 'discover' || (tab === 'discover' && activeTab === 'discover')) {
+      setSelectedOppForDetail(null)
+    }
+    setActiveTab(tab)
+  }
+
+  // Reload Opportunities from shared storage & live database
   const reloadOpportunities = useCallback(() => {
     let savedIds: string[] = []
     if (typeof window !== 'undefined') {
@@ -154,9 +191,26 @@ export function PartnerDashboardView({
       }
     }
     const savedSet = new Set(savedIds)
+
+    // Immediate render from local/cached opportunities
     const rawOpps = listOpportunities()
-    const mapped = rawOpps.map((opp) => mapOpportunityToPartnerSummary(opp, savedSet))
-    setOpportunities(mapped)
+    if (rawOpps.length > 0) {
+      setOpportunities(rawOpps.map((opp) => mapOpportunityToPartnerSummary(opp, savedSet)))
+    }
+
+    // Always fetch fresh authoritative opportunities from PostgreSQL database
+    fetch('/api/opportunities')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        const oppList = data?.opportunities || data?.data
+        if (Array.isArray(oppList)) {
+          setOpportunitiesInStore(oppList)
+          setOpportunities(oppList.map((opp: any) => mapOpportunityToPartnerSummary(opp, savedSet)))
+        }
+      })
+      .catch((err) => {
+        console.warn('Could not fetch opportunities from server:', err)
+      })
   }, [])
 
   // Reload Subscription Status from local store and database
@@ -170,11 +224,25 @@ export function PartnerDashboardView({
     if (localSub && localSub.isActive) {
       setSubscription({
         planName: localSub.planName,
-        status: 'ACTIVE',
+        status: localSub.status,
         daysRemaining: localSub.daysRemaining,
         priceTZS: localSub.amountPaidTZS || 25000,
         cycle: (localSub.planCode as any) || 'MONTHLY',
         expiryDate: localSub.expiresAt ? new Date(localSub.expiresAt).toLocaleDateString() : '—',
+        startedAtISO: localSub.startsAt ? new Date(localSub.startsAt).toISOString() : undefined,
+        expiresAtISO: localSub.expiresAt ? new Date(localSub.expiresAt).toISOString() : undefined,
+        autoRenew: localSub.autoRenew,
+      })
+    } else if (localSub) {
+      setSubscription({
+        planName: localSub.planName,
+        status: localSub.status || 'EXPIRED',
+        daysRemaining: 0,
+        priceTZS: localSub.amountPaidTZS || 25000,
+        cycle: (localSub.planCode as any) || 'MONTHLY',
+        expiryDate: localSub.expiresAt ? new Date(localSub.expiresAt).toLocaleDateString() : '—',
+        startedAtISO: localSub.startsAt ? new Date(localSub.startsAt).toISOString() : undefined,
+        expiresAtISO: localSub.expiresAt ? new Date(localSub.expiresAt).toISOString() : undefined,
         autoRenew: localSub.autoRenew,
       })
     } else {
@@ -187,61 +255,69 @@ export function PartnerDashboardView({
       if (userId) q.set('userId', userId)
       if (email) q.set('email', email)
 
-      fetch(`/api/subscriptions/active?${q.toString()}`)
+      fetch(`/api/subscriptions/active?${q.toString()}`, { credentials: 'include' })
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
-          if (data?.success && data.hasActiveSubscription && data.subscription) {
+          if (data?.success && data.subscription) {
             const s = data.subscription
             setSubscription({
               planName: s.planName,
-              status: 'ACTIVE',
+              status: s.status,
               daysRemaining: s.daysRemaining,
               priceTZS: s.amountPaidTZS || 25000,
               cycle: (s.planCode as any) || 'MONTHLY',
               expiryDate: s.expiresAt ? new Date(s.expiresAt).toLocaleDateString() : '—',
+              startedAtISO: s.startsAt,
+              expiresAtISO: s.expiresAt,
+              serverTimeISO: data.serverTime || s.serverTime,
+              remainingMilliseconds: s.remainingMilliseconds,
               autoRenew: s.autoRenew,
             })
             if (userId) setUserSubscription(userId, s)
             if (email) setUserSubscription(email, s)
+          } else if (data?.success && !data.hasActiveSubscription) {
+            setSubscription(MOCK_PARTNER_SUBSCRIPTION)
           }
         })
         .catch(() => {})
     }
   }, [userId, email, partnerName])
 
-  // Reload Joined Deals
+  // Reload Joined Deals from authenticated server database
   const reloadJoinedDeals = useCallback(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('lumo_partner_joined_deals')
-        if (saved) {
-          const parsed = JSON.parse(saved)
-          if (Array.isArray(parsed)) {
-            setJoinedDeals(parsed)
-            return
-          }
+    fetch('/api/partner/deals', { credentials: 'include' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.success && Array.isArray(data.deals)) {
+          setJoinedDeals(data.deals)
         }
-      } catch (e) {
-        console.warn('Could not read joined deals from localStorage', e)
-      }
-    }
+      })
+      .catch((err) => console.warn('Could not fetch partner enrolled deals:', err))
   }, [])
 
   useEffect(() => {
     reloadOpportunities()
     reloadSubscription()
     reloadJoinedDeals()
+    reloadOverview()
 
     const handleDealsUpdate = () => reloadOpportunities()
     const handleSavedUpdate = () => reloadOpportunities()
     const handleSubUpdate = () => reloadSubscription()
-    const handleJoinedUpdate = () => reloadJoinedDeals()
+    const handleJoinedUpdate = () => {
+      reloadJoinedDeals()
+      reloadOverview()
+    }
+    const handleOverviewUpdate = () => reloadOverview()
 
     window.addEventListener('lumo:deals-updated', handleDealsUpdate)
     window.addEventListener('lumo:saved-deals-updated', handleSavedUpdate)
     window.addEventListener('lumo:subscription-updated', handleSubUpdate)
     window.addEventListener('lumo:plans-updated', handleSubUpdate)
     window.addEventListener('lumo:joined-deals-updated', handleJoinedUpdate)
+    window.addEventListener('lumo:referral-cases-updated', handleJoinedUpdate)
+    window.addEventListener('lumo:leads-updated', handleOverviewUpdate)
+    window.addEventListener('lumo:payouts-updated', handleOverviewUpdate)
 
     return () => {
       window.removeEventListener('lumo:deals-updated', handleDealsUpdate)
@@ -249,45 +325,38 @@ export function PartnerDashboardView({
       window.removeEventListener('lumo:subscription-updated', handleSubUpdate)
       window.removeEventListener('lumo:plans-updated', handleSubUpdate)
       window.removeEventListener('lumo:joined-deals-updated', handleJoinedUpdate)
+      window.removeEventListener('lumo:referral-cases-updated', handleJoinedUpdate)
+      window.removeEventListener('lumo:leads-updated', handleOverviewUpdate)
+      window.removeEventListener('lumo:payouts-updated', handleOverviewUpdate)
     }
-  }, [reloadOpportunities, reloadSubscription, reloadJoinedDeals])
+  }, [reloadOpportunities, reloadSubscription, reloadJoinedDeals, reloadOverview])
 
   const saveJoinedDeals = (newDeals: JoinedDealItem[]) => {
     setJoinedDeals(newDeals)
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('lumo_partner_joined_deals', JSON.stringify(newDeals))
-    }
   }
 
-  const handleJoinOpportunity = (opp: PartnerOpportunitySummary) => {
+  const handleJoinOpportunity = async (opp: PartnerOpportunitySummary) => {
     const isAlreadyJoined = joinedDeals.some((d) => d.opportunityId === opp.id)
     if (!isAlreadyJoined) {
-      const partnerCode = (partnerName || 'partner').toLowerCase().replace(/[^a-z0-9]/g, '_')
-      const newJoined: JoinedDealItem = {
-        id: `joined_${Date.now()}`,
-        opportunityId: opp.id,
-        title: opp.title,
-        businessName: opp.businessName,
-        category: opp.category,
-        status: 'ACTIVE',
-        joinedDate: new Date().toLocaleDateString(),
-        rewardDisplay: opp.rewardDisplay,
-        rewardValueTZS: opp.rewardValueTZS,
-        trackingLink: `https://lumo.co.tz/d/${opp.slug}?partner=${partnerCode}`,
-        referralId: `LUMO-${partnerCode.slice(0, 4).toUpperCase()}-${Date.now().toString().slice(-4)}`,
-        promoCode: `${partnerCode.slice(0, 4).toUpperCase()}${opp.slug.slice(0, 4).toUpperCase()}`,
-        qrCodeUrl: `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://lumo.co.tz/d/${opp.slug}?partner=${partnerCode}`,
-        activeLeadsCount: 0,
-        verifiedConversionsCount: 0,
-        earningsEarnedTZS: 0,
-        deliverablesSummary: opp.confidentialTerms?.qualifyingDeliverables || opp.publicSummary,
-        evidenceRequired: opp.confidentialTerms?.evidenceRequired || 'Verified transaction matching.',
-        milestoneProgressPercent: 0,
-        canExit: true,
-        coverImageUrl: opp.coverImageUrl,
-        promoVideoUrl: opp.promoVideoUrl,
+      try {
+        const res = await fetch('/api/partner/deals', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            opportunityId: opp.id,
+            dealId: opp.id,
+            slug: opp.slug,
+            title: opp.title,
+          }),
+        })
+        const data = await res.json()
+        if (data?.success && data.deal) {
+          setJoinedDeals((prev) => [data.deal, ...prev.filter((d) => d.opportunityId !== opp.id)])
+        }
+      } catch (e) {
+        console.error('Error joining deal on server:', e)
       }
-      saveJoinedDeals([newJoined, ...joinedDeals])
     }
     setActiveTab('my_deals')
   }
@@ -306,7 +375,7 @@ export function PartnerDashboardView({
         {/* ========================================================================= */}
         <PartnerSidebar
           activeTab={activeTab}
-          onSelectTab={setActiveTab}
+          onSelectTab={handleSelectTab}
           sidebarCollapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
           partnerName={partnerName}
@@ -328,7 +397,7 @@ export function PartnerDashboardView({
           open={mobileSidebarOpen}
           onClose={() => setMobileSidebarOpen(false)}
           activeTab={activeTab}
-          onSelectTab={setActiveTab}
+          onSelectTab={handleSelectTab}
           partnerName={partnerName}
           profilePhotoUrl={profilePhotoUrl}
           myDealsCount={joinedDeals.length}
@@ -362,7 +431,7 @@ export function PartnerDashboardView({
               </button>
               <h1 className="min-w-0 truncate text-sm font-black text-[#0F172A] dark:text-white sm:text-xl">
                 {activeTab === 'overview' && 'Commercial Partner Overview'}
-                {activeTab === 'discover' && 'Discover Commercial Opportunities'}
+                {activeTab === 'discover' && (selectedOppForDetail ? 'Deal Details' : 'Find Deals')}
                 {activeTab === 'saved_opportunities' && 'Saved Opportunities & Bookmarks'}
                 {activeTab === 'my_deals' && 'My Deals & Enrolled Campaigns'}
                 {activeTab === 'leads_referrals' && 'Customer Leads & Commercial Referrals'}
@@ -379,7 +448,7 @@ export function PartnerDashboardView({
             <BackToHomeButton onNavigate={onExploreDeals} />
 
           <div className="hidden shrink-0 items-center gap-3 sm:flex">
-              {subscription.status === 'ACTIVE' ? (
+              {subscription.status === 'ACTIVE' && !countdown.isExpired ? (
                 <div
                   onClick={() => setActiveTab('subscription')}
                   className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-300 dark:border-amber-700/60 text-amber-900 dark:text-amber-300 cursor-pointer shadow-2xs hover:scale-105 transition-transform"
@@ -389,7 +458,7 @@ export function PartnerDashboardView({
                     PRO
                   </span>
                   <span className="hidden sm:inline-block font-mono font-extrabold text-[#FF6A00]">
-                    {subscription.daysRemaining}d remaining
+                    {countdown.badgeDisplay}
                   </span>
                 </div>
               ) : (
@@ -426,17 +495,11 @@ export function PartnerDashboardView({
               opportunities={opportunities}
               joinedDeals={joinedDeals}
               profileCompletion={profileCompletion}
+              payoutSummary={payoutSummary}
               onNavigateTab={setActiveTab}
               onOpenOpportunityDetail={(opp) => {
-                if (subscription?.status !== 'ACTIVE') {
-                  if (onNavigateToSubscriptions) {
-                    onNavigateToSubscriptions()
-                  } else {
-                    setActiveTab('subscription')
-                  }
-                } else {
-                  setActiveTab('discover')
-                }
+                setSelectedOppForDetail(opp)
+                setActiveTab('discover')
               }}
               onOpenPayoutRequest={() => setActiveTab('earnings_payouts')}
             />
@@ -450,6 +513,8 @@ export function PartnerDashboardView({
               onJoinOpportunity={handleJoinOpportunity}
               onNavigateTab={setActiveTab}
               onNavigateToSubscriptions={onNavigateToSubscriptions}
+              selectedOpp={selectedOppForDetail}
+              onSelectOpp={setSelectedOppForDetail}
             />
           )}
 
@@ -458,17 +523,13 @@ export function PartnerDashboardView({
               opportunities={opportunities}
               setOpportunities={setOpportunities}
               onOpenOpportunityDetail={(opp) => {
-                if (subscription?.status !== 'ACTIVE') {
-                  if (onNavigateToSubscriptions) {
-                    onNavigateToSubscriptions()
-                  } else {
-                    setActiveTab('subscription')
-                  }
-                } else {
-                  setActiveTab('discover')
-                }
+                setSelectedOppForDetail(opp)
+                setActiveTab('discover')
               }}
-              onExploreMore={() => setActiveTab('discover')}
+              onExploreMore={() => {
+                setSelectedOppForDetail(null)
+                setActiveTab('discover')
+              }}
             />
           )}
 
@@ -477,6 +538,7 @@ export function PartnerDashboardView({
               joinedDeals={joinedDeals}
               setJoinedDeals={setJoinedDeals}
               onOpenSubmitLeadModal={handleOpenSubmitLeadFromDeal}
+              onNavigateToTab={setActiveTab}
             />
           )}
 

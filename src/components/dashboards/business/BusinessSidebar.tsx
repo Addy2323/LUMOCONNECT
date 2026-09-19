@@ -6,7 +6,6 @@ import {
   PlusCircle,
   Briefcase,
   Users,
-  MessageSquareCode,
   TrendingUp,
   Target,
   Award,
@@ -21,6 +20,8 @@ import {
   ChevronRight,
   X,
   ShieldCheck,
+  ShieldAlert,
+  Clock,
   Sparkles,
   Store,
   LogOut,
@@ -37,6 +38,7 @@ interface BusinessSidebarProps {
   businessName?: string
   profilePhotoUrl?: string
   registrationNumber?: string
+  verificationStatus?: string
   pendingApplicationsCount?: number
   activeDealRoomsCount?: number
   myOpportunitiesCount?: number
@@ -61,6 +63,7 @@ interface BusinessMobileSidebarProps {
   businessName?: string
   profilePhotoUrl?: string
   registrationNumber?: string
+  verificationStatus?: string
   pendingApplicationsCount?: number
   activeDealRoomsCount?: number
   myOpportunitiesCount?: number
@@ -115,6 +118,56 @@ function getNavGroups({
   ]
 }
 
+function getVerificationBadgeDetails(status?: string, registrationNumber?: string) {
+  const norm = (status || 'NOT_SUBMITTED').toUpperCase()
+  if (norm === 'VERIFIED') {
+    return {
+      title: 'Verified Business',
+      subtitle: registrationNumber ? `BRELA #${registrationNumber} · Verified` : 'BRELA · TIN Verified',
+      boxClasses: 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900/60',
+      titleClasses: 'text-emerald-900 dark:text-emerald-300',
+      subClasses: 'text-emerald-700 dark:text-emerald-400',
+      pulseClass: 'bg-emerald-500',
+      Icon: ShieldCheck,
+      iconColor: 'text-emerald-600',
+    }
+  }
+  if (norm === 'PENDING') {
+    return {
+      title: 'Verification Pending',
+      subtitle: registrationNumber ? `BRELA #${registrationNumber} · In Review` : 'KYB Under Review',
+      boxClasses: 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-900/60',
+      titleClasses: 'text-amber-900 dark:text-amber-300',
+      subClasses: 'text-amber-700 dark:text-amber-400',
+      pulseClass: 'bg-amber-500',
+      Icon: Clock,
+      iconColor: 'text-amber-600',
+    }
+  }
+  if (norm === 'REJECTED') {
+    return {
+      title: 'Verification Rejected',
+      subtitle: 'Resubmit KYB Documents',
+      boxClasses: 'bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-900/60',
+      titleClasses: 'text-red-900 dark:text-red-300',
+      subClasses: 'text-red-700 dark:text-red-400',
+      pulseClass: 'bg-red-500',
+      Icon: ShieldAlert,
+      iconColor: 'text-red-600',
+    }
+  }
+  return {
+    title: 'Unverified Business',
+    subtitle: 'Submit KYB Documents',
+    boxClasses: 'bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800',
+    titleClasses: 'text-slate-800 dark:text-slate-300',
+    subClasses: 'text-slate-500 dark:text-slate-400',
+    pulseClass: 'bg-slate-400',
+    Icon: Shield,
+    iconColor: 'text-slate-500',
+  }
+}
+
 export function BusinessSidebar({
   activeTab,
   onSelectTab,
@@ -124,11 +177,14 @@ export function BusinessSidebar({
   businessName = 'My Business',
   profilePhotoUrl,
   registrationNumber,
+  verificationStatus = 'NOT_SUBMITTED',
   pendingApplicationsCount = 0,
   activeDealRoomsCount = 0,
   myOpportunitiesCount = 0,
 }: BusinessSidebarProps) {
   const navGroups = getNavGroups({ pendingApplicationsCount, activeDealRoomsCount, myOpportunitiesCount })
+  const badge = getVerificationBadgeDetails(verificationStatus, registrationNumber)
+  const BadgeIcon = badge.Icon
 
   return (
     <aside
@@ -165,104 +221,68 @@ export function BusinessSidebar({
       )}
 
       {/* Scrollable Navigation Groups */}
-      <div className="flex-1 overflow-y-auto space-y-5 py-3 pr-1 no-scrollbar">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain space-y-5 py-3 pr-1 no-scrollbar">
         {navGroups.map((group) => (
           <div key={group.title} className="space-y-1">
             {!sidebarCollapsed && (
-              <div className="px-3 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+              <p className="px-3 pb-1 text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
                 {group.title}
-              </div>
+              </p>
             )}
+            {group.items.map((item) => {
+              const Icon = item.icon
+              const isActive = activeTab === item.id
 
-            <div className="space-y-0.5">
-              {group.items.map((item) => {
-                const Icon = item.icon
-                const isActive = activeTab === item.id
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    if (item.isSpecialAction) onOpenCreateWizard()
+                    else onSelectTab(item.id)
+                  }}
+                  className={`w-full flex items-center justify-between rounded-xl px-3 py-2 text-left transition-colors relative cursor-pointer ${
+                    item.isSpecialAction
+                      ? 'bg-[#FF6A00] text-white hover:bg-[#EA580C] shadow-sm my-1'
+                      : isActive
+                      ? 'bg-orange-50 text-[#FF6A00] font-black dark:bg-orange-950/40'
+                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 font-semibold'
+                  }`}
+                  title={sidebarCollapsed ? item.label : undefined}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Icon className={`w-4 h-4 shrink-0 ${item.isSpecialAction || isActive ? 'text-current' : 'text-slate-400'}`} />
+                    {!sidebarCollapsed && <span className="text-xs truncate">{item.label}</span>}
+                  </div>
 
-                if (item.isSpecialAction) {
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => {
-                        onOpenCreateWizard()
-                      }}
-                      className="group my-1 flex w-full items-center justify-between rounded-xl border-l-[3px] border-transparent px-3 py-2 text-xs font-bold text-slate-700 transition-all hover:bg-orange-50 hover:text-[#FF6A00] dark:text-slate-300 dark:hover:bg-slate-800"
-                      title={item.label}
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#FF6A00] text-white">
-                          <Icon className="h-4 w-4 shrink-0" />
-                        </span>
-                        {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
-                      </div>
-                      {!sidebarCollapsed && (
-                        <span className="text-[9px] bg-orange-50 text-[#FF6A00] font-bold px-1.5 py-0.5 rounded-md">
-                          Wizard
-                        </span>
-                      )}
-                    </button>
-                  )
-                }
-
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => onSelectTab(item.id)}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-2xl font-bold text-xs transition-all text-left group ${
-                      isActive
-                        ? 'border-l-[3px] border-[#FF6A00] bg-orange-50/80 dark:bg-slate-800 text-[#FF6A00] dark:text-[#FF6A00] font-extrabold'
-                        : 'border-l-[3px] border-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-200'
-                    }`}
-                    title={`${item.label} (${item.opType})`}
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <Icon
-                        className={`w-4 h-4 shrink-0 transition-colors ${
-                          isActive
-                            ? 'text-[#FF6A00]'
-                            : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300'
-                        }`}
-                      />
-                      {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
-                    </div>
-
-                    {!sidebarCollapsed && (
-                      <div className="flex items-center gap-1.5 shrink-0 ml-1">
-                        {item.badge !== undefined && item.badge > 0 && (
-                          <span
-                            className={`text-[10px] font-black px-1.5 py-0.2 rounded-full font-mono ${
-                              item.badgeColor || 'bg-slate-100 text-slate-700'
-                            }`}
-                          >
-                            {item.badge}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </button>
-                )
-              })}
-            </div>
+                  {!sidebarCollapsed && item.badge !== undefined && (
+                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${item.badgeColor || 'bg-slate-100 text-slate-700'}`}>
+                      {item.badge}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
           </div>
         ))}
       </div>
 
-      {/* Bottom Business KYB Badge & Safeguarding Note */}
+      {/* Bottom Dynamic KYB Verification Badge */}
       {!sidebarCollapsed && (
         <div className="pt-3 border-t border-slate-100 dark:border-slate-800 shrink-0 space-y-2">
-          <div className="p-2.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 flex items-center justify-between text-xs">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-              <div>
-                <span className="font-black text-emerald-900 dark:text-emerald-300 text-[11px] block">
-                  Verified Business
+          <div className={`p-2.5 rounded-2xl border flex items-center justify-between text-xs ${badge.boxClasses}`}>
+            <div className="flex items-center gap-2 min-w-0">
+              <BadgeIcon className={`w-4 h-4 shrink-0 ${badge.iconColor}`} />
+              <div className="min-w-0">
+                <span className={`font-black text-[11px] block truncate ${badge.titleClasses}`}>
+                  {badge.title}
                 </span>
-                <span className="text-[9px] text-emerald-700 dark:text-emerald-400">
-                  {registrationNumber ? `BRELA #${registrationNumber} · TIN Verified` : 'BRELA · TIN Verified'}
+                <span className={`text-[9px] block truncate ${badge.subClasses}`}>
+                  {badge.subtitle}
                 </span>
               </div>
             </div>
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className={`w-2 h-2 rounded-full shrink-0 ml-1 ${badge.pulseClass} animate-pulse`} />
           </div>
         </div>
       )}
@@ -279,6 +299,7 @@ export function BusinessMobileSidebar({
   businessName = 'My Business',
   profilePhotoUrl,
   registrationNumber,
+  verificationStatus = 'NOT_SUBMITTED',
   pendingApplicationsCount = 0,
   activeDealRoomsCount = 0,
   myOpportunitiesCount = 0,
@@ -286,6 +307,8 @@ export function BusinessMobileSidebar({
   onSignOut,
 }: BusinessMobileSidebarProps) {
   const navGroups = getNavGroups({ pendingApplicationsCount, activeDealRoomsCount, myOpportunitiesCount })
+  const badge = getVerificationBadgeDetails(verificationStatus, registrationNumber)
+  const BadgeIcon = badge.Icon
 
   useEffect(() => {
     if (!open) return
@@ -375,11 +398,11 @@ export function BusinessMobileSidebar({
               <LogOut className="h-4 w-4" />Log out
             </button>
           </div>
-          <div className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-900/60 dark:bg-emerald-950/40">
-            <ShieldCheck className="h-5 w-5 shrink-0 text-emerald-600" />
+          <div className={`flex items-center gap-3 rounded-2xl border p-3 ${badge.boxClasses}`}>
+            <BadgeIcon className={`h-5 w-5 shrink-0 ${badge.iconColor}`} />
             <div className="min-w-0">
-              <p className="text-xs font-black text-emerald-900 dark:text-emerald-300">Verified Business</p>
-              <p className="truncate text-[10px] text-emerald-700 dark:text-emerald-400">{registrationNumber ? `BRELA #${registrationNumber} · TIN Verified` : 'BRELA · TIN Verified'}</p>
+              <p className={`text-xs font-black ${badge.titleClasses}`}>{badge.title}</p>
+              <p className={`truncate text-[10px] ${badge.subClasses}`}>{badge.subtitle}</p>
             </div>
           </div>
         </div>

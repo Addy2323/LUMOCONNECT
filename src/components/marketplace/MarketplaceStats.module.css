@@ -1,0 +1,21 @@
+.panel { margin-top: 24px; padding: 16px 12px 20px; border: 1px solid #164352; border-radius: 12px; background: linear-gradient(120deg, #031a27b3, #07192c99); color: #fff; }
+.header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 8px; margin-bottom: 20px; font-size: 10px; }
+.header span { display: flex; align-items: center; gap: 8px; }
+.header span:last-child { color: #94a3b8; }
+.header svg { color: #20d78a; }
+.header i { width: 9px; height: 9px; border-radius: 50%; background: #00dc80; box-shadow: 0 0 12px #00dc8070; }
+.grid { display: grid; grid-template-columns: 1.35fr 1fr 1fr 1.15fr; margin: 0; }
+.metric { display: flex; flex-direction: column; align-items: center; gap: 9px; padding: 4px 8px 0; min-width: 0; }
+.metric + .metric { border-left: 1px solid #ffffff20; }
+.metric > svg { color: #ff6b00; }
+.metric dt { order: 3; display: flex; align-items: center; justify-content: center; gap: 5px; text-align: center; font-size: 10px; line-height: 1.4; }
+.metric dd { margin: 0; font-size: clamp(16px, 1.65vw, 23px); font-weight: 800; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.info { position: relative; color: #94a3b8; cursor: help; }
+.info > span { display: none; position: absolute; width: 190px; max-width: 65vw; bottom: 22px; right: -15px; background: #142c43; color: white; border: 1px solid #38536b; border-radius: 8px; padding: 10px; font-size: 11px; z-index: 5; }
+.info:hover > span, .info:focus > span { display: block; }
+@media (max-width: 600px) {
+  .grid { grid-template-columns: 1fr 1fr; row-gap: 20px; }
+  .metric:nth-child(3) { border-left: 0; }
+  .metric dd { font-size: 23px; }
+  .metric dt { font-size: 11px; }
+}

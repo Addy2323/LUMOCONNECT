@@ -1,155 +1,111 @@
 'use client'
 
-import React, { useRef, useState, useEffect } from 'react'
-import { Sparkles, ShieldCheck, Zap } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import styles from './StartupAnimation.module.css'
 
-interface StartupAnimationProps {
-  onComplete: () => void
+const mobileQuery = '(max-width: 767px)'
+
+function subscribeToDeviceChange(callback: () => void) {
+  const query = window.matchMedia(mobileQuery)
+  query.addEventListener('change', callback)
+  window.addEventListener('resize', callback)
+  return () => {
+    query.removeEventListener('change', callback)
+    window.removeEventListener('resize', callback)
+  }
 }
 
-export function StartupAnimation({ onComplete }: StartupAnimationProps) {
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const isCompletingRef = useRef(false)
-  const [fadingOut, setFadingOut] = useState(false)
-  const [isMobile, setIsMobile] = useState<boolean | null>(null)
-  const [progress, setProgress] = useState(0)
+function isMobilePhoneDevice() {
+  if (typeof window === 'undefined') return false
 
-  const handleComplete = () => {
-    if (isCompletingRef.current) return
-    isCompletingRef.current = true
-    setFadingOut(true)
-    setTimeout(() => {
-      onComplete()
-    }, 500)
+  const ua = navigator.userAgent || ''
+
+  // 1. TVs (Smart TV, Android TV, Tizen, WebOS, AppleTV, etc.) -> ALWAYS animated video
+  if (/SmartTV|GoogleTV|AppleTV|BRAVIA|NetCast|Viera|Roku|HbbTV|Tizen|Web0S|POV_TV|CrKey/i.test(ua)) {
+    return false
   }
 
+  // 2. Desktop & Laptop screens (including touch laptops like Surface) -> ALWAYS animated video
+  if (window.innerWidth >= 768 && window.innerHeight >= 500) {
+    return false
+  }
+
+  // 3. Mobile phone user-agent or small screen width (< 768px)
+  const isPhoneUA = /iPhone|iPod|Windows Phone|webOS|BlackBerry|Opera Mini/i.test(ua) ||
+    (/Android/i.test(ua) && /Mobile/i.test(ua))
+
+  return isPhoneUA || window.innerWidth < 768
+}
+
+export function StartupAnimation({ onComplete }: { onComplete: () => void }) {
+  const isMobile = useSyncExternalStore(subscribeToDeviceChange, isMobilePhoneDevice, () => false)
+  const [fadingOut, setFadingOut] = useState(false)
+  const completing = useRef(false)
+  const completionTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const onCompleteRef = useRef(onComplete)
+
+  useEffect(() => { onCompleteRef.current = onComplete }, [onComplete])
+
+  const finish = useCallback(() => {
+    if (completing.current) return
+    completing.current = true
+    setFadingOut(true)
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    completionTimer.current = setTimeout(() => onCompleteRef.current(), reducedMotion ? 0 : 350)
+  }, [])
+
   useEffect(() => {
-    // Detect mobile device viewport / touch device
-    const checkMobile = () => {
-      const mobileWidth = window.innerWidth < 768
-      const mobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-      return mobileWidth || mobileUA
-    }
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const timer = setTimeout(finish, reducedMotion ? 250 : isMobile ? 1800 : 8000)
+    return () => clearTimeout(timer)
+  }, [isMobile, finish])
 
-    const mobileDetected = checkMobile()
-    setIsMobile(mobileDetected)
-
-    if (mobileDetected) {
-      // Mobile: Animate progress bar from 0% to 100% over ~2 seconds
-      const startTime = Date.now()
-      const duration = 2000
-
-      const interval = setInterval(() => {
-        const elapsed = Date.now() - startTime
-        const pct = Math.min(100, Math.floor((elapsed / duration) * 100))
-        setProgress(pct)
-
-        if (pct >= 100) {
-          clearInterval(interval)
-          setTimeout(() => {
-            handleComplete()
-          }, 200)
-        }
-      }, 30)
-
-      return () => clearInterval(interval)
-    } else {
-      // Desktop: Fallback timer if video takes too long
-      const fallbackTimer = setTimeout(() => {
-        handleComplete()
-      }, 8000)
-
-      return () => clearTimeout(fallbackTimer)
-    }
+  useEffect(() => () => {
+    if (completionTimer.current) clearTimeout(completionTimer.current)
+    completing.current = false
   }, [])
 
   return (
     <div
-      className={`startup-animation-overlay ${fadingOut ? 'startup-fade-out' : ''}`}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 99999,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: '#0B132B',
-        transition: 'opacity 0.5s ease-out',
-        opacity: fadingOut ? 0 : 1,
-        overflow: 'hidden',
+      className={`${styles.overlay} ${fadingOut ? styles.leaving : ''}`}
+      aria-busy="true"
+      onClick={finish}
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (['Enter', ' ', 'Escape'].includes(e.key)) finish()
       }}
     >
-      {isMobile === true ? (
-        /* AMAZING MOBILE EXCLUSIVE LOADER */
-        <div className="relative w-full h-full flex flex-col items-center justify-between p-8 text-white select-none">
-          {/* Ambient Glowing Flares */}
-          <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 bg-[#FF6A00]/20 rounded-full blur-3xl pointer-events-none animate-pulse" />
-          <div className="absolute bottom-10 right-10 w-48 h-48 bg-blue-600/15 rounded-full blur-2xl pointer-events-none" />
-
-          {/* Top Tagline */}
-          <div className="relative z-10 pt-8 flex items-center gap-2 text-xs font-bold text-slate-400 tracking-wider uppercase">
-            <ShieldCheck className="w-4 h-4 text-emerald-400" />
-            <span>Verified Commercial Desk</span>
+      {isMobile ? (
+        <div className={styles.mobile}>
+          <div className={styles.brand}>
+            <div className={styles.emblem} aria-hidden="true">
+              <span className={styles.top} />
+              <span className={styles.left} />
+              <span className={styles.right} />
+              <span className={styles.bottom} />
+            </div>
+            <h1 className={styles.name}>LUMO</h1>
+            <p className={styles.dealers}>DEALERS</p>
+            <p className={styles.tagline}>Discover opportunities. Connect. Earn.</p>
           </div>
-
-          {/* Center Branding & Emblem */}
-          <div className="relative z-10 flex flex-col items-center text-center space-y-5 my-auto">
-            <div className="relative">
-              {/* Outer Glowing Pulsing Ring with Custom Logo */}
-              <div className="w-28 h-28 rounded-3xl bg-gradient-to-tr from-[#FF6A00] to-amber-400 p-1 shadow-2xl shadow-[#FF6A00]/40 animate-pulse">
-                <div className="w-full h-full bg-[#0B132B] rounded-[22px] flex items-center justify-center p-2 overflow-hidden">
-                  <img src="/startup.png" alt="LUMO Logo" className="w-full h-full object-contain" />
-                </div>
-              </div>
-              <Sparkles className="w-5 h-5 text-amber-300 absolute -top-2 -right-2 animate-bounce" />
-            </div>
-
-            <div className="space-y-1">
-              <h1 className="text-4xl font-black tracking-tight text-white flex items-center justify-center gap-1">
-                <span>LUMO</span>
-                <span className="text-[#FF6A00]">.</span>
-              </h1>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                Partner Commercial Network
-              </p>
-            </div>
-          </div>
-
-          {/* Bottom Progress Bar & Loading Status */}
-          <div className="relative z-10 w-full max-w-xs space-y-3 pb-8">
-            <div className="flex items-center justify-between text-xs font-bold font-mono text-slate-300">
-              <span className="text-[#FF6A00]">
-                {progress < 40 ? 'Initializing...' : progress < 85 ? 'Securing Access...' : 'Ready'}
-              </span>
-              <span>{progress}%</span>
-            </div>
-
-            {/* Track */}
-            <div className="w-full h-2 bg-slate-800/80 rounded-full overflow-hidden p-0.5 border border-slate-700/50 shadow-inner">
-              <div
-                className="h-full bg-gradient-to-r from-amber-500 via-[#FF6A00] to-orange-400 rounded-full transition-all duration-75 shadow-lg shadow-[#FF6A00]/50"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
+          <div className={styles.loading} role="status" aria-live="polite">
+            <span className={styles.spinner} aria-hidden="true" />
+            <p>Loading opportunities…</p>
           </div>
         </div>
       ) : (
-        /* DESKTOP ANIMATED VIDEO PLAYER */
         <video
-          ref={videoRef}
+          className={styles.video}
           src="/logo/startup.mp4"
           autoPlay
           muted
           playsInline
-          onEnded={handleComplete}
-          onError={handleComplete}
-          style={{
-            position: 'absolute',
-            inset: 0,
-            width: '100vw',
-            height: '100vh',
-            objectFit: 'cover',
-          }}
+          preload="auto"
+          disablePictureInPicture
+          controls={false}
+          onEnded={finish}
+          onError={finish}
+          aria-label="Lumo Dealers startup"
         />
       )}
     </div>

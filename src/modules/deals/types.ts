@@ -128,6 +128,24 @@ export type ReferralTicketStage =
   | 'IN_PROGRESS'
   | 'COMPLETED'
   | 'CLOSED'
+  | 'DRAFT'
+  | 'QUALIFIED'
+  | 'CONTACTED'
+  | 'CUSTOMER_INTERESTED'
+  | 'INTRODUCTION_SCHEDULED'
+  | 'INTRODUCED'
+  | 'NEGOTIATING'
+  | 'SUCCESSFUL'
+  | 'REWARD_PENDING'
+  | 'REWARD_APPROVED'
+  | 'REWARD_PAID'
+  | 'DUPLICATE'
+  | 'MORE_INFO_REQUIRED'
+  | 'RESUBMITTED'
+  | 'REJECTED'
+  | 'CUSTOMER_NOT_INTERESTED'
+
+export type ConnectionLifecycleStage = ReferralTicketStage
 
 export type ReferralClosureReason =
   | 'UNAVAILABLE'
@@ -147,7 +165,7 @@ export type DirectRewardStatus =
 
 export interface ReferralTicketDTO {
   id: string
-  ticketReference: string
+  ticketReference: string // e.g. LUMO-CON-000728 or LUMO-REF-000123
   dealId: string
   opportunityId?: string | null
   dealTitle: string
@@ -160,6 +178,26 @@ export interface ReferralTicketDTO {
   partnerWhatsAppMasked?: string
   partnerPhone?: string
   partnerWhatsApp?: string
+  // Customer Identity & Connection Details (LUMO 60-Step Process)
+  entityType?: 'INDIVIDUAL' | 'BUSINESS' | 'INSTITUTION' | 'GOVERNMENT' | 'ASSOCIATION' | 'OTHER' | string | null
+  customerRole?: string | null
+  companyName?: string | null
+  contactPerson?: string | null
+  customerCountry?: string | null
+  customerRegion?: string | null
+  customerCity?: string | null
+  customerEmail?: string | null
+  customerWebsite?: string | null
+  relationshipWithCustomer?: string | null
+  spokenToCustomer?: string | null
+  customerInterestLevel?: string | null
+  lumoMayContact?: string | null
+  customerSuitability?: string | null
+  relevantCapabilities?: string[] | null
+  supportingDocuments?: string[] | null
+  isDuplicatePotential?: boolean
+  declarationAccepted?: boolean
+
   customerFirstName?: string | null
   customerLastName?: string | null
   customerPhoneMasked?: string | null
@@ -171,13 +209,17 @@ export interface ReferralTicketDTO {
   terminalOption?: string | null
   additionalNotes?: string | null
   acceptedTermsVersion: number
-  stage: ReferralTicketStage
+  stage: ReferralTicketStage | ConnectionLifecycleStage
   stageUpdatedAt: string
   assignedCoordinator?: string | null
   nextAction?: string | null
   nextActionDueDate?: string | null
   partnerVisibleUpdate?: string | null
-  closureReason?: ReferralClosureReason | null
+  closureReason?: ReferralClosureReason | string | null
+  requestedInfoNotes?: string | null
+  rejectionReasonNotes?: string | null
+  payoutId?: string | null
+  payoutReference?: string | null
   rewardAmountTZS?: number | null
   rewardDisplay?: string | null
   rewardStatus?: string | null
@@ -198,7 +240,7 @@ export interface ReferralTicketDTO {
 
 export interface ReferralCase {
   id: string
-  reference: string // e.g. LUMO-REF-000123 or REF-XXXX-XXXX
+  reference: string // e.g. LUMO-CON-000728, LUMO-REF-000123
   dealId: string
   dealTitle: string
   dealSlug: string
@@ -206,6 +248,21 @@ export interface ReferralCase {
   partnerName: string
   partnerPhone: string
   partnerPhoneMasked: string
+  entityType?: string
+  customerRole?: string
+  companyName?: string
+  contactPerson?: string
+  customerEmail?: string
+  customerCountry?: string
+  customerRegion?: string
+  customerCity?: string
+  relationshipWithCustomer?: string
+  spokenToCustomer?: string
+  customerInterestLevel?: string
+  lumoMayContact?: string
+  customerSuitability?: string
+  relevantCapabilities?: string[]
+  isDuplicatePotential?: boolean
   customerFirstName: string
   customerLastName: string
   customerPhone: string // Normalized E.164 e.g. +255712345678
@@ -219,7 +276,11 @@ export interface ReferralCase {
   nextActionDueDate?: string
   coordinatorNotes?: string
   partnerVisibleUpdate?: string
-  closureReason?: 'UNAVAILABLE' | 'DUPLICATE' | 'CANCELLED' | 'UNSUCCESSFUL' | 'OTHER'
+  closureReason?: ReferralClosureReason | string
+  requestedInfoNotes?: string
+  rejectionReasonNotes?: string
+  payoutId?: string
+  payoutReference?: string
   rewardAmountTZS: number
   rewardDisplay: string
   rewardStatus: DirectRewardStatus

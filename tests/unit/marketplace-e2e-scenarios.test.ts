@@ -6,6 +6,7 @@ import {
   createDealOpportunity,
   seedTestOpportunity,
   resetOpportunities,
+  setOpportunitiesInStore,
 } from '@/modules/deals/service'
 import type { OpportunityItem } from '@/modules/deals/types'
 import {
@@ -536,5 +537,32 @@ describe('Comprehensive 20 Production Marketplace End-to-End Scenarios', () => {
     expect(found).toBeDefined()
     expect(found?.actorId).toBe('usr_checker_99')
     expect(found?.outcome).toBe('SUCCESS')
+  })
+
+  // 21. Deduplication prevents duplicate key collisions
+  it('Scenario 21: Opportunities store strictly deduplicates items to prevent duplicate key collisions', () => {
+    const testDeal: OpportunityItem = {
+      ...sampleOpportunity,
+      id: '4d21d4e6-ee97-4514-a3ed-134381f8f55d',
+      slug: 'unique-test-deal-slug',
+    }
+
+    // Call setOpportunitiesInStore with test deal
+    setOpportunitiesInStore([testDeal])
+
+    // Call setOpportunitiesInStore again with an updated copy of the same deal
+    setOpportunitiesInStore([
+      {
+        ...testDeal,
+        title: 'Updated Deal Title',
+      },
+    ])
+
+    const opps = listOpportunities({ includeAllStatuses: true })
+    const matches = opps.filter((o) => o.id === '4d21d4e6-ee97-4514-a3ed-134381f8f55d')
+
+    // Must be exactly 1, never 2
+    expect(matches.length).toBe(1)
+    expect(matches[0].title).toBe('Updated Deal Title')
   })
 })

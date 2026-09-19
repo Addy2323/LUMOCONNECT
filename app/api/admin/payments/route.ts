@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { checkAdminSession } from '@/lib/admin-session'
 import { db } from '@/lib/db'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const denied = await checkAdminSession(request)
+  if (denied) return denied
   try {
     const paymentAttempts = await db.paymentAttempt.findMany({
       orderBy: { createdAt: 'desc' },
-      take: 100,
+
       include: {
         user: true,
       },
@@ -14,20 +17,21 @@ export async function GET() {
     const formattedPayments = paymentAttempts.map((p) => ({
       id: p.id,
       reference: p.providerReference || p.id,
-      payerName: p.user?.name || 'Partner / Merchant',
-      payerType: p.purpose === 'SUBSCRIPTION' ? 'PARTNER' : 'BUSINESS',
-      channel: p.paymentMethod || 'MOBILE_MONEY',
+      payerName: p.user?.name || 'Name not recorded',
+      payerType: 'Not recorded',
+      channel: p.paymentMethod || 'Not recorded',
+      currency: p.currency,
       purpose: p.purpose,
-      grossAmountTZS: Number(p.amountMinor / 100n),
-      processingFeeTZS: Math.round(Number(p.amountMinor / 100n) * 0.015),
-      netAmountTZS: Math.round(Number(p.amountMinor / 100n) * 0.985),
+      grossAmountTZS: Number(p.amountMinor) / 100,
+      processingFeeTZS: null,
+      netAmountTZS: null,
       status: p.status,
       createdAt: p.createdAt.toISOString().replace('T', ' ').slice(0, 19),
-      verifiedAt: p.status === 'SUCCESSFUL' ? p.updatedAt.toISOString().slice(0, 10) : 'Pending Callback',
+      verifiedAt: undefined,
     }))
 
-    return NextResponse.json({ payments: formattedPayments })
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ payments: formattedPayments }, { headers: { 'Cache-Control': 'private, no-store' } })
+  } catch {
+    return NextResponse.json({ error: 'Unable to load payments. Please retry.' }, { status: 500 })
   }
 }

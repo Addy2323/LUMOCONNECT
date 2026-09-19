@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import Link from 'next/link'
 import {
   ShieldCheck,
   MapPin,
@@ -21,6 +22,8 @@ import {
 import type { PromoCodeResolution } from '@/modules/promotional-toolkit/public-allowlist'
 import { recordPromoInteraction } from '@/modules/promotional-toolkit/analytics'
 import { submitCustomerReferralEnquiry } from '@/modules/deals/referral-cases'
+import { DealMediaViewer } from '@/components/common/DealMediaViewer'
+
 
 interface PublicLandingClientViewProps {
   code: string
@@ -30,6 +33,8 @@ interface PublicLandingClientViewProps {
 
 export function PublicLandingClientView({ code, initialLang, resolution }: PublicLandingClientViewProps) {
   const [lang, setLang] = useState<'EN' | 'SW'>(initialLang)
+  const [currentResolution, setCurrentResolution] = useState<PromoCodeResolution>(resolution)
+  const [loadingDynamic, setLoadingDynamic] = useState(!resolution.isValid || !resolution.dealData)
   const [selectedImage, setSelectedImage] = useState<string>('')
   const [submittedEnquiryRef, setSubmittedEnquiryRef] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -42,34 +47,64 @@ export function PublicLandingClientView({ code, initialLang, resolution }: Publi
   const [quantityNeeded, setQuantityNeeded] = useState('1')
   const [notes, setNotes] = useState('')
 
-  const deal = resolution.dealData
+  const deal = currentResolution.dealData
 
   useEffect(() => {
-    if (deal?.featuredImageUrl) {
-      setSelectedImage(deal.featuredImageUrl)
-    }
     // Record page visit analytics (filters crawlers)
-    if (typeof navigator !== 'undefined') {
+    if (typeof navigator !== 'undefined' && deal) {
       recordPromoInteraction(code, 'PAGE_VISIT', navigator.userAgent, document.referrer)
     }
   }, [code, deal])
 
-  if (!resolution.isValid || !deal) {
+  useEffect(() => {
+    if (!currentResolution.isValid || !currentResolution.dealData) {
+      fetch(`/api/p/${encodeURIComponent(code)}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && data.data) {
+            setCurrentResolution({
+              isValid: true,
+              promoCode: data.promoCode || code,
+              dealId: data.dealId,
+              dealSlug: data.dealSlug,
+              partnerUserId: 'partner',
+              partnerName: 'Partner',
+              dealData: data.data,
+            })
+          }
+        })
+        .catch(() => {})
+        .finally(() => setLoadingDynamic(false))
+    }
+  }, [code, currentResolution.isValid, currentResolution.dealData])
+
+  if (loadingDynamic) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-4">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-[#FF6A00] border-t-transparent rounded-full animate-spin" />
+          <span className="text-xs text-slate-400 font-bold">Loading deal details...</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (!currentResolution.isValid || !deal) {
     return (
       <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-4">
         <div className="max-w-md w-full p-8 rounded-3xl bg-slate-900 border border-slate-800 text-center space-y-4 shadow-2xl">
           <AlertCircle className="w-12 h-12 text-[#FF6A00] mx-auto animate-bounce" />
           <h1 className="text-xl font-black">Opportunity Not Found</h1>
           <p className="text-xs text-slate-400">
-            {resolution.errorReason || 'The requested opportunity link is invalid or no longer available.'}
+            {currentResolution.errorReason || 'The requested opportunity link is invalid or no longer available.'}
           </p>
-          <a
+          <Link
             href="/"
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#FF6A00] text-white text-xs font-bold hover:bg-[#EA580C] transition-colors"
           >
             <Store className="w-4 h-4" />
             <span>Visit Lumo Dealers</span>
-          </a>
+          </Link>
         </div>
       </div>
     )
@@ -196,9 +231,8 @@ export function PublicLandingClientView({ code, initialLang, resolution }: Publi
               <div className="relative rounded-3xl overflow-hidden bg-slate-900 border border-slate-800 aspect-4/3 shadow-2xl">
                 <img
                   src={
-                    selectedImage ||
-                    deal.featuredImageUrl ||
-                    'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=1200&h=800&q=90'
+                    (deal.galleryImageUrls?.includes(selectedImage) ? selectedImage : '') ||
+                    deal.featuredImageUrl || deal.galleryImageUrls?.[0] || '/logo/lumodealers-white.png'
                   }
                   alt={titleText}
                   className="w-full h-full object-cover"
@@ -217,7 +251,7 @@ export function PublicLandingClientView({ code, initialLang, resolution }: Publi
               </div>
 
               {/* Gallery Thumbnails */}
-              {deal.galleryImageUrls && deal.galleryImageUrls.length > 1 && (
+              {Array.isArray(deal.galleryImageUrls) && deal.galleryImageUrls.length > 1 && (
                 <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
                   {deal.galleryImageUrls.map((url, idx) => (
                     <button
@@ -233,6 +267,14 @@ export function PublicLandingClientView({ code, initialLang, resolution }: Publi
                 </div>
               )}
             </div>
+
+            {deal.promoVideoUrl && <section className="space-y-3">
+              <h2 className="font-bold">{isSwahili ? 'Video ya bidhaa' : 'Product video'}</h2>
+              <div className="aspect-video overflow-hidden rounded-2xl bg-black">
+                <DealMediaViewer mediaUrl={deal.promoVideoUrl} posterUrl={deal.featuredImageUrl} altTitle={titleText} />
+              </div>
+              {/^(https?:\/\/)/i.test(deal.promoVideoUrl) && <a href={deal.promoVideoUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-orange-400 underline">{isSwahili ? 'Fungua video asili' : 'Open original video'}</a>}
+            </section>}
 
             {/* Title & Overview */}
             <div className="space-y-3">
@@ -466,9 +508,9 @@ export function PublicLandingClientView({ code, initialLang, resolution }: Publi
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
           <div>© {new Date().getFullYear()} Lumo Dealers Tanzania. All rights reserved.</div>
           <div className="flex items-center gap-4 text-slate-400">
-            <a href="/" className="hover:text-white transition-colors">Marketplace</a>
-            <a href="/terms" className="hover:text-white transition-colors">Terms of Service</a>
-            <a href="/privacy" className="hover:text-white transition-colors">Merchant Privacy Policy</a>
+            <Link href="/" className="hover:text-white transition-colors">Marketplace</Link>
+            <Link href="/terms" className="hover:text-white transition-colors">Terms of Service</Link>
+            <Link href="/privacy" className="hover:text-white transition-colors">Merchant Privacy Policy</Link>
           </div>
         </div>
       </footer>

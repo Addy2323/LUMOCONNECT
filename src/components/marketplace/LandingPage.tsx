@@ -14,6 +14,8 @@ import {
 } from 'lucide-react'
 import { ReleaseCountdown, type Teaser, tzs } from '@/components/hot-deals/HotDealsSection'
 import styles from './LandingPage.module.css'
+import { RecentEarners } from './RecentEarners'
+import { MarketplaceStats } from './MarketplaceStats'
 
 const photos = {
   car: '/images/landing/harrier.webp',
@@ -22,27 +24,6 @@ const photos = {
   equipment: '/images/landing/equipment.jpg',
   logistics: '/images/landing/logistics.jpg',
 }
-
-const examples = [
-  {
-    title: 'Toyota Harrier',
-    availability: '1 car available',
-    priceLabel: 'Sale price',
-    price: 'TZS 45,000,000',
-    rewardLabel: 'Partner reward',
-    reward: 'TZS 900,000',
-    image: photos.car,
-  },
-  {
-    title: 'Apartments for rent',
-    availability: '7 of 10 units remaining',
-    priceLabel: 'Rent (per month)',
-    price: 'TZS 1,200,000',
-    rewardLabel: 'Reward (per tenant)',
-    reward: 'TZS 150,000',
-    image: photos.apartments,
-  },
-]
 
 const categories = [
   {
@@ -80,23 +61,6 @@ export function LandingPage({
   const [deals, setDeals] = useState<Teaser[]>([])
   const [loaded, setLoaded] = useState(false)
   const [error, setError] = useState('')
-
-  // Live ticking countdown for fallback sample cards (matching screenshot: 18:42:10)
-  const [countdownSeconds, setCountdownSeconds] = useState(67330) // 18h 42m 10s
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCountdownSeconds((prev) => (prev > 0 ? prev - 1 : 86400))
-    }, 1000)
-    return () => clearInterval(timer)
-  }, [])
-
-  const formatCountdown = (secs: number) => {
-    const h = Math.floor(secs / 3600)
-    const m = Math.floor((secs % 3600) / 60)
-    const s = secs % 60
-    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-  }
 
   useEffect(() => {
     const controller = new AbortController()
@@ -154,6 +118,7 @@ export function LandingPage({
             </div>
 
             {/* 3 Trust Strip Indicators */}
+            <MarketplaceStats />
             <div className={styles.trust}>
               <div>
                 <ShieldCheck size={22} />
@@ -298,43 +263,7 @@ export function LandingPage({
                     </div>
                   </article>
                 ))
-              : examples.map((example) => (
-                  <article className={styles.dealCard} key={example.title}>
-                    <div className={styles.dealImage}>
-                      <Image
-                        src={example.image}
-                        alt={`${example.title} — illustrative example`}
-                        fill
-                        sizes="(max-width: 768px) 92vw, 560px"
-                      />
-                      <span className={styles.lockBadgeDark}>
-                        <LockKeyhole size={13} />
-                        Private access
-                      </span>
-                      <span className={styles.countdownBadgeWhite}>
-                        <Clock3 size={15} />
-                        Partner access in <strong>{formatCountdown(countdownSeconds)}</strong>
-                      </span>
-                    </div>
-                    <div className={styles.cardBody}>
-                      <h3>{example.title}</h3>
-                      <p>{example.availability}</p>
-                      <div className={styles.priceGrid}>
-                        <div>
-                          <small>{example.priceLabel}</small>
-                          <strong>{example.price}</strong>
-                        </div>
-                        <div>
-                          <small>{example.rewardLabel}</small>
-                          <strong>{example.reward}</strong>
-                        </div>
-                      </div>
-                      <Link className={styles.primary} href="/hot-deals/private-member">
-                        <LockKeyhole size={16} /> Unlock private access
-                      </Link>
-                    </div>
-                  </article>
-                ))}
+              : <p>No private deals available right now.</p>}
           </div>
         </section>
 
@@ -417,6 +346,7 @@ export function LandingPage({
             <small>More opportunities. A brighter tomorrow.</small>
           </div>
         </div>
+        <RecentEarners />
       </section>
     </div>
   )

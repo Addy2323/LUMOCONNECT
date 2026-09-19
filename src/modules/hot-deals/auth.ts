@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { DATABASE_SESSION_COOKIE, getDatabaseSession } from '@/lib/database-session'
+import { isValidRequestOrigin } from '@/lib/origin'
 import { DealAccessError } from './policy'
 import { Prisma } from '@prisma/client'
 import { ZodError } from 'zod'
 
 export async function actor(request: NextRequest) {
   if (!['GET', 'HEAD'].includes(request.method)) {
-    const origin = request.headers.get('origin')
-    if (origin && origin !== request.nextUrl.origin) throw new DealAccessError('Invalid request origin.')
+    if (!isValidRequestOrigin(request)) throw new DealAccessError('Invalid request origin.')
   }
   const session = await getDatabaseSession(request.cookies.get(DATABASE_SESSION_COOKIE)?.value)
   if (!session) throw new DealAccessError('Sign in with an active account.', 401)

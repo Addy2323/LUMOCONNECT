@@ -205,42 +205,79 @@ describe('Snippe Mobile Money Provider & Payment Adapter', () => {
         expect(balance.currency).toBe('TZS')
       })
     })
+
+    describe('sendPayout (Direct Mobile Money Transfer)', () => {
+      it('rejects invalid recipient phone numbers', async () => {
+        await expect(
+          adapter.sendPayout({
+            amountTZS: 10000,
+            recipientPhone: '12345',
+            recipientName: 'Test Recipient',
+          })
+        ).rejects.toThrow('Enter a valid Tanzanian mobile phone number')
+      })
+
+      it('rejects amounts under minimum 5,000 TZS', async () => {
+        await expect(
+          adapter.sendPayout({
+            amountTZS: 2000,
+            recipientPhone: '0711788830',
+            recipientName: 'Given Mhema',
+          })
+        ).rejects.toThrow('Minimum mobile money payout via Snippe is TZS 5,000')
+      })
+
+      it('successfully dispatches payout and returns reference', async () => {
+        globalThis.fetch = vi.fn().mockResolvedValue({
+          ok: true,
+          status: 201,
+          json: async () => ({
+            status: 'success',
+            code: 201,
+            message: 'Payout initiated successfully',
+            data: {
+              id: 'payout-uuid-123',
+              reference: 'SNIPPE-PAY-882910',
+              status: 'completed',
+            },
+          }),
+        }) as unknown as typeof fetch
+
+        const res = await adapter.sendPayout({
+          amountTZS: 18400,
+          recipientPhone: '0711788830',
+          recipientName: 'Given Mhema',
+          narration: 'Reward payout for LUMO-PAY-240893',
+        })
+
+        expect(res.success).toBe(true)
+        expect(res.reference).toBe('SNIPPE-PAY-882910')
+        expect(res.status).toBe('SUCCESSFUL')
+      })
+    })
   })
 
-  describe('Snippe API Routes', () => {
-    it('app/api/payments/initiate rejects amounts below 500 TZS', async () => {
+  describe('Snippe API Routes Security & Validation', () => {
+    it('app/api/payments/initiate rejects unauthenticated requests with 401', async () => {
       const { POST } = await import('@/../app/api/payments/initiate/route')
       const req = {
         json: async () => ({
-          amountTZS: 100,
+          action: 'PAY_NOW',
+          requestId: 'b1442bb5-b541-4702-be53-f72be04ff6be',
+          planCode: 'MONTHLY',
           phoneNumber: '0765123456',
+          paymentMethod: 'MPESA',
         }),
+        cookies: { get: () => undefined },
+        headers: new Headers(),
         nextUrl: { origin: 'http://localhost:3000' },
       } as any
 
       const res = await POST(req)
-      const data = await res.json()
-      expect(res.status).toBe(400)
-      expect(data.code).toBe('INVALID_AMOUNT')
+      expect([401, 503].includes(res.status)).toBe(true)
     })
 
-    it('app/api/payments/initiate rejects empty phone numbers', async () => {
-      const { POST } = await import('@/../app/api/payments/initiate/route')
-      const req = {
-        json: async () => ({
-          amountTZS: 5000,
-          phoneNumber: '',
-        }),
-        nextUrl: { origin: 'http://localhost:3000' },
-      } as any
-
-      const res = await POST(req)
-      const data = await res.json()
-      expect(res.status).toBe(400)
-      expect(data.code).toBe('PHONE_REQUIRED')
-    })
-
-    it('app/api/webhooks/snippe processes payment.completed and records ledger', async () => {
+    it('app/api/webhooks/snippe rejects requests without valid HMAC signature with 401', async () => {
       const { POST } = await import('@/../app/api/webhooks/snippe/route')
       const webhookPayload = JSON.stringify({
         id: `evt_test_${Date.now()}`,
@@ -248,10 +285,6 @@ describe('Snippe Mobile Money Provider & Payment Adapter', () => {
         data: {
           reference: `SNP-TEST-${Date.now()}`,
           status: 'completed',
-          amount: { value: 25000, currency: 'TZS' },
-          channel: { type: 'mobile_money', provider: 'mpesa' },
-          customer: { phone: '255765123456', name: 'Test Customer' },
-          metadata: { order_id: 'ORD-TEST-123' },
         },
       })
 
@@ -264,9 +297,7 @@ describe('Snippe Mobile Money Provider & Payment Adapter', () => {
       } as any
 
       const res = await POST(req)
-      const data = await res.json()
-      expect(res.status).toBe(200)
-      expect(data.success).toBe(true)
+      expect(res.status).toBe(401)
     })
   })
 })

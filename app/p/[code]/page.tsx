@@ -1,11 +1,11 @@
 import React from 'react'
 import type { Metadata } from 'next'
-import { resolvePromoCode } from '@/modules/promotional-toolkit/public-allowlist'
+import { resolvePromoCodeAsync } from '@/modules/promotional-toolkit/public-allowlist'
 import { PublicLandingClientView } from './PublicLandingClientView'
 
 interface PublicProductPageProps {
   params: Promise<{ code: string }>
-  searchParams: Promise<{ lang?: string }>
+  searchParams: Promise<{ lang?: string; ref?: string; partner?: string }>
 }
 
 export async function generateMetadata({ params, searchParams }: PublicProductPageProps): Promise<Metadata> {
@@ -14,7 +14,7 @@ export async function generateMetadata({ params, searchParams }: PublicProductPa
   const code = resolvedParams.code
   const lang = resolvedSearchParams.lang === 'sw' ? 'sw' : 'en'
 
-  const resolution = resolvePromoCode(code)
+  const resolution = await resolvePromoCodeAsync(code, resolvedSearchParams.ref || resolvedSearchParams.partner)
 
   if (!resolution.isValid || !resolution.dealData) {
     return {
@@ -62,11 +62,11 @@ export default async function PublicProductPage({ params, searchParams }: Public
 
   const code = resolvedParams.code
   const initialLang = resolvedSearchParams.lang === 'sw' ? 'SW' : 'EN'
-  const resolution = resolvePromoCode(code)
+  const resolution = await resolvePromoCodeAsync(code, resolvedSearchParams.ref || resolvedSearchParams.partner)
 
   return (
     <PublicLandingClientView
-      code={code}
+      code={resolution.promoCode || code}
       initialLang={initialLang}
       resolution={resolution}
     />

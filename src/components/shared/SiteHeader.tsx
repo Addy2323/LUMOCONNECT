@@ -25,6 +25,7 @@ import {
   Languages,
   Download,
   Sun,
+  Globe,
 } from 'lucide-react'
 import { BrandMark } from './BrandMark'
 import { useLanguage } from '@/lib/i18n'
@@ -94,6 +95,7 @@ export function SiteHeader({
   const navItems = [
     { id: 'marketplace', label: 'Discover', icon: Compass },
     { id: 'marketplace_catalog', label: 'Marketplace', icon: Store },
+    { id: 'international', label: 'International', icon: Globe },
     { id: 'subscriptions', label: 'Memberships', icon: Sparkles },
     ...(isAuthenticated && (activeWorkspace?.type === 'PARTNER' || activeWorkspace?.type === 'PERSONAL' || !activeWorkspace)
       ? [{ id: 'partner', label: 'Commercial Partner', icon: Users }]

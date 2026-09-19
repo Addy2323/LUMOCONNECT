@@ -10,6 +10,18 @@ import {
   Clock3,
   Crown,
   Users,
+  Eye,
+  Star,
+  CheckCircle2,
+  House,
+  CarFront,
+  Package,
+  Sprout,
+  BriefcaseBusiness,
+  Wrench,
+  Building2,
+  CreditCard,
+  Coins,
 } from 'lucide-react'
 import type { OpportunityItem } from '@/modules/deals/types'
 import { DealMediaViewer } from '@/components/common/DealMediaViewer'
@@ -29,6 +41,32 @@ interface OpportunityCardProps {
   onConnectWhatsApp?: () => void
 }
 
+function getCategoryIcon(category: string) {
+  switch (category) {
+    case 'Property':
+    case 'Real Estate':
+      return House
+    case 'Vehicles':
+    case 'Automotive & Transport':
+      return CarFront
+    case 'Products':
+    case 'Building materials':
+      return Package
+    case 'Agriculture & Commodities':
+    case 'Agriculture & FMCG':
+      return Sprout
+    case 'Business':
+    case 'Technology & Enterprise':
+    case 'Fintech & Payments':
+      return BriefcaseBusiness
+    case 'Services':
+    case 'Construction & Sourcing':
+      return Wrench
+    default:
+      return Package
+  }
+}
+
 export function OpportunityCard({
   item,
   isSaved = false,
@@ -39,7 +77,6 @@ export function OpportunityCard({
   onApply,
   onViewDetails,
   onOpenEnrolled,
-  onConnectWhatsApp,
 }: OpportunityCardProps) {
   const { t, locale } = useLanguage()
   const expiry = item.expiryDate ? new Date(item.expiryDate) : null
@@ -77,32 +114,15 @@ export function OpportunityCard({
     ? `${Math.floor(minsUntilDisappear / 60)}h ${minsUntilDisappear % 60}m`
     : `${minsUntilDisappear}m`
 
-  const getCategoryPill = (category: string) => {
-    switch (category) {
-      case 'Renewable Energy':
-        return 'bg-emerald-600/90 text-white'
-      case 'Fintech & Payments':
-        return 'bg-blue-600/90 text-white'
-      case 'Travel & Hospitality':
-        return 'bg-purple-600/90 text-white'
-      case 'Agriculture & FMCG':
-        return 'bg-teal-600/90 text-white'
-      case 'Technology & Enterprise':
-        return 'bg-indigo-600/90 text-white'
-      case 'Food & Beverage':
-        return 'bg-amber-600/90 text-white'
-      default:
-        return 'bg-slate-800/90 text-white'
-    }
-  }
+  const CategoryIcon = getCategoryIcon(item.category)
 
   return (
-    <article className={`group relative flex flex-col justify-between overflow-hidden rounded-2xl border bg-white p-3 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-xl dark:bg-slate-900 ${
+    <article className={`group relative flex flex-col justify-between overflow-hidden rounded-2xl border bg-white p-3.5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl dark:bg-slate-900 ${
       isCompleted
         ? 'border-emerald-300 dark:border-emerald-700/60 opacity-75'
         : isVipDeal
         ? 'border-amber-300 dark:border-amber-700/60 ring-1 ring-amber-400/20'
-        : 'border-[#E2E8F0] dark:border-slate-800 hover:border-orange-200'
+        : 'border-slate-200 dark:border-slate-800 hover:border-orange-300 dark:hover:border-orange-900/50'
     }`}>
       {/* Completed deal ribbon */}
       {isCompleted && (
@@ -114,8 +134,10 @@ export function OpportunityCard({
           </span>
         </div>
       )}
+
       <div className={isCompleted ? 'pt-6' : ''}>
-        <div className="relative mb-3.5 h-56 w-full overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800 sm:h-60">
+        {/* Deal Media / Image */}
+        <div className="relative mb-1 h-52 sm:h-56 w-full overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800">
           {item.promoVideoUrl ? (
             <DealMediaViewer
               mediaUrl={item.promoVideoUrl}
@@ -127,7 +149,7 @@ export function OpportunityCard({
             <img
               src={item.featuredImageUrl}
               alt={item.title}
-              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.025]"
+              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
               loading="lazy"
               decoding="async"
               onError={(event) => {
@@ -142,45 +164,42 @@ export function OpportunityCard({
             </div>
           )}
 
-          {/* Badges container top-left */}
-          <div className="absolute top-2.5 left-2.5 z-20 flex flex-wrap items-center gap-1.5 max-w-[calc(100%-3rem)]">
-            {isEnrolled && (
+          {/* Top-Left Badges: Verified Deal or Enrolled */}
+          <div className="absolute top-2.5 left-2.5 z-20 flex items-center gap-1.5">
+            {isEnrolled ? (
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-600 text-white text-[10px] font-black uppercase shadow-md border border-emerald-400/40 backdrop-blur-md">
                 <Check className="w-3 h-3 text-white" />
                 <span>{t('Enrolled')}</span>
               </span>
-            )}
-
-            {isVipDeal && (
-              <span className={`text-[10px] font-black px-2.5 py-1 rounded-full backdrop-blur-md shadow-sm flex items-center gap-1 ${
-                isWithin24hVipWindow
-                  ? 'bg-amber-500 text-slate-950 border border-amber-300'
-                  : 'bg-emerald-600/90 text-white'
-              }`}>
-                <Crown className="h-3 w-3 text-amber-500 shrink-0" />
-                <span>
-                  {isWithin24hVipWindow
-                    ? `${locale === 'sw' ? 'Kipaumbele cha VIP' : 'VIP 24h Priority'}: ${hoursRemainingVip}h ${minsRemainingVip}m`
-                    : (locale === 'sw' ? 'Imetolewa kwa Washirika' : 'Partner Released')}
-                </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-600 text-white text-[11px] font-bold shadow-md backdrop-blur-md">
+                <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                <span>{locale === 'sw' ? 'Fursa Iliyothibitishwa' : 'Verified Deal'}</span>
               </span>
             )}
-
-            {!isVipDeal && !isEnrolled && (
-              <span
-                className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full backdrop-blur-md shadow-xs ${getCategoryPill(
-                  item.category
-                )}`}
-              >
-                {formatCategoryBadgeLabel(item.category, item.subcategory, locale)}
+            {isVipDeal && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 text-[10px] font-black shadow-md backdrop-blur-md">
+                <Crown className="w-3 h-3 text-slate-950" />
+                <span>VIP</span>
               </span>
             )}
           </div>
 
-          <div className="absolute top-2.5 right-2.5 z-10">
+          {/* Top-Right Badges: Featured and Bookmark */}
+          <div className="absolute top-2.5 right-2.5 z-20 flex items-center gap-1.5">
+            {(item.isFeatured || item.isGoldenVip) && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/95 text-slate-900 dark:bg-slate-900/95 dark:text-white text-[11px] font-bold shadow-sm backdrop-blur-md border border-slate-200/60 dark:border-slate-700/60">
+                <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                <span>{locale === 'sw' ? 'Imeangaziwa' : 'Featured'}</span>
+              </span>
+            )}
             <button
-              onClick={onToggleSave}
-              className={`w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-md transition-all shadow-xs ${
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onToggleSave?.()
+              }}
+              className={`w-7 h-7 rounded-full flex items-center justify-center backdrop-blur-md transition-all shadow-xs cursor-pointer ${
                 isSaved
                   ? 'bg-white text-[#FF6A00]'
                   : 'bg-black/40 hover:bg-black/60 text-white'
@@ -190,140 +209,158 @@ export function OpportunityCard({
               {isSaved ? <Check className="w-3.5 h-3.5 text-[#FF6A00]" /> : <Bookmark className="w-3.5 h-3.5" />}
             </button>
           </div>
-
-          {/* Quality Score overlay badge */}
-          {item.qualityScore && (
-            <div className="absolute bottom-2.5 right-2.5 z-10">
-              <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-slate-900/80 text-emerald-400 backdrop-blur-md border border-slate-700/50 flex items-center gap-1">
-                <Check className="h-3 w-3 text-emerald-400 shrink-0" /> {item.qualityScore}% {locale === 'sw' ? 'Ubora' : 'Quality'}
-              </span>
-            </div>
-          )}
         </div>
 
-        <h3 className="mb-2 line-clamp-2 min-h-11 text-center text-sm font-black leading-snug text-[#0F172A] transition-colors group-hover:text-[#FF6A00] dark:text-white sm:text-base">
+        {/* Category Pill and Region Row (under image) */}
+        <div className="flex items-center justify-between gap-2 mt-3 mb-2">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200">
+            <CategoryIcon className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+            <span>{formatCategoryBadgeLabel(item.category, item.subcategory, locale)}</span>
+          </span>
+          <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 dark:text-slate-400 truncate">
+            <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <span className="truncate">{t(item.region)}</span>
+          </span>
+        </div>
+
+        {/* Deal Title */}
+        <h3 className="line-clamp-2 text-base font-black text-slate-900 dark:text-white group-hover:text-[#FF6A00] transition-colors leading-snug">
           {(locale === 'sw' && item.titleSw) ? item.titleSw : item.title}
         </h3>
 
-        <p className="mb-3 line-clamp-2 min-h-10 text-xs leading-5 text-slate-600 dark:text-slate-400">
+        {/* Deal Summary Description */}
+        <p className="line-clamp-2 text-xs text-slate-500 dark:text-slate-400 mt-1.5 mb-3.5 leading-relaxed min-h-[34px]">
           {(locale === 'sw' && item.summarySw) ? item.summarySw : item.summary}
         </p>
 
         {/* VIP Exclusivity Notice for non-VIPs during 24h window */}
         {isVipLockedForUser && (
           <div className="mb-3 rounded-xl border border-amber-300 bg-amber-50/80 p-2 text-center text-[11px] font-bold text-amber-900 dark:border-amber-800/80 dark:bg-amber-950/40 dark:text-amber-300">
-            <span className="inline-flex items-center justify-center gap-1.5"><Lock className="h-3.5 w-3.5 text-amber-600 shrink-0" /> {locale === 'sw' ? `Dirisha la Ufikiaji wa Mapema kwa VIP linatumika. Litaanza kwa washirika wote baada ya saa ${hoursRemainingVip} na dakika ${minsRemainingVip}.` : `Golden VIP Early Access window active. Opens to all partners in ${hoursRemainingVip}h ${minsRemainingVip}m.`}</span>
+            <span className="inline-flex items-center justify-center gap-1.5">
+              <Lock className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+              {locale === 'sw'
+                ? `Dirisha la VIP litaanza kwa washirika wote baada ya saa ${hoursRemainingVip} na dakika ${minsRemainingVip}.`
+                : `Golden VIP Early Access window active. Opens to all in ${hoursRemainingVip}h ${minsRemainingVip}m.`}
+            </span>
           </div>
         )}
 
-        <dl className="mb-3 space-y-2 border-t border-slate-100 pt-3 text-[11px] dark:border-slate-800">
-          <div className="flex items-center justify-between gap-3">
-            <dt className="font-semibold text-slate-500">{t('Category')}</dt>
-            <dd className="max-w-[65%] truncate text-right font-bold text-slate-800 dark:text-slate-200">{formatCategoryBadgeLabel(item.category, item.subcategory, locale)}</dd>
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <dt className="font-semibold text-slate-500">{t('Publisher')}</dt>
-            <dd className="flex max-w-[65%] items-center gap-1 truncate text-right font-bold text-slate-800 dark:text-slate-200">
-              <span className="truncate">Lumo Dealers</span>
-              <CheckCircle className="h-3 w-3 shrink-0 text-emerald-500" />
+        {/* 5 Specifications Rows */}
+        <dl className="space-y-2.5 border-t border-slate-100 dark:border-slate-800/80 pt-3 text-xs mb-4">
+          {/* Row 1: Publisher */}
+          <div className="flex items-center justify-between gap-2">
+            <dt className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
+              <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <span>{t('Publisher')}</span>
+            </dt>
+            <dd className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1 truncate text-right">
+              <span className="truncate">{item.companyName || 'Lumo Dealers'}</span>
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
             </dd>
           </div>
-          <div className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-2.5 py-2 dark:bg-slate-800/70">
-            <dt className="font-bold text-slate-600 dark:text-slate-300">{t('Price')}</dt>
-            <dd className="max-w-[68%] text-right font-black text-[#0F172A] dark:text-white">
+
+          {/* Row 2: Price */}
+          <div className="flex items-center justify-between gap-2">
+            <dt className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
+              <CreditCard className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <span>{t('Price')}</span>
+            </dt>
+            <dd className="font-bold text-slate-900 dark:text-slate-100 text-right">
               {item.principalPriceDisplay || t('Price on request')}
             </dd>
           </div>
-          <div className="flex items-center justify-between gap-3">
-            <dt className="font-semibold text-slate-500">{t('Partner Reward')}</dt>
-            <dd className="text-right font-black text-orange-600">{item.rewardDisplay}</dd>
+
+          {/* Row 3: Partner Reward */}
+          <div className="flex items-center justify-between gap-2">
+            <dt className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
+              <Coins className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <span>{t('Partner Reward')}</span>
+            </dt>
+            <dd className="font-black text-[#FF6A00] text-xs sm:text-sm text-right">
+              {item.rewardDisplay}
+            </dd>
           </div>
-          <div className="flex items-center justify-between gap-3">
-            <dt className="font-semibold text-slate-500">{t('Time Left')}</dt>
-            <dd className={`flex items-center justify-end gap-1 text-right font-bold ${
-              expiryLabel === 'Expired' || expiryLabel === 'Imeisha muda' ? 'text-rose-600' : 'text-emerald-700 dark:text-emerald-400'
-            }`} title={expiry ? `Expires ${expiry.toLocaleDateString()}` : undefined}>
-              <Clock3 className="h-3.5 w-3.5 shrink-0" />
+
+          {/* Row 4: Time Left */}
+          <div className="flex items-center justify-between gap-2">
+            <dt className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
+              <Clock3 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <span>{t('Time Left')}</span>
+            </dt>
+            <dd className={`flex items-center gap-1 font-bold text-right ${
+              expiryLabel === 'Expired' || expiryLabel === 'Imeisha muda'
+                ? 'text-rose-600'
+                : daysRemaining === null
+                ? 'text-emerald-600 dark:text-emerald-400'
+                : 'text-orange-600 dark:text-orange-400'
+            }`}>
+              <Clock3 className="w-3.5 h-3.5 shrink-0" />
               <span>{expiryLabel}</span>
             </dd>
           </div>
-          <div className="flex items-center justify-between gap-3">
-            <dt className="font-semibold text-slate-500">{t('Location')}</dt>
-            <dd className="flex max-w-[65%] items-center gap-1 truncate text-right font-bold text-slate-700 dark:text-slate-300"><MapPin className="h-3 w-3 shrink-0 text-orange-500" /><span className="truncate">{t(item.region)}</span></dd>
-          </div>
-          <div className="flex items-center justify-between gap-3 rounded-lg bg-orange-50/70 dark:bg-orange-950/20 px-2.5 py-2">
-            <dt className="font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1"><Users className="h-3 w-3 text-orange-500 shrink-0" />{locale === 'sw' ? 'Washirika' : 'Partners Enrolled'}</dt>
-            <dd className="font-black text-orange-600 dark:text-orange-400">
-              {item.activePartnerCount}{item.maxPartners ? ` / ${item.maxPartners}` : ''}
+
+          {/* Row 5: Partners Enrolled */}
+          <div className="flex items-center justify-between gap-2">
+            <dt className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
+              <Users className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <span>{locale === 'sw' ? 'Washirika' : 'Partners Enrolled'}</span>
+            </dt>
+            <dd className="font-bold text-slate-900 dark:text-slate-100 text-right">
+              {item.activePartnerCount || 0}{item.maxPartners ? ` / ${item.maxPartners}` : ''}
             </dd>
           </div>
         </dl>
       </div>
 
-      <div className="border-t border-slate-100 pt-3 dark:border-slate-800">
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={onViewDetails}
-            className="flex w-full items-center justify-center gap-1 rounded-xl border border-[#E2E8F0] bg-white px-2 py-2.5 text-center text-[11px] sm:text-xs font-extrabold text-[#0F172A] shadow-2xs transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 cursor-pointer"
-          >
-            {isVipLockedForUser ? (
-              <span key="vip-preview" className="inline-flex items-center justify-center gap-1 truncate">
-                <Lock className="w-3 h-3 text-amber-500 shrink-0" />
-                <span className="truncate">{t('VIP Preview')}</span>
-              </span>
-            ) : !isSubscribed ? (
-              <span key="full-deal" className="inline-flex items-center justify-center gap-1 truncate">
-                <Lock className="w-3 h-3 text-[#FF6A00] shrink-0" />
-                <span className="truncate">{t('View Full Deal')}</span>
-              </span>
-            ) : (
-              <span key="view-details" className="inline-flex items-center justify-center gap-1 truncate">
-                <span className="truncate">{t('View Details')}</span>
-              </span>
-            )}
-          </button>
+      {/* 2 Bottom Action Buttons (50/50 split) */}
+      <div className="grid grid-cols-2 gap-2 mt-auto pt-3 border-t border-slate-100 dark:border-slate-800">
+        <button
+          type="button"
+          onClick={onViewDetails}
+          className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white py-2.5 px-2 text-xs font-bold text-slate-800 shadow-2xs hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 transition cursor-pointer"
+        >
+          <Eye className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+          <span className="truncate">{t('View Full Deal')}</span>
+        </button>
 
-          <button
-            type="button"
-            onClick={isEnrolled ? (onOpenEnrolled || onViewDetails) : onApply}
-            disabled={isExpired}
-            className={`flex w-full items-center justify-center gap-1 rounded-xl px-2 py-2.5 text-center text-[11px] sm:text-xs font-extrabold text-white shadow-xs transition-colors active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-slate-300 dark:disabled:bg-slate-700 cursor-pointer ${
-              isExpired
-                ? 'bg-slate-400'
-                : isEnrolled
-                ? 'bg-emerald-600 hover:bg-emerald-700 ring-1 ring-emerald-400/40 shadow-emerald-500/20 shadow-sm'
-                : isVipLockedForUser
-                ? 'bg-amber-600 hover:bg-amber-500'
-                : 'bg-[#FF6A00] hover:bg-[#EA580C]'
-            }`}
-          >
-            {isExpired ? (
-              <span key="expired" className="inline-flex items-center justify-center gap-1 truncate">
-                <span className="truncate">{t('Deal Expired')}</span>
-              </span>
-            ) : isEnrolled ? (
-              <span key="enrolled" className="inline-flex items-center justify-center gap-1 truncate">
-                <CheckCircle className="h-3.5 w-3.5 text-white shrink-0" />
-                <span className="truncate">{t('Enrolled ✓')}</span>
-              </span>
-            ) : isVipLockedForUser ? (
-              <span key="unlock-vip" className="inline-flex items-center justify-center gap-1 truncate">
-                <Crown className="h-3.5 w-3.5 text-white/90 shrink-0" />
-                <span className="truncate">{t('Unlock with VIP')}</span>
-              </span>
-            ) : isSubscribed ? (
-              <span key="join-deal" className="inline-flex items-center justify-center gap-1 truncate">
-                <span className="truncate">{t('Join & Promote')}</span>
-              </span>
-            ) : (
-              <span key="sub-join" className="inline-flex items-center justify-center gap-1 truncate">
-                <Lock className="w-3 h-3 text-white/90 shrink-0" />
-                <span className="truncate">{t('Subscribe to Join')}</span>
-              </span>
-            )}
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={isEnrolled ? (onOpenEnrolled || onViewDetails) : onApply}
+          disabled={isExpired}
+          className={`flex w-full items-center justify-center gap-1.5 rounded-xl py-2.5 px-2 text-xs font-bold text-white shadow-xs active:scale-[0.98] transition cursor-pointer ${
+            isExpired
+              ? 'bg-slate-400 cursor-not-allowed'
+              : isEnrolled
+              ? 'bg-emerald-600 hover:bg-emerald-700 ring-1 ring-emerald-400/40 shadow-emerald-500/20 shadow-sm'
+              : isVipLockedForUser
+              ? 'bg-amber-600 hover:bg-amber-500'
+              : 'bg-[#FF6A00] hover:bg-[#EA580C]'
+          }`}
+        >
+          {isExpired ? (
+            <span className="truncate">{t('Deal Expired')}</span>
+          ) : isEnrolled ? (
+            <>
+              <CheckCircle2 className="w-3.5 h-3.5 text-white shrink-0" />
+              <span className="truncate">{t('Enrolled ✓')}</span>
+            </>
+          ) : isVipLockedForUser ? (
+            <>
+              <Crown className="w-3.5 h-3.5 text-white/90 shrink-0" />
+              <span className="truncate">{t('Unlock with VIP')}</span>
+            </>
+          ) : isSubscribed ? (
+            <>
+              <Users className="w-3.5 h-3.5 text-white shrink-0" />
+              <span className="truncate">{t('Join & Promote')}</span>
+            </>
+          ) : (
+            <>
+              <Users className="w-3.5 h-3.5 text-white shrink-0" />
+              <span className="truncate">{t('Subscribe to Join')}</span>
+            </>
+          )}
+        </button>
       </div>
     </article>
   )

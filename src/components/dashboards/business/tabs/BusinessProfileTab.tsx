@@ -1,16 +1,16 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Building2,
   ShieldCheck,
+  ShieldAlert,
+  Clock,
+  Shield,
   Save,
   AlertTriangle,
-  Upload,
-  Globe,
-  Mail,
-  Phone,
   Lock,
+  Loader2,
 } from 'lucide-react'
 import { useBusinessToast } from '../BusinessToast'
 
@@ -18,40 +18,130 @@ interface BusinessProfileTabProps {
   businessName?: string
   profilePhotoUrl?: string
   registrationNumber?: string
+  verificationStatus?: string
 }
 
 export function BusinessProfileTab({
   businessName = 'My Business Ltd',
   profilePhotoUrl,
   registrationNumber,
+  verificationStatus: initialVerificationStatus = 'NOT_SUBMITTED',
 }: BusinessProfileTabProps) {
   const { showToast } = useBusinessToast()
+  const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [status, setStatus] = useState<string>(initialVerificationStatus)
 
   const [profile, setProfile] = useState({
-    businessName,
-    tagline: 'Verified Commercial Merchant on the LUMO Ecosystem',
-    industry: 'Renewable Energy, Technology & Trade',
-    website: `https://${businessName.toLowerCase().replace(/[^a-z0-9]/g, '')}.co.tz`,
-    email: `info@${businessName.toLowerCase().replace(/[^a-z0-9]/g, '')}.co.tz`,
-    phone: '+255 754 000 000',
-    hqAddress: 'Dar es Salaam, Tanzania',
-    brelaRegNumber: registrationNumber || 'BRELA-VERIFIED',
-    tinNumber: '148-291-002',
-    vatNumber: '40-028491-K',
+    businessName: businessName,
+    tradingName: '',
+    tagline: '',
+    industry: '',
+    website: '',
+    email: '',
+    phone: '',
+    hqAddress: '',
+    brelaRegNumber: registrationNumber || '',
+    tinNumber: '',
   })
 
-  const [legalNameChanged, setLegalNameChanged] = useState(false)
+  useEffect(() => {
+    let isMounted = true
+    setLoading(true)
+    fetch('/api/business/profile')
+      .then((res) => res.json())
+      .then((res) => {
+        if (isMounted && res.success && res.data) {
+          const d = res.data
+          setStatus(d.verificationStatus || 'NOT_SUBMITTED')
+          setProfile((prev) => ({
+            ...prev,
+            businessName: d.legalName || prev.businessName,
+            tradingName: d.tradingName || '',
+            brelaRegNumber: d.registrationNumber || prev.brelaRegNumber,
+            tinNumber: d.tin || '',
+            email: d.contactEmail || '',
+            phone: d.contactPhone || '',
+            website: d.website || '',
+            industry: d.industry || '',
+            hqAddress: d.hqAddress || '',
+          }))
+        }
+      })
+      .catch((err) => console.warn('Could not load business profile:', err))
+      .finally(() => {
+        if (isMounted) setLoading(false)
+      })
 
-  const handleSaveProfile = () => {
-    if (legalNameChanged) {
-      showToast(
-        'warning',
-        'Compliance Reverification Triggered',
-        'Changes to verified legal entities require LUMO Compliance re-approval before updating on the marketplace.'
-      )
-    } else {
-      showToast('success', 'Profile Updated', 'Public business profile updated.')
+    return () => {
+      isMounted = false
     }
+  }, [])
+
+  const handleSaveProfile = async () => {
+    try {
+      setSaving(true)
+      const res = await fetch('/api/business/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          legalName: profile.businessName,
+          tradingName: profile.tradingName,
+          tin: profile.tinNumber,
+          registrationNumber: profile.brelaRegNumber,
+          contactEmail: profile.email,
+          contactPhone: profile.phone,
+          website: profile.website,
+          industry: profile.industry,
+          hqAddress: profile.hqAddress,
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to update business profile')
+      }
+
+      showToast('success', 'Profile Updated', 'Business credentials and details saved successfully.')
+    } catch (err: any) {
+      showToast('error', 'Update Failed', err.message || 'Error updating profile')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const getStatusBadge = () => {
+    const norm = (status || 'NOT_SUBMITTED').toUpperCase()
+    if (norm === 'VERIFIED') {
+      return (
+        <span className="inline-flex items-center gap-1 text-[10px] bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 font-bold px-2 py-0.5 rounded-full">
+          <ShieldCheck className="h-3 w-3" />
+          BRELA · TIN Verified
+        </span>
+      )
+    }
+    if (norm === 'PENDING') {
+      return (
+        <span className="inline-flex items-center gap-1 text-[10px] bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 font-bold px-2 py-0.5 rounded-full">
+          <Clock className="h-3 w-3" />
+          Verification In Review
+        </span>
+      )
+    }
+    if (norm === 'REJECTED') {
+      return (
+        <span className="inline-flex items-center gap-1 text-[10px] bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300 font-bold px-2 py-0.5 rounded-full">
+          <ShieldAlert className="h-3 w-3" />
+          Verification Rejected
+        </span>
+      )
+    }
+    return (
+      <span className="inline-flex items-center gap-1 text-[10px] bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 font-bold px-2 py-0.5 rounded-full">
+        <Shield className="h-3 w-3" />
+        Unverified Account
+      </span>
+    )
   }
 
   return (
@@ -59,12 +149,12 @@ export function BusinessProfileTab({
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
         <div>
-          <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <span>Business Profile & Verified Legal Credentials</span>
-            <span className="text-[10px] bg-emerald-100 text-emerald-700 font-extrabold px-2 py-0.5 rounded-full">
-              KYB Guarded
-            </span>
-          </h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white">
+              Business Profile &amp; Verified Legal Credentials
+            </h2>
+            {getStatusBadge()}
+          </div>
           <p className="text-xs text-slate-500 mt-0.5">
             Maintain your brand public listing, contact information, and verified business legal declarations.
           </p>
@@ -72,10 +162,11 @@ export function BusinessProfileTab({
 
         <button
           onClick={handleSaveProfile}
-          className="py-2.5 px-5 bg-[#FF6A00] hover:bg-[#EA580C] text-white font-extrabold text-xs rounded-xl shadow-xs flex items-center gap-1.5 self-start sm:self-auto transition-all active:scale-[0.99]"
+          disabled={saving || loading}
+          className="py-2.5 px-5 bg-[#FF6A00] hover:bg-[#EA580C] disabled:opacity-50 text-white font-extrabold text-xs rounded-xl shadow-xs flex items-center gap-1.5 self-start sm:self-auto transition-all active:scale-[0.99] cursor-pointer"
         >
-          <Save className="w-4 h-4" />
-          <span>Save Profile Changes</span>
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+          <span>{saving ? 'Saving...' : 'Save Profile Changes'}</span>
         </button>
       </div>
 
@@ -111,25 +202,24 @@ export function BusinessProfileTab({
           </h3>
 
           <div>
-            <label className="font-bold block mb-1 text-slate-800 dark:text-slate-200">Business Public Display Name</label>
+            <label className="font-bold block mb-1">Legal Registered Name</label>
             <input
               type="text"
               value={profile.businessName}
-              onChange={(e) => {
-                setProfile({ ...profile, businessName: e.target.value })
-                setLegalNameChanged(true)
-              }}
+              onChange={(e) => setProfile({ ...profile, businessName: e.target.value })}
               className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-bold"
+              placeholder="e.g. Acme Tanzania Limited"
             />
           </div>
 
           <div>
-            <label className="font-bold block mb-1 text-slate-800 dark:text-slate-200">Brand Tagline</label>
+            <label className="font-bold block mb-1 text-slate-800 dark:text-slate-200">Trading / Brand Name</label>
             <input
               type="text"
-              value={profile.tagline}
-              onChange={(e) => setProfile({ ...profile, tagline: e.target.value })}
+              value={profile.tradingName}
+              onChange={(e) => setProfile({ ...profile, tradingName: e.target.value })}
               className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
+              placeholder="e.g. Acme Tech"
             />
           </div>
 
@@ -144,12 +234,13 @@ export function BusinessProfileTab({
           </div>
 
           <div>
-            <label className="font-bold block mb-1 text-slate-800 dark:text-slate-200">Official Website</label>
+            <label className="font-bold block mb-1 text-slate-800 dark:text-slate-200">Contact Email</label>
             <input
-              type="url"
-              value={profile.website}
-              onChange={(e) => setProfile({ ...profile, website: e.target.value })}
+              type="email"
+              value={profile.email}
+              onChange={(e) => setProfile({ ...profile, email: e.target.value })}
               className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-mono text-[11px]"
+              placeholder="business@example.co.tz"
             />
           </div>
         </div>
@@ -158,26 +249,31 @@ export function BusinessProfileTab({
         <div className="p-5 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">
-              Verified Legal Credentials (TIN / BRELA)
+              Legal Credentials (TIN / BRELA)
             </h3>
-            <span className="inline-flex items-center gap-1 text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded">
-              <ShieldCheck className="h-3 w-3" aria-hidden="true" />
-              Verified Active
-            </span>
+            {getStatusBadge()}
           </div>
 
           <div>
             <label className="font-bold block mb-1 text-slate-800 dark:text-slate-200">BRELA Incorporation Number</label>
-            <div className="p-2.5 rounded-xl bg-slate-200 dark:bg-slate-700 font-mono text-slate-700 dark:text-slate-300 font-bold">
-              {profile.brelaRegNumber}
-            </div>
+            <input
+              type="text"
+              value={profile.brelaRegNumber}
+              onChange={(e) => setProfile({ ...profile, brelaRegNumber: e.target.value })}
+              className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono font-bold text-slate-900 dark:text-slate-100"
+              placeholder="e.g. BRELA-123456"
+            />
           </div>
 
           <div>
             <label className="font-bold block mb-1 text-slate-800 dark:text-slate-200">Tax Identification Number (TIN)</label>
-            <div className="p-2.5 rounded-xl bg-slate-200 dark:bg-slate-700 font-mono text-slate-700 dark:text-slate-300 font-bold">
-              {profile.tinNumber}
-            </div>
+            <input
+              type="text"
+              value={profile.tinNumber}
+              onChange={(e) => setProfile({ ...profile, tinNumber: e.target.value })}
+              className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono font-bold text-slate-900 dark:text-slate-100"
+              placeholder="e.g. 123-456-789"
+            />
           </div>
 
           <div>
@@ -187,6 +283,7 @@ export function BusinessProfileTab({
               value={profile.hqAddress}
               onChange={(e) => setProfile({ ...profile, hqAddress: e.target.value })}
               className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
+              placeholder="Dar es Salaam, Tanzania"
             />
           </div>
         </div>

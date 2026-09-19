@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { checkAdminSession } from '@/lib/admin-session'
 import { db } from '@/lib/db'
 
 export async function GET(request: NextRequest) {
+  const denied = await checkAdminSession(request)
+  if (denied) return denied
   try {
     const { searchParams } = new URL(request.url)
     const moduleFilter = searchParams.get('module') || 'ALL'
     const query = searchParams.get('q') || ''
-    const limit = parseInt(searchParams.get('limit') || '100', 10)
+    const limit = Math.min(1000, Math.max(1, Number(searchParams.get('limit')) || 100))
 
     const rawAuditLogs = await db.auditLog.findMany({
       where: {
@@ -32,23 +35,23 @@ export async function GET(request: NextRequest) {
       timestamp: log.createdAt.toISOString().replace('T', ' ').slice(0, 19),
       actorId: log.actorUserId || 'SYSTEM',
       actorName: log.actor?.name || 'System / Automated Process',
-      actorRole: log.actorUserId ? 'SUPER_ADMIN' : 'SYSTEM',
+      actorRole: log.actorUserId ? 'Not recorded at event time' : 'SYSTEM',
       action: log.action,
       module: (['AUTH', 'BUSINESS', 'DEALS', 'PAYMENTS', 'PAYOUTS', 'RISK', 'SETTINGS', 'SYSTEM'].includes(
         log.entityType?.toUpperCase() || ''
       )
         ? log.entityType?.toUpperCase()
-        : 'BUSINESS') as any,
+        : 'BUSINESS'),
       resourceId: log.entityId || log.id,
-      ipAddress: log.ipAddress || '127.0.0.1 (Localhost)',
-      userAgent: log.userAgent || 'Mozilla/5.0 (Lumo Platform Auth)',
-      beforeState: (log.beforeData as any) || undefined,
-      afterState: (log.afterData as any) || undefined,
-      hashSignature: 'sha256:' + log.id.replace(/-/g, '').slice(0, 16),
+      ipAddress: log.ipAddress || 'Not recorded',
+      userAgent: log.userAgent || 'Not recorded',
+      beforeState: log.beforeData || undefined,
+      afterState: log.afterData || undefined,
+      hashSignature: 'Not recorded',
     }))
 
-    return NextResponse.json({ auditLogs: formattedLogs })
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ auditLogs: formattedLogs }, { headers: { 'Cache-Control': 'private, no-store' } })
+  } catch {
+    return NextResponse.json({ error: 'Unable to load audit records. Please retry.' }, { status: 500 })
   }
 }

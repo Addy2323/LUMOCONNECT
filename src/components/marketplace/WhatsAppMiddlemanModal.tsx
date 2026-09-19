@@ -174,21 +174,38 @@ export function WhatsAppMiddlemanModal({
       return
     }
 
-    setIsSubmitting(true)
+    const storedUser = (() => {
+      try {
+        const s = localStorage.getItem('lumo_auth_session') || localStorage.getItem('lumo_user_session')
+        return s ? JSON.parse(s) : null
+      } catch { return null }
+    })()
+
+    const resolvedPartnerId = partnerProfile?.id || storedUser?.id || ''
+    const resolvedPartnerName = partnerProfile?.name || storedUser?.name || 'Promoting Partner'
+    const resolvedPartnerPhone = partnerProfile?.phone || storedUser?.phone || partnerWhatsApp
 
     try {
-      const idempotencyKey = `COORD_${deal.id}_${partnerProfile?.id || 'anon'}_${Date.now()}`
+      const idempotencyKey = `COORD_${deal.id}_${resolvedPartnerId}_${Date.now()}`
       const res = await fetch('/api/referrals/tickets', {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-Id': resolvedPartnerId,
+          'X-User-Name': resolvedPartnerName,
+          'X-User-Phone': resolvedPartnerPhone,
+          'X-User-Role': 'PARTNER',
+        },
         body: JSON.stringify({
           dealId: deal.id,
           dealTitle: deal.title,
           dealSlug: deal.slug,
           submissionType: 'COORDINATION_ENQUIRY',
+          partnerUserId: resolvedPartnerId,
+          partnerName: resolvedPartnerName,
+          partnerPhone: resolvedPartnerPhone,
           partnerWhatsApp,
-          partnerPhone: partnerProfile?.phone || partnerWhatsApp,
           quantity: Number(quantity) || 1,
           deliveryDestination: deliveryLocation.trim() || deal.region,
           specifications: specifications.trim() || undefined,

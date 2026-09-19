@@ -1,591 +1,750 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import {
-  Briefcase,
   Search,
-  Plus,
-  Play,
-  Pause,
-  Archive,
-  Eye,
-  Edit,
-  History,
-  CheckCircle,
-  AlertTriangle,
-  FileSpreadsheet,
-  Building,
-  Tag,
-  Video,
-  Image as ImageIcon,
-  Film,
   X,
-  FileText,
-  ShieldCheck,
+  Edit3,
+  Check,
+  CheckCircle2,
+  AlertCircle,
+  Save,
+  Send,
+  Plus,
+  RefreshCw,
 } from 'lucide-react'
-import { listAdminDeals, createDealOpportunity, updateDealStatus, getVideoEmbedInfo } from '@/modules/deals/service'
-import { DealMediaViewer } from '@/components/common/DealMediaViewer'
+import { useAdminResource } from '../useAdminResource'
+import { ResourceStatus } from '../ResourceStatus'
 import { AdminDealItem } from '../types'
 import { useAdminToast } from '../AdminToast'
 
 export function DealsRegistryTab() {
   const { showToast } = useAdminToast()
-  const [deals, setDeals] = useState<AdminDealItem[]>([])
+  const resource = useAdminResource<{ deals: AdminDealItem[] }>('/api/admin/deals')
+  const deals = resource.data?.deals ?? []
+
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('ALL')
-  const [categoryFilter, setCategoryFilter] = useState<string>('ALL')
-  const [showCreateModal, setShowCreateModal] = useState(false)
   const [selectedDeal, setSelectedDeal] = useState<AdminDealItem | null>(null)
+  const [isEditing, setIsEditing] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
 
-  const reloadDeals = () => {
-    fetch('/api/admin/deals')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.deals && data.deals.length > 0) {
-          setDeals(
-            data.deals.map((d: any) => ({
-              id: d.id,
-              title: d.title,
-              businessName: d.businessName,
-              category: d.category,
-              type: d.type,
-              rewardValueTZS: Number(d.rewardDisplay?.replace(/[^0-9]/g, '') || 50000),
-              budgetTZS: d.budgetTZS || 20000000,
-              spentTZS: Math.round((d.budgetTZS || 20000000) * 0.15),
-              activePartners: d.activePartnersCount || 0,
-              version: 1,
-              status: d.status,
-            }))
-          )
-        } else {
-          setDeals(listAdminDeals() as AdminDealItem[])
-        }
-      })
-      .catch(() => setDeals(listAdminDeals() as AdminDealItem[]))
+  // Edit form state
+  const [editForm, setEditForm] = useState({
+    title: '',
+    businessName: '',
+    contactPersonName: '',
+    type: '',
+    category: '',
+    subcategory: '',
+    region: '',
+    visibility: 'PUBLIC',
+    originalCurrency: 'USD',
+    dealValue: '',
+    targetCustomer: '',
+    commercialResultType: '',
+    rewardType: 'PERCENTAGE' as 'PERCENTAGE' | 'FIXED',
+    rewardPercentage: '',
+    fixedRewardAmount: '',
+    rewardDisplayLabel: '',
+    rewardTrigger: '',
+    summary: '',
+    description: '',
+  })
+
+  const openDealReview = (deal: AdminDealItem, startInEditMode = false) => {
+    setSelectedDeal(deal)
+    setIsEditing(startInEditMode)
+
+    const rawVal = deal.originalDealValue
+      ? String(deal.originalDealValue)
+      : deal.commercialValueMinor
+      ? String(Number(deal.commercialValueMinor) / 100)
+      : deal.budgetTZS
+      ? String(deal.budgetTZS)
+      : ''
+
+    const targetCustomerStr =
+      typeof deal.targetAudience === 'string'
+        ? deal.targetAudience
+        : Array.isArray(deal.targetAudience)
+        ? deal.targetAudience.join(', ')
+        : ''
+
+    const isPct = deal.rewardPercentage !== undefined && deal.rewardPercentage !== null && deal.rewardPercentage > 0
+
+    setEditForm({
+      title: deal.title || '',
+      businessName: deal.businessName || '',
+      contactPersonName: deal.contactPersonName || deal.businessName || '',
+      type: deal.type || '',
+      category: deal.category || '',
+      subcategory: deal.subcategory || '',
+      region: deal.region || '',
+      visibility: deal.visibility || 'PUBLIC',
+      originalCurrency: deal.originalCurrency || 'USD',
+      dealValue: rawVal && rawVal !== '0' ? rawVal : '',
+      targetCustomer: targetCustomerStr,
+      commercialResultType: deal.commercialResultType || '',
+      rewardType: isPct ? 'PERCENTAGE' : 'FIXED',
+      rewardPercentage: deal.rewardPercentage ? String(deal.rewardPercentage) : '',
+      fixedRewardAmount: deal.rewardValueTZS ? String(deal.rewardValueTZS) : '',
+      rewardDisplayLabel: deal.rewardDisplay || (deal.rewardPercentage ? `${deal.rewardPercentage}%` : ''),
+      rewardTrigger:
+        deal.rewardTrigger ||
+        deal.successCondition ||
+        '',
+      summary:
+        deal.summary || '',
+      description:
+        deal.description ||
+        (Array.isArray(deal.requirements) ? deal.requirements.join('\n') : '') ||
+        '',
+    })
   }
 
-  useEffect(() => {
-    reloadDeals()
-    const handleUpdate = () => reloadDeals()
-    window.addEventListener('lumo:deals-updated', handleUpdate)
-    return () => window.removeEventListener('lumo:deals-updated', handleUpdate)
-  }, [])
+  const updateStatus = async (id: string, newStatus: string) => {
+    try {
+      const response = await fetch('/api/admin/deals', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dealId: id, status: newStatus }),
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || result.message || 'Unable to update this deal.')
+      resource.retry()
+      if (selectedDeal && selectedDeal.id === id) {
+        setSelectedDeal({ ...selectedDeal, status: newStatus as any })
+      }
+      showToast('success', 'Status Updated', `Deal status changed to ${newStatus}.`)
+    } catch (error) {
+      showToast('error', 'Update Failed', error instanceof Error ? error.message : 'Please retry.')
+    }
+  }
 
-  const [newDealForm, setNewDealForm] = useState({
-    title: '',
-    businessName: 'Kijani Solar Tech Ltd',
-    category: 'Renewable Energy',
-    type: 'CUSTOMER_ACQUISITION' as AdminDealItem['type'],
-    rewardValueTZS: 50000,
-    budgetTZS: 20000000,
-  })
+  const handleSaveDeal = async (publishImmediately = false) => {
+    if (!selectedDeal) return
+    setIsSaving(true)
+    try {
+      const rawVal = parseFloat(editForm.dealValue.replace(/,/g, '')) || 0
+      const valMinor = BigInt(Math.round(rawVal * 100)).toString()
+      const isPct = editForm.rewardType === 'PERCENTAGE'
+      const pctVal = parseFloat(editForm.rewardPercentage) || 0
+      const fixedVal = parseFloat(editForm.fixedRewardAmount.replace(/,/g, '')) || 0
+      const fixedMinor = BigInt(Math.round(fixedVal * 100)).toString()
+
+      const payload: any = {
+        dealId: selectedDeal.id,
+        title: editForm.title.trim(),
+        contactPersonName: editForm.contactPersonName.trim(),
+        type: editForm.type.trim(),
+        subcategory: editForm.subcategory.trim(),
+        region: editForm.region.trim(),
+        visibility: editForm.visibility,
+        originalCurrency: editForm.originalCurrency,
+        originalDealValueMinor: valMinor,
+        commercialValueMinor: valMinor,
+        commercialResultType: editForm.commercialResultType.trim(),
+        rewardTrigger: editForm.rewardTrigger.trim(),
+        rewardModel: isPct ? 'PERCENTAGE' : 'FIXED_REWARD',
+        rewardType: isPct ? 'PERCENTAGE' : 'FIXED',
+        rewardPercentage: isPct ? pctVal : null,
+        fixedRewardAmountMinor: isPct ? null : fixedMinor,
+        rewardDisplayLabel: isPct ? `${pctVal}%` : `${editForm.originalCurrency} ${fixedVal.toLocaleString()}`,
+        summary: editForm.summary.trim(),
+        description: editForm.description.trim(),
+        requirements: editForm.description.trim() ? [editForm.description.trim()] : [],
+      }
+
+      if (publishImmediately) {
+        payload.status = 'PUBLISHED'
+        payload.forcePublish = true
+      }
+
+      const res = await fetch('/api/admin/deals', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || data.message || 'Failed to update deal')
+
+      showToast(
+        'success',
+        publishImmediately ? 'Deal Published Live!' : 'Changes Saved',
+        publishImmediately
+          ? 'Deal details updated and published to the marketplace.'
+          : 'All deal fields have been saved successfully.'
+      )
+      setIsEditing(false)
+      resource.retry()
+
+      // Update local modal data
+      setSelectedDeal((prev) =>
+        prev
+          ? {
+              ...prev,
+              ...payload,
+              status: publishImmediately ? 'PUBLISHED' : prev.status,
+              originalDealValue: rawVal,
+              rewardDisplay: payload.rewardDisplayLabel,
+            }
+          : null
+      )
+    } catch (err: any) {
+      showToast('error', 'Update Failed', err.message || 'Could not save deal.')
+    } finally {
+      setIsSaving(false)
+    }
+  }
 
   const filteredDeals = deals.filter((d) => {
     const matchesSearch =
       d.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       d.businessName.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesStatus = statusFilter === 'ALL' || d.status === statusFilter
-    const matchesCategory = categoryFilter === 'ALL' || d.category === categoryFilter
-    return matchesSearch && matchesStatus && matchesCategory
+    return matchesSearch && matchesStatus
   })
 
-  const handleTogglePause = async (id: string) => {
-    const target = deals.find((d) => d.id === id)
-    if (!target) return
-    const nextStatus = target.status === 'PUBLISHED' ? 'PAUSED' : 'PUBLISHED'
-    
-    try {
-      await fetch('/api/admin/deals', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dealId: id, status: nextStatus }),
-      })
-    } catch (e) {}
-
-    updateDealStatus(id, nextStatus as any)
-    reloadDeals()
-    showToast(
-      'info',
-      `Campaign ${nextStatus === 'PUBLISHED' ? 'Resumed' : 'Paused'}`,
-      `"${target.title}" status updated.`
-    )
-  }
-
-  const handleArchiveDeal = (id: string) => {
-    updateDealStatus(id, 'ARCHIVED')
-    reloadDeals()
-    showToast('info', 'Opportunity Archived', 'Deal archived. Record retained in immutable platform ledger.')
-  }
-
-  const handleCreateDraft = () => {
-    if (!newDealForm.title.trim()) return
-
-    createDealOpportunity(
-      {
-        title: newDealForm.title,
-        summary: `Performance commercial campaign for ${newDealForm.title}.`,
-        description: `Verified commercial opportunity. Complete the required deliverables to earn competitive milestone commissions.`,
-        category: newDealForm.category,
-        opportunityType: newDealForm.type as any,
-        rewardType: 'FIXED_COMMISSION',
-        baseRewardValue: Number(newDealForm.rewardValueTZS) || 50000,
-        currency: 'TZS',
-        totalBudgetTZS: Number(newDealForm.budgetTZS) || 20000000,
-        region: 'Dar es Salaam, Tanzania',
-        attributionWindowDays: 30,
-        termsAndConditions: 'Standard platform verified attribution and conversion terms apply.',
-        requiresApproval: true,
-      },
-      'org_admin_draft',
-      newDealForm.businessName
-    )
-
-    reloadDeals()
-    setShowCreateModal(false)
-    setNewDealForm({
-      title: '',
-      businessName: 'Kijani Solar Tech Ltd',
-      category: 'Renewable Energy',
-      type: 'CUSTOMER_ACQUISITION',
-      rewardValueTZS: 50000,
-      budgetTZS: 20000000,
-    })
-    showToast('success', 'Opportunity Created', 'Opportunity saved to central repository. Visible in Maker-Checker queue.')
-  }
+  if (!resource.data) return <ResourceStatus {...resource} />
 
   return (
-    <div className="space-y-5 bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-4 sm:p-6 shadow-xs">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
-        <div>
-          <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <span>Deals & Opportunities Repository</span>
-            <span className="text-[10px] bg-orange-100 dark:bg-orange-950/60 text-[#FF6A00] font-extrabold px-2 py-0.5 rounded-full">
-              C/R/U/Archive
-            </span>
+    <div className="space-y-6">
+      <ResourceStatus {...resource} />
+
+      {/* Main Registry Container matching Prototype */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-5">
+        {/* Title Bar */}
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">
+            Deals &amp; Opportunities Repository
           </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Central repository for all Deals, campaigns, affiliate programs, leads, and B2B opportunities with strict versioning.
-          </p>
+          <span className="text-xs text-slate-400 font-medium">Master Repository</span>
         </div>
 
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="py-2.5 px-4 bg-[#0B132B] hover:bg-slate-800 text-white font-extrabold text-xs rounded-xl shadow-xs transition-colors flex items-center gap-2 self-start sm:self-auto"
-        >
-          <Plus className="w-4 h-4 text-[#FF6A00]" />
-          <span>Create Draft on Behalf of Business</span>
-        </button>
-      </div>
+        {/* Filters */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1 sm:max-w-xs">
+            <input
+              type="text"
+              placeholder="Search deals..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full px-3.5 py-2 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
+            />
+          </div>
 
-      {/* Versioning & Policy Banner */}
-      <div className="p-3 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 text-xs text-blue-900 dark:text-blue-200 flex items-center gap-2">
-        <History className="w-4 h-4 text-blue-600 shrink-0" />
-        <span>
-          <strong>Commercial Terms Versioning:</strong> Published deals with participating Partners cannot be silently edited. Any commercial reward adjustments create a new effective-dated version (v2+).
-        </span>
-      </div>
-
-      {/* Filter Bar */}
-      <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
-        <div className="sm:col-span-6 relative">
-          <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search deals by title or publishing business..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
-          />
-        </div>
-
-        <div className="sm:col-span-3">
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="w-full py-2 px-3 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
-          >
-            <option value="ALL">All Deal Statuses</option>
-            <option value="DRAFT">Draft</option>
-            <option value="UNDER_REVIEW">Under Review (Maker-Checker)</option>
-            <option value="PUBLISHED">Published (Live)</option>
-            <option value="PAUSED">Paused</option>
-            <option value="ARCHIVED">Archived / Closed</option>
-          </select>
-        </div>
-
-        <div className="sm:col-span-3">
-          <select
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-            className="w-full py-2 px-3 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
-          >
-            <option value="ALL">All Categories</option>
-            <option value="Renewable Energy">Renewable Energy</option>
-            <option value="Financial Services">Financial Services</option>
-            <option value="Agriculture">Agriculture & Farming</option>
-            <option value="Technology">Technology & SaaS</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Table */}
-      <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-2xl">
-        <table className="w-full text-xs text-left min-w-[800px]">
-          <thead className="bg-slate-50 dark:bg-slate-800/80 text-[10px] text-slate-500 uppercase font-bold border-b border-slate-200 dark:border-slate-700">
-            <tr>
-              <th className="p-3">Deal Details</th>
-              <th className="p-3">Publisher</th>
-              <th className="p-3">Reward Terms</th>
-              <th className="p-3">Secured Budget</th>
-              <th className="p-3">Active Partners</th>
-              <th className="p-3">Version & Status</th>
-              <th className="p-3 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-            {filteredDeals.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="text-center py-12 text-slate-400">
-                  No deals or opportunities registered in platform registry yet.
-                </td>
-              </tr>
-            ) : (
-              filteredDeals.map((deal) => (
-                <tr key={deal.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
-                  <td className="p-3">
-                    <div className="font-extrabold text-slate-900 dark:text-white max-w-xs">{deal.title}</div>
-                    <div className="text-[10px] text-slate-400 mt-0.5 font-mono">ID: {deal.id} · {deal.category}</div>
-                  </td>
-
-                <td className="p-3">
-                  <div className="font-bold text-slate-900 dark:text-white">{deal.businessName}</div>
-                  <div className="text-[10px] text-slate-400">{deal.type}</div>
-                </td>
-
-                <td className="p-3 font-mono">
-                  <span className="text-[#FF6A00] font-black text-xs">
-                    TZS {deal.rewardValueTZS.toLocaleString()}
-                  </span>
-                  <div className="text-[10px] text-slate-400">per verified outcome</div>
-                </td>
-
-                <td className="p-3 font-mono">
-                  <div className="text-slate-900 dark:text-white font-bold">
-                    TZS {deal.budgetTZS.toLocaleString()}
-                  </div>
-                  <div className="text-[10px] text-emerald-600">
-                    Spent: TZS {deal.spentTZS.toLocaleString()}
-                  </div>
-                </td>
-
-                <td className="p-3">
-                  <span className="font-bold text-slate-900 dark:text-white">{deal.activePartners}</span>
-                  <span className="text-slate-400 text-[10px]"> partners</span>
-                </td>
-
-                <td className="p-3">
-                  <div className="flex items-center gap-1.5">
-                    <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded font-mono text-[10px] font-bold">
-                      v{deal.version}
-                    </span>
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
-                        deal.status === 'PUBLISHED'
-                          ? 'bg-emerald-100 text-emerald-700'
-                          : deal.status === 'UNDER_REVIEW'
-                          ? 'bg-amber-100 text-amber-700'
-                          : deal.status === 'PAUSED'
-                          ? 'bg-purple-100 text-purple-700'
-                          : 'bg-slate-100 text-slate-600'
-                      }`}
-                    >
-                      {deal.status}
-                    </span>
-                  </div>
-                </td>
-
-                <td className="p-3 text-right">
-                  <div className="inline-flex items-center gap-1.5">
-                    <button
-                      onClick={() => setSelectedDeal(deal)}
-                      className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors cursor-pointer"
-                      title="Inspect Opportunity & Media Assets"
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                    </button>
-
-                    {deal.status === 'PUBLISHED' || deal.status === 'PAUSED' ? (
-                      <button
-                        onClick={() => handleTogglePause(deal.id)}
-                        className={`p-1.5 rounded-lg border text-xs font-bold cursor-pointer ${
-                          deal.status === 'PUBLISHED'
-                            ? 'text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950/40 border-purple-200 dark:border-purple-800'
-                            : 'text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800'
-                        }`}
-                        title={deal.status === 'PUBLISHED' ? 'Pause Deal' : 'Resume Deal'}
-                      >
-                        {deal.status === 'PUBLISHED' ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-                      </button>
-                    ) : null}
-
-                    <button
-                      onClick={() => handleArchiveDeal(deal.id)}
-                      className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
-                      title="Archive Deal"
-                    >
-                      <Archive className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))
-          )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* INSPECT DEAL & MEDIA MODAL */}
-      {selectedDeal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto relative">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-              <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-2xl bg-orange-50 dark:bg-orange-950/50 text-[#FF6A00] flex items-center justify-center font-black">
-                  <Film className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white">
-                    {selectedDeal.title}
-                  </h3>
-                  <div className="text-xs text-slate-500">
-                    Publisher: <strong>{selectedDeal.businessName}</strong> · Status: <span className="font-bold text-[#FF6A00]">{selectedDeal.status}</span>
-                  </div>
-                </div>
-              </div>
-
-              <button
-                onClick={() => setSelectedDeal(null)}
-                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Commercial Terms Summary Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
-              <div className="p-3 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-200/80 dark:border-slate-700">
-                <div className="text-[10px] text-slate-400 font-bold uppercase">Partner Reward</div>
-                <div className="text-sm font-black text-[#FF6A00] font-mono mt-0.5">
-                  TZS {selectedDeal.rewardValueTZS.toLocaleString()}
-                </div>
-              </div>
-
-              <div className="p-3 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-200/80 dark:border-slate-700">
-                <div className="text-[10px] text-slate-400 font-bold uppercase">Secured Budget</div>
-                <div className="text-sm font-black text-slate-900 dark:text-white font-mono mt-0.5">
-                  TZS {selectedDeal.budgetTZS.toLocaleString()}
-                </div>
-              </div>
-
-              <div className="p-3 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-200/80 dark:border-slate-700 col-span-2 sm:col-span-1">
-                <div className="text-[10px] text-slate-400 font-bold uppercase">Active Partners</div>
-                <div className="text-sm font-black text-slate-900 dark:text-white mt-0.5">
-                  {selectedDeal.activePartners} Enrolled
-                </div>
-              </div>
-            </div>
-
-            {/* Uploaded Media & Promotional Assets Review */}
-            <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Film className="w-4 h-4 text-[#FF6A00]" />
-                  <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">
-                    Uploaded Media & Video Assets
-                  </h4>
-                </div>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-950/40 text-[#FF6A00]">
-                  Verified Media
-                </span>
-              </div>
-
-              {/* Media Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* Video Preview */}
-                <div className="space-y-1.5">
-                  <div className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                    <Video className="w-3.5 h-3.5 text-purple-600" />
-                    <span>Promotional Pitch Video</span>
-                  </div>
-
-                  {selectedDeal.promoVideoUrl ? (
-                    <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-black aspect-video relative">
-                      <DealMediaViewer
-                        mediaUrl={selectedDeal.promoVideoUrl}
-                        posterUrl={selectedDeal.featuredImageUrl}
-                        altTitle={selectedDeal.title}
-                        className="w-full h-full object-contain"
-                      />
-                    </div>
-                  ) : (
-                    <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-700 p-4 text-center text-xs text-slate-400 aspect-video flex flex-col items-center justify-center gap-1 bg-white dark:bg-slate-900">
-                      <Video className="w-6 h-6 opacity-30 text-slate-400" />
-                      <span className="font-semibold">No Video Attached</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Banner Preview */}
-                <div className="space-y-1.5">
-                  <div className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                    <ImageIcon className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>Featured Cover Banner</span>
-                  </div>
-
-                  {selectedDeal.featuredImageUrl ? (
-                    <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 aspect-video relative">
-                      <img
-                        src={selectedDeal.featuredImageUrl}
-                        alt={selectedDeal.title}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  ) : (
-                    <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-700 p-4 text-center text-xs text-slate-400 aspect-video flex flex-col items-center justify-center gap-1 bg-white dark:bg-slate-900">
-                      <ImageIcon className="w-6 h-6 opacity-30 text-slate-400" />
-                      <span className="font-semibold">Default Banner</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Public Commercial Summary */}
-              {(selectedDeal.summary || selectedDeal.description) && (
-                <div className="pt-2 border-t border-slate-200 dark:border-slate-700 text-xs space-y-1">
-                  <div className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                    <FileText className="w-3.5 h-3.5 text-[#FF6A00]" />
-                    <span>Public Commercial Summary:</span>
-                  </div>
-                  <p className="text-slate-600 dark:text-slate-400 text-[11px] leading-relaxed bg-white dark:bg-slate-900 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700">
-                    {selectedDeal.summary || selectedDeal.description}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            <div className="flex justify-end pt-2">
-              <button
-                onClick={() => setSelectedDeal(null)}
-                className="py-2 px-5 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-bold text-xs rounded-xl shadow-xs cursor-pointer hover:bg-slate-800"
-              >
-                Close Inspection
-              </button>
-            </div>
+          <div className="sm:w-48">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-slate-400"
+            >
+              <option value="ALL">All statuses</option>
+              <option value="PUBLISHED">Published</option>
+              <option value="UNDER_REVIEW">Under Review</option>
+              <option value="DRAFT">Draft</option>
+              <option value="PAUSED">Paused</option>
+              <option value="CLOSED">Closed</option>
+              <option value="ARCHIVED">Archived</option>
+            </select>
           </div>
         </div>
-      )}
 
-      {/* CREATE DRAFT MODAL */}
-      {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4">
-            <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
-              <Plus className="w-5 h-5 text-[#FF6A00]" />
-              <span>Create Deal Draft on Behalf of Business</span>
-            </h3>
+        {/* Table matching prototype screenshot */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs text-left">
+            <thead>
+              <tr className="text-[11px] text-slate-400 uppercase font-bold border-b border-slate-100 dark:border-slate-800">
+                <th className="pb-3 px-2 font-bold tracking-wider">DEAL</th>
+                <th className="pb-3 px-4 font-bold tracking-wider w-36">STATUS</th>
+                <th className="pb-3 px-2 font-bold tracking-wider text-right w-48">ACTIONS</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {filteredDeals.length === 0 ? (
+                <tr>
+                  <td colSpan={3} className="text-center py-12 text-slate-400 font-medium">
+                    No deals match the selected criteria.
+                  </td>
+                </tr>
+              ) : (
+                filteredDeals.map((deal) => (
+                  <tr key={deal.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                    <td className="py-4 px-2">
+                      <div className="font-bold text-slate-800 dark:text-slate-200 text-sm">{deal.title}</div>
+                      <div className="text-[11px] text-slate-400 mt-0.5">
+                        {deal.businessName} · {deal.category}
+                      </div>
+                    </td>
 
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="font-bold block mb-1">Select Verified Business</label>
-                <select
-                  value={newDealForm.businessName}
-                  onChange={(e) => setNewDealForm({ ...newDealForm, businessName: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-medium"
-                >
-                  <option value="Kijani Solar Tech Ltd">Kijani Solar Tech Ltd (BRELA Verified)</option>
-                  <option value="MobiPay Africa Ltd">MobiPay Africa Ltd (BRELA Verified)</option>
-                  <option value="Kilimo Bora Agrotech">Kilimo Bora Agrotech (BRELA Verified)</option>
-                </select>
+                    <td className="py-4 px-4">
+                      <span
+                        className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                          deal.status === 'PUBLISHED'
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800'
+                            : deal.status === 'UNDER_REVIEW'
+                            ? 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-400'
+                            : deal.status === 'PAUSED'
+                            ? 'bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-950/40 dark:text-purple-400'
+                            : deal.status === 'CLOSED' || deal.status === 'ARCHIVED'
+                            ? 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-400'
+                            : 'bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300'
+                        }`}
+                      >
+                        {deal.status}
+                      </span>
+                    </td>
+
+                    <td className="py-4 px-2 text-right">
+                      <div className="inline-flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => openDealReview(deal, false)}
+                          className="border border-slate-700 dark:border-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-900 dark:text-white font-bold text-xs px-3.5 py-1.5 rounded-lg transition-colors cursor-pointer"
+                        >
+                          Full Review
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => updateStatus(deal.id, deal.status === 'CLOSED' ? 'PUBLISHED' : 'CLOSED')}
+                          className="bg-[#801b2a] hover:bg-[#661521] text-white font-bold text-xs px-3.5 py-1.5 rounded-lg transition-colors cursor-pointer"
+                        >
+                          {deal.status === 'CLOSED' ? 'Reopen' : 'Close'}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* FULL DEAL RECORD MODAL - Matching Prototype Screenshot & Adding Full Edit Capability */}
+      {selectedDeal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-3xl w-full p-6 sm:p-7 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white">Full Deal Record</h3>
+                {isEditing && (
+                  <span className="text-[11px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 px-2 py-0.5 rounded-md">
+                    Admin Editing Mode
+                  </span>
+                )}
               </div>
 
-              <div>
-                <label className="font-bold block mb-1">Deal Title & Objective</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Expand Solar Installations in Morogoro"
-                  value={newDealForm.title}
-                  onChange={(e) => setNewDealForm({ ...newDealForm, title: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
-                />
-              </div>
+              <div className="flex items-center gap-2">
+                {!isEditing ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setIsEditing(true)}
+                      className="border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800 font-bold text-xs px-3 py-1.5 rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                      <span>Edit Details</span>
+                    </button>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="font-bold block mb-1">Category</label>
-                  <select
-                    value={newDealForm.category}
-                    onChange={(e) => setNewDealForm({ ...newDealForm, category: e.target.value })}
-                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
-                  >
-                    <option value="Renewable Energy">Renewable Energy</option>
-                    <option value="Financial Services">Financial Services</option>
-                    <option value="Agriculture">Agriculture</option>
-                    <option value="Technology">Technology</option>
-                  </select>
-                </div>
+                    {selectedDeal.status !== 'PUBLISHED' && (
+                      <button
+                        type="button"
+                        onClick={() => handleSaveDeal(true)}
+                        disabled={isSaving}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-1.5 rounded-xl transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Publish Deal</span>
+                      </button>
+                    )}
 
-                <div>
-                  <label className="font-bold block mb-1">Opportunity Type</label>
-                  <select
-                    value={newDealForm.type}
-                    onChange={(e) => setNewDealForm({ ...newDealForm, type: e.target.value as any })}
-                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
-                  >
-                    <option value="CUSTOMER_ACQUISITION">Customer Acquisition</option>
-                    <option value="QUALIFIED_LEADS">Qualified Leads</option>
-                    <option value="DISTRIBUTOR_SEARCH">Distributor Search</option>
-                    <option value="BOUNTIES">Reverse Bounties</option>
-                  </select>
-                </div>
-              </div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedDeal(null)}
+                      className="border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs px-4 py-1.5 rounded-xl transition-colors cursor-pointer"
+                    >
+                      Close
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setIsEditing(false)}
+                      disabled={isSaving}
+                      className="border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs px-3 py-1.5 rounded-xl transition-colors cursor-pointer"
+                    >
+                      Cancel
+                    </button>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="font-bold block mb-1">Partner Reward (TZS)</label>
-                  <input
-                    type="number"
-                    value={newDealForm.rewardValueTZS}
-                    onChange={(e) => setNewDealForm({ ...newDealForm, rewardValueTZS: Number(e.target.value) })}
-                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-mono font-bold"
-                  />
-                </div>
+                    <button
+                      type="button"
+                      onClick={() => handleSaveDeal(false)}
+                      disabled={isSaving}
+                      className="bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-white text-white dark:text-slate-900 font-bold text-xs px-3.5 py-1.5 rounded-xl transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
+                    >
+                      <Save className="w-3.5 h-3.5" />
+                      <span>{isSaving ? 'Saving...' : 'Save Changes'}</span>
+                    </button>
 
-                <div>
-                  <label className="font-bold block mb-1">Total Secured Budget (TZS)</label>
-                  <input
-                    type="number"
-                    value={newDealForm.budgetTZS}
-                    onChange={(e) => setNewDealForm({ ...newDealForm, budgetTZS: Number(e.target.value) })}
-                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-mono font-bold"
-                  />
-                </div>
+                    <button
+                      type="button"
+                      onClick={() => handleSaveDeal(true)}
+                      disabled={isSaving}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-1.5 rounded-xl transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      <span>{isSaving ? 'Publishing...' : 'Save & Publish'}</span>
+                    </button>
+                  </>
+                )}
               </div>
             </div>
 
-            <div className="flex gap-2 pt-2">
-              <button
-                onClick={handleCreateDraft}
-                className="flex-1 py-2.5 bg-[#FF6A00] text-white font-extrabold rounded-xl text-xs"
-              >
-                Create Version 1 Draft
-              </button>
-              <button
-                onClick={() => setShowCreateModal(false)}
-                className="py-2.5 px-4 border rounded-xl text-xs font-bold"
-              >
-                Cancel
-              </button>
+            {/* Top Row: 2 Cards (Opportunity & Commercial Terms) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* CARD 1: OPPORTUNITY */}
+              <div className="border border-slate-200 dark:border-slate-800 rounded-2xl p-5 bg-white dark:bg-slate-900/40 space-y-3">
+                <h4 className="text-sm font-bold text-slate-900 dark:text-white">Opportunity</h4>
+
+                {!isEditing ? (
+                  <div className="space-y-2.5 text-xs">
+                    <div className="flex">
+                      <span className="w-24 text-slate-400 font-medium shrink-0">ID</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200 font-mono">
+                        LUMO-OPP-{selectedDeal.id.slice(0, 6).toUpperCase()}
+                      </span>
+                    </div>
+
+                    <div className="flex">
+                      <span className="w-24 text-slate-400 font-medium shrink-0">Owner</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200">
+                        {editForm.contactPersonName || selectedDeal.businessName || '-'}
+                      </span>
+                    </div>
+
+                    <div className="flex">
+                      <span className="w-24 text-slate-400 font-medium shrink-0">Type</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200">{editForm.type || '-'}</span>
+                    </div>
+
+                    <div className="flex">
+                      <span className="w-24 text-slate-400 font-medium shrink-0">Category</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200">
+                        {editForm.category || '-'}
+                        {editForm.subcategory ? ` / ${editForm.subcategory}` : ''}
+                      </span>
+                    </div>
+
+                    <div className="flex">
+                      <span className="w-24 text-slate-400 font-medium shrink-0">Location</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200">{editForm.region || '-'}</span>
+                    </div>
+
+                    <div className="flex">
+                      <span className="w-24 text-slate-400 font-medium shrink-0">Visibility</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200 uppercase">
+                        {editForm.visibility || '-'}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center">
+                      <span className="w-24 text-slate-400 font-medium shrink-0">Status</span>
+                      <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800">
+                        {selectedDeal.status}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  /* Opportunity Edit Inputs */
+                  <div className="space-y-3 text-xs">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-500 mb-1">Deal Title</label>
+                      <input
+                        type="text"
+                        value={editForm.title}
+                        onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                        className="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-semibold"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-500 mb-1">Owner / Contact</label>
+                        <input
+                          type="text"
+                          value={editForm.contactPersonName}
+                          onChange={(e) => setEditForm({ ...editForm, contactPersonName: e.target.value })}
+                          className="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-500 mb-1">Type</label>
+                        <input
+                          type="text"
+                          value={editForm.type}
+                          onChange={(e) => setEditForm({ ...editForm, type: e.target.value })}
+                          className="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-500 mb-1">Category</label>
+                        <input
+                          type="text"
+                          value={editForm.category}
+                          onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+                          className="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-500 mb-1">Subcategory</label>
+                        <input
+                          type="text"
+                          value={editForm.subcategory}
+                          onChange={(e) => setEditForm({ ...editForm, subcategory: e.target.value })}
+                          className="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-500 mb-1">Location</label>
+                        <input
+                          type="text"
+                          value={editForm.region}
+                          onChange={(e) => setEditForm({ ...editForm, region: e.target.value })}
+                          className="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-500 mb-1">Visibility</label>
+                        <select
+                          value={editForm.visibility}
+                          onChange={(e) => setEditForm({ ...editForm, visibility: e.target.value })}
+                          className="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs"
+                        >
+                          <option value="PUBLIC">PUBLIC</option>
+                          <option value="PRIVATE">PRIVATE</option>
+                          <option value="RESTRICTED">RESTRICTED</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* CARD 2: COMMERCIAL TERMS */}
+              <div className="border border-slate-200 dark:border-slate-800 rounded-2xl p-5 bg-white dark:bg-slate-900/40 space-y-3">
+                <h4 className="text-sm font-bold text-slate-900 dark:text-white">Commercial Terms</h4>
+
+                {!isEditing ? (
+                  <div className="space-y-2.5 text-xs">
+                    <div className="flex">
+                      <span className="w-28 text-slate-400 font-medium shrink-0">Value</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200 font-mono">
+                        {editForm.dealValue && !isNaN(parseFloat(editForm.dealValue.replace(/,/g, '')))
+                          ? `${editForm.originalCurrency || 'USD'} ${parseFloat(
+                              editForm.dealValue.replace(/,/g, '')
+                            ).toLocaleString()}`
+                          : '-'}
+                      </span>
+                    </div>
+
+                    <div className="flex">
+                      <span className="w-28 text-slate-400 font-medium shrink-0">Target Customer</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200">
+                        {editForm.targetCustomer || '-'}
+                      </span>
+                    </div>
+
+                    <div className="flex">
+                      <span className="w-28 text-slate-400 font-medium shrink-0">Result Type</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200 font-mono">
+                        {editForm.commercialResultType || '-'}
+                      </span>
+                    </div>
+
+                    <div className="flex">
+                      <span className="w-28 text-slate-400 font-medium shrink-0">Reward</span>
+                      <span className="font-bold text-[#FF6A00]">
+                        {editForm.rewardType === 'PERCENTAGE'
+                          ? (editForm.rewardPercentage ? `${editForm.rewardPercentage}%` : '-')
+                          : (editForm.fixedRewardAmount && !isNaN(parseFloat(editForm.fixedRewardAmount.replace(/,/g, '')))
+                              ? `${editForm.originalCurrency || 'USD'} ${parseFloat(
+                                  editForm.fixedRewardAmount.replace(/,/g, '')
+                                ).toLocaleString()}`
+                              : '-')}
+                      </span>
+                    </div>
+
+                    <div className="flex">
+                      <span className="w-28 text-slate-400 font-medium shrink-0">Trigger</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200 leading-relaxed">
+                        {editForm.rewardTrigger || '-'}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  /* Commercial Terms Edit Inputs */
+                  <div className="space-y-3 text-xs">
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-500 mb-1">Currency</label>
+                        <select
+                          value={editForm.originalCurrency}
+                          onChange={(e) => setEditForm({ ...editForm, originalCurrency: e.target.value })}
+                          className="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-mono font-bold"
+                        >
+                          <option value="USD">USD</option>
+                          <option value="TZS">TZS</option>
+                          <option value="EUR">EUR</option>
+                          <option value="GBP">GBP</option>
+                          <option value="KES">KES</option>
+                        </select>
+                      </div>
+
+                      <div className="col-span-2">
+                        <label className="block text-[11px] font-bold text-slate-500 mb-1">Commercial Value</label>
+                        <input
+                          type="text"
+                          value={editForm.dealValue}
+                          onChange={(e) => setEditForm({ ...editForm, dealValue: e.target.value })}
+                          className="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-mono"
+                          placeholder="e.g. 2250000"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-500 mb-1">Target Customer</label>
+                      <input
+                        type="text"
+                        value={editForm.targetCustomer}
+                        onChange={(e) => setEditForm({ ...editForm, targetCustomer: e.target.value })}
+                        className="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-500 mb-1">Result Type</label>
+                      <input
+                        type="text"
+                        value={editForm.commercialResultType}
+                        onChange={(e) => setEditForm({ ...editForm, commercialResultType: e.target.value })}
+                        className="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-mono"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-500 mb-1">Reward Type</label>
+                        <select
+                          value={editForm.rewardType}
+                          onChange={(e) =>
+                            setEditForm({ ...editForm, rewardType: e.target.value as 'PERCENTAGE' | 'FIXED' })
+                          }
+                          className="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs"
+                        >
+                          <option value="PERCENTAGE">Percentage (%)</option>
+                          <option value="FIXED">Fixed Amount</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-500 mb-1">
+                          {editForm.rewardType === 'PERCENTAGE' ? 'Reward Percentage (%)' : 'Fixed Reward Value'}
+                        </label>
+                        <input
+                          type="text"
+                          value={
+                            editForm.rewardType === 'PERCENTAGE'
+                              ? editForm.rewardPercentage
+                              : editForm.fixedRewardAmount
+                          }
+                          onChange={(e) =>
+                            setEditForm(
+                              editForm.rewardType === 'PERCENTAGE'
+                                ? { ...editForm, rewardPercentage: e.target.value }
+                                : { ...editForm, fixedRewardAmount: e.target.value }
+                            )
+                          }
+                          className="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-bold"
+                          placeholder={editForm.rewardType === 'PERCENTAGE' ? '5' : '50000'}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-500 mb-1">Trigger Condition</label>
+                      <input
+                        type="text"
+                        value={editForm.rewardTrigger}
+                        onChange={(e) => setEditForm({ ...editForm, rewardTrigger: e.target.value })}
+                        className="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Bottom Row: 1 Card (Descriptions) */}
+            <div className="border border-slate-200 dark:border-slate-800 rounded-2xl p-5 bg-white dark:bg-slate-900/40 space-y-4">
+              <h4 className="text-sm font-bold text-slate-900 dark:text-white">Descriptions</h4>
+
+              {!isEditing ? (
+                <div className="space-y-4 text-xs">
+                  <div>
+                    <h5 className="font-bold text-slate-900 dark:text-white mb-1">Public Summary</h5>
+                    <p className="text-slate-600 dark:text-slate-300 leading-relaxed">{editForm.summary || '-'}</p>
+                  </div>
+
+                  <div>
+                    <h5 className="font-bold text-slate-900 dark:text-white mb-1">
+                      Full Description &amp; Requirements
+                    </h5>
+                    <p className="text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line">
+                      {editForm.description || '-'}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                /* Descriptions Edit Inputs */
+                <div className="space-y-3 text-xs">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-500 mb-1">Public Summary</label>
+                    <textarea
+                      rows={3}
+                      value={editForm.summary}
+                      onChange={(e) => setEditForm({ ...editForm, summary: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs leading-relaxed"
+                      placeholder="Brief public overview of the opportunity..."
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-500 mb-1">
+                      Full Description &amp; Requirements
+                    </label>
+                    <textarea
+                      rows={5}
+                      value={editForm.description}
+                      onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs leading-relaxed"
+                      placeholder="Full scope, technical expectations, inspection standards, or partner deliverables..."
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

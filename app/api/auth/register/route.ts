@@ -8,29 +8,39 @@ const registerSchema = z.object({
   email: z.string().trim().email('Enter a valid email address.'),
   password: z
     .string()
-    .min(8, 'Password must contain at least 8 characters.')
-    .max(128, 'Password is too long.')
-    .regex(/[a-z]/, 'Password must include a lowercase letter.')
-    .regex(/[A-Z]/, 'Password must include an uppercase letter.')
-    .regex(/\d/, 'Password must include a number.'),
+    .min(6, 'Password must contain at least 6 characters.')
+    .max(128, 'Password is too long.'),
   name: z
     .string()
     .trim()
-    .min(5, 'Enter your full legal name.')
-    .refine((value) => value.split(/\s+/).length >= 2, 'Enter your first and last legal name.')
-    .refine((value) => !/[^\p{L}'\u2019 -]/u.test(value), 'Name contains unsupported characters.'),
-  phone: z.string().regex(/^\+255[67]\d{8}$/, 'Enter a valid Tanzania mobile number.'),
-  image: z.string().startsWith('data:image/').max(2_000_000).optional(),
+    .min(2, 'Enter your full legal name or business representative name.')
+    .max(120, 'Name is too long.'),
+  phone: z.preprocess(
+    (val) => {
+      if (typeof val !== 'string') return val
+      const digits = val.replace(/\D/g, '')
+      if (digits.startsWith('255') && digits.length === 12) return `+${digits}`
+      if (digits.startsWith('0') && digits.length === 10) return `+255${digits.slice(1)}`
+      if (digits.length === 9 && (digits.startsWith('6') || digits.startsWith('7'))) return `+255${digits}`
+      return val.trim()
+    },
+    z.string().regex(/^\+255[67]\d{8}$/, 'Enter a valid Tanzania mobile number.')
+  ),
+  image: z.preprocess(
+    (val) => (val === '' || val === null ? undefined : val),
+    z.string().max(2_000_000).optional()
+  ),
   role: z.enum(['PARTNER', 'BUSINESS']),
   bizDetails: z
     .object({
-      legalName: z.string().optional(),
-      tradingName: z.string().optional(),
-      brelaRegNumber: z.string().optional(),
-      traTin: z.string().optional(),
-      bizCategory: z.string().optional(),
-      contactPerson: z.string().optional(),
+      legalName: z.string().nullable().optional(),
+      tradingName: z.string().nullable().optional(),
+      brelaRegNumber: z.string().nullable().optional(),
+      traTin: z.string().nullable().optional(),
+      bizCategory: z.string().nullable().optional(),
+      contactPerson: z.string().nullable().optional(),
     })
+    .nullable()
     .optional(),
   documents: z
     .array(
@@ -41,18 +51,29 @@ const registerSchema = z.object({
         previewUrl: z.string().optional(),
       })
     )
+    .nullable()
     .optional(),
 })
 
 import { registerInMemoryUser } from '@/lib/userRegistry'
+import { DATABASE_SESSION_COOKIE, sessionTokenHash } from '@/lib/database-session'
 
 export async function POST(req: Request) {
   try {
     const body = await req.json()
     const parsed = registerSchema.safeParse(body)
     if (!parsed.success) {
+      const firstIssue = parsed.error.issues[0]
+      const firstErrorMessage = firstIssue
+        ? `${firstIssue.path.join('.') ? firstIssue.path.join('.') + ': ' : ''}${firstIssue.message}`
+        : 'Invalid registration payload'
+      console.warn('Registration validation failed:', firstErrorMessage, parsed.error.format())
       return NextResponse.json(
-        { error: 'INVALID_REGISTRATION_PAYLOAD', details: parsed.error.format() },
+        {
+          error: 'INVALID_REGISTRATION_PAYLOAD',
+          message: firstErrorMessage,
+          details: parsed.error.format(),
+        },
         { status: 400 }
       )
     }
@@ -68,21 +89,38 @@ export async function POST(req: Request) {
         name,
         phone,
         role,
-        image,
-        bizDetails,
+        image: image || undefined,
+        bizDetails: bizDetails
+          ? {
+              legalName: bizDetails.legalName || undefined,
+              tradingName: bizDetails.tradingName || undefined,
+            }
+          : undefined,
       })
 
-      return NextResponse.json({
+      const token = crypto.randomBytes(32).toString('hex')
+      const response = NextResponse.json({
         success: true,
         message: 'Account created successfully in local workspace.',
         user: {
           id: user.id,
           email: user.email,
           name: user.name,
+          phone: user.phone,
           role: user.role,
           orgId: user.organizationId,
         },
       })
+
+      response.cookies.set(DATABASE_SESSION_COOKIE, token, {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+        path: '/',
+        maxAge: 8 * 60 * 60,
+      })
+
+      return response
     }
     const salt = crypto.randomBytes(16).toString('hex')
     const hashedPassword = crypto.scryptSync(password, salt, 64).toString('hex') + ':' + salt
@@ -99,7 +137,7 @@ export async function POST(req: Request) {
 
     if (existing) {
       // If user exists, update password and details rather than blocking registration flow
-      const updatedUser = await db.$transaction(async (tx) => {
+      const { updatedUser, sessionToken } = await db.$transaction(async (tx) => {
         const u = await tx.user.update({
           where: { id: existing.id },
           data: {
@@ -130,19 +168,39 @@ export async function POST(req: Request) {
           })
         }
 
-        return u
+        const token = crypto.randomBytes(32).toString('hex')
+        await tx.session.create({
+          data: {
+            userId: u.id,
+            token: sessionTokenHash(token),
+            expiresAt: new Date(Date.now() + 8 * 60 * 60 * 1000),
+          },
+        })
+
+        return { updatedUser: u, sessionToken: token }
       })
 
-      return NextResponse.json({
+      const response = NextResponse.json({
         success: true,
         message: 'Account profile updated successfully.',
         user: {
           id: updatedUser.id,
           email: updatedUser.email,
           name: updatedUser.name,
+          phone: updatedUser.phone,
           role,
         },
       })
+
+      response.cookies.set(DATABASE_SESSION_COOKIE, sessionToken, {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+        path: '/',
+        maxAge: 8 * 60 * 60,
+      })
+
+      return response
     }
 
     // Execute PostgreSQL transaction to persist user, account, org, verification case, documents, and audit log
@@ -238,20 +296,41 @@ export async function POST(req: Request) {
         },
       })
 
-      return { user, orgId }
+      // Create active session
+      const sessionToken = crypto.randomBytes(32).toString('hex')
+      await tx.session.create({
+        data: {
+          userId: user.id,
+          token: sessionTokenHash(sessionToken),
+          expiresAt: new Date(Date.now() + 8 * 60 * 60 * 1000),
+        },
+      })
+
+      return { user, orgId, sessionToken }
     })
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       message: 'Account created successfully with full PostgreSQL transaction.',
       user: {
         id: result.user.id,
         email: result.user.email,
         name: result.user.name,
+        phone: result.user.phone,
         role,
         orgId: result.orgId,
       },
     })
+
+    response.cookies.set(DATABASE_SESSION_COOKIE, result.sessionToken, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+      maxAge: 8 * 60 * 60,
+    })
+
+    return response
   } catch (error: unknown) {
     console.error('Registration transaction error:', error)
     return NextResponse.json(

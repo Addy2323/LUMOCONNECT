@@ -75,34 +75,36 @@ export class SnippePaymentAdapter implements PaymentProvider {
 
   constructor(config?: SnippeConfig) {
     this.baseUrl = (config?.baseUrl || process.env.SNIPPE_BASE_URL || 'https://api.snippe.sh').replace(/\/$/, '')
-    this.apiKey =
-      config?.apiKey ||
-      process.env.SNIPPE_API_KEY ||
-      'snp_02cbe72fa72352d42cc5e488e6613686e716a92ba62dee309bb86dd40700f3ef'
-    this.webhookSecret =
-      config?.webhookSecret || process.env.SNIPPE_WEBHOOK_SECRET || 'dev_snippe_webhook_secret_key'
+    this.apiKey = config?.apiKey !== undefined ? config.apiKey : (process.env.SNIPPE_API_KEY || '')
+    this.webhookSecret = config?.webhookSecret !== undefined ? config.webhookSecret : (process.env.SNIPPE_WEBHOOK_SECRET || '')
   }
 
   /**
    * Initiates USSD push payment via POST /v1/payments
    */
   async initiatePayment(req: SnippeInitiateOptions): Promise<PaymentInitiationResult> {
-    const rawPhone = req.customerPhone || '255781000000'
-    const formattedPhone = normalizeTanzanianPhone(rawPhone)
-
-    // Parse name
-    let firstname = 'Customer'
-    let lastname = 'LUMO'
-    if (req.customerName?.trim()) {
-      const parts = req.customerName.trim().split(/\s+/)
-      firstname = parts[0]
-      lastname = parts.slice(1).join(' ') || 'Customer'
+    if (!this.apiKey) {
+      throw new Error('Snippe API key is not configured. Set SNIPPE_API_KEY.')
     }
 
-    const email = req.customerEmail || `customer_${formattedPhone}@lumo.co.tz`
+    if (!req.customerPhone || !req.customerPhone.trim()) {
+      throw new Error('Customer phone number is required to initiate payment.')
+    }
+    const formattedPhone = normalizeTanzanianPhone(req.customerPhone)
+    if (!/^255[67]\d{8}$/.test(formattedPhone)) {
+      throw new Error('Enter a valid Tanzanian mobile number.')
+    }
+
+    if (!req.customerName || !req.customerName.trim()) {
+      throw new Error('Customer name is required to initiate payment.')
+    }
+    const nameParts = req.customerName.trim().split(/\s+/)
+    const firstname = nameParts[0]
+    const lastname = nameParts.slice(1).join(' ') || nameParts[0]
+
+    const email = req.customerEmail?.trim() || `customer_${formattedPhone}@lumo.co.tz`
 
     // Amount calculation: Snippe requires integer TZS (min 500)
-    // Minor units in LUMO are 1/100 TZS. If amountMinorUnits is 5000000n => 50,000 TZS.
     let amountTZS = Number(req.amountMinorUnits / 100n)
     if (amountTZS <= 0) {
       amountTZS = Number(req.amountMinorUnits)
@@ -112,19 +114,13 @@ export class SnippePaymentAdapter implements PaymentProvider {
     }
 
     const idempotencyKey = sanitizeIdempotencyKey(req.idempotencyKey || req.orderId)
-    let callbackUrl =
+    const callbackUrl =
       req.callbackUrl ||
       process.env.SNIPPE_WEBHOOK_URL ||
       'https://lumo.co.tz/api/webhooks/snippe'
 
-    // Snippe rejects localhost, 127.0.0.1, or non-https URLs in all environments
-    if (
-      !callbackUrl ||
-      callbackUrl.includes('localhost') ||
-      callbackUrl.includes('127.0.0.1') ||
-      callbackUrl.startsWith('http://')
-    ) {
-      callbackUrl = 'https://lumo.co.tz/api/webhooks/snippe'
+    if (!callbackUrl || !callbackUrl.startsWith('https://')) {
+      throw new Error('Snippe requires a valid HTTPS webhook URL.')
     }
 
     const payload = {
@@ -197,6 +193,16 @@ export class SnippePaymentAdapter implements PaymentProvider {
    * Retrieves payment status via GET /v1/payments/{reference}
    */
   async verifyPayment(providerReference: string): Promise<PaymentVerificationResult> {
+    if (!this.apiKey) {
+      return {
+        providerReference,
+        orderId: '',
+        amountMinorUnits: 0n,
+        currency: 'TZS',
+        status: 'FAILED',
+        paymentMethod: 'MOBILE_MONEY',
+      }
+    }
     try {
       const res = await fetch(`${this.baseUrl}/v1/payments/${encodeURIComponent(providerReference)}`, {
         method: 'GET',
@@ -254,6 +260,9 @@ export class SnippePaymentAdapter implements PaymentProvider {
    * Triggers USSD Push to customer phone again via POST /v1/payments/{reference}/push
    */
   async triggerUssdPush(providerReference: string): Promise<{ success: boolean; message?: string }> {
+    if (!this.apiKey) {
+      return { success: false, message: 'Snippe API key is not configured' }
+    }
     try {
       const res = await fetch(`${this.baseUrl}/v1/payments/${encodeURIComponent(providerReference)}/push`, {
         method: 'POST',
@@ -278,6 +287,9 @@ export class SnippePaymentAdapter implements PaymentProvider {
    * Retrieves account balance via GET /v1/payments/balance
    */
   async getAccountBalance(): Promise<SnippeBalanceData> {
+    if (!this.apiKey) {
+      throw new Error('Snippe API key is not configured')
+    }
     const res = await fetch(`${this.baseUrl}/v1/payments/balance`, {
       method: 'GET',
       headers: {
@@ -288,10 +300,13 @@ export class SnippePaymentAdapter implements PaymentProvider {
     if (!res.ok || data.status !== 'success' || !data.data) {
       throw new Error(data.message || 'Failed to fetch Snippe balance')
     }
+    if (!data.data.available || !data.data.balance) {
+      throw new Error('Gateway balance fields are unavailable from provider')
+    }
     return {
-      currency: data.data.balance?.currency || 'TZS',
-      available: data.data.available?.value || 0,
-      balance: data.data.balance?.value || 0,
+      currency: data.data.balance?.currency || data.data.available?.currency || 'TZS',
+      available: typeof data.data.available.value === 'number' ? data.data.available.value : 0,
+      balance: typeof data.data.balance.value === 'number' ? data.data.balance.value : 0,
     }
   }
 
@@ -299,6 +314,9 @@ export class SnippePaymentAdapter implements PaymentProvider {
    * Lists payments with pagination via GET /v1/payments?limit=...&offset=...
    */
   async listPayments(limit = 20, offset = 0): Promise<{ items: unknown[]; total: number }> {
+    if (!this.apiKey) {
+      throw new Error('Snippe API key is not configured')
+    }
     const res = await fetch(`${this.baseUrl}/v1/payments?limit=${limit}&offset=${offset}`, {
       method: 'GET',
       headers: {
@@ -383,6 +401,111 @@ export class SnippePaymentAdapter implements PaymentProvider {
       return false
     } catch {
       return false
+    }
+  }
+
+  /**
+   * Sends mobile money payout directly to a recipient phone number via POST /v1/payouts/send
+   */
+  async sendPayout(req: {
+    amountTZS: number
+    recipientPhone: string
+    recipientName: string
+    narration?: string
+    idempotencyKey?: string
+    metadata?: Record<string, unknown>
+  }): Promise<{
+    success: boolean
+    reference?: string
+    externalReference?: string
+    status?: 'PENDING' | 'SUCCESSFUL' | 'FAILED'
+    message?: string
+    rawResponse?: unknown
+  }> {
+    if (!this.apiKey) {
+      throw new Error('Snippe API key is not configured. Set SNIPPE_API_KEY.')
+    }
+
+    if (!req.recipientPhone || !req.recipientPhone.trim()) {
+      throw new Error('Recipient phone number is required.')
+    }
+    const formattedPhone = normalizeTanzanianPhone(req.recipientPhone)
+    if (!/^255[67]\d{8}$/.test(formattedPhone)) {
+      throw new Error('Enter a valid Tanzanian mobile phone number (e.g. 07XXXXXXXX or 255XXXXXXXXX).')
+    }
+
+    if (!req.recipientName || !req.recipientName.trim()) {
+      throw new Error('Recipient name is required.')
+    }
+
+    const amountTZS = Math.round(Number(req.amountTZS))
+    if (isNaN(amountTZS) || amountTZS <= 0) {
+      throw new Error('Invalid payout amount.')
+    }
+    if (amountTZS < 5000) {
+      throw new Error('Minimum mobile money payout via Snippe is TZS 5,000.')
+    }
+
+    const idempotencyKey = sanitizeIdempotencyKey(req.idempotencyKey || `payout_${Date.now()}`)
+
+    const payload = {
+      amount: amountTZS,
+      channel: 'mobile',
+      recipient_phone: formattedPhone,
+      recipient_name: req.recipientName.trim(),
+      narration: req.narration || 'LUMO Partner Reward Disbursal',
+      ...(req.metadata ? { metadata: req.metadata } : {}),
+    }
+
+    try {
+      const res = await fetch(`${this.baseUrl}/v1/payouts/send`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+          'Idempotency-Key': idempotencyKey,
+        },
+        body: JSON.stringify(payload),
+      })
+
+      const data = await res.json().catch(() => ({}))
+
+      if (!res.ok || data.status !== 'success') {
+        const errMsg = data.message || `Snippe payout failed with status ${res.status}`
+        return {
+          success: false,
+          status: 'FAILED',
+          message: errMsg,
+          rawResponse: data,
+        }
+      }
+
+      const payoutData = data.data || {}
+      const reference = payoutData.reference || payoutData.id || `SNIPPE-${Date.now()}`
+      const externalReference = payoutData.external_reference || undefined
+      const status: 'PENDING' | 'SUCCESSFUL' | 'FAILED' =
+        payoutData.status === 'completed'
+          ? 'SUCCESSFUL'
+          : payoutData.status === 'failed' || payoutData.status === 'reversed'
+          ? 'FAILED'
+          : 'PENDING'
+
+      return {
+        success: true,
+        reference,
+        externalReference,
+        status,
+        message: data.message || 'Payout initiated successfully via Snippe',
+        rawResponse: payoutData,
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Network error connecting to Snippe payout gateway'
+      return {
+        success: false,
+        status: 'FAILED',
+        message,
+        rawResponse: { error: message },
+      }
     }
   }
 }

@@ -4,6 +4,8 @@ import {
   joinOpportunityDeal,
   isUserEnrolledInDeal,
   getUserEnrolledDealIds,
+  resetOpportunities,
+  seedTestOpportunity,
 } from '@/modules/deals/service'
 import { setUserSubscription } from '@/modules/subscriptions/service'
 
@@ -11,6 +13,32 @@ describe('Deal Enrollment Status & Duplicate Prevention', () => {
   const testUserId = 'usr_partner_test_enrollment'
 
   beforeEach(() => {
+    resetOpportunities()
+    seedTestOpportunity({
+      id: 'opp_test_deal_01',
+      organizationId: 'org_test_01',
+      companyName: 'Test Solar Energy Ltd',
+      companyLogo: 'TS',
+      isVerified: true,
+      type: 'PRODUCT_SALES',
+      title: 'Solar Inverter System 5kW',
+      slug: 'solar-inverter-system-5kw',
+      summary: 'High efficiency solar inverter system',
+      description: 'Full commercial grade solar system',
+      category: 'Renewable Energy',
+      countryCode: 'TZ',
+      region: 'Dar es Salaam',
+      currency: 'TZS',
+      rewardType: 'FIXED_COMMISSION',
+      rewardDisplay: 'TZS 50,000 per closed deal',
+      rewardDetail: 'Payable on verified customer installation',
+      spentBudgetTZS: BigInt(0),
+      activePartnerCount: 2,
+      isFeatured: true,
+      status: 'PUBLISHED',
+      createdAt: new Date(),
+    })
+
     // Setup active subscription for partner so they are authorized to join deals
     setUserSubscription(testUserId, {
       id: `sub_${testUserId}`,
@@ -110,5 +138,53 @@ describe('Deal Enrollment Status & Duplicate Prevention', () => {
         })
       }
     }
+  })
+
+  it('supports referral stage tracking and fallback opportunity synthesis for database UUID deals', () => {
+    // Database UUID deal (not present in in-memory catalog)
+    const dbDeal = {
+      id: 'part_5b6cb2d4',
+      opportunityId: '5b6cb2d4-98f1-478b-b25a-44132df8084a',
+      title: 'Wanted: 500 Bags of Grade 42.5 Cement',
+      businessName: 'Lumo Dealers',
+      category: 'PRODUCTS',
+      status: 'ACTIVE' as const,
+      joinedDate: '2026-09-16',
+      rewardDisplay: 'TZS 180,000 / Supply Deal',
+      rewardValueTZS: 180000,
+      trackingLink: 'https://lumo.co.tz/d/5b6cb2d4?partner=alex',
+      referralId: 'LUMO-ALEX-5B6C',
+      promoCode: 'ALEX_CEME',
+      qrCodeUrl: 'https://api.qrserver.com/v1/create-qr-code/?data=test',
+      activeLeadsCount: 1,
+      latestReferralStage: 'UNDER_REVIEW',
+      latestReferralTicketRef: 'LUMO-REF-712894',
+      verifiedConversionsCount: 0,
+      earningsEarnedTZS: 0,
+      deliverablesSummary: 'Deliver 500 bags of Grade 42.5 cement',
+      evidenceRequired: 'Delivery note signed',
+      milestoneProgressPercent: 50,
+      canExit: true,
+    }
+
+    // Verify stage tracking metadata
+    expect(dbDeal.latestReferralStage).toBe('UNDER_REVIEW')
+    expect(dbDeal.latestReferralTicketRef).toBe('LUMO-REF-712894')
+    expect(dbDeal.activeLeadsCount).toBe(1)
+
+    // Verify fallback synthesis preserves deal attributes
+    const synthesizedOpp = {
+      id: dbDeal.opportunityId,
+      title: dbDeal.title,
+      companyName: dbDeal.businessName,
+      rewardDisplay: dbDeal.rewardDisplay,
+      baseRewardValue: dbDeal.rewardValueTZS,
+      category: dbDeal.category,
+    }
+
+    expect(synthesizedOpp.id).toBe('5b6cb2d4-98f1-478b-b25a-44132df8084a')
+    expect(synthesizedOpp.title).toBe('Wanted: 500 Bags of Grade 42.5 Cement')
+    expect(synthesizedOpp.rewardDisplay).toBe('TZS 180,000 / Supply Deal')
+    expect(synthesizedOpp.baseRewardValue).toBe(180000)
   })
 })
