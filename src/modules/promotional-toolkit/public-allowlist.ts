@@ -86,8 +86,8 @@ export function sanitizePublicDealData(deal: OpportunityItem): PublicApprovedDea
     productCondition: deal.productCondition,
     warrantyPeriod: deal.warrantyPeriod,
     qualityScore: deal.qualityScore,
-    publisherName: 'Lumo Dealers',
-    coordinationNote: 'All enquiries, availability verification, and fulfillment are coordinated directly by Lumo Dealers.',
+    publisherName: 'Lumo Deals',
+    coordinationNote: 'All enquiries, availability verification, and fulfillment are coordinated directly by Lumo Deals.',
   }
 }
 
@@ -109,7 +109,9 @@ export function resolvePromoCode(codeOrSlug: string): PromoCodeResolution {
     }
   }
 
-  const cleanCode = codeOrSlug.trim()
+  // Clean code string of any URL paths or encodings
+  let cleanCode = decodeURIComponent(codeOrSlug.trim()).replace(/^\/p\//i, '').replace(/^p\//i, '')
+
   const allDeals = listOpportunities({ includeAllStatuses: true })
 
   // 1. Direct match on slug or ID
@@ -117,7 +119,15 @@ export function resolvePromoCode(codeOrSlug: string): PromoCodeResolution {
     (d) => d.slug.toLowerCase() === cleanCode.toLowerCase() || d.id.toLowerCase() === cleanCode.toLowerCase()
   )
 
-  // 2. Promo code match pattern (e.g., LUMO-6AAF-WANTED or LUMO-ALEX-CEMENT)
+  // 2. ID fragment or opp_ prefix match (e.g., opp_1789 or 1789)
+  if (!targetDeal) {
+    const rawId = cleanCode.replace(/^opp_/i, '').replace(/^deal_/i, '')
+    targetDeal = allDeals.find(
+      (d) => d.id.toLowerCase() === cleanCode.toLowerCase() || d.id.toLowerCase().includes(rawId.toLowerCase())
+    )
+  }
+
+  // 3. Promo code match pattern (e.g., LUMO-6AAF-WANTED or LUMO-ALEX-CEMENT)
   if (!targetDeal && cleanCode.toUpperCase().startsWith('LUMO-')) {
     const parts = cleanCode.split('-')
     const partnerCode = parts[1]?.toLowerCase() || ''
@@ -141,7 +151,7 @@ export function resolvePromoCode(codeOrSlug: string): PromoCodeResolution {
     }
   }
 
-  // 3. Fallback to first available published deal if general match so QR scan never fails completely
+  // 4. Fallback to first available published deal if general match so QR scan never fails completely
   if (!targetDeal && allDeals.length > 0) {
     targetDeal = allDeals.find((d) => d.status === 'PUBLISHED') || allDeals[0]
   }

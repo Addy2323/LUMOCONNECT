@@ -111,7 +111,7 @@ export function BusinessProfileTab({
           </h3>
 
           <div>
-            <label className="font-bold block mb-1">Business Public Display Name</label>
+            <label className="font-bold block mb-1 text-slate-800 dark:text-slate-200">Business Public Display Name</label>
             <input
               type="text"
               value={profile.businessName}
@@ -119,37 +119,37 @@ export function BusinessProfileTab({
                 setProfile({ ...profile, businessName: e.target.value })
                 setLegalNameChanged(true)
               }}
-              className="w-full p-2.5 rounded-xl border bg-white dark:bg-slate-900 font-bold"
+              className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-bold"
             />
           </div>
 
           <div>
-            <label className="font-bold block mb-1">Brand Tagline</label>
+            <label className="font-bold block mb-1 text-slate-800 dark:text-slate-200">Brand Tagline</label>
             <input
               type="text"
               value={profile.tagline}
               onChange={(e) => setProfile({ ...profile, tagline: e.target.value })}
-              className="w-full p-2.5 rounded-xl border bg-white dark:bg-slate-900"
+              className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
             />
           </div>
 
           <div>
-            <label className="font-bold block mb-1">Industry Sector</label>
+            <label className="font-bold block mb-1 text-slate-800 dark:text-slate-200">Industry Sector</label>
             <input
               type="text"
               value={profile.industry}
               onChange={(e) => setProfile({ ...profile, industry: e.target.value })}
-              className="w-full p-2.5 rounded-xl border bg-white dark:bg-slate-900"
+              className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
             />
           </div>
 
           <div>
-            <label className="font-bold block mb-1">Official Website</label>
+            <label className="font-bold block mb-1 text-slate-800 dark:text-slate-200">Official Website</label>
             <input
               type="url"
               value={profile.website}
               onChange={(e) => setProfile({ ...profile, website: e.target.value })}
-              className="w-full p-2.5 rounded-xl border bg-white dark:bg-slate-900 font-mono text-[11px]"
+              className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-mono text-[11px]"
             />
           </div>
         </div>
@@ -167,26 +167,26 @@ export function BusinessProfileTab({
           </div>
 
           <div>
-            <label className="font-bold block mb-1">BRELA Incorporation Number</label>
+            <label className="font-bold block mb-1 text-slate-800 dark:text-slate-200">BRELA Incorporation Number</label>
             <div className="p-2.5 rounded-xl bg-slate-200 dark:bg-slate-700 font-mono text-slate-700 dark:text-slate-300 font-bold">
               {profile.brelaRegNumber}
             </div>
           </div>
 
           <div>
-            <label className="font-bold block mb-1">Tax Identification Number (TIN)</label>
+            <label className="font-bold block mb-1 text-slate-800 dark:text-slate-200">Tax Identification Number (TIN)</label>
             <div className="p-2.5 rounded-xl bg-slate-200 dark:bg-slate-700 font-mono text-slate-700 dark:text-slate-300 font-bold">
               {profile.tinNumber}
             </div>
           </div>
 
           <div>
-            <label className="font-bold block mb-1">Registered Headquarters Address</label>
+            <label className="font-bold block mb-1 text-slate-800 dark:text-slate-200">Registered Headquarters Address</label>
             <input
               type="text"
               value={profile.hqAddress}
               onChange={(e) => setProfile({ ...profile, hqAddress: e.target.value })}
-              className="w-full p-2.5 rounded-xl border bg-white dark:bg-slate-900"
+              className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
             />
           </div>
         </div>

@@ -38,31 +38,46 @@ interface OverviewTabProps {
   onNavigateTab: (tab: any) => void
 }
 
-const PERFORMANCE_30D = [
-  { date: '18 Aug', txValue: 0, activeUsers: 0 },
-  { date: '19 Aug', txValue: 0, activeUsers: 0 },
-  { date: '20 Aug', txValue: 0, activeUsers: 0 },
-  { date: '21 Aug', txValue: 0, activeUsers: 0 },
-  { date: '22 Aug', txValue: 0, activeUsers: 0 },
-  { date: '23 Aug', txValue: 0, activeUsers: 0 },
-  { date: '24 Aug', txValue: 0, activeUsers: 0 },
-]
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
-const PERFORMANCE_6M = [
-  { date: 'Mar', txValue: 0, activeUsers: 0 },
-  { date: 'Apr', txValue: 0, activeUsers: 0 },
-  { date: 'May', txValue: 0, activeUsers: 0 },
-  { date: 'Jun', txValue: 0, activeUsers: 0 },
-  { date: 'Jul', txValue: 0, activeUsers: 0 },
-  { date: 'Aug', txValue: 0, activeUsers: 0 },
-]
+function getDynamic30DaysData() {
+  const now = new Date()
+  const checkpoints = [30, 25, 20, 15, 10, 5, 0]
+  return checkpoints.map((daysAgo) => {
+    const d = new Date(now)
+    d.setDate(d.getDate() - daysAgo)
+    const label = `${d.getDate()} ${MONTH_NAMES[d.getMonth()]}`
+    return { date: label, txValue: 0, activeUsers: 0 }
+  })
+}
 
-const PERFORMANCE_12M = [
-  { date: 'Q3', txValue: 0, activeUsers: 0 },
-  { date: 'Q4', txValue: 0, activeUsers: 0 },
-  { date: 'Q1', txValue: 0, activeUsers: 0 },
-  { date: 'Q2', txValue: 0, activeUsers: 0 },
-]
+function getDynamic6MonthsData() {
+  const now = new Date()
+  const result = []
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const label = MONTH_NAMES[d.getMonth()]
+    result.push({ date: label, txValue: 0, activeUsers: 0 })
+  }
+  return result
+}
+
+function getDynamic12MonthsData() {
+  const now = new Date()
+  const currentMonth = now.getMonth()
+  const currentQuarter = Math.floor(currentMonth / 3) + 1
+  const quarters = []
+  for (let i = 3; i >= 0; i--) {
+    let q = currentQuarter - i
+    let yr = now.getFullYear()
+    if (q <= 0) {
+      q += 4
+      yr -= 1
+    }
+    quarters.push({ date: `Q${q} '${String(yr).slice(-2)}`, txValue: 0, activeUsers: 0 })
+  }
+  return quarters
+}
 
 export function OverviewTab({ adminName, onOpenReviewQueue, onNavigateTab }: OverviewTabProps) {
   const { showToast } = useAdminToast()
@@ -105,10 +120,10 @@ export function OverviewTab({ adminName, onOpenReviewQueue, onNavigateTab }: Ove
 
   const chartData =
     timeRange === '30D'
-      ? PERFORMANCE_30D
+      ? getDynamic30DaysData()
       : timeRange === '6M'
-      ? PERFORMANCE_6M
-      : PERFORMANCE_12M
+      ? getDynamic6MonthsData()
+      : getDynamic12MonthsData()
 
   return (
     <div className="space-y-5 sm:space-y-6">

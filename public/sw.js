@@ -41,6 +41,8 @@ const SENSITIVE_URL_PATTERNS = [
   /\/api\/orders\//i,
   /\/api\/webhooks\//i,
   /\/verify/i,
+  /\/p\//i,
+  /\/partner\/opportunity\//i,
 ]
 
 // Install event: Precache core assets

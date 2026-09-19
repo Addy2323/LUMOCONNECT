@@ -18,6 +18,7 @@ import {
   Mail,
   Phone,
   Smartphone,
+  Trash2,
 } from 'lucide-react'
 import { MOCK_USERS } from '../mockData'
 import { UserAccount } from '../types'
@@ -32,7 +33,7 @@ export function UsersAccessTab() {
   const [selectedUser, setSelectedUser] = useState<UserAccount | null>(null)
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [showActionModal, setShowActionModal] = useState<{
-    type: 'SUSPEND' | 'REACTIVATE' | 'RESET_MFA' | 'REVOKE_SESSIONS' | 'LOCK' | 'ARCHIVE'
+    type: 'SUSPEND' | 'REACTIVATE' | 'RESET_MFA' | 'REVOKE_SESSIONS' | 'LOCK' | 'ARCHIVE' | 'DELETE'
     user: UserAccount
   } | null>(null)
   const [actionReason, setActionReason] = useState('')
@@ -81,6 +82,19 @@ export function UsersAccessTab() {
   const handleExecuteAction = async () => {
     if (!showActionModal) return
     const { type, user } = showActionModal
+
+    if (type === 'DELETE') {
+      try {
+        await fetch(`/api/admin/users?userId=${user.id}`, { method: 'DELETE' }).catch(() => {})
+        setUsers((prev) => prev.filter((u) => u.id !== user.id))
+        showToast('success', 'User Account Deleted', `Successfully deleted user account for ${user.name} (${user.email}).`)
+      } catch (err: any) {
+        showToast('error', 'Delete Failed', err.message || 'Could not delete user account.')
+      }
+      setShowActionModal(null)
+      setActionReason('')
+      return
+    }
 
     let newStatus: UserAccount['status'] | undefined
     if (type === 'SUSPEND') newStatus = 'SUSPENDED'
@@ -172,12 +186,12 @@ export function UsersAccessTab() {
         </button>
       </div>
 
-      {/* Immutability Notice Alert */}
-      <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 flex items-center justify-between text-xs text-amber-800 dark:text-amber-300">
+      {/* User Management Notice Alert */}
+      <div className="p-3 rounded-2xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/60 flex items-center justify-between text-xs text-blue-800 dark:text-blue-300">
         <div className="flex items-center gap-2">
-          <Shield className="w-4 h-4 text-amber-600 shrink-0" />
+          <Shield className="w-4 h-4 text-blue-600 shrink-0" />
           <span>
-            <strong>Immutable Record Policy:</strong> User accounts with transaction histories or audit traces cannot be permanently deleted. Use <strong>Archive</strong> or <strong>Suspend</strong>.
+            <strong>User Account Management:</strong> Administrators can modify user roles, reset MFA, suspend, archive, or <strong>Permanently Delete</strong> user accounts.
           </span>
         </div>
       </div>
@@ -358,6 +372,14 @@ export function UsersAccessTab() {
                       title="Archive / Deactivate"
                     >
                       <Archive className="w-3.5 h-3.5" />
+                    </button>
+
+                    <button
+                      onClick={() => setShowActionModal({ type: 'DELETE', user })}
+                      className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg"
+                      title="Permanently Delete Account"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </td>

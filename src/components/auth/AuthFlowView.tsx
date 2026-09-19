@@ -272,6 +272,8 @@ export function AuthFlowView({
   const [authorizedRepName, setAuthorizedRepName] = useState('')
   const [authorizedRepDesignation, setAuthorizedRepDesignation] = useState('')
   const [authorizedRepIdNumber, setAuthorizedRepIdNumber] = useState('')
+  const [bizFormErrors, setBizFormErrors] = useState<Record<string, string>>({})
+  const [bizFormErrorSummary, setBizFormErrorSummary] = useState<string | null>(null)
 
   // Step 4: Verification Status & Real Document Files (KYC / KYB) - Completely Empty for Clean Onboarding
   const [uploadedDocs, setUploadedDocs] = useState<Record<string, UploadedDocItem>>({})
@@ -347,6 +349,42 @@ export function AuthFlowView({
   }
 
   const handleAdvanceToDocuments = () => {
+    if (role === 'BUSINESS') {
+      const errors: Record<string, string> = {}
+      if (!bizLegalName.trim() || bizLegalName.trim().length < 2) {
+        errors.bizLegalName = 'Legal Entity Name (BRELA) is required.'
+      }
+      if (!bizTradingName.trim()) {
+        errors.bizTradingName = 'Trading Brand Name is required.'
+      }
+      if (!brelaRegNumber.trim() || brelaRegNumber.trim().length < 3) {
+        errors.brelaRegNumber = 'BRELA Registration Number is required.'
+      }
+      if (!traTin.trim() || traTin.replace(/\D/g, '').length < 6) {
+        errors.traTin = 'Valid Tax Identification Number (TIN) is required.'
+      }
+      if (!bizCategory) {
+        errors.bizCategory = 'Please select a business industry sector.'
+      }
+      if (!authorizedRepName.trim() || authorizedRepName.trim().length < 2) {
+        errors.authorizedRepName = 'Authorized Representative Name is required.'
+      }
+      if (!authorizedRepDesignation.trim()) {
+        errors.authorizedRepDesignation = 'Designation / Title is required.'
+      }
+      if (!authorizedRepIdNumber.trim() || authorizedRepIdNumber.replace(/[-\s]/g, '').length < 6) {
+        errors.authorizedRepIdNumber = 'Valid Representative NIDA or National ID number is required.'
+      }
+
+      if (Object.keys(errors).length > 0) {
+        setBizFormErrors(errors)
+        setBizFormErrorSummary('Please complete all required business profile fields marked below.')
+        return
+      }
+      setBizFormErrors({})
+      setBizFormErrorSummary(null)
+    }
+
     if (role === 'PARTNER' && identityNumber.trim()) {
       const error = validateIdentityNumber(identityType, identityNumber)
       if (error) {
@@ -1248,121 +1286,240 @@ export function AuthFlowView({
           {/* Business Fields */}
           {role === 'BUSINESS' && (
             <div className="space-y-4">
+              {bizFormErrorSummary && (
+                <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-xs font-semibold text-rose-800 dark:text-rose-200 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>{bizFormErrorSummary}</span>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-[#0F172A] dark:text-slate-300 mb-1.5">
-                    Legal Entity Name (BRELA Registered)
+                  <label className="block text-xs font-bold text-slate-900 dark:text-slate-200 mb-1.5">
+                    Legal Entity Name (BRELA Registered) *
                   </label>
                   <input
                     type="text"
                     value={bizLegalName}
-                    onChange={(e) => setBizLegalName(e.target.value)}
+                    onChange={(e) => {
+                      setBizLegalName(e.target.value)
+                      if (bizFormErrors.bizLegalName) {
+                        setBizFormErrors((prev) => ({ ...prev, bizLegalName: '' }))
+                      }
+                    }}
                     placeholder="e.g. Kijani Solar Tech Limited"
-                    className="w-full py-2.5 px-3.5 text-xs sm:text-sm border border-[#E2E8F0] dark:border-slate-800 rounded-xl bg-[#F0F5FA] text-[#0F172A] dark:text-white placeholder:text-slate-400"
+                    className={`w-full py-2.5 px-3.5 text-xs sm:text-sm border rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-colors ${
+                      bizFormErrors.bizLegalName
+                        ? 'border-red-500 dark:border-red-500 ring-2 ring-red-500/20'
+                        : 'border-slate-200 dark:border-slate-700'
+                    }`}
                   />
+                  {bizFormErrors.bizLegalName && (
+                    <p className="mt-1 text-[11px] font-semibold text-red-600 dark:text-red-400">
+                      {bizFormErrors.bizLegalName}
+                    </p>
+                  )}
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-[#0F172A] dark:text-slate-300 mb-1.5">
-                    Trading Brand Name
+                  <label className="block text-xs font-bold text-slate-900 dark:text-slate-200 mb-1.5">
+                    Trading Brand Name *
                   </label>
                   <input
                     type="text"
                     value={bizTradingName}
-                    onChange={(e) => setBizTradingName(e.target.value)}
+                    onChange={(e) => {
+                      setBizTradingName(e.target.value)
+                      if (bizFormErrors.bizTradingName) {
+                        setBizFormErrors((prev) => ({ ...prev, bizTradingName: '' }))
+                      }
+                    }}
                     placeholder="e.g. Kijani Solar"
-                    className="w-full py-2.5 px-3.5 text-xs sm:text-sm border border-[#E2E8F0] dark:border-slate-800 rounded-xl bg-[#F0F5FA] text-[#0F172A] dark:text-white placeholder:text-slate-400"
+                    className={`w-full py-2.5 px-3.5 text-xs sm:text-sm border rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-colors ${
+                      bizFormErrors.bizTradingName
+                        ? 'border-red-500 dark:border-red-500 ring-2 ring-red-500/20'
+                        : 'border-slate-200 dark:border-slate-700'
+                    }`}
                   />
+                  {bizFormErrors.bizTradingName && (
+                    <p className="mt-1 text-[11px] font-semibold text-red-600 dark:text-red-400">
+                      {bizFormErrors.bizTradingName}
+                    </p>
+                  )}
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-[#0F172A] dark:text-slate-300 mb-1.5">
-                    BRELA Registration Number
+                  <label className="block text-xs font-bold text-slate-900 dark:text-slate-200 mb-1.5">
+                    BRELA Registration Number *
                   </label>
                   <input
                     type="text"
                     value={brelaRegNumber}
-                    onChange={(e) => setBrelaRegNumber(e.target.value)}
+                    onChange={(e) => {
+                      setBrelaRegNumber(e.target.value)
+                      if (bizFormErrors.brelaRegNumber) {
+                        setBizFormErrors((prev) => ({ ...prev, brelaRegNumber: '' }))
+                      }
+                    }}
                     placeholder="e.g. 149820-TZ"
-                    className="w-full py-2.5 px-3.5 text-xs sm:text-sm border border-[#E2E8F0] dark:border-slate-800 rounded-xl bg-[#F0F5FA] text-[#0F172A] dark:text-white font-mono placeholder:text-slate-400"
+                    className={`w-full py-2.5 px-3.5 text-xs sm:text-sm border rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-mono placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-colors ${
+                      bizFormErrors.brelaRegNumber
+                        ? 'border-red-500 dark:border-red-500 ring-2 ring-red-500/20'
+                        : 'border-slate-200 dark:border-slate-700'
+                    }`}
                   />
+                  {bizFormErrors.brelaRegNumber && (
+                    <p className="mt-1 text-[11px] font-semibold text-red-600 dark:text-red-400">
+                      {bizFormErrors.brelaRegNumber}
+                    </p>
+                  )}
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-[#0F172A] dark:text-slate-300 mb-1.5">
-                    Tax Identification Number (TIN)
+                  <label className="block text-xs font-bold text-slate-900 dark:text-slate-200 mb-1.5">
+                    Tax Identification Number (TIN) *
                   </label>
                   <input
                     type="text"
                     value={traTin}
-                    onChange={(e) => setTraTin(e.target.value)}
+                    onChange={(e) => {
+                      setTraTin(e.target.value)
+                      if (bizFormErrors.traTin) {
+                        setBizFormErrors((prev) => ({ ...prev, traTin: '' }))
+                      }
+                    }}
                     placeholder="e.g. 142-998-310"
-                    className="w-full py-2.5 px-3.5 text-xs sm:text-sm border border-[#E2E8F0] dark:border-slate-800 rounded-xl bg-[#F0F5FA] text-[#0F172A] dark:text-white font-mono placeholder:text-slate-400"
+                    className={`w-full py-2.5 px-3.5 text-xs sm:text-sm border rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-mono placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-colors ${
+                      bizFormErrors.traTin
+                        ? 'border-red-500 dark:border-red-500 ring-2 ring-red-500/20'
+                        : 'border-slate-200 dark:border-slate-700'
+                    }`}
                   />
+                  {bizFormErrors.traTin && (
+                    <p className="mt-1 text-[11px] font-semibold text-red-600 dark:text-red-400">
+                      {bizFormErrors.traTin}
+                    </p>
+                  )}
                 </div>
               </div>
 
               {/* Business Category */}
               <div>
-                <label className="block text-xs font-bold text-[#0F172A] dark:text-slate-300 mb-1.5">
-                  Business Category & Industry Sector
+                <label className="block text-xs font-bold text-slate-900 dark:text-slate-200 mb-1.5">
+                  Business Category & Industry Sector *
                 </label>
                 <select
                   value={bizCategory}
-                  onChange={(e) => setBizCategory(e.target.value)}
-                  className="w-full py-2.5 px-3.5 text-xs sm:text-sm border border-[#E2E8F0] dark:border-slate-800 rounded-xl bg-[#F0F5FA] text-[#0F172A] dark:text-white"
+                  onChange={(e) => {
+                    setBizCategory(e.target.value)
+                    if (bizFormErrors.bizCategory) {
+                      setBizFormErrors((prev) => ({ ...prev, bizCategory: '' }))
+                    }
+                  }}
+                  className={`w-full py-2.5 px-3.5 text-xs sm:text-sm border rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 transition-colors ${
+                    bizFormErrors.bizCategory
+                      ? 'border-red-500 dark:border-red-500 ring-2 ring-red-500/20'
+                      : 'border-slate-200 dark:border-slate-700'
+                  }`}
                 >
-                  <option value="">Select industry category...</option>
-                  <option value="Renewable Energy">Renewable Energy & Solar</option>
-                  <option value="Fintech & Payments">Fintech & Digital Payments</option>
-                  <option value="FMCG & Retail">FMCG, Trade & Retail Distribution</option>
-                  <option value="Travel & Hospitality">Travel & Hospitality</option>
-                  <option value="Agriculture">Agribusiness & Processing</option>
-                  <option value="Software">Software & IT Services</option>
+                  <option value="" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Select industry category...</option>
+                  <option value="Renewable Energy" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Renewable Energy & Solar</option>
+                  <option value="Fintech & Payments" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Fintech & Digital Payments</option>
+                  <option value="FMCG & Retail" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">FMCG, Trade & Retail Distribution</option>
+                  <option value="Travel & Hospitality" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Travel & Hospitality</option>
+                  <option value="Agriculture" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Agribusiness & Processing</option>
+                  <option value="Software" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Software & IT Services</option>
                 </select>
+                {bizFormErrors.bizCategory && (
+                  <p className="mt-1 text-[11px] font-semibold text-red-600 dark:text-red-400">
+                    {bizFormErrors.bizCategory}
+                  </p>
+                )}
               </div>
 
               {/* Authorized Representative */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-[#0F172A] dark:text-slate-300 mb-1.5">
-                    Authorized Representative
+                  <label className="block text-xs font-bold text-slate-900 dark:text-slate-200 mb-1.5">
+                    Authorized Representative *
                   </label>
                   <input
                     type="text"
                     value={authorizedRepName}
-                    onChange={(e) => setAuthorizedRepName(e.target.value)}
+                    onChange={(e) => {
+                      setAuthorizedRepName(e.target.value)
+                      if (bizFormErrors.authorizedRepName) {
+                        setBizFormErrors((prev) => ({ ...prev, authorizedRepName: '' }))
+                      }
+                    }}
                     placeholder="e.g. Grace Mlay"
-                    className="w-full py-2.5 px-3.5 text-xs sm:text-sm border border-[#E2E8F0] dark:border-slate-800 rounded-xl bg-[#F0F5FA] text-[#0F172A] dark:text-white placeholder:text-slate-400"
+                    className={`w-full py-2.5 px-3.5 text-xs sm:text-sm border rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-colors ${
+                      bizFormErrors.authorizedRepName
+                        ? 'border-red-500 dark:border-red-500 ring-2 ring-red-500/20'
+                        : 'border-slate-200 dark:border-slate-700'
+                    }`}
                   />
+                  {bizFormErrors.authorizedRepName && (
+                    <p className="mt-1 text-[11px] font-semibold text-red-600 dark:text-red-400">
+                      {bizFormErrors.authorizedRepName}
+                    </p>
+                  )}
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-[#0F172A] dark:text-slate-300 mb-1.5">
-                    Designation / Title
+                  <label className="block text-xs font-bold text-slate-900 dark:text-slate-200 mb-1.5">
+                    Designation / Title *
                   </label>
                   <input
                     type="text"
                     value={authorizedRepDesignation}
-                    onChange={(e) => setAuthorizedRepDesignation(e.target.value)}
+                    onChange={(e) => {
+                      setAuthorizedRepDesignation(e.target.value)
+                      if (bizFormErrors.authorizedRepDesignation) {
+                        setBizFormErrors((prev) => ({ ...prev, authorizedRepDesignation: '' }))
+                      }
+                    }}
                     placeholder="e.g. Managing Director"
-                    className="w-full py-2.5 px-3.5 text-xs sm:text-sm border border-[#E2E8F0] dark:border-slate-800 rounded-xl bg-[#F0F5FA] text-[#0F172A] dark:text-white placeholder:text-slate-400"
+                    className={`w-full py-2.5 px-3.5 text-xs sm:text-sm border rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-colors ${
+                      bizFormErrors.authorizedRepDesignation
+                        ? 'border-red-500 dark:border-red-500 ring-2 ring-red-500/20'
+                        : 'border-slate-200 dark:border-slate-700'
+                    }`}
                   />
+                  {bizFormErrors.authorizedRepDesignation && (
+                    <p className="mt-1 text-[11px] font-semibold text-red-600 dark:text-red-400">
+                      {bizFormErrors.authorizedRepDesignation}
+                    </p>
+                  )}
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-[#0F172A] dark:text-slate-300 mb-1.5">
-                    Representative NIDA ID
+                  <label className="block text-xs font-bold text-slate-900 dark:text-slate-200 mb-1.5">
+                    Representative NIDA ID *
                   </label>
                   <input
                     type="text"
                     value={authorizedRepIdNumber}
-                    onChange={(e) => setAuthorizedRepIdNumber(e.target.value)}
+                    onChange={(e) => {
+                      setAuthorizedRepIdNumber(e.target.value)
+                      if (bizFormErrors.authorizedRepIdNumber) {
+                        setBizFormErrors((prev) => ({ ...prev, authorizedRepIdNumber: '' }))
+                      }
+                    }}
                     placeholder="19881105-12110-00002-18"
-                    className="w-full py-2.5 px-3.5 text-xs sm:text-sm border border-[#E2E8F0] dark:border-slate-800 rounded-xl bg-[#F0F5FA] text-[#0F172A] dark:text-white font-mono placeholder:text-slate-400"
+                    className={`w-full py-2.5 px-3.5 text-xs sm:text-sm border rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-mono placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-colors ${
+                      bizFormErrors.authorizedRepIdNumber
+                        ? 'border-red-500 dark:border-red-500 ring-2 ring-red-500/20'
+                        : 'border-slate-200 dark:border-slate-700'
+                    }`}
                   />
+                  {bizFormErrors.authorizedRepIdNumber && (
+                    <p className="mt-1 text-[11px] font-semibold text-red-600 dark:text-red-400">
+                      {bizFormErrors.authorizedRepIdNumber}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

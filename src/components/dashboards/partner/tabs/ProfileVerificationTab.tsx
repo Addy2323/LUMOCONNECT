@@ -117,7 +117,7 @@ export function ProfileVerificationTab({
           </h3>
 
           <div>
-            <label className="font-bold block mb-1">Full Legal Name</label>
+            <label className="font-bold block mb-1 text-slate-800 dark:text-slate-200">Full Legal Name</label>
             <input
               type="text"
               value={profile.fullName}
@@ -125,42 +125,42 @@ export function ProfileVerificationTab({
                 setProfile({ ...profile, fullName: e.target.value })
                 setIdentityChanged(true)
               }}
-              className="w-full p-2.5 rounded-xl border bg-white dark:bg-slate-900 font-bold"
+              className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-bold"
             />
           </div>
 
           <div>
-            <label className="font-bold block mb-1">Partner Commercial Type</label>
+            <label className="font-bold block mb-1 text-slate-800 dark:text-slate-200">Partner Commercial Type</label>
             <select
               value={profile.partnerType}
               onChange={(e) => setProfile({ ...profile, partnerType: e.target.value as any })}
-              className="w-full p-2.5 rounded-xl border bg-white dark:bg-slate-900 font-bold"
+              className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-bold"
             >
-              <option value="SALES_AGENT">Direct Field Sales Agent</option>
-              <option value="CONTENT_CREATOR">Content Creator / Influencer</option>
-              <option value="COMMERCIAL_BROKER">Commercial B2B Broker</option>
-              <option value="DISTRIBUTOR">Wholesale Distributor</option>
-              <option value="AFFILIATE">Digital Affiliate Marketer</option>
+              <option value="SALES_AGENT" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Direct Field Sales Agent</option>
+              <option value="CONTENT_CREATOR" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Content Creator / Influencer</option>
+              <option value="COMMERCIAL_BROKER" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Commercial B2B Broker</option>
+              <option value="DISTRIBUTOR" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Wholesale Distributor</option>
+              <option value="AFFILIATE" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Digital Affiliate Marketer</option>
             </select>
           </div>
 
           <div>
-            <label className="font-bold block mb-1">Operating Region</label>
+            <label className="font-bold block mb-1 text-slate-800 dark:text-slate-200">Operating Region</label>
             <input
               type="text"
               value={profile.region}
               onChange={(e) => setProfile({ ...profile, region: e.target.value })}
-              className="w-full p-2.5 rounded-xl border bg-white dark:bg-slate-900"
+              className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
             />
           </div>
 
           <div>
-            <label className="font-bold block mb-1">Audience Reach / Contact Size</label>
+            <label className="font-bold block mb-1 text-slate-800 dark:text-slate-200">Audience Reach / Contact Size</label>
             <input
               type="text"
               value={profile.audienceSize}
               onChange={(e) => setProfile({ ...profile, audienceSize: e.target.value })}
-              className="w-full p-2.5 rounded-xl border bg-white dark:bg-slate-900"
+              className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
             />
           </div>
         </div>
