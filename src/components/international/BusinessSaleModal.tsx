@@ -77,9 +77,10 @@ export function BusinessSaleModal({ isOpen, onClose, onSuccess }: BusinessSaleMo
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
-      <div className="relative w-full sm:max-w-xl bg-white dark:bg-[#0B1220] rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[95vh] sm:max-h-[90vh]">
-        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 pb-16 sm:pb-0 bg-black/70 backdrop-blur-sm animate-fade-in">
+      <div className="relative w-full sm:max-w-xl bg-white dark:bg-[#0B1220] rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[85vh] sm:max-h-[90vh]">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-950/40 text-purple-600 flex items-center justify-center">
               <Building2 className="w-5 h-5" />
@@ -99,7 +100,8 @@ export function BusinessSaleModal({ isOpen, onClose, onSuccess }: BusinessSaleMo
           </button>
         </div>
 
-        <div className="p-4 sm:p-6 overflow-y-auto flex-1">
+        {/* Scrollable Body */}
+        <div className="p-4 sm:p-6 pb-28 sm:pb-6 overflow-y-auto flex-1">
           {submitted ? (
             <div className="py-8 text-center space-y-4">
               <div className="w-14 h-14 rounded-2xl bg-purple-100 dark:bg-purple-950/40 text-purple-600 flex items-center justify-center mx-auto">
@@ -114,7 +116,7 @@ export function BusinessSaleModal({ isOpen, onClose, onSuccess }: BusinessSaleMo
               </button>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form id="business-sale-form" onSubmit={handleSubmit} className="space-y-4">
               {errorMsg && <div className="text-xs text-red-600">{errorMsg}</div>}
 
               <div>
@@ -228,18 +230,24 @@ export function BusinessSaleModal({ isOpen, onClose, onSuccess }: BusinessSaleMo
                 <Lock className="w-4 h-4 text-purple-600 shrink-0" />
                 <span>Your exact company name, location address, and owner contact remain completely hidden until you approve an NDA request.</span>
               </div>
-
-              <button
-                type="submit"
-                disabled={submitting}
-                className="w-full py-2.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-              >
-                <Send className="w-4 h-4" />
-                {submitting ? 'Submitting Listing...' : 'Publish Confidential Sale Listing'}
-              </button>
             </form>
           )}
         </div>
+
+        {/* Sticky Action Footer */}
+        {!submitted && (
+          <div className="p-3 sm:px-6 bg-white/95 dark:bg-[#0B1220]/95 backdrop-blur-md border-t border-slate-100 dark:border-slate-800 shrink-0 sticky bottom-0 z-10">
+            <button
+              type="submit"
+              form="business-sale-form"
+              disabled={submitting}
+              className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white text-xs font-extrabold rounded-xl flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shadow-md active:scale-[0.99] transition-all"
+            >
+              <Send className="w-4 h-4" />
+              {submitting ? 'Submitting Listing...' : 'Publish Confidential Sale Listing'}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )
