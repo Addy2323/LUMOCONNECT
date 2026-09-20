@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react'
 
 export type PwaPlatform = 'ios' | 'android' | 'desktop' | 'unknown'
 
@@ -25,6 +25,7 @@ interface PwaContextValue {
   closeInstructionsModal: () => void
   dismissFirstVisitPrompt: () => void
   applyUpdate: () => void
+  checkForUpdates: () => Promise<void>
 }
 
 const PwaContext = createContext<PwaContextValue | null>(null)
@@ -41,6 +42,8 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
   const [isUpdateAvailable, setIsUpdateAvailable] = useState(false)
   const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null)
   const [platform, setPlatform] = useState<PwaPlatform>('unknown')
+
+  const initialVersionRef = useRef<string | null>(null)
 
   // Check standalone mode (installed app)
   const checkIsInstalled = useCallback(() => {
@@ -120,7 +123,68 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  // Service Worker Registration and Update Detection (Production only)
+  // Check server version endpoint
+  const checkForUpdates = useCallback(async () => {
+    if (typeof window === 'undefined') return
+    try {
+      const res = await fetch(`/api/version?t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache' },
+      })
+      if (!res.ok) return
+      const data = await res.json()
+      if (!data?.version) return
+
+      if (!initialVersionRef.current) {
+        initialVersionRef.current = data.version
+      } else if (data.version !== initialVersionRef.current) {
+        console.log('[LUMO PWA] Server push update detected. New build:', data.version)
+        setIsUpdateAvailable(true)
+      }
+    } catch {
+      // Ignore network errors during passive background check
+    }
+  }, [])
+
+  // Poll server version periodically and on user tab re-entry
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    // Run initial server version query
+    checkForUpdates()
+
+    // Poll every 30 seconds
+    const interval = setInterval(() => {
+      checkForUpdates()
+    }, 30000)
+
+    // Check when user switches back to tab or unlocks device
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkForUpdates()
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+          navigator.serviceWorker.ready.then((reg) => reg.update()).catch(() => {})
+        }
+      }
+    }
+
+    const handleFocusOrOnline = () => {
+      checkForUpdates()
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('focus', handleFocusOrOnline)
+    window.addEventListener('online', handleFocusOrOnline)
+
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('focus', handleFocusOrOnline)
+      window.removeEventListener('online', handleFocusOrOnline)
+    }
+  }, [checkForUpdates])
+
+  // Service Worker Registration and Update Detection
   useEffect(() => {
     if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') return
@@ -196,14 +260,13 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  // Apply update without forcing reload while user is interacting
+  // Apply update: post SKIP_WAITING to SW if present and reload page
   const applyUpdate = useCallback(() => {
     if (waitingWorker) {
       waitingWorker.postMessage({ type: 'SKIP_WAITING' })
       setIsUpdateAvailable(false)
-    } else {
-      window.location.reload()
     }
+    window.location.reload()
   }, [waitingWorker])
 
   return (
@@ -220,6 +283,7 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
         closeInstructionsModal,
         dismissFirstVisitPrompt,
         applyUpdate,
+        checkForUpdates,
       }}
     >
       {children}
