@@ -12,6 +12,7 @@ import {
   FileSpreadsheet,
   Menu,
   X,
+  Globe,
 } from 'lucide-react'
 import { BrandMark } from './BrandMark'
 
@@ -32,6 +33,7 @@ export function Navbar({
 
   const navLinks = [
     { id: 'marketplace', label: 'Discover Deals', icon: Compass },
+    { id: 'international', label: 'International', icon: Globe },
     { id: 'partner', label: 'Partner Portal', icon: Sparkles },
     { id: 'business', label: 'Business Hub', icon: Briefcase },
     { id: 'admin', label: 'Operations & Audit', icon: Shield },

@@ -315,6 +315,16 @@ model User {
   createdOpportunities  Opportunity[]          @relation("OpportunityCreator")
   makerApprovals        ApprovalRequest[]      @relation("ApprovalMaker")
   checkerApprovals      ApprovalRequest[]      @relation("ApprovalChecker")
+  internationalSubmissions InternationalSubmission[]
+  investorProfiles         InvestorProfile[]
+  jvRequests               JVRequest[]
+  businessSaleListings     BusinessSaleListing[]
+  introductionsAsInvestor  InternationalIntroduction[] @relation("InvestorUserIntroductions")
+  introductionsAsPartner   InternationalIntroduction[] @relation("PartnerUserIntroductions")
+  ndasAsBuyer              NDA[]                       @relation("NdaBuyer")
+  ndasAsSeller             NDA[]                       @relation("NdaSeller")
+  dataRoomAccesses         DataRoomAccess[]
+  dataRoomActivities       DataRoomActivity[]
 
   @@index([email])
   @@index([phone])
@@ -566,6 +576,12 @@ model Opportunity {
   updatedAt          DateTime          @updatedAt
   deletedAt          DateTime?
 
+  marketScope         String            @default("LOCAL") // LOCAL, INTERNATIONAL
+  internationalCategory String?
+  investmentStructure String?
+  minimumTicketMinor  BigInt?
+  verificationLevel   String?           @default("UNVERIFIED")
+
   organization     Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   category         OpportunityCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   publishedVersion OpportunityVersion?  @relation("PublishedVersion", fields: [publishedVersionId], references: [id], onDelete: SetNull)
@@ -577,6 +593,9 @@ model Opportunity {
   referralTickets  ReferralTicket[]     @relation("OpportunityReferralTickets")
   createdByUser    User?                @relation("OpportunityCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
   approvalRequests ApprovalRequest[]
+  internationalIntroductions InternationalIntroduction[]
+  ndas             NDA[]
+  dataRooms        DataRoom[]
 
   @@index([organizationId])
   @@index([categoryId])
@@ -1863,3 +1882,443 @@ model ReferralTicket {
   @@index([customerPhone])
   @@map("referral_tickets")
 }
+
+// ============================================================================
+// 14. INTERNATIONAL & INVEST ENUMS & MODELS
+// ============================================================================
+
+enum InternationalSubmissionStatus {
+  SUBMITTED
+  RECEIVED
+  UNDER_REVIEW
+  CONTACTING_SUBMITTER
+  INFORMATION_REQUIRED
+  VERIFICATION
+  APPROVED
+  PUBLISHED
+  REJECTED
+  WITHDRAWN
+  EXPIRED
+  ARCHIVED
+}
+
+enum InvestorType {
+  STRATEGIC
+  INSTITUTIONAL
+  FAMILY_OFFICE
+  CORPORATE
+  IMPACT_INVESTOR
+  HIGH_NET_WORTH
+  ANY_QUALIFIED
+}
+
+enum InvestmentStructure {
+  EQUITY
+  DEBT
+  JOINT_VENTURE
+  STRATEGIC_INVESTMENT
+  CONVERTIBLE
+  ACQUISITION
+  OTHER
+}
+
+enum NdaStatus {
+  NOT_REQUIRED
+  REQUESTED
+  SENT
+  SIGNED
+  DECLINED
+  EXPIRED
+}
+
+enum DataRoomAccessLevel {
+  PUBLIC
+  PRIVATE_MEMBER
+  VERIFIED_INVESTOR
+  APPROVED_INVESTOR
+  ADMIN
+}
+
+enum DataRoomActivityType {
+  VIEWED
+  DOWNLOADED
+  OPENED
+  REQUESTED
+  UPLOADED
+  ACCESS_GRANTED
+  ACCESS_REVOKED
+}
+
+enum IntroductionStage {
+  LEAD_SUBMITTED
+  INVESTOR_VERIFIED
+  PROJECT_OWNER_ACCEPTED
+  INTRODUCTION_MADE
+  INITIAL_MEETING
+  NDA_SIGNED
+  DATA_ROOM_ACCESS
+  DUE_DILIGENCE
+  TERM_SHEET
+  NEGOTIATION
+  INVESTMENT_CLOSED
+  REJECTED
+  WITHDRAWN
+}
+
+enum InternationalChannel {
+  WHATSAPP
+  EMAIL
+  SMS
+  SYSTEM_NOTIFICATION
+  CALL_NOTE
+}
+
+model InternationalSubmission {
+  id                  String                        @id @default(uuid()) @db.Uuid
+  referenceNumber     String                        @unique // e.g. LUMO-INT-2026-00421
+  submitterType       String // Individual, Business, Investor, Project Owner, Seller, Buyer, Property Owner / Agent, Organization, Other
+  countryCode         String
+  cityRegion          String?
+  category            String
+  opportunityType     String // OFFERING, LOOKING
+  title               String
+  shortDescription    String                        @db.Text
+  estimatedValueMinor BigInt?
+  currency            String                        @default("USD")
+  fullName            String
+  businessName        String?
+  whatsAppNumber      String
+  emailAddress        String
+  preferredContact    String                        @default("BOTH") // WHATSAPP, EMAIL, BOTH
+  website             String?
+  supportingDocuments Json?
+  additionalNotes     String?                       @db.Text
+  status              InternationalSubmissionStatus @default(SUBMITTED)
+  reviewedByAdminId   String?                       @db.Uuid
+  createdByUserId     String?                       @db.Uuid
+  createdAt           DateTime                      @default(now())
+  updatedAt           DateTime                      @updatedAt
+
+  createdByUser User?                      @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+  communications InternationalCommunication[]
+
+  @@index([referenceNumber])
+  @@index([countryCode])
+  @@index([category])
+  @@index([status])
+  @@index([createdByUserId])
+  @@map("international_submissions")
+}
+
+model InvestorProfile {
+  id                   String       @id @default(uuid()) @db.Uuid
+  userId               String?      @db.Uuid
+  entityName           String
+  countryCode          String
+  investorType         InvestorType @default(STRATEGIC)
+  capitalAvailableMinor BigInt?
+  minTicketMinor       BigInt?
+  maxTicketMinor       BigInt?
+  currency             String       @default("USD")
+  preferredSectors     String[]
+  preferredCountries   String[]
+  preferredRegions     String[]
+  investmentStructures String[]     // Equity, Debt, JV, Acquisition, Strategic Partnership
+  investmentHorizon    String?
+  riskPreference       String?
+  requirements         String?      @db.Text
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([countryCode])
+  @@index([investorType])
+  @@map("investor_profiles")
+}
+
+model JVRequest {
+  id                    String   @id @default(uuid()) @db.Uuid
+  userId                String?  @db.Uuid
+  companyName           String
+  countryCode           String
+  sector                String
+  whatWeBring           String[] // Capital, Technology, Equipment, Brand, IP, Distribution, Expertise, Other
+  capitalAvailableMinor BigInt?
+  currency              String   @default("USD")
+  partnerCountryRequired String?
+  partnerType           String?
+  partnerShouldProvide  String[] // Local market access, Land, Distribution, Licences, Customer network, Manufacturing, Regulatory support, Other
+  targetProject         String?  @db.Text
+  status                String   @default("ACTIVE")
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([countryCode])
+  @@index([sector])
+  @@map("jv_requests")
+}
+
+model BusinessSaleListing {
+  id                     String   @id @default(uuid()) @db.Uuid
+  userId                 String?  @db.Uuid
+  businessName           String
+  isConfidential         Boolean  @default(true)
+  countryCode            String
+  sector                 String
+  annualRevenueMinor     BigInt?
+  ebitdaMinor            BigInt?
+  employeeCount          Int?
+  assetsDescription      String?  @db.Text
+  ownershipAvailablePct  Decimal? @db.Decimal(5, 2)
+  indicativeValuationMinor BigInt?
+  currency               String   @default("USD")
+  reasonForSale          String?  @db.Text
+  supportingDocuments    Json?
+  status                 String   @default("ACTIVE")
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  ndas NDA[]
+
+  @@index([userId])
+  @@index([countryCode])
+  @@index([sector])
+  @@index([isConfidential])
+  @@map("business_sale_listings")
+}
+
+model InternationalIntroduction {
+  id                    String            @id @default(uuid()) @db.Uuid
+  introductionNumber    String            @unique // e.g. LUMO-INTRO-00981
+  originatingPartnerId  String?           @db.Uuid
+  opportunityId         String?           @db.Uuid
+  investorUserId        String?           @db.Uuid
+  investorLeadName      String
+  investorCountry       String
+  investorType          String?
+  sectorInterest        String?
+  estimatedCapacityMinor BigInt?
+  expectedTicketMinor   BigInt?
+  contactPerson         String?
+  whatsAppNumber        String?
+  emailAddress          String?
+  currency              String            @default("USD")
+  notes                 String?           @db.Text
+  stage                 IntroductionStage @default(LEAD_SUBMITTED)
+  status                String            @default("ACTIVE")
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  originatingPartner User?                       @relation("PartnerUserIntroductions", fields: [originatingPartnerId], references: [id], onDelete: SetNull)
+  investorUser       User?                       @relation("InvestorUserIntroductions", fields: [investorUserId], references: [id], onDelete: SetNull)
+  opportunity        Opportunity?                @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+  dueDiligenceCases  DueDiligenceCase[]
+  termSheets         TermSheet[]
+  communications     InternationalCommunication[]
+
+  @@index([introductionNumber])
+  @@index([originatingPartnerId])
+  @@index([opportunityId])
+  @@index([investorUserId])
+  @@index([stage])
+  @@map("international_introductions")
+}
+
+model NDA {
+  id                    String      @id @default(uuid()) @db.Uuid
+  opportunityId         String?     @db.Uuid
+  businessSaleListingId String?     @db.Uuid
+  buyerUserId           String      @db.Uuid
+  sellerUserId          String?     @db.Uuid
+  status                NdaStatus   @default(REQUESTED)
+  documentUrl           String?
+  signedAt              DateTime?
+  expiresAt             DateTime?
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  opportunity         Opportunity?         @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+  businessSaleListing BusinessSaleListing? @relation(fields: [businessSaleListingId], references: [id], onDelete: SetNull)
+  buyerUser           User                 @relation("NdaBuyer", fields: [buyerUserId], references: [id], onDelete: Cascade)
+  sellerUser          User?                @relation("NdaSeller", fields: [sellerUserId], references: [id], onDelete: SetNull)
+
+  @@index([opportunityId])
+  @@index([businessSaleListingId])
+  @@index([buyerUserId])
+  @@index([status])
+  @@map("ndas")
+}
+
+model DataRoom {
+  id            String              @id @default(uuid()) @db.Uuid
+  opportunityId String?             @db.Uuid
+  name          String
+  description   String?             @db.Text
+  accessLevel   DataRoomAccessLevel @default(PRIVATE_MEMBER)
+  isActive      Boolean             @default(true)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  opportunity Opportunity?       @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+  folders     DataRoomFolder[]
+  accesses    DataRoomAccess[]
+  activities  DataRoomActivity[]
+
+  @@index([opportunityId])
+  @@map("data_rooms")
+}
+
+model DataRoomFolder {
+  id             String             @id @default(uuid()) @db.Uuid
+  dataRoomId     String             @db.Uuid
+  folderNumber   String             // e.g. "01", "02"
+  name           String             // e.g. "01 Company Documents"
+  parentFolderId String?            @db.Uuid
+  sortOrder      Int                @default(0)
+  createdAt      DateTime           @default(now())
+
+  dataRoom     DataRoom           @relation(fields: [dataRoomId], references: [id], onDelete: Cascade)
+  parentFolder DataRoomFolder?    @relation("FolderHierarchy", fields: [parentFolderId], references: [id], onDelete: Cascade)
+  subFolders   DataRoomFolder[]   @relation("FolderHierarchy")
+  documents    DataRoomDocument[]
+
+  @@index([dataRoomId])
+  @@index([parentFolderId])
+  @@map("data_room_folders")
+}
+
+model DataRoomDocument {
+  id            String              @id @default(uuid()) @db.Uuid
+  folderId      String              @db.Uuid
+  fileAssetId   String?             @db.Uuid
+  title         String
+  description   String?
+  accessTier    DataRoomAccessLevel @default(VERIFIED_INVESTOR)
+  fileUrl       String?
+  fileSizeBytes BigInt?
+  createdAt     DateTime            @default(now())
+
+  folder     DataRoomFolder     @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  activities DataRoomActivity[]
+
+  @@index([folderId])
+  @@map("data_room_documents")
+}
+
+model DataRoomAccess {
+  id          String              @id @default(uuid()) @db.Uuid
+  dataRoomId  String              @db.Uuid
+  userId      String              @db.Uuid
+  accessLevel DataRoomAccessLevel @default(VERIFIED_INVESTOR)
+  grantedAt   DateTime            @default(now())
+  expiresAt   DateTime?
+  grantedBy   String?             @db.Uuid
+
+  dataRoom DataRoom @relation(fields: [dataRoomId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([dataRoomId, userId])
+  @@index([dataRoomId])
+  @@index([userId])
+  @@map("data_room_accesses")
+}
+
+model DataRoomActivity {
+  id           String               @id @default(uuid()) @db.Uuid
+  dataRoomId   String               @db.Uuid
+  userId       String               @db.Uuid
+  documentId   String?              @db.Uuid
+  activityType DataRoomActivityType @default(VIEWED)
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime             @default(now())
+
+  dataRoom DataRoom          @relation(fields: [dataRoomId], references: [id], onDelete: Cascade)
+  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  document DataRoomDocument? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+
+  @@index([dataRoomId])
+  @@index([userId])
+  @@index([documentId])
+  @@index([createdAt])
+  @@map("data_room_activities")
+}
+
+model DueDiligenceCase {
+  id             String   @id @default(uuid()) @db.Uuid
+  introductionId String   @db.Uuid
+  status         String   @default("IN_PROGRESS") // IN_PROGRESS, COMPLETED, ON_HOLD
+  checklist      Json?
+  notes          String?  @db.Text
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  introduction InternationalIntroduction @relation(fields: [introductionId], references: [id], onDelete: Cascade)
+  requests     DueDiligenceRequest[]
+
+  @@index([introductionId])
+  @@map("due_diligence_cases")
+}
+
+model DueDiligenceRequest {
+  id          String    @id @default(uuid()) @db.Uuid
+  caseId      String    @db.Uuid
+  title       String
+  description String?   @db.Text
+  requestedBy String?   @db.Uuid
+  status      String    @default("PENDING") // PENDING, FULFILLED, WAIVED
+  fulfilledAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  case DueDiligenceCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@index([caseId])
+  @@map("due_diligence_requests")
+}
+
+model TermSheet {
+  id                    String    @id @default(uuid()) @db.Uuid
+  introductionId        String    @db.Uuid
+  documentUrl           String?
+  title                 String
+  investmentAmountMinor BigInt?
+  valuationMinor        BigInt?
+  currency              String    @default("USD")
+  status                String    @default("PROPOSED") // PROPOSED, UNDER_REVIEW, ACCEPTED, REJECTED, SUPERSEDED
+  uploadedBy            String?   @db.Uuid
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  introduction InternationalIntroduction @relation(fields: [introductionId], references: [id], onDelete: Cascade)
+
+  @@index([introductionId])
+  @@map("term_sheets")
+}
+
+model InternationalCommunication {
+  id             String               @id @default(uuid()) @db.Uuid
+  submissionId   String?              @db.Uuid
+  introductionId String?              @db.Uuid
+  channel        InternationalChannel @default(WHATSAPP)
+  direction      String               @default("OUTBOUND") // INBOUND, OUTBOUND
+  recipient      String
+  subject        String?
+  body           String               @db.Text
+  status         String               @default("SENT") // PENDING, SENT, DELIVERED, FAILED
+  createdBy      String?              @db.Uuid
+  createdAt      DateTime             @default(now())
+
+  submission   InternationalSubmission?   @relation(fields: [submissionId], references: [id], onDelete: SetNull)
+  introduction InternationalIntroduction? @relation(fields: [introductionId], references: [id], onDelete: SetNull)
+
+  @@index([submissionId])
+  @@index([introductionId])
+  @@map("international_communications")
+}
+
