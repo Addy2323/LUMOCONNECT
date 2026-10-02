@@ -1263,6 +1263,11 @@ export default function LumoApp() {
         partnerPhone={userDetails.phone || undefined}
         userRole={currentUserRole}
         userOrgId={currentUserOrgId}
+        hasActiveSubscription={hasActiveSubscription}
+        onRequireSubscription={() => {
+          setSelectedProtectedDeal(null)
+          setActiveView('subscriptions')
+        }}
         onConnectWhatsApp={() => {
           if (selectedProtectedDeal) {
             const opp = opportunities.find((o) => o.id === selectedProtectedDeal.id)

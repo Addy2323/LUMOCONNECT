@@ -40,8 +40,10 @@ interface ProtectedDealDetailsModalProps {
   partnerPhone?: string
   userRole?: string
   userOrgId?: string
+  hasActiveSubscription?: boolean
   onDealJoined?: (trackingCode: string) => void
   onConnectWhatsApp?: () => void
+  onRequireSubscription?: () => void
 }
 
 export function ProtectedDealDetailsModal({
@@ -53,8 +55,10 @@ export function ProtectedDealDetailsModal({
   partnerPhone,
   userRole = 'PARTNER',
   userOrgId,
+  hasActiveSubscription = true,
   onDealJoined,
   onConnectWhatsApp,
+  onRequireSubscription,
 }: ProtectedDealDetailsModalProps) {
   const { t, locale } = useLanguage()
 
@@ -144,10 +148,17 @@ export function ProtectedDealDetailsModal({
         {/* Top Header */}
         <div>
           <div className="flex items-center gap-2 mb-1.5">
-            <span className="inline-flex items-center gap-1 px-3 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 text-xs font-bold border border-emerald-200 dark:border-emerald-800">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>{locale === 'sw' ? 'Fursa Kamili Imefunguliwa' : 'Full Opportunity Unlocked'}</span>
-            </span>
+            {!hasActiveSubscription ? (
+              <span className="inline-flex items-center gap-1 px-3 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 text-xs font-bold border border-amber-200 dark:border-amber-800">
+                <Lock className="w-3.5 h-3.5" />
+                <span>{locale === 'sw' ? 'Uanachama Unahitajika' : 'Subscription Required'}</span>
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 px-3 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 text-xs font-bold border border-emerald-200 dark:border-emerald-800">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>{locale === 'sw' ? 'Fursa Kamili Imefunguliwa' : 'Full Opportunity Unlocked'}</span>
+              </span>
+            )}
             <span className="text-xs font-semibold text-slate-400">
               {formatCategoryBadgeLabel(deal.category, undefined, locale)} · {t(deal.region)}
             </span>

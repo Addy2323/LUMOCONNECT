@@ -317,10 +317,22 @@ export function OpportunityCard({
         <button
           type="button"
           onClick={onViewDetails}
-          className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white py-2.5 px-2 text-xs font-bold text-slate-800 shadow-2xs hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 transition cursor-pointer"
+          className={`flex w-full items-center justify-center gap-1.5 rounded-xl border py-2.5 px-2 text-xs font-bold transition cursor-pointer ${
+            !isSubscribed
+              ? 'border-amber-300/80 bg-amber-50/70 text-amber-900 hover:bg-amber-100/90 dark:border-amber-800/80 dark:bg-amber-950/40 dark:text-amber-300'
+              : 'border-slate-200 bg-white text-slate-800 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'
+          }`}
         >
-          <Eye className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-          <span className="truncate">{t('View Full Deal')}</span>
+          {!isSubscribed ? (
+            <Lock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+          ) : (
+            <Eye className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+          )}
+          <span className="truncate">
+            {!isSubscribed
+              ? (locale === 'sw' ? '🔒 Maelezo Yamefungwa' : '🔒 Locked Deal')
+              : t('View Full Deal')}
+          </span>
         </button>
 
         <button
@@ -356,7 +368,7 @@ export function OpportunityCard({
             </>
           ) : (
             <>
-              <Users className="w-3.5 h-3.5 text-white shrink-0" />
+              <Lock className="w-3.5 h-3.5 text-white shrink-0" />
               <span className="truncate">{t('Subscribe to Join')}</span>
             </>
           )}
