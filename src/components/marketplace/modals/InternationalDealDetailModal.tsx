@@ -100,12 +100,12 @@ export function InternationalDealDetailModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-      <div className="bg-[#081324] border border-cyan-500/40 ring-1 ring-cyan-500/20 rounded-2xl w-full max-w-4xl text-slate-100 shadow-2xl overflow-hidden my-auto animate-fade-in flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-[100] bg-black/85 backdrop-blur-md flex items-center justify-center p-2.5 sm:p-4 overflow-y-auto">
+      <div className="bg-[#081324] border border-cyan-500/40 ring-1 ring-cyan-500/20 rounded-2xl w-full max-w-4xl text-slate-100 shadow-2xl overflow-hidden my-auto animate-fade-in flex flex-col max-h-[92vh]">
         {/* HEADER SECTION */}
         <div className="relative bg-[#060D1E] border-b border-cyan-900/40 shrink-0">
           {deal.imageUrl && (
-            <div className="relative h-36 sm:h-44 w-full overflow-hidden">
+            <div className="relative h-32 sm:h-44 w-full overflow-hidden">
               <img
                 src={deal.imageUrl}
                 alt={deal.title}
@@ -115,21 +115,21 @@ export function InternationalDealDetailModal({
             </div>
           )}
 
-          <div className="p-5 sm:p-6 relative z-10 -mt-8">
+          <div className="p-4 sm:p-6 relative z-10 -mt-6 sm:-mt-8">
             <button
               onClick={onClose}
-              className="absolute top-4 right-4 z-20 p-2 bg-slate-900/90 hover:bg-slate-800 text-cyan-400 hover:text-white rounded-full transition border border-cyan-500/30 cursor-pointer shadow-lg"
+              className="absolute top-3 right-3 sm:top-4 sm:right-4 z-30 p-2 bg-slate-900/90 hover:bg-slate-800 text-cyan-400 hover:text-white rounded-full transition border border-cyan-500/30 cursor-pointer shadow-lg"
               aria-label="Close modal"
             >
               <X className="w-4 h-4" />
             </button>
 
-          {/* Badges Row */}
-          <div className="flex flex-wrap items-center gap-2 mb-2 pr-12">
-            <span className="text-xs font-semibold px-3 py-1 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 flex items-center gap-1.5 font-mono">
-              <Globe className="w-3.5 h-3.5 text-cyan-400" />
-              <span>{deal.originCountryFlag} {deal.originCountryName} ➔ {deal.targetCountryFlag} {deal.targetCountryName}</span>
-            </span>
+            {/* Badges Row - Mobile Safe Right Padding */}
+            <div className="flex flex-wrap items-center gap-1.5 mb-2.5 pr-10 sm:pr-14">
+              <span className="text-[11px] sm:text-xs font-semibold px-2.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 flex items-center gap-1.5 font-mono">
+                <Globe className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                <span>{deal.originCountryFlag} {deal.originCountryName} ➔ {deal.targetCountryFlag} {deal.targetCountryName}</span>
+              </span>
 
             <span className="text-xs font-medium px-3 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
               {deal.dealType}
@@ -417,13 +417,13 @@ export function InternationalDealDetailModal({
         </div>
 
         {/* FOOTER BAR */}
-        <div className="flex items-center justify-between px-5 sm:px-6 py-3 border-t border-cyan-900/40 bg-[#040A15] shrink-0">
-          <div className="flex items-center space-x-2 text-xs text-slate-400">
-            <Globe className="w-3.5 h-3.5 text-cyan-400" />
-            <span>Ref: {deal.reference}</span>
+        <div className="flex flex-col xs:flex-row items-center justify-between gap-2.5 px-4 sm:px-6 py-3 border-t border-cyan-900/40 bg-[#040A15] shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <div className="flex items-center space-x-2 text-[11px] sm:text-xs text-slate-400">
+            <Globe className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+            <span className="font-mono">Ref: {deal.reference}</span>
           </div>
 
-          <div className="flex items-center space-x-2.5">
+          <div className="flex items-center space-x-2.5 w-full xs:w-auto justify-end">
             <button
               onClick={onClose}
               className="px-4 py-1.5 rounded-full text-xs font-semibold text-cyan-300 hover:bg-cyan-500/10 border border-cyan-500/40 transition cursor-pointer"
@@ -433,7 +433,7 @@ export function InternationalDealDetailModal({
             {!applyModalOpen && (
               <button
                 onClick={() => setApplyModalOpen(true)}
-                className="flex items-center space-x-1.5 px-5 py-1.5 rounded-full text-xs font-bold text-slate-950 bg-cyan-400 hover:bg-cyan-300 shadow-lg shadow-cyan-500/20 transition cursor-pointer"
+                className="flex items-center justify-center space-x-1.5 px-4 sm:px-5 py-1.5 rounded-full text-xs font-bold text-slate-950 bg-cyan-400 hover:bg-cyan-300 shadow-lg shadow-cyan-500/20 transition cursor-pointer flex-1 xs:flex-none"
               >
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>Apply & Join Opportunity</span>

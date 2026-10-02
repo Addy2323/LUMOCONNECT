@@ -98,25 +98,25 @@ export function InternationalMarketplaceView() {
           </p>
 
           {/* Quick Platform Metrics */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4">
-            <div className="bg-slate-900/80 backdrop-blur p-4 rounded-2xl border border-slate-800">
-              <span className="text-[11px] text-slate-400 font-medium block">Published Deals</span>
-              <span className="text-xl font-bold text-white font-mono">{deals.length} Active</span>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-4 pt-4">
+            <div className="bg-slate-900/80 backdrop-blur p-3 sm:p-4 rounded-2xl border border-slate-800">
+              <span className="text-[10px] sm:text-[11px] text-slate-400 font-medium block">Published Deals</span>
+              <span className="text-sm sm:text-xl font-bold text-white font-mono">{deals.length} Active</span>
             </div>
-            <div className="bg-slate-900/80 backdrop-blur p-4 rounded-2xl border border-slate-800">
-              <span className="text-[11px] text-slate-400 font-medium block">Active Partners</span>
-              <span className="text-xl font-bold text-cyan-400 font-mono">+{activePartnersCount}</span>
+            <div className="bg-slate-900/80 backdrop-blur p-3 sm:p-4 rounded-2xl border border-slate-800">
+              <span className="text-[10px] sm:text-[11px] text-slate-400 font-medium block">Active Partners</span>
+              <span className="text-sm sm:text-xl font-bold text-cyan-400 font-mono">+{activePartnersCount}</span>
             </div>
-            <div className="bg-slate-900/80 backdrop-blur p-4 rounded-2xl border border-slate-800">
-              <span className="text-[11px] text-slate-400 font-medium block">Rewards Distributed</span>
-              <span className="text-xl font-bold text-emerald-400 font-mono">
+            <div className="bg-slate-900/80 backdrop-blur p-3 sm:p-4 rounded-2xl border border-slate-800">
+              <span className="text-[10px] sm:text-[11px] text-slate-400 font-medium block">Rewards Distributed</span>
+              <span className="text-sm sm:text-xl font-bold text-emerald-400 font-mono truncate block">
                 USD ${totalRewardsPaid.toLocaleString()}
               </span>
             </div>
-            <div className="bg-slate-900/80 backdrop-blur p-4 rounded-2xl border border-slate-800">
-              <span className="text-[11px] text-slate-400 font-medium block">Admin Verification</span>
-              <span className="text-xs font-bold text-emerald-400 flex items-center gap-1 mt-1">
-                <ShieldCheck className="w-4 h-4" /> 100% Guaranteed
+            <div className="bg-slate-900/80 backdrop-blur p-3 sm:p-4 rounded-2xl border border-slate-800">
+              <span className="text-[10px] sm:text-[11px] text-slate-400 font-medium block">Admin Verification</span>
+              <span className="text-[11px] sm:text-xs font-bold text-emerald-400 flex items-center gap-1 mt-1">
+                <ShieldCheck className="w-3.5 h-3.5 flex-shrink-0" /> 100% Guaranteed
               </span>
             </div>
           </div>
@@ -225,23 +225,24 @@ export function InternationalMarketplaceView() {
                 {/* Dark Gradient Overlay for Badges & Title Visibility */}
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent" />
 
-                {/* Floating Top Badges Overlay */}
-                <div className="absolute top-3 left-3 right-3 flex items-center justify-between gap-2 z-10">
-                  <div className="flex items-center space-x-1.5 px-3 py-1 rounded-full bg-slate-950/80 backdrop-blur border border-cyan-500/40 text-cyan-300 text-[11px] font-bold font-mono shadow-md">
+                {/* Floating Top Badges Overlay - Mobile Responsive Wrapping */}
+                <div className="absolute top-2.5 left-2.5 right-2.5 flex flex-wrap items-center justify-between gap-1.5 z-10">
+                  <div className="flex items-center space-x-1 px-2.5 py-1 rounded-full bg-slate-950/85 backdrop-blur border border-cyan-500/40 text-cyan-300 text-[10px] sm:text-[11px] font-bold font-mono shadow-md max-w-full">
                     <span>{deal.originCountryFlag}</span>
-                    <span>{deal.originCountryName}</span>
+                    <span className="hidden sm:inline">{deal.originCountryName}</span>
+                    <span className="sm:hidden font-mono">{deal.originCountryCode}</span>
                     <span className="text-cyan-400 font-sans">➔</span>
                     <span>{deal.targetCountryFlag}</span>
                     <span>{deal.targetRegion}</span>
                   </div>
 
-                  <div className="flex items-center space-x-1.5">
+                  <div className="flex flex-wrap items-center gap-1">
                     {deal.isFeatured && (
-                      <span className="px-2.5 py-0.5 rounded-full bg-amber-500/90 text-slate-950 text-[10px] font-extrabold shadow-md">
+                      <span className="px-2 py-0.5 rounded-full bg-amber-500/90 text-slate-950 text-[9px] sm:text-[10px] font-extrabold shadow-md">
                         ⭐ Featured
                       </span>
                     )}
-                    <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-slate-950/80 text-slate-200 border border-slate-700 backdrop-blur">
+                    <span className="text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-950/85 text-slate-200 border border-slate-700 backdrop-blur">
                       {deal.dealType}
                     </span>
                   </div>
