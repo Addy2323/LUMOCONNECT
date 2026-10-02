@@ -960,6 +960,7 @@ model Reward {
   netAmountMinor   BigInt
   currency         String       @default("TZS")
   status           RewardStatus @default(TRACKED)
+  showInPublicEarningsFeed Boolean @default(true)
   approvedBy       String?
   approvedAt       DateTime?
   createdAt        DateTime     @default(now())
@@ -975,7 +976,7 @@ model Reward {
   @@index([rewardRuleId])
   @@index([partnerUserId])
   @@index([status])
-  @@index([status, approvedAt])
+  @@index([status, showInPublicEarningsFeed, approvedAt])
   @@map("rewards")
 }
 
@@ -2321,4 +2322,88 @@ model InternationalCommunication {
   @@index([introductionId])
   @@map("international_communications")
 }
+
+// ============================================================================
+// 16. ADMIN VISITOR ANALYTICS & TRAFFIC TRACKING
+// ============================================================================
+
+model VisitorLog {
+  id              String   @id @default(uuid()) @db.Uuid
+  visitorId       String   @unique // Anonymous ID e.g. VIS-8F3K29
+  userId          String?  @db.Uuid
+  firstSeenAt     DateTime @default(now())
+  lastSeenAt      DateTime @default(now())
+  visitCount      Int      @default(1)
+  country         String   @default("Tanzania")
+  region          String?
+  city            String?
+  deviceType      String   @default("Desktop") // Mobile, Desktop, Tablet
+  browser         String?
+  operatingSystem String?
+  ipHash          String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  sessions  VisitorSession[]
+  pageViews VisitorPageView[]
+
+  @@index([visitorId])
+  @@index([userId])
+  @@index([lastSeenAt])
+  @@index([country])
+  @@index([deviceType])
+  @@map("visitor_logs")
+}
+
+model VisitorSession {
+  id              String    @id @default(uuid()) @db.Uuid
+  visitorLogId    String    @db.Uuid
+  visitorId       String
+  startedAt       DateTime  @default(now())
+  lastPingAt      DateTime  @default(now())
+  endedAt         DateTime?
+  durationSeconds Int       @default(0)
+  entryPage       String    @default("/")
+  exitPage        String?
+  referrer        String?
+  referrerSource  String    @default("Direct") // Direct, Google, Facebook, Instagram, WhatsApp, TikTok, LinkedIn, Other
+  utmSource       String?
+  utmMedium       String?
+  utmCampaign     String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  visitor   VisitorLog        @relation(fields: [visitorLogId], references: [id], onDelete: Cascade)
+  pageViews VisitorPageView[]
+
+  @@index([visitorLogId])
+  @@index([visitorId])
+  @@index([startedAt])
+  @@index([lastPingAt])
+  @@index([referrerSource])
+  @@map("visitor_sessions")
+}
+
+model VisitorPageView {
+  id              String   @id @default(uuid()) @db.Uuid
+  visitorLogId    String   @db.Uuid
+  sessionId       String?  @db.Uuid
+  visitorId       String
+  page            String
+  pageTitle       String?
+  referrer        String?
+  viewedAt        DateTime @default(now())
+  durationSeconds Int      @default(0)
+
+  visitor VisitorLog      @relation(fields: [visitorLogId], references: [id], onDelete: Cascade)
+  session VisitorSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([visitorLogId])
+  @@index([sessionId])
+  @@index([visitorId])
+  @@index([page])
+  @@index([viewedAt])
+  @@map("visitor_page_views")
+}
+
 

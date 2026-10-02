@@ -3,6 +3,7 @@ import type { SubscriptionPlanCode } from '@/modules/subscriptions/types'
 export type AdminSidebarSection =
   // Group 1: Platform
   | 'overview'
+  | 'analytics'
   | 'users'
   | 'verifications'
   | 'deals'

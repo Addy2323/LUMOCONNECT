@@ -165,3 +165,231 @@ export interface InternationalInquiry {
   status: 'NEW' | 'CONTACTED' | 'INTRODUCED' | 'CLOSED'
   createdAt: string
 }
+
+// ============================================================================
+// ADMIN INTERNATIONAL DEALS & OPPORTUNITIES SPECIFICATION TYPES
+// ============================================================================
+
+export type InternationalDealType =
+  | 'Sales Deal'
+  | 'Advertising Campaign'
+  | 'Affiliate Program'
+  | 'Customer Acquisition'
+  | 'Lead Generation'
+  | 'B2B Opportunity'
+  | 'Distributor Opportunity'
+  | 'Supplier Opportunity'
+  | 'Sourcing Opportunity'
+  | 'Product Opportunity'
+  | 'Service Opportunity'
+  | 'Travel Opportunity'
+  | 'Property Opportunity'
+  | 'SaaS Opportunity'
+  | 'Event Promotion'
+  | 'Business Introduction'
+  | 'Franchise Opportunity'
+  | 'Import Opportunity'
+  | 'Export Opportunity'
+  | 'Other'
+
+export type InternationalDealStatus =
+  | 'DRAFT'
+  | 'PENDING_VERIFICATION'
+  | 'VERIFIED'
+  | 'SCHEDULED'
+  | 'PUBLISHED'
+  | 'ACTIVE'
+  | 'PAUSED'
+  | 'ENDED'
+  | 'EXPIRED'
+  | 'REJECTED'
+  | 'ARCHIVED'
+
+export type InternationalVerificationStatus =
+  | 'UNVERIFIED'
+  | 'UNDER_REVIEW'
+  | 'VERIFIED'
+  | 'EXPIRED'
+  | 'REVOKED'
+
+export type InternationalRewardType =
+  | 'FIXED'
+  | 'PERCENTAGE'
+  | 'CPA'
+  | 'CPL'
+  | 'RECURRING'
+  | 'BOUNTY'
+  | 'MILESTONE'
+  | 'HYBRID'
+
+export type InternationalCurrency =
+  | 'USD'
+  | 'TZS'
+  | 'EUR'
+  | 'GBP'
+  | 'KES'
+  | 'UGX'
+  | 'ZAR'
+  | 'AED'
+  | 'CNY'
+  | 'INR'
+
+export interface MilestoneBonusRule {
+  targetCount: number
+  bonusAmount: number
+  currency: string
+}
+
+export interface InternationalRewardStructure {
+  rewardType: InternationalRewardType
+  currency: InternationalCurrency
+  fixedReward?: number
+  commissionRate?: number
+  cpaAmount?: number
+  cplAmount?: number
+  recurringRate?: number
+  recurringDurationMonths?: number
+  milestoneBonusRules?: MilestoneBonusRule[]
+  hybridSummary?: string
+  displayLabel?: string
+}
+
+export interface InternationalPartnerRequirements {
+  eligibilityMode: 'OPEN' | 'RESTRICTED' | 'INVITATION_ONLY' | 'REGION_RESTRICTED'
+  partnerTypes: string[]
+  minFollowers?: number
+  minPartnerScore?: number
+  requireKYC: boolean
+  requireKYB: boolean
+  allowedCountries?: string[]
+  socialPlatforms?: string[]
+}
+
+export interface InternationalTrackingConfig {
+  trackingMethod: 'LINK' | 'PROMO_CODE' | 'QR_CODE' | 'UTM' | 'API' | 'MANUAL'
+  destinationUrl?: string
+  campaignCode?: string
+  promoCode?: string
+  utmSource?: string
+  utmMedium?: string
+  utmCampaign?: string
+}
+
+export interface InternationalVerificationDetails {
+  sourceType:
+    | 'Direct brand relationship'
+    | 'Official company website'
+    | 'Partner agency'
+    | 'Authorized representative'
+    | 'Verified business contact'
+    | 'Public commercial source'
+    | 'Internal LUMO sourcing'
+  sourceUrl?: string
+  contactPersonName?: string
+  contactPersonEmail?: string
+  contactPersonPhone?: string
+  verificationStatus: InternationalVerificationStatus
+  verifiedByAdminId?: string
+  verifiedAt?: string
+  lastCheckedAt?: string
+}
+
+export interface AdminInternationalDealItem {
+  id: string
+  reference: string // e.g. LUMO-INT-DEAL-00892
+  title: string
+  shortDescription: string
+  fullDescription: string
+  imageUrl?: string
+  dealType: InternationalDealType
+  originCountryCode: string // e.g. 'AE'
+  originCountryName: string // e.g. 'United Arab Emirates'
+  originCountryFlag: string // 🇦🇪
+  targetCountryCode: string // e.g. 'TZ'
+  targetCountryName: string // e.g. 'Tanzania'
+  targetCountryFlag: string // 🇹🇿
+  targetRegion: string // 'East Africa' | 'Africa' | 'Global'
+  targetCities?: string[]
+  remoteOnline: boolean
+  crossBorder: boolean
+  dealLanguage: string
+  requiredOutcome: string
+  successCondition: string
+  rewardStructure: InternationalRewardStructure
+  partnerRequirements: InternationalPartnerRequirements
+  trackingConfig: InternationalTrackingConfig
+  verificationDetails: InternationalVerificationDetails
+  status: InternationalDealStatus
+  isFeatured: boolean
+  isTrending: boolean
+  publishedAt?: string
+  scheduledAt?: string
+  expiresAt?: string
+  maxPartnersAllowed?: number
+  activePartnerCount: number
+  totalApplicationsCount: number
+  totalConversionsCount: number
+  totalRevenueGeneratedUSD: number
+  totalRewardsPaidUSD: number
+  lumoFeesEarnedUSD: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateInternationalDealWizardInput {
+  title: string
+  shortDescription: string
+  fullDescription: string
+  imageUrl?: string
+  dealType: InternationalDealType
+  originCountryCode: string
+  originCountryName: string
+  targetCountryCode: string
+  targetCountryName: string
+  targetRegion: string
+  targetCities?: string[]
+  remoteOnline: boolean
+  crossBorder: boolean
+  dealLanguage: string
+  requiredOutcome: string
+  successCondition: string
+  rewardStructure: InternationalRewardStructure
+  partnerRequirements: InternationalPartnerRequirements
+  trackingConfig: InternationalTrackingConfig
+  verificationDetails: InternationalVerificationDetails
+  scheduledAt?: string
+  expiresAt?: string
+  maxPartnersAllowed?: number
+  isFeatured?: boolean
+  isTrending?: boolean
+}
+
+export type InternationalApplicationStatus =
+  | 'NEW'
+  | 'UNDER_REVIEW'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'WAITLISTED'
+  | 'WITHDRAWN'
+  | 'SUSPENDED'
+
+export interface InternationalApplicationItem {
+  id: string
+  dealId: string
+  dealReference: string
+  dealTitle: string
+  partnerUserId: string
+  partnerName: string
+  partnerEmail: string
+  partnerPhone?: string
+  partnerCountry: string
+  partnerScore: number
+  completedDealsCount: number
+  socialFollowersCount?: number
+  applicationNote?: string
+  status: InternationalApplicationStatus
+  reviewedByAdminId?: string
+  reviewedAt?: string
+  createdAt: string
+}
+

@@ -10,25 +10,50 @@ describe('public recent earners', () => {
     expect((await (await GET()).json()).items).toEqual([])
   })
   it('returns only safe fields and converts actual minor units', async () => {
-    mocks.rewards.mockResolvedValue([{ id: 'reward-a', netAmountMinor: 5000000n, currency: 'TZS', approvedAt: new Date('2026-09-16T09:00:00Z'), partnerUser: { phone: '+255712345678' } }])
+    mocks.rewards.mockResolvedValue([{
+      id: 'reward-a',
+      netAmountMinor: 5000000n,
+      currency: 'TZS',
+      status: 'PAID',
+      approvedAt: new Date('2026-09-16T09:00:00Z'),
+      partnerUser: { name: 'Ado N', phone: '+255712345678', partnerProfile: { handle: null } },
+      conversion: { opportunity: { title: 'Sports Campaign', opportunityType: 'PRODUCT_SALES', marketScope: 'LOCAL', category: { name: 'Sports' } } },
+    }])
     const response = await GET()
     const body = await response.json()
-    expect(body.items).toEqual([{ id: 'reward-a', maskedIdentity: 'Partner ********5678', amount: 50000, currency: 'TZS', category: 'Business Opportunity', earnedAt: '2026-09-16T09:00:00.000Z' }])
+    expect(body.items).toEqual([{
+      id: 'reward-a',
+      maskedIdentity: 'A****N',
+      amount: 50000,
+      currency: 'TZS',
+      category: 'Sports',
+      dealTitle: 'Sports Campaign',
+      dealType: 'LOCAL',
+      status: 'PAID',
+      earnedAt: '2026-09-16T09:00:00.000Z',
+    }])
     expect(JSON.stringify(body)).not.toContain('+255712345678')
     expect(JSON.stringify(body)).not.toContain('partnerUser')
   })
   it('filters reversed, unverified, deleted and opted-out records at the database and orders newest first', async () => {
     await GET()
     expect(mocks.rewards).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({ status: { in: ['APPROVED', 'PAYABLE', 'PAID'] }, approvedAt: { not: null }, netAmountMinor: { gt: 0n, gte: 0n }, conversion: { status: { in: ['APPROVED', 'PAYABLE', 'PAID'] } }, partnerUser: { deletedAt: null, accountStatus: 'ACTIVE', partnerProfile: { is: { publicEarningsOptOut: false } } } }),
-      orderBy: [{ approvedAt: 'desc' }, { id: 'desc' }], take: 20,
+      where: expect.objectContaining({
+        status: { in: ['PAID'] },
+        showInPublicEarningsFeed: true,
+        approvedAt: { not: null },
+        netAmountMinor: { gt: 0n },
+        conversion: { status: { in: ['APPROVED', 'PAYABLE', 'PAID'] } },
+        partnerUser: { deletedAt: null, accountStatus: 'ACTIVE', partnerProfile: { is: { publicEarningsOptOut: false } } },
+      }),
+      orderBy: [{ approvedAt: 'desc' }, { id: 'desc' }],
+      take: 20,
     }))
   })
-  it('supports paid-only mode and configurable query bounds', async () => {
-    mocks.config.mockResolvedValue({ mode: 'PAID', minimumTZS: 10000, maximumCards: 7 })
+  it('supports configurable query bounds and modes', async () => {
+    mocks.config.mockResolvedValue({ mode: 'APPROVED', minimumTZS: 10000, maximumCards: 7 })
     await GET()
-    expect(mocks.rewards.mock.calls[0][0].where.status).toEqual({ in: ['PAID'] })
-    expect(mocks.rewards.mock.calls[0][0].where.netAmountMinor.gte).toBe(1000000n)
+    expect(mocks.rewards.mock.calls[0][0].where.status).toEqual({ in: ['APPROVED', 'PAYABLE', 'PAID'] })
     expect(mocks.rewards.mock.calls[0][0].take).toBe(7)
   })
   it('does not query earnings when disabled', async () => {
@@ -40,12 +65,12 @@ describe('public recent earners', () => {
     mocks.rewards.mockRejectedValue(new Error('private database details'))
     const response = await GET()
     expect(response.status).toBe(503)
-    expect(await response.json()).toEqual({ items: [], error: 'Recent earnings unavailable' })
+    expect(await response.json()).toEqual({ items: [], error: 'Recent earnings feed temporarily unavailable' })
   })
-  it('masks identities without fallback phone numbers', () => {
-    expect(maskEarner(null, 4)).toBe('Partner')
-    expect(maskEarner('1234', 4)).toBe('Partner')
-    expect(maskEarner('+255712345678', 3)).toBe('Partner ********678')
+  it('masks identities appropriately', () => {
+    expect(maskEarner(null, 4)).toBe('A****8')
+    expect(maskEarner('+255712345678', 4)).toBe('A****8')
+    expect(maskEarner('Ado Nyerere', 4)).toBe('A****N')
   })
   it('calculates relative time from the earning timestamp', () => {
     expect(earningsTimeAgo('2026-09-16T09:00:00Z', Date.parse('2026-09-16T09:08:00Z'))).toBe('8 min ago')

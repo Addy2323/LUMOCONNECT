@@ -1,13 +1,21 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
+import { Suspense } from 'react'
 import './globals.css'
 import '@/lib/domGuard'
 import { ClientDomGuard } from '@/components/common/ClientDomGuard'
 import { ThemeProvider } from '@/components/theme/ThemeProvider'
 import { LanguageProvider } from '@/lib/i18n'
 import { PwaRoot } from '@/components/pwa/PwaRoot'
+import { AnalyticsTracker } from '@/components/analytics/AnalyticsTracker'
+
+const defaultBaseUrl =
+  process.env.NEXT_PUBLIC_APP_URL ||
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  'https://lumoconnect.com'
 
 export const metadata: Metadata = {
+  metadataBase: new URL(defaultBaseUrl),
   title: 'LUMO — Discover. Connect. Perform. Earn.',
   description: 'The deals and opportunities marketplace for verified partners.',
   generator: 'LUMO by LotusRise',
@@ -57,6 +65,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <ThemeProvider>
           <LanguageProvider>
             <PwaRoot>
+              <Suspense fallback={null}>
+                <AnalyticsTracker />
+              </Suspense>
               {children}
             </PwaRoot>
           </LanguageProvider>
@@ -66,3 +77,4 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     </html>
   )
 }
+

@@ -40,7 +40,8 @@ export function DealMediaViewer({
       <iframe
         src={vInfo.embedUrl}
         title={altTitle}
-        className={`w-full h-full border-0 ${className}`}
+        className={`w-full h-full border-0 overflow-hidden ${className}`}
+        scrolling="no"
         allow="autoplay; accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
         allowFullScreen
       />

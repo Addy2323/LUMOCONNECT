@@ -25,6 +25,11 @@ import {
   Calendar,
   DollarSign,
   TrendingUp,
+  Download,
+  FileCheck,
+  Briefcase,
+  Users,
+  Handshake,
 } from 'lucide-react'
 import {
   InternationalSubmission,
@@ -39,6 +44,10 @@ import { formatCurrencyValue, ISO_COUNTRIES } from '@/modules/international/coun
 type InternationalSubTab =
   | 'overview'
   | 'submissions'
+  | 'business_sales'
+  | 'investor_mandates'
+  | 'jv_requests'
+  | 'introductions_ndas'
   | 'verification'
   | 'published'
   | 'members'
@@ -57,6 +66,11 @@ export function AdminInternationalDeskTab() {
   const [published, setPublished] = useState<InternationalOpportunity[]>([])
   const [memberships, setMemberships] = useState<InternationalMembership[]>([])
   const [inquiries, setInquiries] = useState<InternationalInquiry[]>([])
+  const [businessSales, setBusinessSales] = useState<any[]>([])
+  const [investorProfiles, setInvestorProfiles] = useState<any[]>([])
+  const [ndas, setNdas] = useState<any[]>([])
+  const [introductions, setIntroductions] = useState<any[]>([])
+  const [jvRequests, setJvRequests] = useState<any[]>([])
   const [stats, setStats] = useState<{
     activeCountriesCount: number
     opportunitiesCount: number
@@ -105,6 +119,11 @@ export function AdminInternationalDeskTab() {
           setPublished(data.published || [])
           setMemberships(data.memberships || [])
           setInquiries(data.inquiries || [])
+          setBusinessSales(data.businessSales || [])
+          setInvestorProfiles(data.investorProfiles || [])
+          setNdas(data.ndas || [])
+          setIntroductions(data.introductions || [])
+          setJvRequests(data.jvRequests || [])
           if (data.stats) setStats(data.stats)
         }
       }
@@ -279,11 +298,15 @@ export function AdminInternationalDeskTab() {
   }
 
   const SUB_TABS: { id: InternationalSubTab; label: string; badge?: number }[] = [
-    { id: 'overview', label: 'International Overview' },
-    { id: 'submissions', label: 'Submissions', badge: statusCounts.submitted || undefined },
+    { id: 'overview', label: 'Overview' },
+    { id: 'submissions', label: 'Opportunity Submissions', badge: submissions.length || undefined },
+    { id: 'business_sales', label: 'Businesses for Sale', badge: businessSales.length || undefined },
+    { id: 'investor_mandates', label: 'Investor Mandates', badge: investorProfiles.length || undefined },
+    { id: 'jv_requests', label: 'JV Requests', badge: jvRequests.length || undefined },
+    { id: 'introductions_ndas', label: 'Introductions & NDAs', badge: (introductions.length || 0) + (ndas.length || 0) || undefined },
     { id: 'verification', label: 'Verification Queue', badge: (statusCounts.under_review || 0) + (statusCounts.info_required || 0) || undefined },
     { id: 'published', label: 'Published Opportunities', badge: published.length || undefined },
-    { id: 'members', label: 'International Members', badge: memberships.length || undefined },
+    { id: 'members', label: 'Private Members', badge: memberships.length || undefined },
     { id: 'subscriptions', label: 'Subscriptions' },
     { id: 'countries', label: 'Countries' },
     { id: 'communications', label: 'Communications' },
@@ -502,6 +525,15 @@ export function AdminInternationalDeskTab() {
                   {st.replace(/_/g, ' ')}
                 </button>
               ))}
+              <a
+                href="/api/admin/international/export?format=csv"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs whitespace-nowrap"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Export CSV
+              </a>
             </div>
           </div>
 
@@ -591,6 +623,278 @@ export function AdminInternationalDeskTab() {
                         </tr>
                       )
                     })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2B. BUSINESSES FOR SALE SUBTAB */}
+      {activeSubTab === 'business_sales' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+              Submitted Businesses for Sale ({businessSales.length})
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-800 text-[10px] font-black uppercase tracking-wider text-slate-400 bg-slate-50 dark:bg-slate-800/50">
+                    <th className="py-3 px-4">Business / Teaser Title</th>
+                    <th className="py-3 px-4">Country & Sector</th>
+                    <th className="py-3 px-4">Asking Valuation</th>
+                    <th className="py-3 px-4">Revenue / EBITDA</th>
+                    <th className="py-3 px-4">Reason for Sale</th>
+                    <th className="py-3 px-4">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
+                  {businessSales.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-8 text-center text-slate-400">
+                        No business sale listings submitted yet.
+                      </td>
+                    </tr>
+                  ) : (
+                    businessSales.map((b) => (
+                      <tr key={b.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50">
+                        <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">
+                          {b.businessName}
+                          {b.isConfidential && (
+                            <span className="ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                              Confidential
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="font-bold">{b.countryCode}</span> &bull; {b.sector}
+                        </td>
+                        <td className="py-3 px-4 font-bold text-[#FF6A00]">
+                          {formatCurrencyValue(b.indicativeValuationMinor, b.currency)}
+                        </td>
+                        <td className="py-3 px-4 text-slate-600 dark:text-slate-400">
+                          Rev: {b.annualRevenueMinor ? formatCurrencyValue(b.annualRevenueMinor, b.currency) : 'N/A'} | EBITDA: {b.ebitdaMinor ? formatCurrencyValue(b.ebitdaMinor, b.currency) : 'N/A'}
+                        </td>
+                        <td className="py-3 px-4 text-slate-500 max-w-xs truncate">
+                          {b.reasonForSale || 'Not specified'}
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                            {b.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2C. INVESTOR MANDATES SUBTAB */}
+      {activeSubTab === 'investor_mandates' && (
+        <div className="space-y-4">
+          <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+            Registered Investor Mandates & Profiles ({investorProfiles.length})
+          </div>
+
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-800 text-[10px] font-black uppercase tracking-wider text-slate-400 bg-slate-50 dark:bg-slate-800/50">
+                    <th className="py-3 px-4">Entity / Project Name</th>
+                    <th className="py-3 px-4">Investor Type</th>
+                    <th className="py-3 px-4">Country</th>
+                    <th className="py-3 px-4">Ticket Range (Min - Max)</th>
+                    <th className="py-3 px-4">Preferred Sectors</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
+                  {investorProfiles.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-8 text-center text-slate-400">
+                        No investor mandates registered yet.
+                      </td>
+                    </tr>
+                  ) : (
+                    investorProfiles.map((ip) => (
+                      <tr key={ip.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50">
+                        <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">
+                          {ip.entityName}
+                        </td>
+                        <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">
+                          {ip.investorType}
+                        </td>
+                        <td className="py-3 px-4 font-bold">{ip.countryCode}</td>
+                        <td className="py-3 px-4 font-bold text-[#FF6A00]">
+                          {formatCurrencyValue(ip.minTicketMinor, ip.currency)} - {formatCurrencyValue(ip.maxTicketMinor, ip.currency)}
+                        </td>
+                        <td className="py-3 px-4 text-slate-500">
+                          {Array.isArray(ip.preferredSectors) ? ip.preferredSectors.join(', ') : 'All Sectors'}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2D. JV REQUESTS SUBTAB */}
+      {activeSubTab === 'jv_requests' && (
+        <div className="space-y-4">
+          <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+            Submitted Joint Venture (JV) Opportunities ({jvRequests.length})
+          </div>
+
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-800 text-[10px] font-black uppercase tracking-wider text-slate-400 bg-slate-50 dark:bg-slate-800/50">
+                    <th className="py-3 px-4">Company Name</th>
+                    <th className="py-3 px-4">Origin Country & Sector</th>
+                    <th className="py-3 px-4">Capital Committed</th>
+                    <th className="py-3 px-4">Target Project / Mandate</th>
+                    <th className="py-3 px-4">Partner Type Required</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
+                  {jvRequests.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-8 text-center text-slate-400">
+                        No JV requests submitted yet.
+                      </td>
+                    </tr>
+                  ) : (
+                    jvRequests.map((jv) => (
+                      <tr key={jv.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50">
+                        <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">
+                          {jv.companyName}
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="font-bold">{jv.countryCode}</span> &bull; {jv.sector}
+                        </td>
+                        <td className="py-3 px-4 font-bold text-[#FF6A00]">
+                          {formatCurrencyValue(jv.capitalAvailableMinor, jv.currency)}
+                        </td>
+                        <td className="py-3 px-4 text-slate-700 dark:text-slate-300 font-medium">
+                          {jv.targetProject}
+                        </td>
+                        <td className="py-3 px-4 text-slate-500">
+                          {jv.partnerType} ({jv.partnerCountryRequired})
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2E. INTRODUCTIONS & NDAS SUBTAB */}
+      {activeSubTab === 'introductions_ndas' && (
+        <div className="space-y-6">
+          <div className="space-y-3">
+            <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+              Introduction Referrals ({introductions.length})
+            </div>
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-800 text-[10px] font-black uppercase tracking-wider text-slate-400 bg-slate-50 dark:bg-slate-800/50">
+                    <th className="py-3 px-4">Ref Number</th>
+                    <th className="py-3 px-4">Investor Lead Name</th>
+                    <th className="py-3 px-4">Country & Type</th>
+                    <th className="py-3 px-4">Estimated Budget</th>
+                    <th className="py-3 px-4">Stage</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
+                  {introductions.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-6 text-center text-slate-400">
+                        No introduction referrals recorded yet.
+                      </td>
+                    </tr>
+                  ) : (
+                    introductions.map((intro) => (
+                      <tr key={intro.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50">
+                        <td className="py-3 px-4 font-mono font-bold text-[#FF6A00]">
+                          {intro.introductionNumber}
+                        </td>
+                        <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">
+                          {intro.investorLeadName}
+                        </td>
+                        <td className="py-3 px-4">
+                          {intro.investorCountry} &bull; {intro.investorType}
+                        </td>
+                        <td className="py-3 px-4 font-bold text-emerald-600">
+                          {formatCurrencyValue(intro.estimatedCapacityMinor, intro.currency)}
+                        </td>
+                        <td className="py-3 px-4 font-bold text-slate-600">
+                          {intro.stage}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+              Executed Non-Disclosure Agreements (NDAs) ({ndas.length})
+            </div>
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-800 text-[10px] font-black uppercase tracking-wider text-slate-400 bg-slate-50 dark:bg-slate-800/50">
+                    <th className="py-3 px-4">Signer Name</th>
+                    <th className="py-3 px-4">Signer Email</th>
+                    <th className="py-3 px-4">Executed Date</th>
+                    <th className="py-3 px-4">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
+                  {ndas.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="py-6 text-center text-slate-400">
+                        No NDAs executed yet.
+                      </td>
+                    </tr>
+                  ) : (
+                    ndas.map((nda) => (
+                      <tr key={nda.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50">
+                        <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">
+                          {nda.buyerUser?.name || 'Registered User'}
+                        </td>
+                        <td className="py-3 px-4 text-slate-600 dark:text-slate-400">
+                          {nda.buyerUser?.email || nda.buyerUserId}
+                        </td>
+                        <td className="py-3 px-4 text-slate-500">
+                          {new Date(nda.signedAt).toLocaleString()}
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                            {nda.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
                   )}
                 </tbody>
               </table>
@@ -888,12 +1192,23 @@ export function AdminInternationalDeskTab() {
                   {reviewCase.title}
                 </h3>
               </div>
-              <button
-                onClick={() => setReviewCase(null)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                <a
+                  href={`/api/admin/international/export?format=html&id=${reviewCase.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all shadow-xs"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Download PDF Dossier
+                </a>
+                <button
+                  onClick={() => setReviewCase(null)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             {/* Drawer Body */}
@@ -931,6 +1246,58 @@ export function AdminInternationalDeskTab() {
                   {reviewCase.description}
                 </div>
               </div>
+
+              {/* What Needed from LUMO */}
+              {reviewCase.whatNeededFromLumo && (
+                <div>
+                  <div className="text-xs font-bold text-[#FF6A00] mb-1">
+                    What is Needed From LUMO Intermediary Desk
+                  </div>
+                  <div className="p-3 bg-orange-50/50 dark:bg-orange-950/20 border border-orange-100 dark:border-orange-900/30 rounded-xl text-xs text-slate-700 dark:text-slate-300">
+                    {reviewCase.whatNeededFromLumo}
+                  </div>
+                </div>
+              )}
+
+              {/* Website link if provided */}
+              {reviewCase.website && (
+                <div className="text-xs">
+                  <span className="text-slate-400">Official Website: </span>
+                  <a
+                    href={reviewCase.website.startsWith('http') ? reviewCase.website : `https://${reviewCase.website}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-bold text-[#FF6A00] underline"
+                  >
+                    {reviewCase.website}
+                  </a>
+                </div>
+              )}
+
+              {/* Attached Files & Documents */}
+              {reviewCase.documents && reviewCase.documents.length > 0 && (
+                <div className="space-y-1.5">
+                  <div className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                    <span>Attached Submission Files ({reviewCase.documents.length})</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {reviewCase.documents.map((doc, idx) => (
+                      <a
+                        key={idx}
+                        href={doc}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl flex items-center justify-between hover:border-[#FF6A00] transition-colors group"
+                      >
+                        <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300 truncate max-w-[200px]">
+                          Document #{idx + 1} ({doc.split('/').pop()})
+                        </span>
+                        <Download className="w-4 h-4 text-slate-400 group-hover:text-[#FF6A00]" />
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Contact Actions */}
               <div className="p-4 bg-emerald-50/50 dark:bg-emerald-950/20 rounded-2xl border border-emerald-200 dark:border-emerald-900/40 flex flex-col sm:flex-row items-center justify-between gap-3">

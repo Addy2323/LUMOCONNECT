@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { checkAdminSession } from '@/lib/admin-session'
 import { db } from '@/lib/db'
 import { getDatabaseSession, DATABASE_SESSION_COOKIE } from '@/lib/database-session'
+import { invalidateDeals } from '@/lib/cache/invalidate'
 
 export async function GET(request: NextRequest) {
   const denied = await checkAdminSession(request)
@@ -284,6 +285,8 @@ export async function PATCH(request: NextRequest) {
 
       return updated
     })
+
+    invalidateDeals(updatedOpp.id, updatedOpp.slug)
 
     return NextResponse.json({ success: true, deal: { id: updatedOpp.id, status: updatedOpp.status } })
   } catch (err: any) {

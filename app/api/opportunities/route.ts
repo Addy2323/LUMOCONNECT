@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { db } from '@/lib/db'
+import { getCacheHeaders, NO_STORE_HEADERS } from '@/lib/cache/policies'
 
 export async function GET(request: NextRequest) {
   try {
@@ -145,15 +146,21 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    return NextResponse.json({
-      success: true,
-      total: formatted.length,
-      data: formatted,
-      opportunities: formatted,
-    })
+    return NextResponse.json(
+      {
+        success: true,
+        total: formatted.length,
+        data: formatted,
+        opportunities: formatted,
+      },
+      { headers: getCacheHeaders({ policy: 'PUBLIC_SHORT' }) }
+    )
   } catch (error: unknown) {
     console.error('GET /api/opportunities error:', error)
     const message = error instanceof Error ? error.message : 'Failed to retrieve opportunities'
-    return NextResponse.json({ success: false, error: message }, { status: 500 })
+    return NextResponse.json(
+      { success: false, error: message },
+      { status: 500, headers: NO_STORE_HEADERS }
+    )
   }
 }

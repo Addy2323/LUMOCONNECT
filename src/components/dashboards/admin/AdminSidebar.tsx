@@ -3,6 +3,7 @@
 import React, { useEffect } from 'react'
 import {
   Home,
+  Eye,
   Users,
   ShieldCheck,
   Briefcase,
@@ -96,6 +97,7 @@ function getNavGroups({
       title: 'PLATFORM',
       items: [
         { id: 'overview', label: 'Overview', icon: Home, opType: 'Read/Monitor' },
+        { id: 'analytics', label: 'Visitor Analytics', icon: Eye, opType: 'Live Traffic Monitoring' },
         { id: 'users', label: 'Users & Access', icon: Users, opType: 'C/R/U/Archive' },
         { id: 'verifications', label: 'Business Verification', icon: ShieldCheck, badge: pendingVerificationsCount > 0 ? pendingVerificationsCount : undefined, badgeColor: 'bg-orange-100 text-[#FF6A00]', opType: 'Review Workflow' },
         { id: 'deals', label: 'Deals & Opportunities', icon: Briefcase, opType: 'C/R/U/Archive' },

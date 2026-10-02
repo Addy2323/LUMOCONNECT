@@ -30,6 +30,7 @@ import { BusinessSaleModal } from './BusinessSaleModal'
 import { InvestorReferralModal } from './InvestorReferralModal'
 import { NdaModal } from './NdaModal'
 import { TrendingUp, Users, UserCheck } from 'lucide-react'
+import { InternationalMarketplaceView } from '@/src/components/marketplace/InternationalMarketplaceView'
 
 interface InternationalLandingViewProps {
   currentUserId?: string
@@ -84,6 +85,9 @@ export function InternationalLandingView({
   const [selectedCountry, setSelectedCountry] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('')
   const [selectedCurrency, setSelectedCurrency] = useState('')
+
+  // Tab State for Unified Marketplace
+  const [activeMarketplaceTab, setActiveMarketplaceTab] = useState<'admin_deals' | 'community'>('admin_deals')
 
   const fetchOpportunities = async () => {
     try {
@@ -386,176 +390,233 @@ export function InternationalLandingView({
         </div>
       </section>
 
-      {/* SEARCH & FILTER TOOLBAR */}
-      <section id="marketplace-catalog" className="py-4 px-4 sm:px-6 max-w-6xl mx-auto">
-        <div className="p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-3">
-          <div className="flex flex-col md:flex-row gap-3">
-            {/* Search Bar */}
-            <div className="relative flex-1">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="Search global opportunities, keywords, references..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
-              />
-            </div>
-
-            {/* Country Selector */}
-            <select
-              value={selectedCountry}
-              onChange={(e) => setSelectedCountry(e.target.value)}
-              className="px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
-            >
-              <option value="">All Countries</option>
-              {ISO_COUNTRIES.map((c) => (
-                <option key={c.code} value={c.code}>
-                  {c.flag} {c.name}
-                </option>
-              ))}
-            </select>
-
-            {/* Currency Selector */}
-            <select
-              value={selectedCurrency}
-              onChange={(e) => setSelectedCurrency(e.target.value)}
-              className="px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
-            >
-              <option value="">All Currencies</option>
-              <option value="USD">USD ($)</option>
-              <option value="EUR">EUR (€)</option>
-              <option value="GBP">GBP (£)</option>
-              <option value="AED">AED</option>
-              <option value="KES">KES</option>
-              <option value="TZS">TZS</option>
-              <option value="ZAR">ZAR</option>
-            </select>
-
-            {/* Refresh */}
+      {/* UNIFIED INTERNATIONAL MARKETPLACE TAB CONTAINER */}
+      <section id="marketplace-catalog" className="pt-8 pb-4 px-4 sm:px-6 max-w-6xl mx-auto">
+        <div className="flex flex-col sm:flex-row items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2 mb-6 gap-3">
+          <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
             <button
-              onClick={fetchOpportunities}
-              className="px-3 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-1.5 text-slate-600 dark:text-slate-300 cursor-pointer"
-              title="Refresh Opportunities"
+              type="button"
+              onClick={() => setActiveMarketplaceTab('admin_deals')}
+              className={`py-2.5 px-4 text-xs sm:text-sm font-bold border-b-2 flex items-center gap-2 transition cursor-pointer ${
+                activeMarketplaceTab === 'admin_deals'
+                  ? 'border-[#FF6A00] text-[#FF6A00]'
+                  : 'border-transparent text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
+              }`}
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-              Sync
+              <ShieldCheck className="w-4 h-4 text-[#FF6A00]" />
+              <span>Verified Admin Deals</span>
+              <span className="px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-950/60 text-[#FF6A00] text-[10px] font-mono font-bold">
+                Guaranteed Payouts
+              </span>
             </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveMarketplaceTab('community')}
+              className={`py-2.5 px-4 text-xs sm:text-sm font-bold border-b-2 flex items-center gap-2 transition cursor-pointer ${
+                activeMarketplaceTab === 'community'
+                  ? 'border-[#FF6A00] text-[#FF6A00]'
+                  : 'border-transparent text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
+              }`}
+            >
+              <Globe className="w-4 h-4 text-cyan-400" />
+              <span>Member Opportunities</span>
+              <span className="px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[10px] font-mono">
+                {opportunities.length}
+              </span>
+            </button>
+          </div>
+
+          <div className="text-xs text-slate-500 font-medium hidden sm:block">
+            {activeMarketplaceTab === 'admin_deals'
+              ? 'Admin-vetted opportunities with direct commercial rewards'
+              : 'Community-submitted cross-border requests & partnerships'}
           </div>
         </div>
       </section>
 
-      {/* OPPORTUNITIES CATALOG GRID */}
-      <section className="py-6 px-4 sm:px-6 max-w-6xl mx-auto">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-2">
-          <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-            {opportunities.length} Approved International Opportunities
-          </div>
-          {!isMember && (
-            <button
-              onClick={() => setSubscriptionModalOpen(true)}
-              className="text-xs font-bold text-[#FF6A00] hover:underline flex items-center gap-1"
-            >
-              <Lock className="w-3 h-3" />
-              Unlock Full Details with International Private Access
-            </button>
-          )}
-        </div>
+      {/* TAB CONTENT: ADMIN DEALS */}
+      {activeMarketplaceTab === 'admin_deals' && (
+        <section className="pb-12 px-4 sm:px-6 max-w-6xl mx-auto">
+          <InternationalMarketplaceView />
+        </section>
+      )}
 
-        {loading ? (
-          <div className="py-20 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
-            <RefreshCw className="w-4 h-4 animate-spin text-[#FF6A00]" />
-            Loading international opportunities...
-          </div>
-        ) : opportunities.length === 0 ? (
-          <div className="py-16 text-center bg-white dark:bg-slate-900 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800 space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-orange-50 dark:bg-orange-950/30 text-[#FF6A00] flex items-center justify-center mx-auto">
-              <Globe className="w-6 h-6" />
+      {/* TAB CONTENT: MEMBER & COMMUNITY OPPORTUNITIES */}
+      {activeMarketplaceTab === 'community' && (
+        <>
+          {/* SEARCH & FILTER TOOLBAR */}
+          <section className="py-2 px-4 sm:px-6 max-w-6xl mx-auto">
+            <div className="p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-3">
+              <div className="flex flex-col md:flex-row gap-3">
+                {/* Search Bar */}
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    placeholder="Search global opportunities, keywords, references..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-9 pr-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+                  />
+                </div>
+
+                {/* Country Selector */}
+                <select
+                  value={selectedCountry}
+                  onChange={(e) => setSelectedCountry(e.target.value)}
+                  className="px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+                >
+                  <option value="">All Countries</option>
+                  {ISO_COUNTRIES.map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.flag} {c.name}
+                    </option>
+                  ))}
+                </select>
+
+                {/* Currency Selector */}
+                <select
+                  value={selectedCurrency}
+                  onChange={(e) => setSelectedCurrency(e.target.value)}
+                  className="px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+                >
+                  <option value="">All Currencies</option>
+                  <option value="USD">USD ($)</option>
+                  <option value="EUR">EUR (€)</option>
+                  <option value="GBP">GBP (£)</option>
+                  <option value="AED">AED</option>
+                  <option value="KES">KES</option>
+                  <option value="TZS">TZS</option>
+                  <option value="ZAR">ZAR</option>
+                </select>
+
+                {/* Refresh */}
+                <button
+                  onClick={fetchOpportunities}
+                  className="px-3 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-1.5 text-slate-600 dark:text-slate-300 cursor-pointer"
+                  title="Refresh Opportunities"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+                  Sync
+                </button>
+              </div>
             </div>
-            <div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                No International Opportunities Found
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto">
-                No live opportunities currently match your search criteria. Be the first to submit a cross-border opportunity to LUMO!
-              </p>
+          </section>
+
+          {/* OPPORTUNITIES CATALOG GRID */}
+          <section className="py-6 px-4 sm:px-6 max-w-6xl mx-auto">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-2">
+              <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                {opportunities.length} Approved International Opportunities
+              </div>
+              {!isMember && (
+                <button
+                  onClick={() => setSubscriptionModalOpen(true)}
+                  className="text-xs font-bold text-[#FF6A00] hover:underline flex items-center gap-1"
+                >
+                  <Lock className="w-3 h-3" />
+                  Unlock Full Details with International Private Access
+                </button>
+              )}
             </div>
-            <button
-              onClick={() => setSubmissionModalOpen(true)}
-              className="px-5 py-2.5 bg-[#FF6A00] text-white text-xs font-bold rounded-xl hover:bg-[#EA580C] transition-all cursor-pointer shadow-xs"
-            >
-              Submit an International Opportunity
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {opportunities.map((opp) => (
-              <div
-                key={opp.id}
-                className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between group"
-              >
+
+            {loading ? (
+              <div className="py-20 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
+                <RefreshCw className="w-4 h-4 animate-spin text-[#FF6A00]" />
+                Loading international opportunities...
+              </div>
+            ) : opportunities.length === 0 ? (
+              <div className="py-16 text-center bg-white dark:bg-slate-900 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800 space-y-4">
+                <div className="w-12 h-12 rounded-2xl bg-orange-50 dark:bg-orange-950/30 text-[#FF6A00] flex items-center justify-center mx-auto">
+                  <Globe className="w-6 h-6" />
+                </div>
                 <div>
-                  {/* Top tags */}
-                  <div className="flex items-center justify-between gap-2 mb-3">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300">
-                      <span className="text-sm">{opp.countryFlag}</span>
-                      <span>{opp.countryName}</span>
-                    </span>
-                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-800/40 flex items-center gap-1">
-                      <ShieldCheck className="w-3 h-3" />
-                      Verified
-                    </span>
-                  </div>
-
-                  <div className="text-[11px] font-bold text-[#FF6A00] uppercase tracking-wider mb-1">
-                    {opp.category.replace(/_/g, ' ')}
-                  </div>
-
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-white line-clamp-2 group-hover:text-[#FF6A00] transition-colors">
-                    {opp.title}
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                    No International Opportunities Found
                   </h3>
-
-                  <p className="mt-2 text-xs text-slate-500 dark:text-slate-400 line-clamp-3 leading-relaxed">
-                    {opp.summary}
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto">
+                    No live opportunities currently match your search criteria. Be the first to submit a cross-border opportunity to LUMO!
                   </p>
                 </div>
-
-                <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800/80 space-y-3">
-                  <div className="flex items-center justify-between">
+                <button
+                  onClick={() => setSubmissionModalOpen(true)}
+                  className="px-5 py-2.5 bg-[#FF6A00] text-white text-xs font-bold rounded-xl hover:bg-[#EA580C] transition-all cursor-pointer shadow-xs"
+                >
+                  Submit an International Opportunity
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {opportunities.map((opp) => (
+                  <div
+                    key={opp.id}
+                    className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between group"
+                  >
                     <div>
-                      <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-                        Opportunity Value
+                      {/* Top tags */}
+                      <div className="flex items-center justify-between gap-2 mb-3">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300">
+                          <span className="text-sm">{opp.countryFlag}</span>
+                          <span>{opp.countryName}</span>
+                        </span>
+                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-800/40 flex items-center gap-1">
+                          <ShieldCheck className="w-3 h-3" />
+                          Verified
+                        </span>
                       </div>
-                      <div className="text-sm font-black text-slate-900 dark:text-white">
-                        {formatCurrencyValue(opp.opportunityValue, opp.currency)}
+
+                      <div className="text-[11px] font-bold text-[#FF6A00] uppercase tracking-wider mb-1">
+                        {opp.category.replace(/_/g, ' ')}
                       </div>
+
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-white line-clamp-2 group-hover:text-[#FF6A00] transition-colors">
+                        {opp.title}
+                      </h3>
+
+                      <p className="mt-2 text-xs text-slate-500 dark:text-slate-400 line-clamp-3 leading-relaxed">
+                        {opp.summary}
+                      </p>
                     </div>
 
-                    {opp.rewardAmount && opp.rewardAmount > 0 && (
-                      <div className="text-right">
-                        <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-                          Reward / Fee
+                    <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800/80 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                            Opportunity Value
+                          </div>
+                          <div className="text-sm font-black text-slate-900 dark:text-white">
+                            {formatCurrencyValue(opp.opportunityValue, opp.currency)}
+                          </div>
                         </div>
-                        <div className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                          {formatCurrencyValue(opp.rewardAmount, opp.rewardCurrency || opp.currency)}
-                        </div>
-                      </div>
-                    )}
-                  </div>
 
-                  <button
-                    onClick={() => setSelectedOpportunity(opp)}
-                    className="w-full py-2 bg-slate-100 dark:bg-slate-800 hover:bg-[#FF6A00] hover:text-white dark:hover:bg-[#FF6A00] text-slate-800 dark:text-slate-200 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                  >
-                    View Details
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
+                        {opp.rewardAmount && opp.rewardAmount > 0 && (
+                          <div className="text-right">
+                            <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                              Reward / Fee
+                            </div>
+                            <div className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                              {formatCurrencyValue(opp.rewardAmount, opp.rewardCurrency || opp.currency)}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <button
+                        onClick={() => setSelectedOpportunity(opp)}
+                        className="w-full py-2 bg-slate-100 dark:bg-slate-800 hover:bg-[#FF6A00] hover:text-white dark:hover:bg-[#FF6A00] text-slate-800 dark:text-slate-200 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        View Details
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        )}
-      </section>
+            )}
+          </section>
+        </>
+      )}
 
       {/* OPPORTUNITY DETAIL & INQUIRY MODAL */}
       {selectedOpportunity && (

@@ -742,7 +742,6 @@ export default function LumoApp() {
         {/* DEDICATED MARKETPLACE: COMPLETE DEAL CATALOGUE */}
         {activeView === 'marketplace_catalog' && (
           <MarketplaceCatalog
-            footer={<Footer onNavigate={navigateToView} />}
             opportunities={opportunities}
             allOpportunities={allOpportunities}
             query={searchQuery}
@@ -1309,7 +1308,7 @@ export default function LumoApp() {
       {!isDashboardView && <MobileNav activeView={activeView} onNavigate={handleMobileNavigation} />}
 
       {/* Footer ONLY on non-auth views */}
-      {!isAuthView && !isDashboardView && activeView !== 'marketplace_catalog' && <Footer onNavigate={navigateToView} variant={activeView === 'marketplace' ? 'landing' : 'default'} />}
+      {!isAuthView && !isDashboardView && <Footer onNavigate={navigateToView} variant={activeView === 'marketplace' ? 'landing' : 'default'} />}
     </div>
   )
 }

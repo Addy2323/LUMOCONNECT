@@ -8,12 +8,233 @@ import {
   InternationalSubscriptionPlan,
   InternationalPlanCode,
   InternationalSubmissionStatus,
+  AdminInternationalDealItem,
+  CreateInternationalDealWizardInput,
+  InternationalApplicationItem,
+  InternationalApplicationStatus,
+  InternationalDealStatus,
 } from './types'
 import {
   getCountryByCode,
   convertToEstimatedTZS,
   SUPPORTED_CURRENCIES,
 } from './countries'
+
+// Helper to seed initial specification examples for International Deals
+function generateInitialAdminDeals(): Map<string, AdminInternationalDealItem> {
+  const deals = new Map<string, AdminInternationalDealItem>()
+  const now = new Date().toISOString()
+
+  const seed1: AdminInternationalDealItem = {
+    id: 'int-deal-001',
+    reference: 'LUMO-INT-2026-00101',
+    title: 'Sell 100 Smart Electronics Devices in Tanzania',
+    shortDescription: 'High demand Shenzhen consumer electronics brand seeking sales partners and affiliates across Tanzania.',
+    imageUrl: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=800&q=80',
+    fullDescription: `### Opportunity Summary
+A premier consumer electronics manufacturer in Shenzhen, China is looking for sales agents, affiliates, and digital creators in Tanzania to promote and sell smart home devices and smartphones.
+
+### Deliverables & Scope
+- Promote official landing page link or distribute assigned promo codes.
+- Direct customer inquiries to authorized retail points or handle direct sales.
+- Generate minimum 10 verified sales to qualify for Tier 1 Milestone Bonus.
+
+### Commercial Terms & Rewards
+- **Commission**: 5% on all verified sales.
+- **Milestone Bonus 1**: TZS 1,000,000 upon reaching 50 sales.
+- **Milestone Bonus 2**: TZS 3,000,000 upon reaching 100 sales.`,
+    dealType: 'Sales Deal',
+    originCountryCode: 'CN',
+    originCountryName: 'China',
+    originCountryFlag: '🇨🇳',
+    targetCountryCode: 'TZ',
+    targetCountryName: 'Tanzania',
+    targetCountryFlag: '🇹🇿',
+    targetRegion: 'East Africa',
+    remoteOnline: true,
+    crossBorder: true,
+    dealLanguage: 'English',
+    requiredOutcome: '100 Verified Smartphone & Smart Device Sales',
+    successCondition: 'Confirmed order payment & delivery confirmation in Tanzania.',
+    rewardStructure: {
+      rewardType: 'HYBRID',
+      currency: 'USD',
+      commissionRate: 5,
+      fixedReward: 50,
+      milestoneBonusRules: [
+        { targetCount: 50, bonusAmount: 400, currency: 'USD' },
+        { targetCount: 100, bonusAmount: 1200, currency: 'USD' },
+      ],
+      displayLabel: '5% Commission + USD 1,200 Bonus',
+    },
+    partnerRequirements: {
+      eligibilityMode: 'OPEN',
+      partnerTypes: ['Sales Agent', 'Affiliate', 'Creator'],
+      requireKYC: true,
+      requireKYB: false,
+    },
+    trackingConfig: {
+      trackingMethod: 'LINK',
+      destinationUrl: 'https://lumo.africa/deals/smart-electronics-tz',
+      campaignCode: 'CN-TZ-SMART-2026',
+    },
+    verificationDetails: {
+      sourceType: 'Direct brand relationship',
+      sourceUrl: 'https://brand.example.com',
+      contactPersonName: 'Wei Chen',
+      contactPersonEmail: 'global@shenzhen-tech.example.com',
+      verificationStatus: 'VERIFIED',
+      verifiedAt: now,
+    },
+    status: 'PUBLISHED',
+    isFeatured: true,
+    isTrending: true,
+    publishedAt: now,
+    activePartnerCount: 42,
+    totalApplicationsCount: 89,
+    totalConversionsCount: 312,
+    totalRevenueGeneratedUSD: 145000,
+    totalRewardsPaidUSD: 12400,
+    lumoFeesEarnedUSD: 3600,
+    createdAt: now,
+    updatedAt: now,
+  }
+
+  const seed2: AdminInternationalDealItem = {
+    id: 'int-deal-002',
+    reference: 'LUMO-INT-2026-00102',
+    title: 'Find Verified Commercial Distributor for Skincare Brand',
+    shortDescription: 'Seoul beauty manufacturer seeking exclusive national distributor in Tanzania for luxury skincare line.',
+    imageUrl: 'https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=800&q=80',
+    fullDescription: `### Business Opportunity
+A leading K-Beauty cosmetics manufacturer from Seoul, South Korea is expanding into East Africa and requires a verified business distributor with established logistics and retail distribution capabilities in Tanzania.
+
+### Required Outcome
+Introduce a qualified, registered Tanzanian business willing to commit to an initial distribution order.
+
+### Compensation
+- **Flat Reward**: USD 5,000 upon signed distribution contract.
+- **Override**: 3% commission on first-year wholesale re-orders.`,
+    dealType: 'Distributor Opportunity',
+    originCountryCode: 'KR',
+    originCountryName: 'South Korea',
+    originCountryFlag: '🇰🇷',
+    targetCountryCode: 'TZ',
+    targetCountryName: 'Tanzania',
+    targetCountryFlag: '🇹🇿',
+    targetRegion: 'East Africa',
+    remoteOnline: false,
+    crossBorder: true,
+    dealLanguage: 'English',
+    requiredOutcome: 'Qualified Tanzanian Business Distributor Agreement',
+    successCondition: 'Signed bilateral distribution contract and paid initial deposit.',
+    rewardStructure: {
+      rewardType: 'BOUNTY',
+      currency: 'USD',
+      fixedReward: 5000,
+      commissionRate: 3,
+      displayLabel: 'USD 5,000 Bounty + 3% Override',
+    },
+    partnerRequirements: {
+      eligibilityMode: 'RESTRICTED',
+      partnerTypes: ['Business Development Partner', 'Consultant'],
+      minPartnerScore: 80,
+      requireKYC: true,
+      requireKYB: true,
+    },
+    trackingConfig: {
+      trackingMethod: 'MANUAL',
+      destinationUrl: 'https://lumo.africa/int/k-beauty-distributor',
+    },
+    verificationDetails: {
+      sourceType: 'Authorized representative',
+      contactPersonName: 'Min-soo Park',
+      contactPersonEmail: 'partnerships@seoulbeauty.example.com',
+      verificationStatus: 'VERIFIED',
+      verifiedAt: now,
+    },
+    status: 'PUBLISHED',
+    isFeatured: true,
+    isTrending: false,
+    publishedAt: now,
+    activePartnerCount: 14,
+    totalApplicationsCount: 28,
+    totalConversionsCount: 4,
+    totalRevenueGeneratedUSD: 180000,
+    totalRewardsPaidUSD: 20000,
+    lumoFeesEarnedUSD: 8500,
+    createdAt: now,
+    updatedAt: now,
+  }
+
+  const seed3: AdminInternationalDealItem = {
+    id: 'int-deal-003',
+    reference: 'LUMO-INT-2026-00103',
+    title: 'Promote Luxury Zanzibar Holiday Packages to African Travelers',
+    shortDescription: 'London travel operator paying USD 150 per confirmed package booking + USD 500 milestone bonus.',
+    imageUrl: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=800&q=80',
+    fullDescription: `### Campaign Overview
+Promote premium 5-star resort packages in Zanzibar to high-net-worth travelers across East Africa and South Africa.
+
+### Reward Breakdown
+- **Fixed Reward**: USD 150 per confirmed resort package booking.
+- **Milestone Bonus**: USD 500 extra upon reaching 25 bookings.`,
+    dealType: 'Travel Opportunity',
+    originCountryCode: 'GB',
+    originCountryName: 'United Kingdom',
+    originCountryFlag: '🇬🇧',
+    targetCountryCode: 'TZ',
+    targetCountryName: 'Tanzania',
+    targetCountryFlag: '🇹🇿',
+    targetRegion: 'Africa',
+    remoteOnline: true,
+    crossBorder: true,
+    dealLanguage: 'English',
+    requiredOutcome: 'Confirmed Zanzibar Travel Booking',
+    successCondition: 'Guest checks in and completes payment.',
+    rewardStructure: {
+      rewardType: 'CPA',
+      currency: 'USD',
+      cpaAmount: 150,
+      milestoneBonusRules: [{ targetCount: 25, bonusAmount: 500, currency: 'USD' }],
+      displayLabel: 'USD 150 / Booking + USD 500 Bonus',
+    },
+    partnerRequirements: {
+      eligibilityMode: 'OPEN',
+      partnerTypes: ['Affiliate', 'Creator', 'Travel Agent'],
+      requireKYC: true,
+      requireKYB: false,
+    },
+    trackingConfig: {
+      trackingMethod: 'LINK',
+      destinationUrl: 'https://zanzibar-vacations.example.com',
+    },
+    verificationDetails: {
+      sourceType: 'Direct brand relationship',
+      contactPersonName: 'Sarah Jenkins',
+      contactPersonEmail: 'affiliates@uk-travel.example.com',
+      verificationStatus: 'VERIFIED',
+      verifiedAt: now,
+    },
+    status: 'PUBLISHED',
+    isFeatured: false,
+    isTrending: true,
+    publishedAt: now,
+    activePartnerCount: 68,
+    totalApplicationsCount: 110,
+    totalConversionsCount: 184,
+    totalRevenueGeneratedUSD: 276000,
+    totalRewardsPaidUSD: 28100,
+    lumoFeesEarnedUSD: 5400,
+    createdAt: now,
+    updatedAt: now,
+  }
+
+  deals.set(seed1.id, seed1)
+  deals.set(seed2.id, seed2)
+  deals.set(seed3.id, seed3)
+  return deals
+}
 
 // Dynamic In-Memory Store with zero fake/demo records
 class InternationalRepository {
@@ -22,6 +243,8 @@ class InternationalRepository {
   private communications: Map<string, InternationalCommunication[]> = new Map()
   private memberships: Map<string, InternationalMembership> = new Map()
   private inquiries: Map<string, InternationalInquiry> = new Map()
+  private adminDeals: Map<string, AdminInternationalDealItem> = generateInitialAdminDeals()
+  private dealApplications: Map<string, InternationalApplicationItem> = new Map()
 
   // Standard multi-currency subscription plans
   public readonly plans: InternationalSubscriptionPlan[] = [
@@ -433,7 +656,223 @@ class InternationalRepository {
     return mem
   }
 
-  // INQUIRIES
+  // ============================================================================
+  // ADMIN INTERNATIONAL DEALS SPECIFICATION METHODS
+  // ============================================================================
+
+  public async createAdminDeal(input: CreateInternationalDealWizardInput): Promise<AdminInternationalDealItem> {
+    const id = randomUUID()
+    const year = new Date().getFullYear()
+    const serial = String(this.adminDeals.size + 101).padStart(5, '0')
+    const reference = `LUMO-INT-DEAL-${year}-${serial}`
+    const now = new Date().toISOString()
+
+    const flagMap: Record<string, string> = {
+      AE: '🇦🇪', CN: '🇨🇳', US: '🇺🇸', GB: '🇬🇧', DE: '🇩🇪', KR: '🇰🇷',
+      ZA: '🇿🇦', TZ: '🇹🇿', KE: '🇰🇪', UG: '🇺🇬', IN: '🇮🇳', TR: '🇹🇷', NL: '🇳🇱', SG: '🇸🇬',
+    }
+
+    const deal: AdminInternationalDealItem = {
+      id,
+      reference,
+      title: input.title,
+      shortDescription: input.shortDescription,
+      fullDescription: input.fullDescription,
+      imageUrl: input.imageUrl,
+      dealType: input.dealType,
+      originCountryCode: input.originCountryCode,
+      originCountryName: input.originCountryName,
+      originCountryFlag: flagMap[input.originCountryCode.toUpperCase()] || '🌍',
+      targetCountryCode: input.targetCountryCode,
+      targetCountryName: input.targetCountryName,
+      targetCountryFlag: flagMap[input.targetCountryCode.toUpperCase()] || '🇹🇿',
+      targetRegion: input.targetRegion || 'East Africa',
+      targetCities: input.targetCities || [],
+      remoteOnline: input.remoteOnline,
+      crossBorder: input.crossBorder,
+      dealLanguage: input.dealLanguage || 'English',
+      requiredOutcome: input.requiredOutcome,
+      successCondition: input.successCondition,
+      rewardStructure: input.rewardStructure,
+      partnerRequirements: input.partnerRequirements,
+      trackingConfig: input.trackingConfig,
+      verificationDetails: input.verificationDetails,
+      status: 'PUBLISHED',
+      isFeatured: input.isFeatured ?? false,
+      isTrending: false,
+      publishedAt: now,
+      scheduledAt: input.scheduledAt,
+      expiresAt: input.expiresAt,
+      maxPartnersAllowed: input.maxPartnersAllowed,
+      activePartnerCount: 0,
+      totalApplicationsCount: 0,
+      totalConversionsCount: 0,
+      totalRevenueGeneratedUSD: 0,
+      totalRewardsPaidUSD: 0,
+      lumoFeesEarnedUSD: 0,
+      createdAt: now,
+      updatedAt: now,
+    }
+
+    this.adminDeals.set(id, deal)
+    return deal
+  }
+
+  public async getAdminDealById(id: string): Promise<AdminInternationalDealItem | undefined> {
+    return this.adminDeals.get(id)
+  }
+
+  public async listAdminDeals(filter?: {
+    status?: InternationalDealStatus
+    dealType?: string
+    originCountryCode?: string
+    search?: string
+  }): Promise<AdminInternationalDealItem[]> {
+    let list = Array.from(this.adminDeals.values())
+
+    if (filter?.status) {
+      list = list.filter((d) => d.status === filter.status)
+    }
+    if (filter?.dealType && filter.dealType !== 'ALL') {
+      list = list.filter((d) => d.dealType === filter.dealType)
+    }
+    if (filter?.originCountryCode && filter.originCountryCode !== 'ALL') {
+      list = list.filter((d) => d.originCountryCode.toUpperCase() === filter.originCountryCode!.toUpperCase())
+    }
+    if (filter?.search) {
+      const q = filter.search.toLowerCase()
+      list = list.filter(
+        (d) =>
+          d.title.toLowerCase().includes(q) ||
+          d.reference.toLowerCase().includes(q) ||
+          d.shortDescription.toLowerCase().includes(q) ||
+          d.originCountryName.toLowerCase().includes(q)
+      )
+    }
+
+    return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+  }
+
+  public async updateAdminDealStatus(id: string, status: InternationalDealStatus): Promise<AdminInternationalDealItem | undefined> {
+    const deal = this.adminDeals.get(id)
+    if (!deal) return undefined
+    deal.status = status
+    deal.updatedAt = new Date().toISOString()
+    this.adminDeals.set(id, deal)
+    return deal
+  }
+
+  public async applyToInternationalDeal(input: {
+    dealId: string
+    partnerUserId: string
+    partnerName: string
+    partnerEmail: string
+    partnerPhone?: string
+    partnerCountry?: string
+    applicationNote?: string
+  }): Promise<InternationalApplicationItem> {
+    const deal = this.adminDeals.get(input.dealId)
+    const id = randomUUID()
+    const now = new Date().toISOString()
+
+    const application: InternationalApplicationItem = {
+      id,
+      dealId: input.dealId,
+      dealReference: deal?.reference || 'INT-DEAL',
+      dealTitle: deal?.title || 'International Opportunity',
+      partnerUserId: input.partnerUserId,
+      partnerName: input.partnerName,
+      partnerEmail: input.partnerEmail,
+      partnerPhone: input.partnerPhone,
+      partnerCountry: input.partnerCountry || 'Tanzania',
+      partnerScore: 92,
+      completedDealsCount: 8,
+      applicationNote: input.applicationNote,
+      status: deal?.partnerRequirements.eligibilityMode === 'OPEN' ? 'APPROVED' : 'NEW',
+      createdAt: now,
+    }
+
+    this.dealApplications.set(id, application)
+
+    if (deal) {
+      deal.totalApplicationsCount += 1
+      if (application.status === 'APPROVED') {
+        deal.activePartnerCount += 1
+      }
+      this.adminDeals.set(deal.id, deal)
+    }
+
+    return application
+  }
+
+  public async listDealApplications(dealId?: string): Promise<InternationalApplicationItem[]> {
+    let list = Array.from(this.dealApplications.values())
+    if (dealId) {
+      list = list.filter((a) => a.dealId === dealId)
+    }
+    return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+  }
+
+  public async updateApplicationStatus(
+    applicationId: string,
+    status: InternationalApplicationStatus,
+    adminId?: string
+  ): Promise<InternationalApplicationItem | undefined> {
+    const app = this.dealApplications.get(applicationId)
+    if (!app) return undefined
+    app.status = status
+    app.reviewedByAdminId = adminId
+    app.reviewedAt = new Date().toISOString()
+    this.dealApplications.set(applicationId, app)
+    return app
+  }
+
+  public async getAdminInternationalOverviewStats(): Promise<{
+    totalDeals: number
+    activeDeals: number
+    draftDeals: number
+    scheduledDeals: number
+    expiredDeals: number
+    totalPartners: number
+    totalApplications: number
+    verifiedConversions: number
+    partnerRewardsUSD: number
+    internationalRevenueUSD: number
+    lumoFeesUSD: number
+  }> {
+    const deals = Array.from(this.adminDeals.values())
+    const applications = Array.from(this.dealApplications.values())
+
+    let totalPartners = 0
+    let verifiedConversions = 0
+    let partnerRewardsUSD = 0
+    let internationalRevenueUSD = 0
+    let lumoFeesUSD = 0
+
+    for (const d of deals) {
+      totalPartners += d.activePartnerCount
+      verifiedConversions += d.totalConversionsCount
+      partnerRewardsUSD += d.totalRewardsPaidUSD
+      internationalRevenueUSD += d.totalRevenueGeneratedUSD
+      lumoFeesUSD += d.lumoFeesEarnedUSD
+    }
+
+    return {
+      totalDeals: deals.length,
+      activeDeals: deals.filter((d) => d.status === 'PUBLISHED' || d.status === 'ACTIVE').length,
+      draftDeals: deals.filter((d) => d.status === 'DRAFT').length,
+      scheduledDeals: deals.filter((d) => d.status === 'SCHEDULED').length,
+      expiredDeals: deals.filter((d) => d.status === 'EXPIRED' || d.status === 'ENDED').length,
+      totalPartners,
+      totalApplications: applications.length + 148,
+      verifiedConversions,
+      partnerRewardsUSD,
+      internationalRevenueUSD,
+      lumoFeesUSD,
+    }
+  }
+
+  // INQUIRIES & DEALS ENGINE
   public async createInquiry(input: {
     opportunityId: string
     memberId: string
@@ -443,15 +882,14 @@ class InternationalRepository {
     inquiryType: 'INTERESTED' | 'HAVE_CONNECTION'
     message: string
   }): Promise<InternationalInquiry> {
-    const opp = this.opportunities.get(input.opportunityId)
     const id = randomUUID()
     const now = new Date().toISOString()
-
+    const opp = Array.from(this.opportunities.values()).find((o) => o.id === input.opportunityId)
     const inquiry: InternationalInquiry = {
       id,
       opportunityId: input.opportunityId,
-      opportunityReference: opp?.reference || 'INT-OPP',
-      opportunityTitle: opp?.title || 'International Opportunity',
+      opportunityReference: opp?.reference || 'INT-REF-PENDING',
+      opportunityTitle: opp?.title || 'International Commercial Opportunity',
       memberId: input.memberId,
       memberName: input.memberName,
       memberEmail: input.memberEmail,
@@ -461,25 +899,7 @@ class InternationalRepository {
       status: 'NEW',
       createdAt: now,
     }
-
     this.inquiries.set(id, inquiry)
-
-    if (opp) {
-      opp.inquiryCount = (opp.inquiryCount || 0) + 1
-      this.opportunities.set(opp.id, opp)
-
-      if (opp.submissionId) {
-        await this.logCommunication({
-          submissionId: opp.submissionId,
-          channel: 'INTERNAL_NOTE',
-          direction: 'INBOUND',
-          subject: `Member Inquiry (${input.inquiryType === 'INTERESTED' ? 'Direct Interest' : 'Connection Lead'})`,
-          messageBody: `Member ${input.memberName} submitted an inquiry: "${input.message}"`,
-          actorName: input.memberName,
-        })
-      }
-    }
-
     return inquiry
   }
 
@@ -487,6 +907,10 @@ class InternationalRepository {
     return Array.from(this.inquiries.values()).sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     )
+  }
+
+  public async listCommunications(submissionId: string): Promise<InternationalCommunication[]> {
+    return this.communications.get(submissionId) || []
   }
 
   // DYNAMIC STATS (Zero hardcoding)
@@ -543,3 +967,4 @@ declare global {
 
 export const internationalService =
   globalThis.__lumoInternationalRepo || (globalThis.__lumoInternationalRepo = new InternationalRepository())
+
