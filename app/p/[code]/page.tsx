@@ -31,6 +31,7 @@ export async function generateMetadata({ params, searchParams }: PublicProductPa
   return {
     title: `${title} | Lumo Dealers`,
     description: `${description} • Coordinated via Lumo Dealers Tanzania.`,
+    alternates: { canonical: `https://lumo.co.tz/p/${code}` },
     openGraph: {
       title: `${title} | Lumo Dealers`,
       description,

@@ -6,6 +6,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json()
     const {
+      submittingAs,
       businessName,
       contactName,
       phone,
@@ -21,7 +22,7 @@ export async function POST(request: Request) {
     // Validation
     if (!businessName || typeof businessName !== 'string' || !businessName.trim()) {
       return NextResponse.json(
-        { success: false, error: 'Business Name is required' },
+        { success: false, error: 'Business / Entity Name is required' },
         { status: 400 }
       )
     }
@@ -66,6 +67,12 @@ export async function POST(request: Request) {
       normalizedInterests = ['General Business Interest']
     }
 
+    const finalDescription = submittingAs
+      ? `[Submitting As: ${submittingAs}] ${description ? String(description).trim() : ''}`.trim()
+      : description
+      ? String(description).trim()
+      : null
+
     let createdLead: any = null
 
     try {
@@ -77,7 +84,7 @@ export async function POST(request: Request) {
           email: email.trim().toLowerCase(),
           category: category.trim(),
           interests: normalizedInterests,
-          description: description ? String(description).trim() : null,
+          description: finalDescription,
           website: website ? String(website).trim() : null,
           location: location ? String(location).trim() : null,
           socialMedia: socialMedia ? String(socialMedia).trim() : null,
@@ -93,7 +100,7 @@ export async function POST(request: Request) {
         email: email.trim().toLowerCase(),
         category: category.trim(),
         interests: normalizedInterests,
-        description: description ? String(description).trim() : null,
+        description: finalDescription,
         website: website ? String(website).trim() : null,
         location: location ? String(location).trim() : null,
         socialMedia: socialMedia ? String(socialMedia).trim() : null,

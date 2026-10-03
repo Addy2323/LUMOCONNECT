@@ -29,6 +29,7 @@ import {
 
 export interface BusinessInterestLead {
   id: string
+  submittingAs?: string | null
   businessName: string
   contactName: string
   phone: string
@@ -50,6 +51,15 @@ export interface BusinessInterestLead {
   adminNotes?: string | null
   createdAt: string
   updatedAt: string
+}
+
+function getSubmittingAs(lead: BusinessInterestLead): string {
+  if (lead.submittingAs) return lead.submittingAs
+  if (lead.description) {
+    const match = lead.description.match(/\[Submitting As: (.*?)\]/)
+    if (match && match[1]) return match[1]
+  }
+  return 'Business'
 }
 
 export function BusinessInterestsTab() {
@@ -489,8 +499,13 @@ export function BusinessInterestsTab() {
                       className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors"
                     >
                       <td className="py-3.5 px-4">
-                        <div className="font-bold text-slate-900 dark:text-white">{lead.businessName}</div>
-                        <div className="text-[10px] text-orange-600 dark:text-orange-400 font-semibold">
+                        <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5 flex-wrap">
+                          <span>{lead.businessName}</span>
+                          <span className="px-1.5 py-0.5 rounded bg-orange-100/80 dark:bg-orange-950/60 text-[#FF6A00] font-mono text-[9px] font-black uppercase">
+                            {getSubmittingAs(lead)}
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-orange-600 dark:text-orange-400 font-semibold mt-0.5">
                           {lead.category}
                         </div>
                       </td>
@@ -629,6 +644,13 @@ export function BusinessInterestsTab() {
 
             {/* Details Grid */}
             <div className="grid sm:grid-cols-2 gap-4 text-xs">
+              <div className="p-3 rounded-2xl bg-[#FF6A00]/10 border border-[#FF6A00]/20 space-y-1 sm:col-span-2">
+                <span className="text-[10px] font-black uppercase tracking-wider text-[#FF6A00]">Submitting As (Role / Submitter Type)</span>
+                <div className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                  <span>{getSubmittingAs(selectedLead)}</span>
+                </div>
+              </div>
+
               <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 space-y-1">
                 <span className="text-[10px] font-extrabold uppercase text-slate-400">Contact Person</span>
                 <div className="font-bold text-slate-900 dark:text-white">{selectedLead.contactName}</div>

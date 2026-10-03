@@ -51,6 +51,14 @@ export const viewport: Viewport = {
   initialScale: 1,
 }
 
+export const websiteJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: 'LUMO',
+  alternateName: ['LUMO Tanzania', 'LotusRise Global Commerce Hub'],
+  url: 'https://lumo.co.tz/',
+}
+
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="sw" translate="no" suppressHydrationWarning className="notranslate bg-background">
@@ -61,6 +69,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Dancing+Script:wght@600;700&display=swap" rel="stylesheet" />
       </head>
       <body suppressHydrationWarning className="notranslate antialiased">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
+        />
         <ClientDomGuard />
         <ThemeProvider>
           <LanguageProvider>

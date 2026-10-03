@@ -1,42 +1,17 @@
 import type { MetadataRoute } from 'next'
 
 export default function robots(): MetadataRoute.Robots {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_APP_URL ||
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    'https://lumoconnect.com'
-
   return {
     rules: [
       {
         userAgent: '*',
-        allow: [
-          '/',
-          '/catalog',
-          '/hot-deals',
-          '/international',
-          '/subscriptions',
-          '/choose-path',
-          '/signin',
-          '/signup',
-          '/p/',
-          '/d/',
-        ],
-        disallow: [
-          '/admin/',
-          '/partner/',
-          '/business/',
-          '/api/',
-          '/dealroom/',
-          '/statement/',
-          '/checkout/',
-          '/verify/',
-          '/hot-deals/admin/',
-          '/hot-deals/private-member/',
-          '/hot-deals/account/',
-        ],
+        allow: '/',
+        // Block private/app areas. Do NOT list /signin or /signup here:
+        // if robots.txt blocks them, Google can never see their noindex tag.
+        disallow: ['/api/', '/dashboard/', '/admin/'],
       },
     ],
-    sitemap: `${baseUrl}/sitemap.xml`,
+    sitemap: 'https://lumo.co.tz/sitemap.xml',
   }
 }
+

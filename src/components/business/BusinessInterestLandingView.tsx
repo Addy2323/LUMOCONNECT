@@ -86,8 +86,20 @@ const TANZANIA_REGIONS_OPTIONS = [
   'Other / Outside Tanzania',
 ]
 
+const SUBMITTING_AS_OPTIONS = [
+  { id: 'Individual', label: 'Individual', description: 'Private citizen or professional' },
+  { id: 'Business', label: 'Business', description: 'Registered enterprise or company' },
+  { id: 'Organization', label: 'Organization', description: 'NGO, cooperative or institution' },
+  { id: 'Investor', label: 'Investor', description: 'Looking to fund or syndicate' },
+  { id: 'Buyer', label: 'Buyer', description: 'Procuring products or services' },
+  { id: 'Seller', label: 'Seller', description: 'Supplying verified goods or assets' },
+  { id: 'Property Owner / Agent', label: 'Property Owner / Agent', description: 'Real estate, land, commercial' },
+  { id: 'Other', label: 'Other', description: 'Specialized arrangement' },
+]
+
 export function BusinessInterestLandingView({ onBackToMain }: BusinessInterestLandingViewProps) {
   const [isFormOpen, setIsFormOpen] = useState(false)
+  const [submittingAs, setSubmittingAs] = useState('Business')
   const [businessName, setBusinessName] = useState('')
   const [contactName, setContactName] = useState('')
   const [phone, setPhone] = useState('')
@@ -119,8 +131,12 @@ export function BusinessInterestLandingView({ onBackToMain }: BusinessInterestLa
     e.preventDefault()
     setSubmitError('')
 
+    if (!submittingAs) {
+      setSubmitError('Please select who you are submitting as.')
+      return
+    }
     if (!businessName.trim()) {
-      setSubmitError('Please enter your business name.')
+      setSubmitError('Please enter your business / entity name.')
       return
     }
     if (!contactName.trim()) {
@@ -156,6 +172,7 @@ export function BusinessInterestLandingView({ onBackToMain }: BusinessInterestLa
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          submittingAs,
           businessName,
           contactName,
           phone,
@@ -581,17 +598,38 @@ export function BusinessInterestLandingView({ onBackToMain }: BusinessInterestLa
                 {/* Form Fields */}
                 <form onSubmit={handleSubmit} className="space-y-2.5">
                   
+                  {/* Row 0: Who are you submitting as? */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-0.5">
+                      Who are you submitting as? <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <User className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                      <select
+                        value={submittingAs}
+                        onChange={(e) => setSubmittingAs(e.target.value)}
+                        className="w-full rounded-xl bg-slate-50 border border-slate-200 pl-8 pr-7 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-[#FF6B00] focus:bg-white font-semibold appearance-none"
+                      >
+                        {SUBMITTING_AS_OPTIONS.map((opt) => (
+                          <option key={opt.id} value={opt.id}>
+                            {opt.label} — {opt.description}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
                   {/* Row 1: Business Name + Contact Person (2 Columns) */}
                   <div className="grid sm:grid-cols-2 gap-2.5">
                     <div>
                       <label className="block text-[11px] font-bold text-slate-700 mb-0.5">
-                        Business Name <span className="text-red-500">*</span>
+                        {submittingAs === 'Individual' ? 'Full Name / Entity Name' : 'Business Name'} <span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
                         <Building2 className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
                         <input
                           type="text"
-                          placeholder="e.g. ABC Trading Co."
+                          placeholder={submittingAs === 'Individual' ? 'e.g. Jane Doe' : 'e.g. ABC Trading Co.'}
                           value={businessName}
                           onChange={(e) => setBusinessName(e.target.value)}
                           className="w-full rounded-xl bg-slate-50 border border-slate-200 pl-8 pr-2.5 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#FF6B00] focus:bg-white font-medium"
