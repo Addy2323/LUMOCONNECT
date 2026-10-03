@@ -25,6 +25,7 @@ import { ThemeToggle } from '@/components/theme/ThemeToggle'
 import { OverviewTab } from './admin/tabs/OverviewTab'
 import { VisitorAnalyticsTab } from './admin/tabs/VisitorAnalyticsTab'
 import { UsersAccessTab } from './admin/tabs/UsersAccessTab'
+import { BusinessInterestsTab } from './admin/tabs/BusinessInterestsTab'
 import { BusinessVerificationTab } from './admin/tabs/BusinessVerificationTab'
 import { DealsRegistryTab } from './admin/tabs/DealsRegistryTab'
 import { DealApprovalsTab } from './admin/tabs/DealApprovalsTab'
@@ -233,6 +234,7 @@ export function AdminDashboardView({
         )}
         {activeTab === 'analytics' && <VisitorAnalyticsTab />}
         {activeTab === 'users' && <UsersAccessTab />}
+        {activeTab === 'business_interests' && <BusinessInterestsTab />}
         {activeTab === 'verifications' && <BusinessVerificationTab />}
         {activeTab === 'deals' && <DealsRegistryTab />}
         {activeTab === 'approvals' && <DealApprovalsTab />}

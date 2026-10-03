@@ -18,6 +18,7 @@ import { CreateDealWizard } from '@/components/marketplace/CreateDealWizard'
 import { BusinessPublishNoticeModal } from '@/components/marketplace/BusinessPublishNoticeModal'
 import { ProtectedDealDetailsModal } from '@/components/marketplace/ProtectedDealDetailsModal'
 import { WhatsAppMiddlemanModal } from '@/components/marketplace/WhatsAppMiddlemanModal'
+import { BusinessInterestLandingView } from '@/src/components/business/BusinessInterestLandingView'
 import { SubscriptionsView } from '@/components/subscriptions/SubscriptionsView'
 import { InternationalLandingView } from '@/components/international/InternationalLandingView'
 import { PartnerDashboardView } from '@/components/dashboards/PartnerDashboardView'
@@ -76,6 +77,8 @@ const ROUTE_MAP: Record<string, string> = {
   subscriptions: '/subscriptions',
   partner: '/partner',
   business: '/business',
+  grow: '/grow',
+  business_interest: '/business-interest',
   admin: '/admin',
   signin: '/signin',
   signup: '/signup',
@@ -779,6 +782,13 @@ export default function LumoApp() {
             currentUserEmail={userDetails.email}
             currentUserName={userDetails.name}
             onNavigateHome={() => setActiveView('marketplace')}
+          />
+        )}
+
+        {/* VIEW: BUSINESS INTEREST LANDING PAGE (/grow /business-interest) */}
+        {(activeView === 'grow' || activeView === 'business_interest') && (
+          <BusinessInterestLandingView
+            onBackToMain={() => navigateToView('marketplace')}
           />
         )}
 

@@ -121,6 +121,16 @@ enum LeadValidationStatus {
   DUPLICATE
 }
 
+enum BusinessInterestStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  ONBOARDING
+  VERIFIED
+  CONVERTED
+  NOT_INTERESTED
+}
+
 enum ConversionStatus {
   TRACKED
   PENDING
@@ -2405,5 +2415,33 @@ model VisitorPageView {
   @@index([viewedAt])
   @@map("visitor_page_views")
 }
+
+// ============================================================================
+// BUSINESS INTEREST LEADS (GROW YOUR BUSINESS WITH LUMO)
+// ============================================================================
+
+model BusinessInterest {
+  id           String                 @id @default(uuid()) @db.Uuid
+  businessName String
+  contactName  String
+  phone        String
+  email        String
+  category     String
+  interests    String[]
+  description  String?                @db.Text
+  website      String?
+  location     String?
+  socialMedia  String?
+  status       BusinessInterestStatus @default(NEW)
+  adminNotes   String?                @db.Text
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+
+  @@index([status])
+  @@index([category])
+  @@index([createdAt])
+  @@map("business_interests")
+}
+
 
 

@@ -5,6 +5,7 @@ export type AdminSidebarSection =
   | 'overview'
   | 'analytics'
   | 'users'
+  | 'business_interests'
   | 'verifications'
   | 'deals'
   | 'approvals'

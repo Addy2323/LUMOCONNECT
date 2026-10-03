@@ -99,6 +99,7 @@ function getNavGroups({
         { id: 'overview', label: 'Overview', icon: Home, opType: 'Read/Monitor' },
         { id: 'analytics', label: 'Visitor Analytics', icon: Eye, opType: 'Live Traffic Monitoring' },
         { id: 'users', label: 'Users & Access', icon: Users, opType: 'C/R/U/Archive' },
+        { id: 'business_interests', label: 'Business Interests', icon: Sparkles, badgeColor: 'bg-[#FF6A00] text-white', opType: 'Lead Generation & Onboarding' },
         { id: 'verifications', label: 'Business Verification', icon: ShieldCheck, badge: pendingVerificationsCount > 0 ? pendingVerificationsCount : undefined, badgeColor: 'bg-orange-100 text-[#FF6A00]', opType: 'Review Workflow' },
         { id: 'deals', label: 'Deals & Opportunities', icon: Briefcase, opType: 'C/R/U/Archive' },
         { id: 'approvals', label: 'Deal Approvals', icon: CheckCircle, badge: pendingDealsCount > 0 ? pendingDealsCount : undefined, badgeColor: 'bg-orange-100 text-[#FF6A00]', opType: 'Approval Workflow' },
