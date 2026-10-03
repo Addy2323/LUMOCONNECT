@@ -255,12 +255,18 @@ export function BusinessInterestLandingView({ onBackToMain }: BusinessInterestLa
               </div>
 
               {/* Subtitle Description */}
-              <p className="text-slate-300 text-sm sm:text-base leading-relaxed max-w-2xl">
-                LUMO connects businesses with customers, Partners and commercial opportunities that can help you grow.
-                <span className="block mt-2 text-slate-400 font-medium">
-                  Tell us about your business. Our team will contact you and guide you through the onboarding process.
-                </span>
-              </p>
+              <div className="space-y-3">
+                <p className="text-white text-base sm:text-lg font-extrabold tracking-tight flex items-center gap-2 flex-wrap">
+                  <span className="text-[#FF6B00]">Reach more customers.</span>
+                  <span className="text-slate-400 font-normal hidden sm:inline">•</span>
+                  <span>Find the right Partners.</span>
+                  <span className="text-slate-400 font-normal hidden sm:inline">•</span>
+                  <span className="text-[#FF6B00]">Unlock new opportunities.</span>
+                </p>
+                <p className="text-slate-300 text-sm sm:text-base leading-relaxed max-w-2xl font-normal">
+                  LUMO helps businesses turn products, services and commercial goals into measurable opportunities across local and international markets.
+                </p>
+              </div>
 
               {/* Main CTA Button & Trust Bullets */}
               <div className="pt-2 space-y-5">
