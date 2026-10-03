@@ -22,8 +22,8 @@ export interface AppProviders {
 }
 
 export function getActiveSmsProviderName(): 'beem' | 'meseji' {
-  const providerEnv = (process.env.SMS_PROVIDER || 'beem').toLowerCase().trim()
-  return providerEnv === 'meseji' ? 'meseji' : 'beem'
+  const providerEnv = (process.env.SMS_PROVIDER || 'meseji').toLowerCase().trim()
+  return providerEnv === 'beem' ? 'beem' : 'meseji'
 }
 
 const activeSmsProvider = getActiveSmsProviderName()
@@ -31,7 +31,7 @@ const activeSmsProvider = getActiveSmsProviderName()
 export const providers: AppProviders = {
   payment: new SnippePaymentAdapter(),
   payout: new MongikePayoutAdapter(),
-  sms: activeSmsProvider === 'meseji' ? new MesejiSmsAdapter() : new BeemSmsAdapter(),
+  sms: activeSmsProvider === 'beem' ? new BeemSmsAdapter() : new MesejiSmsAdapter(),
   otp: new BeemOtpAdapter(),
   email: new SmtpEmailAdapter(),
   storage: new S3StorageAdapter(),

@@ -111,10 +111,10 @@ export class MesejiClient {
 
   constructor(config?: MesejiConfig) {
     this.baseUrl = (config?.baseUrl || process.env.MESEJI_BASE_URL || 'https://meseji.co.tz/api/v1').replace(/\/$/, '')
-    this.apiKey = config?.apiKey || process.env.MESEJI_API_KEY || ''
-    this.senderId = config?.senderId || process.env.MESEJI_SENDER_ID || 'Lumo'
-    this.isSmsEnabled = config?.smsEnabled ?? config?.enabled ?? (process.env.SMS_ENABLED === 'true')
-    this.isDryRun = config?.dryRun ?? (process.env.SMS_DRY_RUN !== 'false')
+    this.apiKey = config?.apiKey || process.env.MESEJI_API_KEY || 'zs_dec45832bc9cb22a90279a7a8e9867b2607c7c1b37c0f938'
+    this.senderId = config?.senderId || process.env.MESEJI_SENDER_ID || 'LUMO'
+    this.isSmsEnabled = config?.smsEnabled ?? config?.enabled ?? (process.env.SMS_ENABLED !== 'false')
+    this.isDryRun = config?.dryRun ?? (process.env.SMS_DRY_RUN === 'true')
     this.timeoutMs = config?.timeoutMs || 15000
   }
 
