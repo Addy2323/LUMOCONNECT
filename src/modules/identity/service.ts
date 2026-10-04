@@ -23,6 +23,7 @@ export interface VerificationRecord {
   id: string
   organizationId?: string | null
   userId?: string
+  userImage?: string | null
   entityType: 'BUSINESS' | 'PARTNER'
   businessName: string
   registrationNumber: string

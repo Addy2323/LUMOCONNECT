@@ -17,6 +17,21 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid deal filter.' }, { status: 400 })
     }
 
+    // Auto soft-delete any deals whose closing date or end date is in the past
+    const now = new Date()
+    await db.opportunity.updateMany({
+      where: {
+        deletedAt: null,
+        OR: [
+          { closingDate: { lt: now } },
+          { endDate: { lt: now } },
+        ],
+      },
+      data: {
+        deletedAt: now,
+      },
+    })
+
     const opportunities = await db.opportunity.findMany({
       where: {
         deletedAt: null,
@@ -109,6 +124,7 @@ export async function GET(request: NextRequest) {
         contactPersonPhone: opp.contactPersonPhone || '',
         contactPersonEmail: opp.contactPersonEmail || '',
         closingDate: opp.closingDate ? opp.closingDate.toISOString().slice(0, 10) : null,
+        maxPartners: opp.maxPartners ?? null,
         visibility: opp.visibility || 'PUBLIC',
         accessTier: opp.accessTier || 'ALL_PARTNERS',
         featured: opp.isFeatured,
@@ -255,6 +271,7 @@ export async function PATCH(request: NextRequest) {
     if (editFields.contactPersonPhone !== undefined) updateData.contactPersonPhone = editFields.contactPersonPhone
     if (editFields.contactPersonEmail !== undefined) updateData.contactPersonEmail = editFields.contactPersonEmail
     if (editFields.closingDate !== undefined) updateData.closingDate = editFields.closingDate ? new Date(editFields.closingDate) : null
+    if (editFields.maxPartners !== undefined) updateData.maxPartners = editFields.maxPartners !== null && editFields.maxPartners !== '' ? Number(editFields.maxPartners) : null
     if (editFields.visibility !== undefined) updateData.visibility = editFields.visibility
     if (editFields.accessTier !== undefined) updateData.accessTier = editFields.accessTier
     if (editFields.commercialValueMinor !== undefined) updateData.commercialValueMinor = BigInt(editFields.commercialValueMinor)

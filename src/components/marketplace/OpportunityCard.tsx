@@ -306,7 +306,12 @@ export function OpportunityCard({
               <span>{locale === 'sw' ? 'Washirika' : 'Partners Enrolled'}</span>
             </dt>
             <dd className="font-bold text-slate-900 dark:text-slate-100 text-right">
-              {item.activePartnerCount || 0}{item.maxPartners ? ` / ${item.maxPartners}` : ''}
+              {item.activePartnerCount || 0}
+              {item.maxPartners ? (
+                <span className="ml-1 text-emerald-600 dark:text-emerald-400 font-extrabold text-[11px]">
+                  / {item.maxPartners} ({Math.max(0, item.maxPartners - (item.activePartnerCount || 0))} {locale === 'sw' ? 'wamebaki' : 'remaining'})
+                </span>
+              ) : ''}
             </dd>
           </div>
         </dl>

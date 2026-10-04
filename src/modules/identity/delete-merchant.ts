@@ -48,7 +48,7 @@ export async function deleteMerchant(input: { organizationId: string; actorId: s
   return db.$transaction(async (tx) => {
     // Recompute inside the transaction; a preview is never authorization to delete changed data.
     const preview = await inspectMerchantDeletion(tx, input.organizationId, input.actorId)
-    if (input.confirmation !== preview.legalName) throw new MerchantDeletionError('Type the exact merchant name to confirm deletion.', 400)
+    if (input.confirmation.trim() !== preview.legalName.trim()) throw new MerchantDeletionError('Type the exact merchant name to confirm deletion.', 400)
     if (input.reason.trim().length < 5) throw new MerchantDeletionError('Enter a deletion reason (at least 5 characters).', 400)
     if (preview.blockers.length) throw new MerchantDeletionError(preview.blockers.join(' '))
 

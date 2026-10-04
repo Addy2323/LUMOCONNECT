@@ -146,10 +146,16 @@ export interface ProtectedDealDetails extends OpportunityItem {
 export function listOpportunities(filters?: OpportunityFilterParams): OpportunityItem[] {
   loadFromStorage()
   let items = [...inMemoryOpportunities]
+  const nowMs = Date.now()
+
+  // Filter out automatically expired deals
+  items = items.filter((item) => {
+    if (item.expiryDate && new Date(item.expiryDate).getTime() < nowMs) return false
+    return true
+  })
 
   // Show PUBLISHED deals & COMPLETED deals (for up to 2 hours after completion)
   if (!filters?.includeAllStatuses) {
-    const nowMs = Date.now()
     const TWO_HOURS_MS = 2 * 60 * 60 * 1000 // 2 hours = 7,200,000 ms
 
     items = items.filter((item) => {

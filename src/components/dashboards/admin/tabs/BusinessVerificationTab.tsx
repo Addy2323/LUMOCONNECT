@@ -157,6 +157,13 @@ export function BusinessVerificationTab() {
     }
   }
 
+  const getUserInitials = (name: string) => {
+    if (!name) return 'US'
+    const parts = name.trim().split(' ')
+    if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase()
+    return name.slice(0, 2).toUpperCase()
+  }
+
   return (
     <div className="space-y-5 bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-4 sm:p-6 shadow-xs">
       {/* Header */}
@@ -246,10 +253,24 @@ export function BusinessVerificationTab() {
             >
               <div className="space-y-2">
                 <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-9 h-9 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 flex items-center justify-center font-black text-xs shrink-0">
-                      <Building className="w-4 h-4" />
+                  <div className="flex items-center gap-2.5">
+                    <div className="relative shrink-0">
+                      {item.userImage ? (
+                        <img
+                          src={item.userImage}
+                          alt={item.contactPerson}
+                          className="w-10 h-10 rounded-full object-cover border-2 border-emerald-500 shadow-2xs"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-600 to-teal-800 text-white font-black text-xs flex items-center justify-center border-2 border-emerald-400 shadow-2xs">
+                          {getUserInitials(item.contactPerson || item.businessName)}
+                        </div>
+                      )}
+                      <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-white p-0.5 rounded-full border border-white dark:border-slate-900 shadow-2xs" title="Onboarding Face Verified">
+                        <ShieldCheck className="w-3 h-3" />
+                      </div>
                     </div>
+
                     <div>
                       <h3 className="font-black text-xs sm:text-sm text-slate-900 dark:text-white leading-tight">
                         {item.businessName}
@@ -282,9 +303,14 @@ export function BusinessVerificationTab() {
                     <span className="text-slate-400">Industry:</span>
                     <span className="font-bold text-slate-800 dark:text-slate-200">{item.industry}</span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between items-center">
                     <span className="text-slate-400">Representative:</span>
-                    <span className="font-bold text-slate-800 dark:text-slate-200">{item.contactPerson}</span>
+                    <div className="flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-200">
+                      {item.userImage && (
+                        <img src={item.userImage} alt={item.contactPerson} className="w-4 h-4 rounded-full object-cover border border-emerald-500" />
+                      )}
+                      <span>{item.contactPerson}</span>
+                    </div>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-400">Email:</span>
@@ -476,9 +502,22 @@ export function BusinessVerificationTab() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto relative">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-              <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 flex items-center justify-center font-black">
-                  <Building className="w-5 h-5" />
+              <div className="flex items-center gap-3">
+                <div className="relative shrink-0">
+                  {selectedItem.userImage ? (
+                    <img
+                      src={selectedItem.userImage}
+                      alt={selectedItem.contactPerson}
+                      className="w-12 h-12 rounded-full object-cover border-2 border-emerald-500 shadow-xs"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-600 to-teal-800 text-white font-black text-sm flex items-center justify-center border-2 border-emerald-400 shadow-xs">
+                      {getUserInitials(selectedItem.contactPerson || selectedItem.businessName)}
+                    </div>
+                  )}
+                  <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-white p-0.5 rounded-full border border-white dark:border-slate-900 shadow-2xs" title="Onboarding Face Verified">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                  </div>
                 </div>
                 <div>
                   <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white">

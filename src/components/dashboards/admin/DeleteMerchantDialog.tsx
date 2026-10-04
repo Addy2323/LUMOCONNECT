@@ -34,13 +34,15 @@ export function DeleteMerchantDialog({ organizationId, onClose, onDeleted }: {
     return () => controller.abort()
   }, [endpoint])
 
+  const isConfirmed = Boolean(preview && confirmation.trim() === preview.legalName.trim())
+
   const submit = async (event: React.FormEvent) => {
     event.preventDefault()
-    if (busy || !preview || preview.blockers.length || confirmation !== preview.legalName || reason.trim().length < 5) return
+    if (busy || !preview || preview.blockers.length || !isConfirmed || reason.trim().length < 5) return
     setBusy(true)
     setError('')
     try {
-      const res = await fetch(endpoint, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ confirmation, reason, deleteAccounts }) })
+      const res = await fetch(endpoint, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ confirmation: confirmation.trim(), reason: reason.trim(), deleteAccounts }) })
       const data = await res.json()
       if (!res.ok || !data.success) throw new Error(data.message || 'Deletion failed.')
       onDeleted(data.pendingFileCleanup !== 0)
@@ -53,11 +55,11 @@ export function DeleteMerchantDialog({ organizationId, onClose, onDeleted }: {
       <h2 id="delete-merchant-title" className="flex items-center gap-2 text-lg font-bold text-red-600"><Trash2 className="h-5 w-5" /> Delete merchant permanently</h2>
       {!preview && !error && <p role="status">Loading deletion preview…</p>}
       {preview && <>
-        <p className="text-sm">This removes <strong>{preview.legalName}</strong>, {preview.opportunities} deal(s), {preview.verificationCases} verification case(s), and {preview.members} business membership(s). This cannot be undone. The deletion audit record is retained.</p>
+        <p className="text-sm">This removes <strong>{preview.legalName.trim()}</strong>, {preview.opportunities} deal(s), {preview.verificationCases} verification case(s), and {preview.members} business membership(s). This cannot be undone. The deletion audit record is retained.</p>
         <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={deleteAccounts} disabled={busy} onChange={(event) => setDeleteAccounts(event.target.checked)} className="mt-1" /> Also delete {preview.eligibleAccounts} merchant-only login account(s) and revoke their sessions.</label>
         <p className="text-xs text-slate-500">{preview.preservedAccounts} shared or protected account(s) will remain. Accounts with other roles, businesses, or transaction history are protected.</p>
         {preview.blockers.length > 0 && <div role="alert" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Deletion is blocked: {preview.blockers.join(' ')}</div>}
-        <label className="block text-sm font-semibold">Type “{preview.legalName}” to confirm
+        <label className="block text-sm font-semibold">Type “{preview.legalName.trim()}” to confirm
           <input autoFocus value={confirmation} onChange={(event) => setConfirmation(event.target.value)} disabled={busy} autoComplete="off" className="mt-2 w-full rounded-lg border border-slate-300 bg-transparent px-3 py-2" />
         </label>
         <label className="block text-sm font-semibold">Reason for deletion
@@ -67,7 +69,7 @@ export function DeleteMerchantDialog({ organizationId, onClose, onDeleted }: {
       {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
       <div className="flex justify-end gap-2">
         <button type="button" disabled={busy} onClick={onClose} className="rounded-xl border px-4 py-2 text-sm font-bold">Cancel</button>
-        <button type="submit" disabled={busy || !preview || preview.blockers.length > 0 || confirmation !== preview.legalName || reason.trim().length < 5} className="rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-40">{busy ? 'Deleting…' : 'Delete permanently'}</button>
+        <button type="submit" disabled={busy || !preview || preview.blockers.length > 0 || !isConfirmed || reason.trim().length < 5} className="rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-40">{busy ? 'Deleting…' : 'Delete permanently'}</button>
       </div>
     </form>
   </div>

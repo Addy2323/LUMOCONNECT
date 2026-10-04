@@ -277,14 +277,31 @@ export function ProtectedDealDetailsModal({
           </div>
         </div>
 
-        {/* Enrolled Partners Count */}
-        <div className="flex items-center justify-between rounded-xl border border-orange-200 dark:border-orange-800/60 bg-orange-50/70 dark:bg-orange-950/20 px-4 py-3">
-          <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300">
-            <Users className="w-4 h-4 text-orange-500" />
-            <span>{locale === 'sw' ? 'Washirika Waliojisajili' : 'Partners Enrolled'}</span>
+        {/* Enrolled Partners & Expiration Info Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="flex items-center justify-between rounded-xl border border-orange-200 dark:border-orange-800/60 bg-orange-50/70 dark:bg-orange-950/20 px-4 py-3">
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300">
+              <Users className="w-4 h-4 text-orange-500" />
+              <span>{locale === 'sw' ? 'Washirika Waliojisajili' : 'Partners Enrolled'}</span>
+            </div>
+            <div className="text-xs font-black text-orange-600 dark:text-orange-400 text-right">
+              {deal.activePartnerCount}
+              {deal.maxPartners ? (
+                <span> / {deal.maxPartners} <span className="text-emerald-600 dark:text-emerald-400 block text-[10px]">({Math.max(0, deal.maxPartners - deal.activePartnerCount)} {locale === 'sw' ? 'wamebaki' : 'remaining'})</span></span>
+              ) : ''}
+            </div>
           </div>
-          <div className="text-sm font-black text-orange-600 dark:text-orange-400">
-            {deal.activePartnerCount}{deal.maxPartners ? ` / ${deal.maxPartners}` : ''}
+
+          <div className="flex items-center justify-between rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 px-4 py-3">
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300">
+              <Clock className="w-4 h-4 text-amber-500" />
+              <span>{locale === 'sw' ? 'Muda Uliobaki' : 'Time Expiry'}</span>
+            </div>
+            <div className="text-xs font-black text-slate-900 dark:text-slate-100 text-right">
+              {deal.expiryDate
+                ? new Date(deal.expiryDate).toLocaleDateString()
+                : (locale === 'sw' ? 'Haina tarehe ya mwisho' : 'No expiry date')}
+            </div>
           </div>
         </div>
 

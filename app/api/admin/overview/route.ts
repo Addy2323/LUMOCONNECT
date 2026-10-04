@@ -192,6 +192,8 @@ export async function GET(request: NextRequest) {
     const formattedVerifications = vCases.map((vc) => ({
       id: vc.id,
       organizationId: vc.organizationId,
+      userId: vc.userId,
+      userImage: vc.user?.image || null,
       businessName:
         vc.organization?.legalName ||
         vc.organization?.tradingName ||

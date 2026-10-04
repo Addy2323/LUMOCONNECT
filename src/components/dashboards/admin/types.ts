@@ -137,6 +137,7 @@ export interface AdminDealItem {
   rewardTrigger?: string
   successCondition?: string
   closingDate?: string | null
+  maxPartners?: number | null
   commercialValueMinor?: string
   termsHash?: string
   attributionWindowDays?: number

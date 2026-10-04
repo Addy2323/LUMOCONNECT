@@ -11,6 +11,21 @@ export async function GET(request: NextRequest) {
     const region = searchParams.get('region') || undefined
     const sortBy = (searchParams.get('sortBy') as 'recommended' | 'highest_reward' | 'newest' | 'ending_soon') || 'recommended'
 
+    // Auto soft-delete any deals whose closing date or end date is in the past
+    const now = new Date()
+    await db.opportunity.updateMany({
+      where: {
+        deletedAt: null,
+        OR: [
+          { closingDate: { lt: now } },
+          { endDate: { lt: now } },
+        ],
+      },
+      data: {
+        deletedAt: now,
+      },
+    })
+
     const where: any = {
       status: { in: ['PUBLISHED', 'APPROVED'] },
       deletedAt: null,
@@ -136,6 +151,8 @@ export async function GET(request: NextRequest) {
         totalBudgetTZS: opp.totalBudgetMinor ? Number(opp.totalBudgetMinor) / 100 : 0,
         spentBudgetTZS: opp.spentBudgetMinor ? Number(opp.spentBudgetMinor) / 100 : 0,
         activePartnerCount: opp._count.participations,
+        maxPartners: opp.maxPartners ?? undefined,
+        expiryDate: opp.closingDate ?? opp.endDate ?? undefined,
         isFeatured: opp.isFeatured,
         featuredImageUrl: opp.coverImageUrl || undefined,
         promoVideoUrl: opp.promoVideoUrl || undefined,

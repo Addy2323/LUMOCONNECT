@@ -50,6 +50,8 @@ export function DealsRegistryTab() {
     rewardTrigger: '',
     summary: '',
     description: '',
+    closingDate: '',
+    maxPartners: '',
   })
 
   const openDealReview = (deal: AdminDealItem, startInEditMode = false) => {
@@ -100,6 +102,8 @@ export function DealsRegistryTab() {
         deal.description ||
         (Array.isArray(deal.requirements) ? deal.requirements.join('\n') : '') ||
         '',
+      closingDate: deal.closingDate ? String(deal.closingDate).slice(0, 10) : '',
+      maxPartners: deal.maxPartners !== undefined && deal.maxPartners !== null ? String(deal.maxPartners) : '',
     })
   }
 
@@ -154,6 +158,8 @@ export function DealsRegistryTab() {
         summary: editForm.summary.trim(),
         description: editForm.description.trim(),
         requirements: editForm.description.trim() ? [editForm.description.trim()] : [],
+        closingDate: editForm.closingDate ? editForm.closingDate.trim() : null,
+        maxPartners: editForm.maxPartners !== '' ? parseInt(editForm.maxPartners, 10) : null,
       }
 
       if (publishImmediately) {
@@ -592,6 +598,22 @@ export function DealsRegistryTab() {
                         {editForm.rewardTrigger || '-'}
                       </span>
                     </div>
+
+                    <div className="flex">
+                      <span className="w-28 text-slate-400 font-medium shrink-0">Time Left</span>
+                      <span className="font-bold text-orange-600 dark:text-orange-400">
+                        {editForm.closingDate ? `${editForm.closingDate}` : 'No expiry date'}
+                      </span>
+                    </div>
+
+                    <div className="flex">
+                      <span className="w-28 text-slate-400 font-medium shrink-0">Max Capacity</span>
+                      <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                        {editForm.maxPartners
+                          ? `${editForm.maxPartners} partners (${selectedDeal.activePartners || 0} enrolled, ${Math.max(0, parseInt(editForm.maxPartners) - (selectedDeal.activePartners || 0))} remaining)`
+                          : 'Unlimited capacity'}
+                      </span>
+                    </div>
                   </div>
                 ) : (
                   /* Commercial Terms Edit Inputs */
@@ -691,6 +713,30 @@ export function DealsRegistryTab() {
                         onChange={(e) => setEditForm({ ...editForm, rewardTrigger: e.target.value })}
                         className="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs"
                       />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-500 mb-1">Expiration Date (Time Expiry)</label>
+                        <input
+                          type="date"
+                          value={editForm.closingDate}
+                          onChange={(e) => setEditForm({ ...editForm, closingDate: e.target.value })}
+                          className="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-semibold"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-500 mb-1">Max Capacity (Needed People/Partners)</label>
+                        <input
+                          type="number"
+                          min="1"
+                          placeholder="e.g. 10 or 5"
+                          value={editForm.maxPartners}
+                          onChange={(e) => setEditForm({ ...editForm, maxPartners: e.target.value })}
+                          className="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-bold"
+                        />
+                      </div>
                     </div>
                   </div>
                 )}
