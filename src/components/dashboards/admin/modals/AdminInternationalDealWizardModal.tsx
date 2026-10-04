@@ -1010,6 +1010,28 @@ export function AdminInternationalDealWizardModal({
                   </div>
                 </label>
               </div>
+
+              {/* Golden VIP Exclusivity Duration Selector */}
+              <div className="p-4 rounded-xl border border-amber-500/30 bg-amber-950/20 space-y-3">
+                <span className="text-xs font-black text-amber-400 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5" /> Golden VIP 24h Early Access Window Configuration
+                </span>
+                <p className="text-[11px] text-slate-300">
+                  Select the priority duration before this international deal opens to standard partner channels:
+                </p>
+                <div className="grid grid-cols-3 gap-3">
+                  {[12, 24, 48].map((hours) => (
+                    <button
+                      key={hours}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, isFeatured: true })}
+                      className="p-2.5 rounded-lg border border-amber-500/40 bg-slate-900 hover:bg-amber-500/10 text-xs font-bold text-amber-300 text-center cursor-pointer active:scale-95 transition-all"
+                    >
+                      {hours} Hours Priority
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
 

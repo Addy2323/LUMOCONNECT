@@ -2,10 +2,10 @@ import type { Metadata } from 'next'
 import { PrivateVipMarketplaceView } from '@/components/marketplace/PrivateVipMarketplaceView'
 
 export const metadata: Metadata = {
-  title: 'Private VIP Membership | Lumo',
-  description: 'Discover Lumo Private Membership and priority access to selected verified opportunities.',
+  title: 'Golden VIP Marketplace | Lumo',
+  description: 'Exclusive 24-hour priority access window for high-reward verified Lumo opportunities.',
 }
 
-export default function PrivateMemberPage() {
+export default function VipPage() {
   return <PrivateVipMarketplaceView />
 }

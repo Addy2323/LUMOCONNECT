@@ -6,6 +6,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Sparkles,
   Menu,
+  Crown,
 } from 'lucide-react'
 import {
   PartnerSidebarSection,
@@ -449,17 +450,26 @@ export function PartnerDashboardView({
 
           <div className="hidden shrink-0 items-center gap-3 sm:flex">
               {subscription.status === 'ACTIVE' && !countdown.isExpired ? (
-                <div
-                  onClick={() => setActiveTab('subscription')}
-                  className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-300 dark:border-amber-700/60 text-amber-900 dark:text-amber-300 cursor-pointer shadow-2xs hover:scale-105 transition-transform"
-                  title="Active PRO Subscription - Click to view countdown"
-                >
-                  <span className="px-1.5 py-0.2 rounded-md bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[9px] font-black uppercase shadow-2xs">
-                    PRO
-                  </span>
-                  <span className="hidden sm:inline-block font-mono font-extrabold text-[#FF6A00]">
-                    {countdown.badgeDisplay}
-                  </span>
+                <div className="flex items-center gap-2">
+                  <div
+                    onClick={() => setActiveTab('subscription')}
+                    className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-300 dark:border-amber-700/60 text-amber-900 dark:text-amber-300 cursor-pointer shadow-2xs hover:scale-105 transition-transform"
+                    title="Active PRO Subscription - Click to view countdown"
+                  >
+                    <span className="px-1.5 py-0.2 rounded-md bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[9px] font-black uppercase shadow-2xs">
+                      PRO
+                    </span>
+                    <span className="hidden sm:inline-block font-mono font-extrabold text-[#FF6A00]">
+                      {countdown.badgeDisplay}
+                    </span>
+                  </div>
+
+                  {(subscription.planName?.toLowerCase().includes('vip') || subscription.cycle === ('GOLDEN_VIP' as any)) && (
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 text-xs font-black shadow-md shadow-amber-500/20">
+                      <Crown className="w-3.5 h-3.5 text-slate-950 animate-pulse" />
+                      <span>GOLDEN VIP</span>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <button

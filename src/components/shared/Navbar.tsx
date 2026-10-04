@@ -13,6 +13,7 @@ import {
   Menu,
   X,
   Globe,
+  Crown,
 } from 'lucide-react'
 import { BrandMark } from './BrandMark'
 
@@ -33,6 +34,7 @@ export function Navbar({
 
   const navLinks = [
     { id: 'marketplace', label: 'Discover Deals', icon: Compass },
+    { id: 'vip', label: 'Private VIP', icon: Crown, isVip: true },
     { id: 'international', label: 'International', icon: Globe },
     { id: 'partner', label: 'Partner Portal', icon: Sparkles },
     { id: 'business', label: 'Business Hub', icon: Briefcase },
@@ -69,13 +71,20 @@ export function Navbar({
                   key={link.id}
                   onClick={() => onNavigate(link.id)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
-                    isActive
+                    link.isVip
+                      ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/20'
+                      : isActive
                       ? 'bg-orange-50 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400'
                       : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-900'
                   }`}
                 >
-                  <Icon className="w-3.5 h-3.5" />
+                  <Icon className={`w-3.5 h-3.5 ${link.isVip ? 'text-amber-500 animate-pulse' : ''}`} />
                   <span>{link.label}</span>
+                  {link.isVip && (
+                    <span className="ml-0.5 px-1.5 py-0.2 text-[9px] font-black bg-amber-500 text-slate-950 rounded-full">
+                      HOT
+                    </span>
+                  )}
                 </button>
               )
             })}

@@ -25,23 +25,49 @@
 
 ---
 
-## 2. Production Deployment (Ubuntu Server + Nginx + PM2)
+## 3. Contabo VPS Deployment (Automated Setup)
 
-1. Provision an Ubuntu 24.04 LTS server with Node.js 22 LTS, pnpm, and PostgreSQL 16.
-2. Clone repository and install dependencies with frozen lockfile:
+### Option A: One-Command Automated Setup (Recommended)
+On your Contabo VPS, clone the repo and run the automated deployment script:
+```bash
+git clone https://github.com/Addy2323/LUMOCONNECT.git
+cd LUMOCONNECT
+cp .env.example .env
+# Edit .env with production database credentials & secrets
+nano .env
+
+chmod +x scripts/deploy-contabo.sh
+./scripts/deploy-contabo.sh yourdomain.com
+```
+
+### Option B: Step-by-Step Manual Deployment on Contabo
+1. **Connect to Contabo VPS via SSH**:
    ```bash
+   ssh root@<YOUR_CONTABO_IP>
+   ```
+2. **Install Node.js 22 LTS, pnpm, and PM2**:
+   ```bash
+   curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+   sudo apt-get install -y nodejs postgresql nginx certbot python3-certbot-nginx
+   sudo npm install -g pnpm pm2
+   ```
+3. **Configure Database**:
+   ```bash
+   sudo -u postgres psql -c "CREATE USER lumouser WITH PASSWORD 'YourSecurePassword!';"
+   sudo -u postgres psql -c "CREATE DATABASE lumodb OWNER lumouser;"
+   ```
+4. **Deploy App**:
+   ```bash
+   git clone https://github.com/Addy2323/LUMOCONNECT.git
+   cd LUMOCONNECT
    pnpm install --frozen-lockfile
-   ```
-3. Run database migrations:
-   ```bash
    pnpm prisma migrate deploy
-   ```
-4. Build Next.js application:
-   ```bash
    pnpm build
+   pm2 start npm --name "lumo" -- start
+   pm2 save
    ```
-5. Start web app with PM2:
+5. **Enable SSL Certificate**:
    ```bash
-   pm2 start npm --name "lumo-web" -- start
+   sudo certbot --nginx -d yourdomain.com -d www.yourdomain.com
    ```
-6. Configure Nginx reverse proxy with TLS certificate (Let's Encrypt / Certbot).
+
