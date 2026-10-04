@@ -20,7 +20,15 @@ import { AdminInternationalDealItem } from '@/src/modules/international/types'
 import { InternationalDealDetailModal } from './modals/InternationalDealDetailModal'
 import { ISO_COUNTRIES } from '@/src/modules/international/countries'
 
-export function InternationalMarketplaceView() {
+interface InternationalMarketplaceViewProps {
+  isMember?: boolean
+  onRequireSubscription?: () => void
+}
+
+export function InternationalMarketplaceView({
+  isMember = false,
+  onRequireSubscription,
+}: InternationalMarketplaceViewProps) {
   const [deals, setDeals] = useState<AdminInternationalDealItem[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -305,6 +313,10 @@ export function InternationalMarketplaceView() {
                   <button
                     type="button"
                     onClick={() => {
+                      if (!isMember && onRequireSubscription) {
+                        onRequireSubscription()
+                        return
+                      }
                       setActiveDeal(deal)
                       setModalOpen(true)
                     }}

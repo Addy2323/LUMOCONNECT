@@ -438,7 +438,10 @@ export function InternationalLandingView({
       {/* TAB CONTENT: ADMIN DEALS */}
       {activeMarketplaceTab === 'admin_deals' && (
         <section className="pb-12 px-4 sm:px-6 max-w-6xl mx-auto">
-          <InternationalMarketplaceView />
+          <InternationalMarketplaceView
+            isMember={isMember}
+            onRequireSubscription={() => setSubscriptionModalOpen(true)}
+          />
         </section>
       )}
 
@@ -603,11 +606,17 @@ export function InternationalLandingView({
                       </div>
 
                       <button
-                        onClick={() => setSelectedOpportunity(opp)}
+                        onClick={() => {
+                          if (!isMember) {
+                            setSubscriptionModalOpen(true)
+                            return
+                          }
+                          setSelectedOpportunity(opp)
+                        }}
                         className="w-full py-2 bg-slate-100 dark:bg-slate-800 hover:bg-[#FF6A00] hover:text-white dark:hover:bg-[#FF6A00] text-slate-800 dark:text-slate-200 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                       >
-                        View Details
-                        <ChevronRight className="w-3.5 h-3.5" />
+                        <span>View Details</span>
+                        {!isMember ? <Lock className="w-3.5 h-3.5 text-[#FF6A00]" /> : <ChevronRight className="w-3.5 h-3.5" />}
                       </button>
                     </div>
                   </div>

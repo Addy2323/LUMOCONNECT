@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { internationalService } from '@/modules/international/service'
 import { getCountryByCode } from '@/modules/international/countries'
+import { getMesejiClient } from '@/src/lib/providers/meseji-client'
 
 export async function POST(request: NextRequest) {
   try {
@@ -9,7 +10,7 @@ export async function POST(request: NextRequest) {
     // Validate required fields
     if (!body.fullName || !body.title || !body.description || !body.whatsapp || !body.email || !body.countryCode) {
       return NextResponse.json(
-        { success: false, error: 'Please provide full name, opportunity title, description, country, WhatsApp, and email.' },
+        { success: false, error: 'Please provide full name, opportunity title, description, country, WhatsApp phone, and email.' },
         { status: 400 }
       )
     }
@@ -38,6 +39,18 @@ export async function POST(request: NextRequest) {
       documents: Array.isArray(body.documents) ? body.documents : [],
     })
 
+    // Instant SMS Notification to Admin via Meseji (0768828247 -> 255768828247)
+    try {
+      const meseji = getMesejiClient()
+      const smsMessage = `LUMO ALERT: New International Deal submitted by ${submission.fullName} (${submission.whatsapp} / ${submission.email}). Title: ${submission.title}. Ref: ${submission.reference}. Log in to Admin Desk to review.`
+      await meseji.sendSms({
+        recipientPhone: '255768828247',
+        messageText: smsMessage,
+      })
+    } catch (smsErr) {
+      console.error('Failed to dispatch Meseji SMS alert to Admin:', smsErr)
+    }
+
     const { text, url } = internationalService.buildWhatsAppMessage(submission)
 
     return NextResponse.json({
@@ -58,3 +71,4 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
