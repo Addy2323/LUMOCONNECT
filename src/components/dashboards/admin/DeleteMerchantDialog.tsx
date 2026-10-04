@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Trash2 } from 'lucide-react'
+import Swal from 'sweetalert2'
 
 interface Preview {
   legalName: string
@@ -45,6 +46,18 @@ export function DeleteMerchantDialog({ organizationId, onClose, onDeleted }: {
       const res = await fetch(endpoint, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ confirmation: confirmation.trim(), reason: reason.trim(), deleteAccounts }) })
       const data = await res.json()
       if (!res.ok || !data.success) throw new Error(data.message || 'Deletion failed.')
+      
+      Swal.fire({
+        icon: 'success',
+        title: 'Merchant Deleted',
+        text: `${preview.legalName.trim()} has been permanently deleted from the platform repository.`,
+        confirmButtonColor: '#FF6A00',
+        customClass: {
+          popup: 'rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white',
+          title: 'text-lg font-black',
+        },
+      })
+
       onDeleted(data.pendingFileCleanup !== 0)
     } catch (err) { setError(err instanceof Error ? err.message : 'Unable to delete merchant.') }
     finally { setBusy(false) }
