@@ -20,6 +20,9 @@ interface BusinessSaleModalProps {
 
 export function BusinessSaleModal({ isOpen, onClose, onSuccess }: BusinessSaleModalProps) {
   const [teaserTitle, setTeaserTitle] = useState('')
+  const [fullName, setFullName] = useState('')
+  const [phone, setPhone] = useState('')
+  const [email, setEmail] = useState('')
   const [countryCode, setCountryCode] = useState('TZ')
   const [sector, setSector] = useState('HOSPITALITY')
   const [askingPrice, setAskingPrice] = useState('')
@@ -39,8 +42,8 @@ export function BusinessSaleModal({ isOpen, onClose, onSuccess }: BusinessSaleMo
     e.preventDefault()
     setErrorMsg(null)
 
-    if (!teaserTitle.trim() || !askingPrice) {
-      setErrorMsg('Please enter teaser title and asking price.')
+    if (!teaserTitle.trim() || !askingPrice || !phone.trim() || !email.trim()) {
+      setErrorMsg('Please enter teaser title, asking price, phone number, and email address.')
       return
     }
 
@@ -51,6 +54,9 @@ export function BusinessSaleModal({ isOpen, onClose, onSuccess }: BusinessSaleMo
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           teaserTitle,
+          fullName,
+          phone,
+          email,
           countryCode,
           sector,
           askingPriceMinor: Math.round(parseFloat(askingPrice) * 100),
@@ -118,6 +124,54 @@ export function BusinessSaleModal({ isOpen, onClose, onSuccess }: BusinessSaleMo
           ) : (
             <form id="business-sale-form" onSubmit={handleSubmit} className="space-y-4">
               {errorMsg && <div className="text-xs text-red-600">{errorMsg}</div>}
+
+              {/* Contact Information */}
+              <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3">
+                <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                  Seller Contact Information
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Your Full Name *
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Robert Miller"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                    required
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Phone / WhatsApp Number *
+                    </label>
+                    <input
+                      type="tel"
+                      placeholder="e.g. +255768000000"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Email Address *
+                    </label>
+                    <input
+                      type="email"
+                      placeholder="e.g. robert@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">

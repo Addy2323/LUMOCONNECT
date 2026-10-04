@@ -19,6 +19,9 @@ interface JvPartnersModalProps {
 
 export function JvPartnersModal({ isOpen, onClose, onSuccess }: JvPartnersModalProps) {
   const [companyName, setCompanyName] = useState('')
+  const [fullName, setFullName] = useState('')
+  const [phone, setPhone] = useState('')
+  const [email, setEmail] = useState('')
   const [countryCode, setCountryCode] = useState('AE')
   const [sector, setSector] = useState('MANUFACTURING')
   const [whatWeBring, setWhatWeBring] = useState<string[]>(['Technology', 'Capital'])
@@ -53,8 +56,8 @@ export function JvPartnersModal({ isOpen, onClose, onSuccess }: JvPartnersModalP
     e.preventDefault()
     setErrorMsg(null)
 
-    if (!companyName.trim() || !targetProject.trim()) {
-      setErrorMsg('Please complete company name and target project details.')
+    if (!companyName.trim() || !targetProject.trim() || !phone.trim() || !email.trim()) {
+      setErrorMsg('Please complete company name, project details, phone number, and email address.')
       return
     }
 
@@ -65,6 +68,9 @@ export function JvPartnersModal({ isOpen, onClose, onSuccess }: JvPartnersModalP
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           companyName,
+          fullName,
+          phone,
+          email,
           countryCode,
           sector,
           whatWeBring,
@@ -132,6 +138,54 @@ export function JvPartnersModal({ isOpen, onClose, onSuccess }: JvPartnersModalP
           ) : (
             <form id="jv-partners-form" onSubmit={handleSubmit} className="space-y-4">
               {errorMsg && <div className="text-xs text-red-600">{errorMsg}</div>}
+
+              {/* Contact Information */}
+              <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3">
+                <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                  Contact Information
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Your Full Name *
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Jane Smith"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                    required
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Phone / WhatsApp Number *
+                    </label>
+                    <input
+                      type="tel"
+                      placeholder="e.g. +255768000000"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Email Address *
+                    </label>
+                    <input
+                      type="email"
+                      placeholder="e.g. jane@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">

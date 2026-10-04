@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getMesejiClient } from '@/src/lib/providers/meseji-client'
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
 
-    if (!body.investorEntityName || !body.estimatedBudgetMinor) {
+    if (!body.investorEntityName || !body.estimatedBudgetMinor || !body.whatsAppNumber || !body.emailAddress) {
       return NextResponse.json(
-        { success: false, error: 'Investor entity name and budget are required.' },
+        { success: false, error: 'Investor entity name, budget, phone/WhatsApp number, and email address are required.' },
         { status: 400 }
       )
     }
@@ -27,10 +28,26 @@ export async function POST(request: NextRequest) {
         investorType: body.investorType || 'FAMILY_OFFICE',
         estimatedCapacityMinor: BigInt(body.estimatedBudgetMinor),
         currency: body.currency || 'USD',
+        contactPerson: body.contactName || null,
+        whatsAppNumber: body.whatsAppNumber,
+        emailAddress: body.emailAddress,
         notes: body.mandateNotes || null,
         stage: 'LEAD_SUBMITTED',
       },
     })
+
+    // Instant Meseji SMS Alert to Admin 0768828247 (255768828247)
+    try {
+      const meseji = getMesejiClient()
+      const adminPhone = '255768828247'
+      const smsMessage = `LUMO ALERT: New Investor Introduction Pipeline (${reference}) submitted by ${body.contactName || 'Partner'} (${body.whatsAppNumber} / ${body.emailAddress}). Investor: "${body.investorEntityName}". Capacity: ${body.currency || 'USD'} ${(body.estimatedBudgetMinor / 100).toLocaleString()}. Log in to review.`
+      await meseji.sendSms({
+        recipientPhone: adminPhone,
+        messageText: smsMessage,
+      })
+    } catch (smsErr) {
+      console.error('Failed to dispatch admin SMS alert:', smsErr)
+    }
 
     return NextResponse.json({
       success: true,

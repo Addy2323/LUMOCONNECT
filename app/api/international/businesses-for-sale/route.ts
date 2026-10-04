@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getMesejiClient } from '@/src/lib/providers/meseji-client'
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
 
-    if (!body.teaserTitle || !body.askingPriceMinor) {
+    if (!body.teaserTitle || !body.askingPriceMinor || !body.phone || !body.email) {
       return NextResponse.json(
-        { success: false, error: 'Title and asking valuation are required.' },
+        { success: false, error: 'Teaser title, asking valuation, phone number, and email address are required.' },
         { status: 400 }
       )
     }
@@ -16,6 +17,9 @@ export async function POST(request: NextRequest) {
     const count = await prisma.businessSaleListing.count()
     const serial = String(count + 1).padStart(5, '0')
     const reference = `LUMO-BIZ-${year}-${serial}`
+
+    const contactHeader = `[Seller: ${body.fullName || 'N/A'} | Phone: ${body.phone} | Email: ${body.email}]`
+    const updatedReasonForSale = `${contactHeader}\nReason for Sale: ${body.reasonForSale || 'N/A'}`
 
     const listing = await prisma.businessSaleListing.create({
       data: {
@@ -27,10 +31,23 @@ export async function POST(request: NextRequest) {
         currency: body.currency || 'USD',
         annualRevenueMinor: body.annualRevenueMinor ? BigInt(body.annualRevenueMinor) : null,
         ebitdaMinor: body.ebitdaMinor ? BigInt(body.ebitdaMinor) : null,
-        reasonForSale: body.reasonForSale,
+        reasonForSale: updatedReasonForSale,
         status: 'ACTIVE',
       },
     })
+
+    // Instant Meseji SMS Alert to Admin 0768828247 (255768828247)
+    try {
+      const meseji = getMesejiClient()
+      const adminPhone = '255768828247'
+      const smsMessage = `LUMO ALERT: New Business Sale Listing (${reference}) submitted by ${body.fullName || 'Seller'} (${body.phone} / ${body.email}). Title: "${body.teaserTitle}". Valuation: ${body.currency || 'USD'} ${(body.askingPriceMinor / 100).toLocaleString()}. Log in to review.`
+      await meseji.sendSms({
+        recipientPhone: adminPhone,
+        messageText: smsMessage,
+      })
+    } catch (smsErr) {
+      console.error('Failed to dispatch admin SMS alert:', smsErr)
+    }
 
     return NextResponse.json({
       success: true,

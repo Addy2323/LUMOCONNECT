@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { InvestorType } from '@prisma/client'
+import { getMesejiClient } from '@/src/lib/providers/meseji-client'
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
 
-    if (!body.projectName || !body.capitalRequiredMinor) {
+    if (!body.projectName || !body.capitalRequiredMinor || !body.phone || !body.email) {
       return NextResponse.json(
-        { success: false, error: 'Project name and capital required are mandatory.' },
+        { success: false, error: 'Project name, capital required, phone number, and email are mandatory.' },
         { status: 400 }
       )
     }
@@ -23,6 +24,8 @@ export async function POST(request: NextRequest) {
       mappedInvestorType = body.preferredInvestorType as InvestorType
     }
 
+    const contactSummary = `Contact: ${body.fullName || 'N/A'} | Phone: ${body.phone} | Email: ${body.email}`
+
     const record = await prisma.investorProfile.create({
       data: {
         entityName: body.projectName,
@@ -33,8 +36,22 @@ export async function POST(request: NextRequest) {
         maxTicketMinor: BigInt(body.capitalRequiredMinor),
         preferredSectors: body.sector ? [body.sector] : [],
         preferredCountries: [body.countryCode || 'TZ'],
+        requirements: `${contactSummary}\nPurpose: ${body.purpose || 'N/A'}`,
       },
     })
+
+    // Instant Meseji SMS Alert to Admin 0768828247 (255768828247)
+    try {
+      const meseji = getMesejiClient()
+      const adminPhone = '255768828247'
+      const smsMessage = `LUMO ALERT: New Investor Mandate (${reference}) submitted by ${body.fullName || 'User'} (${body.phone} / ${body.email}). Project: "${body.projectName}". Capital: ${body.currency || 'USD'} ${(body.capitalRequiredMinor / 100).toLocaleString()}. Log in to review.`
+      await meseji.sendSms({
+        recipientPhone: adminPhone,
+        messageText: smsMessage,
+      })
+    } catch (smsErr) {
+      console.error('Failed to dispatch admin SMS alert:', smsErr)
+    }
 
     return NextResponse.json({
       success: true,

@@ -137,17 +137,29 @@ export function InternationalSubscriptionModal({
           userPhone: guestPhone,
           planCode: selectedPlanCode,
           currency: selectedCurrency,
-          paymentMethod: 'ONLINE_CHECKOUT',
+          paymentMethod: 'WHATSAPP_PAYMENT',
         }),
       })
 
       const data = await res.json()
       if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Failed to activate subscription.')
+        throw new Error(data.error || 'Failed to record subscription request.')
       }
 
       setSuccess(true)
       if (onSubscriptionSuccess) onSubscriptionSuccess()
+
+      // Redirect to WhatsApp +255 711 788 830 with pre-filled payment message
+      const whatsappNumber = '255711788830'
+      const formattedPrice = formatCurrencyValue(planPrice, selectedCurrency)
+      const textMessage = encodeURIComponent(
+        `I want to make payment for international deals. Selected Plan: ${selectedPlan.name} (${formattedPrice}). Email: ${email}`
+      )
+      const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${textMessage}`
+      
+      setTimeout(() => {
+        window.open(whatsappUrl, '_blank')
+      }, 500)
     } catch (err: any) {
       setErrorMsg(err.message || 'Subscription processing failed.')
     } finally {
@@ -335,8 +347,8 @@ export function InternationalSubscriptionModal({
               className="px-6 py-2.5 bg-[#FF6A00] hover:bg-[#EA580C] text-white text-xs font-extrabold rounded-xl transition-all shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50"
             >
               {loading
-                ? 'Activating...'
-                : `Activate ${selectedPlan.name} • ${formatCurrencyValue(planPrice, selectedCurrency)}`}
+                ? 'Redirecting to WhatsApp...'
+                : `Pay via WhatsApp (${formatCurrencyValue(planPrice, selectedCurrency)})`}
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>

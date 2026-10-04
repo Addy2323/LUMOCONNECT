@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getMesejiClient } from '@/src/lib/providers/meseji-client'
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
 
-    if (!body.companyName || !body.targetProject) {
+    if (!body.companyName || !body.targetProject || !body.phone || !body.email) {
       return NextResponse.json(
-        { success: false, error: 'Company name and target project details are required.' },
+        { success: false, error: 'Company name, target project details, phone number, and email are required.' },
         { status: 400 }
       )
     }
@@ -16,6 +17,9 @@ export async function POST(request: NextRequest) {
     const count = await prisma.jVRequest.count()
     const serial = String(count + 1).padStart(5, '0')
     const reference = `LUMO-JV-${year}-${serial}`
+
+    const contactHeader = `[Contact: ${body.fullName || 'N/A'} | Phone: ${body.phone} | Email: ${body.email}]`
+    const updatedTargetProject = `${contactHeader}\n${body.targetProject}`
 
     const jvRequest = await prisma.jVRequest.create({
       data: {
@@ -28,10 +32,23 @@ export async function POST(request: NextRequest) {
         partnerCountryRequired: body.partnerCountryRequired || 'TZ',
         partnerType: body.partnerType || 'LOCAL_OPERATOR',
         partnerShouldProvide: Array.isArray(body.partnerShouldProvide) ? body.partnerShouldProvide : [],
-        targetProject: body.targetProject,
+        targetProject: updatedTargetProject,
         status: 'ACTIVE',
       },
     })
+
+    // Instant Meseji SMS Alert to Admin 0768828247 (255768828247)
+    try {
+      const meseji = getMesejiClient()
+      const adminPhone = '255768828247'
+      const smsMessage = `LUMO ALERT: New Joint Venture Request (${reference}) submitted by ${body.fullName || 'User'} (${body.phone} / ${body.email}). Company: "${body.companyName}". Target: ${body.partnerCountryRequired || 'TZ'}. Log in to review.`
+      await meseji.sendSms({
+        recipientPhone: adminPhone,
+        messageText: smsMessage,
+      })
+    } catch (smsErr) {
+      console.error('Failed to dispatch admin SMS alert:', smsErr)
+    }
 
     return NextResponse.json({
       success: true,

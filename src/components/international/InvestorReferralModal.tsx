@@ -31,6 +31,9 @@ export function InvestorReferralModal({
   opportunityTitle,
   onSuccess,
 }: InvestorReferralModalProps) {
+  const [contactName, setContactName] = useState('')
+  const [whatsAppNumber, setWhatsAppNumber] = useState('')
+  const [emailAddress, setEmailAddress] = useState('')
   const [investorEntityName, setInvestorEntityName] = useState('')
   const [investorType, setInvestorType] = useState('FAMILY_OFFICE')
   const [countryCode, setCountryCode] = useState('AE')
@@ -50,8 +53,8 @@ export function InvestorReferralModal({
     e.preventDefault()
     setErrorMsg(null)
 
-    if (!investorEntityName.trim() || !estimatedBudget) {
-      setErrorMsg('Please provide the investor name/alias and estimated capital capacity.')
+    if (!investorEntityName.trim() || !estimatedBudget || !whatsAppNumber.trim() || !emailAddress.trim()) {
+      setErrorMsg('Please provide investor entity name, estimated budget, your phone number, and email address.')
       return
     }
 
@@ -63,6 +66,9 @@ export function InvestorReferralModal({
         body: JSON.stringify({
           partnerUserId: currentUserId,
           opportunityId,
+          contactName,
+          whatsAppNumber,
+          emailAddress,
           investorEntityName,
           investorType,
           countryCode,
@@ -156,6 +162,53 @@ export function InvestorReferralModal({
           ) : (
             <form id="investor-referral-form" onSubmit={handleSubmit} className="space-y-4">
               {errorMsg && <div className="text-xs text-red-600">{errorMsg}</div>}
+
+              {/* Contact Information */}
+              <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3">
+                <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                  Partner Contact Information
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Your Full Name
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Alex Johnson"
+                    value={contactName}
+                    onChange={(e) => setContactName(e.target.value)}
+                    className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Phone / WhatsApp Number *
+                    </label>
+                    <input
+                      type="tel"
+                      placeholder="e.g. +255768000000"
+                      value={whatsAppNumber}
+                      onChange={(e) => setWhatsAppNumber(e.target.value)}
+                      className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Email Address *
+                    </label>
+                    <input
+                      type="email"
+                      placeholder="e.g. alex@example.com"
+                      value={emailAddress}
+                      onChange={(e) => setEmailAddress(e.target.value)}
+                      className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
 
               {opportunityTitle && (
                 <div className="p-3 bg-orange-50/50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-900/40 rounded-xl text-xs font-bold text-slate-900 dark:text-white">
