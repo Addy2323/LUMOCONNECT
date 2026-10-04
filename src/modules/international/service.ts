@@ -715,6 +715,36 @@ class InternationalRepository {
     }
 
     this.adminDeals.set(id, deal)
+
+    // Also populate this.opportunities so it renders on the /international public deal cards marketplace
+    const opportunityId = `opp_${id}`
+    const opportunity: InternationalOpportunity = {
+      id: opportunityId,
+      submissionId: deal.id,
+      reference: deal.reference,
+      countryCode: deal.originCountryCode,
+      countryName: deal.originCountryName,
+      countryFlag: deal.originCountryFlag,
+      category: 'BUSINESS_OPPORTUNITY',
+      intent: 'OFFERING',
+      title: deal.title,
+      summary: deal.shortDescription,
+      fullDescription: deal.fullDescription || deal.shortDescription,
+      commercialTerms: `Required Outcome: ${deal.requiredOutcome}\n\nSuccess Condition: ${deal.successCondition}\n\nReward Structure: ${deal.rewardStructure.displayLabel || `${deal.rewardStructure.commissionRate || 0}% Commission`}`,
+      opportunityValue: deal.rewardStructure.fixedReward || 1000,
+      currency: deal.rewardStructure.currency || 'USD',
+      estimatedValueTZS: convertToEstimatedTZS(deal.rewardStructure.fixedReward || 1000, deal.rewardStructure.currency || 'USD'),
+      rewardAmount: deal.rewardStructure.fixedReward || 0,
+      rewardCurrency: deal.rewardStructure.currency || 'USD',
+      rewardType: deal.rewardStructure.rewardType === 'PERCENTAGE' ? 'PERCENTAGE' : 'FIXED',
+      verificationStatus: 'VERIFIED',
+      verificationBadges: ['Identity Verified', 'Origin Confirmed', 'LUMO Vetted'],
+      status: 'ACTIVE',
+      inquiryCount: 0,
+      publishedAt: now,
+    }
+    this.opportunities.set(opportunityId, opportunity)
+
     return deal
   }
 

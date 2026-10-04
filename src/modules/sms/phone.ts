@@ -37,6 +37,42 @@ export const normalizeTanzaniaPhone = normalizeMesejiPhone
 export const normalizeBeemPhone = normalizeMesejiPhone
 
 /**
+ * Normalizes phone numbers to standard canonical E.164 format: "+255XXXXXXXXX"
+ * Converts empty strings and invalid formats to null.
+ */
+export function normalizeCanonicalPhone(input: string | null | undefined): string | null {
+  if (!input) return null
+  const trimmed = input.trim()
+  if (!trimmed) return null
+  const digits = trimmed.replace(/\D/g, '')
+  if (!digits) return null
+
+  if (digits.startsWith('255') && digits.length === 12) {
+    return `+${digits}`
+  }
+  if (digits.startsWith('0') && digits.length === 10) {
+    return `+255${digits.slice(1)}`
+  }
+  if (digits.length === 9 && (digits.startsWith('6') || digits.startsWith('7'))) {
+    return `+255${digits}`
+  }
+  if (trimmed.startsWith('+') && digits.length >= 7) {
+    return `+${digits}`
+  }
+  return digits.length >= 7 ? `+${digits}` : null
+}
+
+/**
+ * Normalizes email addresses to lowercased trimmed format.
+ * Converts empty strings to null.
+ */
+export function normalizeCanonicalEmail(input: string | null | undefined): string | null {
+  if (!input) return null
+  const trimmed = input.trim().toLowerCase()
+  return trimmed.length > 0 ? trimmed : null
+}
+
+/**
  * Detects Tanzanian mobile network operator based on national dial code allocation
  */
 export function detectTanzaniaOperator(phone: string): TanzaniaMobileOperator {

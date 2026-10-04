@@ -75,9 +75,18 @@ const inMemoryUsersStore: RegisteredUser[] = [
   },
 ]
 
+import { normalizeCanonicalEmail, normalizeCanonicalPhone } from '@/modules/sms/phone'
+
 export function findUserByEmail(email: string): RegisteredUser | undefined {
-  const normalized = email.trim().toLowerCase()
-  return inMemoryUsersStore.find((u) => u.email.toLowerCase() === normalized)
+  const normalized = normalizeCanonicalEmail(email)
+  if (!normalized) return undefined
+  return inMemoryUsersStore.find((u) => normalizeCanonicalEmail(u.email) === normalized)
+}
+
+export function findUserByPhone(phone: string): RegisteredUser | undefined {
+  const normalized = normalizeCanonicalPhone(phone)
+  if (!normalized) return undefined
+  return inMemoryUsersStore.find((u) => normalizeCanonicalPhone(u.phone) === normalized)
 }
 
 export function registerInMemoryUser(data: {
@@ -92,27 +101,39 @@ export function registerInMemoryUser(data: {
     tradingName?: string
   }
 }): RegisteredUser {
-  const normalized = data.email.trim().toLowerCase()
-  const existing = findUserByEmail(normalized)
+  const normalizedEmail = normalizeCanonicalEmail(data.email)
+  const normalizedPhone = normalizeCanonicalPhone(data.phone)
+
+  if (!normalizedEmail) {
+    throw new Error('Enter a valid email address.')
+  }
+
+  const existingEmailUser = findUserByEmail(normalizedEmail)
+  if (existingEmailUser) {
+    const error = new Error('An account with this email address already exists.')
+    ;(error as any).code = 'P2002'
+    ;(error as any).meta = { target: ['email'] }
+    throw error
+  }
+
+  if (normalizedPhone) {
+    const existingPhoneUser = findUserByPhone(normalizedPhone)
+    if (existingPhoneUser) {
+      const error = new Error('An account with this phone number already exists.')
+      ;(error as any).code = 'P2002'
+      ;(error as any).meta = { target: ['phone'] }
+      throw error
+    }
+  }
 
   const passwordHash = hashPassword(data.password)
   const orgName = data.bizDetails?.tradingName || data.bizDetails?.legalName || (data.role === 'BUSINESS' ? `${data.name}'s Business` : undefined)
 
-  if (existing) {
-    existing.name = data.name || existing.name
-    existing.phone = data.phone || existing.phone
-    existing.passwordHash = passwordHash
-    existing.role = data.role
-    if (data.image) existing.image = data.image
-    if (orgName) existing.organizationName = orgName
-    return existing
-  }
-
   const newUser: RegisteredUser = {
     id: `usr_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
-    email: normalized,
+    email: normalizedEmail,
     name: data.name,
-    phone: data.phone,
+    phone: normalizedPhone || data.phone,
     passwordHash,
     role: data.role,
     image: data.image || null,

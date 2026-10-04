@@ -1,23 +1,55 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { createAndSendOtp } from '@/modules/identity/otp.service'
 import { isValidTanzaniaPhone } from '@/modules/sms/phone'
+import { checkRateLimit, rateLimitResponse, getClientIp } from '@/lib/rate-limiter'
+
+const otpSendSchema = z
+  .object({
+    identifier: z.string().trim().min(3, 'Identifier is required.').max(255),
+    purpose: z.enum(['REGISTRATION', 'PASSWORD_RESET', 'STEP_UP_ADMIN', 'TRANSACTION_CONFIRM']).default('REGISTRATION'),
+    language: z.enum(['EN', 'SW']).default('EN'),
+  })
+  .strict()
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json().catch(() => ({}))
-    const { identifier, purpose = 'REGISTRATION', language = 'EN' } = body
+    const ip = getClientIp(request)
 
-    console.log('[OTP SEND API] Request received', {
-      identifier: identifier ? `${identifier.slice(0, 4)}***` : 'MISSING',
-      purpose,
-      language,
+    // IP-based Rate Limiter (Max 5 OTP requests per 1 minute per IP)
+    const ipRateLimit = await checkRateLimit({
+      keyPrefix: 'otp-send-ip',
+      identifier: ip,
+      maxRequests: 5,
+      windowSeconds: 60,
     })
 
-    if (!identifier || typeof identifier !== 'string') {
+    if (!ipRateLimit.success) {
+      return rateLimitResponse(ipRateLimit.resetSeconds, 'Too many OTP requests from this IP. Please wait before trying again.')
+    }
+
+    const body = await request.json().catch(() => ({}))
+    const parsed = otpSendSchema.safeParse(body)
+
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: 'Identifier (phone number or email) is required.' },
+        { error: 'Invalid payload parameters.', details: parsed.error.format() },
         { status: 400 }
       )
+    }
+
+    const { identifier, purpose, language } = parsed.data
+
+    // Account-based Rate Limiter (Max 3 OTP requests per 1 minute per identifier)
+    const accountRateLimit = await checkRateLimit({
+      keyPrefix: 'otp-send-account',
+      identifier,
+      maxRequests: 3,
+      windowSeconds: 60,
+    })
+
+    if (!accountRateLimit.success) {
+      return rateLimitResponse(accountRateLimit.resetSeconds, 'Too many verification requests for this recipient. Please wait before requesting another code.')
     }
 
     const cleanId = identifier.trim()
@@ -25,21 +57,19 @@ export async function POST(request: NextRequest) {
     const isEmail = cleanId.includes('@') && cleanId.includes('.')
 
     if (!isPhone && !isEmail) {
-      console.warn('[OTP SEND API] Invalid identifier format', { cleanId: cleanId.slice(0, 5) + '***' })
       return NextResponse.json(
         { error: 'Invalid identifier. Must be a valid Tanzanian mobile number (e.g. 07XXXXXXXX) or email address.' },
         { status: 400 }
       )
     }
 
-    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || undefined
-
     const result = await createAndSendOtp({
       identifier: cleanId,
       purpose,
       ipAddress: ip,
-      language: language === 'SW' ? 'SW' : 'EN',
+      language,
     })
+
 
     console.log('[OTP SEND API] Service result', {
       success: result.success,

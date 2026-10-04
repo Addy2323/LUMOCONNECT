@@ -1,48 +1,78 @@
 import { NextResponse } from 'next/server'
+import { z } from 'zod'
 import { db } from '@/lib/db'
-import { scryptSync, timingSafeEqual, randomBytes } from 'crypto'
 import { DATABASE_SESSION_COOKIE, sessionTokenHash } from '@/lib/database-session'
-
-function verifyPassword(password: string, storedHash: string): boolean {
-  try {
-    const [hash, salt] = storedHash.split(':')
-    if (!hash || !salt) return false
-    const hashBuffer = Buffer.from(hash, 'hex')
-    const testHash = scryptSync(password, salt, 64)
-    return timingSafeEqual(hashBuffer, testHash)
-  } catch {
-    return false
-  }
-}
-
+import { normalizeCanonicalEmail, normalizeCanonicalPhone } from '@/modules/sms/phone'
 import { authenticateInMemoryUser } from '@/lib/userRegistry'
+import { checkRateLimit, rateLimitResponse, getClientIp } from '@/lib/rate-limiter'
+import { verifyPassword } from '@/lib/password'
+
+
+const loginSchema = z
+  .object({
+    email: z.string().trim().min(1, 'Email or phone is required.').max(255),
+    password: z.string().min(1, 'Password is required.').max(128),
+  })
+  .strict()
+
+const MAX_FAILED_ATTEMPTS = 5
+const LOCKOUT_MINUTES = 15
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json()
-    const { email, password } = body
+    const ip = getClientIp(req)
+    
+    // IP-based Rate Limiter (Max 10 login requests per 1 minute per IP)
+    const ipRateLimit = await checkRateLimit({
+      keyPrefix: 'login-ip',
+      identifier: ip,
+      maxRequests: 10,
+      windowSeconds: 60,
+    })
 
-    if (!email || !password) {
+    if (!ipRateLimit.success) {
+      return rateLimitResponse(ipRateLimit.resetSeconds, 'Too many login attempts from this IP. Please try again shortly.')
+    }
+
+    const body = await req.json().catch(() => ({}))
+    const parsed = loginSchema.safeParse(body)
+
+    if (!parsed.success) {
       return NextResponse.json(
-        { success: false, message: 'Email and password are required' },
+        { success: false, message: 'Invalid credentials payload.' },
         { status: 400 }
       )
     }
 
-    const normalizedEmail = email.trim().toLowerCase()
+    const { email, password } = parsed.data
+    const normalizedEmail = normalizeCanonicalEmail(email)
+    const normalizedPhone = normalizeCanonicalPhone(email)
+    const accountIdentifier = normalizedEmail || normalizedPhone || email.trim().toLowerCase()
+
+    // Account-based Rate Limiter (Max 5 login requests per 1 minute per account identifier)
+    const accountRateLimit = await checkRateLimit({
+      keyPrefix: 'login-account',
+      identifier: accountIdentifier,
+      maxRequests: 5,
+      windowSeconds: 60,
+    })
+
+    if (!accountRateLimit.success) {
+      return rateLimitResponse(accountRateLimit.resetSeconds, 'Too many login attempts for this account. Please try again shortly.')
+    }
 
     if (!process.env.DATABASE_URL?.trim()) {
       console.warn('DATABASE_URL is not set. Processing login via in-memory user registry.')
-      const result = authenticateInMemoryUser(normalizedEmail, password)
+      const result = authenticateInMemoryUser(email, password)
 
       if (!result.success || !result.user) {
         return NextResponse.json(
-          { success: false, message: result.message || 'Invalid email or password.' },
+          { success: false, message: 'Invalid credentials.' },
           { status: 401 }
         )
       }
 
-      const token = randomBytes(32).toString('hex')
+      const token = (await import('crypto')).randomBytes(32).toString('hex')
       const response = NextResponse.json({
         success: true,
         user: {
@@ -70,8 +100,14 @@ export async function POST(req: Request) {
       return response
     }
 
-    const user = await db.user.findUnique({
-      where: { email: normalizedEmail },
+    const user = await db.user.findFirst({
+      where: {
+        deletedAt: null,
+        OR: [
+          ...(normalizedEmail ? [{ email: normalizedEmail }] : []),
+          ...(normalizedPhone ? [{ phone: normalizedPhone }] : []),
+        ],
+      },
       include: {
         accounts: true,
         roleAssignments: {
@@ -89,42 +125,66 @@ export async function POST(req: Request) {
     })
 
     if (!user) {
+      // Execute constant-time dummy password hash comparison to prevent timing enumeration attacks
+      verifyPassword(password, null)
       return NextResponse.json(
-        { success: false, message: 'Invalid credentials. User does not exist.' },
+        { success: false, message: 'Invalid credentials.' },
         { status: 401 }
+      )
+    }
+
+    // Check account lockout status
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      const remainingSeconds = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 1000)
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Account is temporarily locked due to consecutive failed login attempts. Please try again later.',
+          retryAfterSeconds: remainingSeconds,
+        },
+        { status: 423 }
       )
     }
 
     if (user.accountStatus === 'SUSPENDED' || user.accountStatus === 'LOCKED') {
       return NextResponse.json(
-        { success: false, message: `Access denied. Your account is ${user.accountStatus.toLowerCase()}.` },
-        { status: 403 }
-      )
-    }
-
-    if (user.accountStatus !== 'ACTIVE') {
-      return NextResponse.json(
-        { success: false, message: 'Complete all registration and onboarding steps before accessing your dashboard.' },
-        { status: 403 }
+        { success: false, message: 'Invalid credentials.' },
+        { status: 401 }
       )
     }
 
     const credentialAccount = user.accounts.find((a) => a.providerId === 'credential')
+    const isValidPassword = verifyPassword(password, credentialAccount?.password)
 
-    if (!credentialAccount) {
+    if (!isValidPassword) {
+      const nextFailedCount = user.failedLoginCount + 1
+      let lockUpdate: { failedLoginCount: number; lockedUntil?: Date } = {
+        failedLoginCount: nextFailedCount,
+      }
+
+      if (nextFailedCount >= MAX_FAILED_ATTEMPTS) {
+        const lockoutTime = new Date(Date.now() + LOCKOUT_MINUTES * 60 * 1000)
+        lockUpdate.lockedUntil = lockoutTime
+        console.warn(`[SECURITY LOCKOUT] Account locked due to failed attempts: ${user.id} (${normalizedEmail || normalizedPhone})`)
+      }
+
+      await db.user.update({
+        where: { id: user.id },
+        data: lockUpdate,
+      }).catch(() => {})
+
       return NextResponse.json(
-        { success: false, message: 'No password credential set for this account.' },
+        { success: false, message: 'Invalid credentials.' },
         { status: 401 }
       )
     }
 
-    const isValidPassword = Boolean(credentialAccount.password && verifyPassword(password, credentialAccount.password))
-
-    if (!isValidPassword) {
-      return NextResponse.json(
-        { success: false, message: 'Invalid password. Please check your credentials.' },
-        { status: 401 }
-      )
+    // Reset lockout counters on successful authentication
+    if (user.failedLoginCount > 0 || user.lockedUntil) {
+      await db.user.update({
+        where: { id: user.id },
+        data: { failedLoginCount: 0, lockedUntil: null },
+      }).catch(() => {})
     }
 
     // Determine primary role
@@ -141,12 +201,19 @@ export async function POST(req: Request) {
 
     const organization = user.memberships[0]?.organization || null
 
-    const token = randomBytes(32).toString('hex')
-    await db.session.create({ data: {
-      userId: user.id,
-      token: sessionTokenHash(token),
-      expiresAt: new Date(Date.now() + 8 * 60 * 60 * 1000),
-    } })
+    const token = (await import('crypto')).randomBytes(32).toString('hex')
+    const userAgent = req.headers.get('user-agent') || undefined
+
+    await db.session.create({
+      data: {
+        userId: user.id,
+        token: sessionTokenHash(token),
+        ipAddress: ip,
+        userAgent,
+        expiresAt: new Date(Date.now() + 8 * 60 * 60 * 1000),
+      },
+    })
+
     const response = NextResponse.json({
       success: true,
       user: {
@@ -162,10 +229,15 @@ export async function POST(req: Request) {
         twoFactorEnabled: user.twoFactorEnabled,
       },
     })
+
     response.cookies.set(DATABASE_SESSION_COOKIE, token, {
-      httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production',
-      path: '/', maxAge: 8 * 60 * 60,
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+      maxAge: 8 * 60 * 60,
     })
+
     return response
   } catch (error: any) {
     console.error('Login error:', error)
@@ -175,3 +247,4 @@ export async function POST(req: Request) {
     )
   }
 }
+

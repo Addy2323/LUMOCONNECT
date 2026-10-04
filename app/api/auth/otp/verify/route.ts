@@ -1,5 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { verifyOtpChallenge } from '@/modules/identity/otp.service'
+import { checkRateLimit, rateLimitResponse, getClientIp } from '@/lib/rate-limiter'
+
+const otpVerifySchema = z
+  .object({
+    identifier: z.string().trim().min(3, 'Identifier is required.').max(255),
+    code: z.string().trim().min(4, 'Code is required.').max(20),
+    challengeId: z.string().optional(),
+    purpose: z.enum(['REGISTRATION', 'PASSWORD_RESET', 'STEP_UP_ADMIN', 'TRANSACTION_CONFIRM']).optional(),
+  })
+  .strict()
 
 /** Map internal error codes to user-safe messages */
 function safeErrorMessage(code: string | undefined): string {
@@ -19,22 +30,31 @@ function safeErrorMessage(code: string | undefined): string {
 
 export async function POST(request: NextRequest) {
   try {
+    const ip = getClientIp(request)
+
+    // IP-based Rate Limiter (Max 10 verify attempts per 1 minute per IP)
+    const ipRateLimit = await checkRateLimit({
+      keyPrefix: 'otp-verify-ip',
+      identifier: ip,
+      maxRequests: 10,
+      windowSeconds: 60,
+    })
+
+    if (!ipRateLimit.success) {
+      return rateLimitResponse(ipRateLimit.resetSeconds, 'Too many verification attempts. Please try again shortly.')
+    }
+
     const body = await request.json().catch(() => ({}))
-    const { identifier, code, challengeId, purpose } = body
+    const parsed = otpVerifySchema.safeParse(body)
 
-    if (!identifier || typeof identifier !== 'string') {
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: 'Identifier (phone number or email) is required.' },
+        { error: 'Invalid payload parameters.', details: parsed.error.format() },
         { status: 400 }
       )
     }
 
-    if (!code || typeof code !== 'string') {
-      return NextResponse.json(
-        { error: 'Verification code is required.' },
-        { status: 400 }
-      )
-    }
+    const { identifier, code, challengeId, purpose } = parsed.data
 
     const result = await verifyOtpChallenge({
       identifier: identifier.trim(),
@@ -42,6 +62,7 @@ export async function POST(request: NextRequest) {
       challengeId,
       purpose,
     })
+
 
     if (!result.success) {
       return NextResponse.json(

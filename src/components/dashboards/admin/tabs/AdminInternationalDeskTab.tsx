@@ -30,6 +30,7 @@ import {
   Briefcase,
   Users,
   Handshake,
+  Sparkles,
 } from 'lucide-react'
 import {
   InternationalSubmission,
@@ -40,6 +41,7 @@ import {
   InternationalSubmissionStatus,
 } from '@/modules/international/types'
 import { formatCurrencyValue, ISO_COUNTRIES } from '@/modules/international/countries'
+import { AdminInternationalDealWizardModal } from '../modals/AdminInternationalDealWizardModal'
 
 type InternationalSubTab =
   | 'overview'
@@ -102,6 +104,9 @@ export function AdminInternationalDeskTab() {
   const [grantCurrency, setGrantCurrency] = useState('USD')
   const [grantAmount, setGrantAmount] = useState('49')
   const [grantNotes, setGrantNotes] = useState('')
+
+  // Admin deal wizard state
+  const [dealWizardOpen, setDealWizardOpen] = useState(false)
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('')
@@ -362,6 +367,13 @@ export function AdminInternationalDeskTab() {
           >
             <Plus className="w-3.5 h-3.5" />
             Grant Private Access
+          </button>
+          <button
+            onClick={() => setDealWizardOpen(true)}
+            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            Post International Deal
           </button>
         </div>
       </div>
@@ -646,6 +658,7 @@ export function AdminInternationalDeskTab() {
                 <thead>
                   <tr className="border-b border-slate-200 dark:border-slate-800 text-[10px] font-black uppercase tracking-wider text-slate-400 bg-slate-50 dark:bg-slate-800/50">
                     <th className="py-3 px-4">Business / Teaser Title</th>
+                    <th className="py-3 px-4">Submitter Contact</th>
                     <th className="py-3 px-4">Country & Sector</th>
                     <th className="py-3 px-4">Asking Valuation</th>
                     <th className="py-3 px-4">Revenue / EBITDA</th>
@@ -656,7 +669,7 @@ export function AdminInternationalDeskTab() {
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
                   {businessSales.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-8 text-center text-slate-400">
+                      <td colSpan={7} className="py-8 text-center text-slate-400">
                         No business sale listings submitted yet.
                       </td>
                     </tr>
@@ -672,6 +685,26 @@ export function AdminInternationalDeskTab() {
                           )}
                         </td>
                         <td className="py-3 px-4">
+                          <div className="font-bold text-slate-800 dark:text-slate-200">
+                            {b.reasonForSale?.includes('[Seller:')
+                              ? b.reasonForSale.split('\n')[0].replace('[Seller:', '').replace(']', '')
+                              : 'Seller Contact'}
+                          </div>
+                          {b.reasonForSale?.includes('Phone:') && (
+                            <div className="flex items-center gap-2 mt-0.5 text-[11px]">
+                              <a
+                                href={`https://wa.me/${b.reasonForSale.match(/Phone:\s*([^\s|]+)/)?.[1]?.replace(/[^0-9]/g, '') || ''}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-emerald-600 font-bold hover:underline flex items-center gap-1"
+                              >
+                                <MessageCircle className="w-3 h-3" />
+                                {b.reasonForSale.match(/Phone:\s*([^\s|]+)/)?.[1] || 'WhatsApp'}
+                              </a>
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-3 px-4">
                           <span className="font-bold">{b.countryCode}</span> &bull; {b.sector}
                         </td>
                         <td className="py-3 px-4 font-bold text-[#FF6A00]">
@@ -681,7 +714,7 @@ export function AdminInternationalDeskTab() {
                           Rev: {b.annualRevenueMinor ? formatCurrencyValue(b.annualRevenueMinor, b.currency) : 'N/A'} | EBITDA: {b.ebitdaMinor ? formatCurrencyValue(b.ebitdaMinor, b.currency) : 'N/A'}
                         </td>
                         <td className="py-3 px-4 text-slate-500 max-w-xs truncate">
-                          {b.reasonForSale || 'Not specified'}
+                          {b.reasonForSale?.includes('\n') ? b.reasonForSale.split('\n').slice(1).join(' ') : b.reasonForSale || 'Not specified'}
                         </td>
                         <td className="py-3 px-4">
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
@@ -711,6 +744,7 @@ export function AdminInternationalDeskTab() {
                 <thead>
                   <tr className="border-b border-slate-200 dark:border-slate-800 text-[10px] font-black uppercase tracking-wider text-slate-400 bg-slate-50 dark:bg-slate-800/50">
                     <th className="py-3 px-4">Entity / Project Name</th>
+                    <th className="py-3 px-4">Submitter Contact</th>
                     <th className="py-3 px-4">Investor Type</th>
                     <th className="py-3 px-4">Country</th>
                     <th className="py-3 px-4">Ticket Range (Min - Max)</th>
@@ -720,7 +754,7 @@ export function AdminInternationalDeskTab() {
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
                   {investorProfiles.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="py-8 text-center text-slate-400">
+                      <td colSpan={6} className="py-8 text-center text-slate-400">
                         No investor mandates registered yet.
                       </td>
                     </tr>
@@ -729,6 +763,26 @@ export function AdminInternationalDeskTab() {
                       <tr key={ip.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50">
                         <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">
                           {ip.entityName}
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="font-bold text-slate-800 dark:text-slate-200">
+                            {ip.requirements?.includes('Contact:')
+                              ? ip.requirements.split('\n')[0].replace('Contact:', '')
+                              : 'Investor Contact'}
+                          </div>
+                          {ip.requirements?.includes('Phone:') && (
+                            <div className="flex items-center gap-2 mt-0.5 text-[11px]">
+                              <a
+                                href={`https://wa.me/${ip.requirements.match(/Phone:\s*([^\s|]+)/)?.[1]?.replace(/[^0-9]/g, '') || ''}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-emerald-600 font-bold hover:underline flex items-center gap-1"
+                              >
+                                <MessageCircle className="w-3 h-3" />
+                                {ip.requirements.match(/Phone:\s*([^\s|]+)/)?.[1] || 'WhatsApp'}
+                              </a>
+                            </div>
+                          )}
                         </td>
                         <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">
                           {ip.investorType}
@@ -763,6 +817,7 @@ export function AdminInternationalDeskTab() {
                 <thead>
                   <tr className="border-b border-slate-200 dark:border-slate-800 text-[10px] font-black uppercase tracking-wider text-slate-400 bg-slate-50 dark:bg-slate-800/50">
                     <th className="py-3 px-4">Company Name</th>
+                    <th className="py-3 px-4">Submitter Contact</th>
                     <th className="py-3 px-4">Origin Country & Sector</th>
                     <th className="py-3 px-4">Capital Committed</th>
                     <th className="py-3 px-4">Target Project / Mandate</th>
@@ -772,7 +827,7 @@ export function AdminInternationalDeskTab() {
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
                   {jvRequests.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="py-8 text-center text-slate-400">
+                      <td colSpan={6} className="py-8 text-center text-slate-400">
                         No JV requests submitted yet.
                       </td>
                     </tr>
@@ -783,13 +838,33 @@ export function AdminInternationalDeskTab() {
                           {jv.companyName}
                         </td>
                         <td className="py-3 px-4">
+                          <div className="font-bold text-slate-800 dark:text-slate-200">
+                            {jv.targetProject?.includes('[Contact:')
+                              ? jv.targetProject.split('\n')[0].replace('[Contact:', '').replace(']', '')
+                              : 'JV Partner Contact'}
+                          </div>
+                          {jv.targetProject?.includes('Phone:') && (
+                            <div className="flex items-center gap-2 mt-0.5 text-[11px]">
+                              <a
+                                href={`https://wa.me/${jv.targetProject.match(/Phone:\s*([^\s|]+)/)?.[1]?.replace(/[^0-9]/g, '') || ''}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-emerald-600 font-bold hover:underline flex items-center gap-1"
+                              >
+                                <MessageCircle className="w-3 h-3" />
+                                {jv.targetProject.match(/Phone:\s*([^\s|]+)/)?.[1] || 'WhatsApp'}
+                              </a>
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-3 px-4">
                           <span className="font-bold">{jv.countryCode}</span> &bull; {jv.sector}
                         </td>
                         <td className="py-3 px-4 font-bold text-[#FF6A00]">
                           {formatCurrencyValue(jv.capitalAvailableMinor, jv.currency)}
                         </td>
                         <td className="py-3 px-4 text-slate-700 dark:text-slate-300 font-medium">
-                          {jv.targetProject}
+                          {jv.targetProject?.includes('\n') ? jv.targetProject.split('\n').slice(1).join(' ') : jv.targetProject}
                         </td>
                         <td className="py-3 px-4 text-slate-500">
                           {jv.partnerType} ({jv.partnerCountryRequired})
@@ -817,6 +892,7 @@ export function AdminInternationalDeskTab() {
                   <tr className="border-b border-slate-200 dark:border-slate-800 text-[10px] font-black uppercase tracking-wider text-slate-400 bg-slate-50 dark:bg-slate-800/50">
                     <th className="py-3 px-4">Ref Number</th>
                     <th className="py-3 px-4">Investor Lead Name</th>
+                    <th className="py-3 px-4">Partner Contact Details</th>
                     <th className="py-3 px-4">Country & Type</th>
                     <th className="py-3 px-4">Estimated Budget</th>
                     <th className="py-3 px-4">Stage</th>
@@ -825,7 +901,7 @@ export function AdminInternationalDeskTab() {
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
                   {introductions.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="py-6 text-center text-slate-400">
+                      <td colSpan={6} className="py-6 text-center text-slate-400">
                         No introduction referrals recorded yet.
                       </td>
                     </tr>
@@ -837,6 +913,33 @@ export function AdminInternationalDeskTab() {
                         </td>
                         <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">
                           {intro.investorLeadName}
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="font-bold text-slate-800 dark:text-slate-200">
+                            {intro.contactPerson || 'Partner Lead'}
+                          </div>
+                          <div className="flex flex-col gap-0.5 mt-0.5 text-[11px]">
+                            {intro.whatsAppNumber && (
+                              <a
+                                href={`https://wa.me/${intro.whatsAppNumber.replace(/[^0-9]/g, '')}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-emerald-600 font-bold hover:underline flex items-center gap-1"
+                              >
+                                <MessageCircle className="w-3 h-3" />
+                                {intro.whatsAppNumber}
+                              </a>
+                            )}
+                            {intro.emailAddress && (
+                              <a
+                                href={`mailto:${intro.emailAddress}`}
+                                className="text-blue-600 hover:underline flex items-center gap-1"
+                              >
+                                <Mail className="w-3 h-3" />
+                                {intro.emailAddress}
+                              </a>
+                            )}
+                          </div>
                         </td>
                         <td className="py-3 px-4">
                           {intro.investorCountry} &bull; {intro.investorType}
@@ -969,8 +1072,17 @@ export function AdminInternationalDeskTab() {
       {/* 4. PUBLISHED OPPORTUNITIES SUBTAB */}
       {activeSubTab === 'published' && (
         <div className="space-y-4">
-          <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-            Active International Marketplace Listings ({published.length})
+          <div className="flex items-center justify-between">
+            <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+              Active International Marketplace Listings ({published.length})
+            </div>
+            <button
+              onClick={() => setDealWizardOpen(true)}
+              className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              Post International Deal
+            </button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1527,6 +1639,15 @@ export function AdminInternationalDeskTab() {
           </div>
         </div>
       )}
+
+      {/* Admin International Deal Creation Wizard Modal */}
+      <AdminInternationalDealWizardModal
+        isOpen={dealWizardOpen}
+        onClose={() => setDealWizardOpen(false)}
+        onSuccess={() => {
+          fetchData()
+        }}
+      />
     </div>
   )
 }
