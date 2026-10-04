@@ -54,6 +54,10 @@ export interface UserAccount {
   totalTransactions: number
   balanceTZS: number
   kycStatus: 'NOT_SUBMITTED' | 'UNDER_REVIEW' | 'VERIFIED' | 'REJECTED'
+  image?: string | null
+  faceScanVerified?: boolean
+  onboardingCompleted?: boolean
+  organizationName?: string
 }
 
 export interface BusinessVerificationItem {

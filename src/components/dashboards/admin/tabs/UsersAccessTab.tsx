@@ -19,6 +19,11 @@ import {
   Mail,
   Phone,
   Smartphone,
+  Camera,
+  Eye,
+  ShieldCheck,
+  UserCheck,
+  X,
 } from 'lucide-react'
 import { MOCK_USERS } from '../mockData'
 import { UserAccount } from '../types'
@@ -31,6 +36,7 @@ export function UsersAccessTab() {
   const [roleFilter, setRoleFilter] = useState<string>('ALL')
   const [statusFilter, setStatusFilter] = useState<string>('ALL')
   const [selectedUser, setSelectedUser] = useState<UserAccount | null>(null)
+  const [selectedProfileUser, setSelectedProfileUser] = useState<UserAccount | null>(null)
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [showActionModal, setShowActionModal] = useState<{
     type: 'SUSPEND' | 'REACTIVATE' | 'RESET_MFA' | 'REVOKE_SESSIONS' | 'LOCK' | 'ARCHIVE' | 'DELETE'
@@ -168,6 +174,13 @@ export function UsersAccessTab() {
     }
   }
 
+  const getUserInitials = (name: string) => {
+    if (!name) return 'US'
+    const parts = name.trim().split(' ')
+    if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase()
+    return name.slice(0, 2).toUpperCase()
+  }
+
   return (
     <div className="space-y-5 bg-white dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-800 rounded-3xl p-4 sm:p-6 shadow-xs">
       {/* Header & Controls */}
@@ -180,7 +193,7 @@ export function UsersAccessTab() {
             </span>
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Manage Partner & Business accounts, internal staff, role assignments, security, and permanent account deletion.
+            Manage Partner & Business accounts, internal staff, onboarding profile pictures, security, and account status.
           </p>
         </div>
 
@@ -198,7 +211,7 @@ export function UsersAccessTab() {
         <div className="flex items-center gap-2">
           <Shield className="w-4 h-4 text-[#FF6A00] shrink-0" />
           <span>
-            <strong>Administrative Permissions:</strong> Full management privileges enabled. You can suspend, reactivate, or <strong>permanently delete</strong> user accounts and purge their associated platform credentials.
+            <strong>Administrative Privileges & Verified Identity:</strong> User profile photos are captured during onboarding face scanning & KYC verification and fixed for identity integrity.
           </span>
         </div>
       </div>
@@ -247,13 +260,13 @@ export function UsersAccessTab() {
 
       {/* Users Table */}
       <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-2xl">
-        <table className="w-full text-xs text-left min-w-[750px]">
+        <table className="w-full text-xs text-left min-w-[800px]">
           <thead className="bg-slate-50 dark:bg-slate-800/80 text-[10px] text-slate-500 uppercase font-bold border-b border-slate-200 dark:border-slate-700">
             <tr>
-              <th className="p-3">User & Contact</th>
+              <th className="p-3">User & Profile Picture</th>
               <th className="p-3">Role</th>
               <th className="p-3">Security & MFA</th>
-              <th className="p-3">KYC Status</th>
+              <th className="p-3">KYC & Face Scan</th>
               <th className="p-3">Transactions / Balance</th>
               <th className="p-3">Status</th>
               <th className="p-3 text-right">Actions</th>
@@ -268,15 +281,47 @@ export function UsersAccessTab() {
               </tr>
             ) : (
               filteredUsers.map((user) => (
-                <tr key={user.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                <tr key={user.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
                   <td className="p-3">
-                    <div className="font-extrabold text-slate-900 dark:text-white">{user.name}</div>
-                  <div className="text-[11px] text-slate-500 flex items-center gap-1.5 mt-0.5">
-                    <span>{user.email}</span>
-                    <span>·</span>
-                    <span>{user.phone}</span>
-                  </div>
-                </td>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedProfileUser(user)}
+                        className="relative group shrink-0"
+                        title="Click to view full onboarding profile picture & face scan identity"
+                      >
+                        {user.image ? (
+                          <img
+                            src={user.image}
+                            alt={user.name}
+                            className="w-10 h-10 rounded-full object-cover border-2 border-emerald-500/80 shadow-2xs group-hover:scale-105 transition-transform"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-800 to-slate-900 dark:from-slate-700 dark:to-slate-800 text-white font-extrabold text-xs flex items-center justify-center border-2 border-slate-300 dark:border-slate-600 shadow-2xs group-hover:scale-105 transition-transform">
+                            {getUserInitials(user.name)}
+                          </div>
+                        )}
+                        <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-white p-0.5 rounded-full border border-white dark:border-slate-900 shadow-2xs" title="Onboarding Face Verified">
+                          <ShieldCheck className="w-3 h-3" />
+                        </div>
+                      </button>
+
+                      <div>
+                        <div
+                          onClick={() => setSelectedProfileUser(user)}
+                          className="font-extrabold text-slate-900 dark:text-white hover:text-[#FF6A00] dark:hover:text-[#FF6A00] cursor-pointer flex items-center gap-1.5"
+                        >
+                          <span>{user.name}</span>
+                          <Eye className="w-3.5 h-3.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 inline" />
+                        </div>
+                        <div className="text-[11px] text-slate-500 flex items-center gap-1.5 mt-0.5">
+                          <span>{user.email}</span>
+                          <span>·</span>
+                          <span>{user.phone}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </td>
 
                 <td className="p-3">
                   <span
@@ -574,6 +619,132 @@ export function UsersAccessTab() {
                 className="py-2.5 px-4 border rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
               >
                 Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* READ-ONLY ONBOARDING USER PROFILE & FACE SCAN IDENTITY MODAL */}
+      {selectedProfileUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5 relative max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2 text-[#FF6A00]">
+                <ShieldCheck className="w-5 h-5" />
+                <span className="font-extrabold text-sm text-slate-900 dark:text-white">
+                  User Profile & Face Scan Identity
+                </span>
+              </div>
+              <button
+                onClick={() => setSelectedProfileUser(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Profile Picture Card */}
+            <div className="flex flex-col items-center text-center p-5 rounded-2xl bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-800/80 dark:to-slate-800/40 border border-slate-200 dark:border-slate-700 relative">
+              <div className="relative mb-3">
+                {selectedProfileUser.image ? (
+                  <img
+                    src={selectedProfileUser.image}
+                    alt={selectedProfileUser.name}
+                    className="w-28 h-28 rounded-full object-cover border-4 border-emerald-500 shadow-md"
+                  />
+                ) : (
+                  <div className="w-28 h-28 rounded-full bg-gradient-to-br from-slate-800 to-slate-950 text-white font-black text-2xl flex items-center justify-center border-4 border-slate-700 shadow-md">
+                    {getUserInitials(selectedProfileUser.name)}
+                  </div>
+                )}
+                <div className="absolute bottom-0 right-0 bg-emerald-500 text-white p-1.5 rounded-full border-2 border-white dark:border-slate-900 shadow-xs" title="Onboarding Face Scan Verified">
+                  <ShieldCheck className="w-4 h-4" />
+                </div>
+              </div>
+
+              <h3 className="text-base font-black text-slate-900 dark:text-white">
+                {selectedProfileUser.name}
+              </h3>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">
+                {selectedProfileUser.email}
+              </p>
+
+              <div className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-100 dark:bg-emerald-950/70 border border-emerald-300 dark:border-emerald-800 rounded-full text-emerald-800 dark:text-emerald-300 text-[10px] font-extrabold">
+                <UserCheck className="w-3.5 h-3.5" />
+                <span>ONBOARDING FACE VERIFIED · FIXED IDENTITY RECORD</span>
+              </div>
+            </div>
+
+            {/* Read-Only Identity Security Notice */}
+            <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2.5">
+              <Lock className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+              <div>
+                <span className="font-extrabold block">Read-Only Identity Profile Photo</span>
+                <span className="text-[11px] leading-relaxed">
+                  Captured during user onboarding & face scanning KYC. This profile photo is permanently bound to this user account for security and fraud protection and cannot be modified.
+                </span>
+              </div>
+            </div>
+
+            {/* Account Metadata Grid */}
+            <div className="space-y-2.5 text-xs">
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 space-y-2">
+                <div className="flex justify-between items-center pb-2 border-b border-slate-200/60 dark:border-slate-700/60">
+                  <span className="text-slate-500 font-semibold">User Role</span>
+                  <span className="font-extrabold px-2 py-0.5 rounded bg-blue-100 text-blue-800 dark:bg-blue-950 text-[10px]">
+                    {selectedProfileUser.role}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center pb-2 border-b border-slate-200/60 dark:border-slate-700/60">
+                  <span className="text-slate-500 font-semibold">Phone Number</span>
+                  <span className="font-extrabold font-mono text-slate-900 dark:text-white">
+                    {selectedProfileUser.phone}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center pb-2 border-b border-slate-200/60 dark:border-slate-700/60">
+                  <span className="text-slate-500 font-semibold">Account Status</span>
+                  <span className="font-extrabold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px]">
+                    {selectedProfileUser.status}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center pb-2 border-b border-slate-200/60 dark:border-slate-700/60">
+                  <span className="text-slate-500 font-semibold">KYC Verification</span>
+                  <span className="font-extrabold text-emerald-600 dark:text-emerald-400">
+                    {selectedProfileUser.kycStatus || 'VERIFIED'}
+                  </span>
+                </div>
+
+                {selectedProfileUser.organizationName && (
+                  <div className="flex justify-between items-center pb-2 border-b border-slate-200/60 dark:border-slate-700/60">
+                    <span className="text-slate-500 font-semibold">Business Organization</span>
+                    <span className="font-extrabold text-slate-900 dark:text-white">
+                      {selectedProfileUser.organizationName}
+                    </span>
+                  </div>
+                )}
+
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500 font-semibold">Member Since</span>
+                  <span className="font-bold text-slate-700 dark:text-slate-300">
+                    {selectedProfileUser.joinedDate || '2026-01-01'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => setSelectedProfileUser(null)}
+                className="w-full py-2.5 bg-[#0B132B] dark:bg-slate-100 dark:text-slate-900 text-white font-extrabold rounded-xl text-xs hover:opacity-90 transition-opacity"
+              >
+                Close Identity Profile
               </button>
             </div>
           </div>

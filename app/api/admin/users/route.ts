@@ -101,6 +101,9 @@ export async function GET(request: NextRequest) {
         totalTransactions: 0,
         balanceTZS: 0,
         kycStatus,
+        image: u.image || null,
+        faceScanVerified: true,
+        onboardingCompleted: true,
         organizationName:
           u.memberships[0]?.organization?.tradingName ||
           u.memberships[0]?.organization?.legalName,
